@@ -77,6 +77,24 @@ export async function updateRuleDose(ruleId: number, doseAmount: string, doseUni
   );
 }
 
+export async function updateRuleTolerance(ruleId: number, toleranceMinutes: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE schedule_rules SET tolerance_window = ? WHERE id = ?',
+    [toleranceMinutes, ruleId]
+  );
+}
+
+export async function getScheduleRulesWithNames(): Promise<{ id: number; supplement_name: string; tolerance_window: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ id: number; supplement_name: string; tolerance_window: number }>(
+    `SELECT sr.id, s.name as supplement_name, sr.tolerance_window
+     FROM schedule_rules sr
+     JOIN supplements s ON sr.supplement_id = s.id
+     ORDER BY sr.display_order`
+  );
+}
+
 // ── Dose Logs ─────────────────────────────────────────────────────────────────
 
 export async function createDoseLogs(
@@ -285,3 +303,29 @@ export async function getRecentJournalEntries(limit: number): Promise<JournalEnt
     [limit]
   );
 }
+
+// ── Doctor Profile ────────────────────────────────────────────────────────
+export interface DoctorProfile {
+  id: number;
+  name: string | null;
+  clinic: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+export async function getDoctor(): Promise<DoctorProfile | null> {
+  const db = await getDb();
+  return db.getFirstAsync<DoctorProfile>('SELECT * FROM doctor_profile WHERE id = 1');
+}
+
+export async function updateDoctor(data: { name: string; clinic: string; email: string; phone: string }): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO doctor_profile (id, name, clinic, email, phone) VALUES (1, ?, ?, ?, ?) ' +
+    'ON CONFLICT(id) DO UPDATE SET name = excluded.name, clinic = excluded.clinic, ' +
+    'email = excluded.email, phone = excluded.phone',
+    [data.name, data.clinic, data.email, data.phone]
+  );
+}
+
+
