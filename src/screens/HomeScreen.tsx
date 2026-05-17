@@ -45,14 +45,16 @@ function relativeTimeLabel(dose: ScheduledDose): string {
 interface ProgressHeaderProps {
   t0: Date | null;
   doses: ScheduledDose[];
+  patientName?: string;
 }
 
-function ProgressHeader({ t0, doses }: ProgressHeaderProps) {
+function ProgressHeader({ t0, doses, patientName }: ProgressHeaderProps) {
   const total  = doses.length;
   const taken  = doses.filter(d => d.status === 'taken').length;
   const pct    = total > 0 ? taken / total : 0;
   const today  = formatDate(new Date());
   const startedStr = t0 ? `Started ${formatTime12(t0)}` : null;
+  const allDone = total > 0 && taken === total;
 
   return (
     <View style={headerStyles.card}>
@@ -74,7 +76,14 @@ function ProgressHeader({ t0, doses }: ProgressHeaderProps) {
       </View>
 
       {/* Summary */}
-      {total > 0 ? (
+      {allDone ? (
+        <View style={headerStyles.celebrationRow}>
+          <Text style={headerStyles.celebrationIcon}>✓</Text>
+          <Text style={headerStyles.celebrationText}>
+            All doses done, {patientName ? patientName.split(' ')[0] : ''}!{'  '}Well done.
+          </Text>
+        </View>
+      ) : total > 0 ? (
         <View style={headerStyles.summaryRow}>
           <Text style={headerStyles.summaryCount}>{taken}</Text>
           <Text style={headerStyles.summaryOf}> of {total} doses</Text>
@@ -146,6 +155,22 @@ const headerStyles = StyleSheet.create({
   summaryLabel: {
     color: '#888888',
     fontSize: 15,
+  },
+  celebrationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  celebrationIcon: {
+    color: '#22c55e',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  celebrationText: {
+    color: '#22c55e',
+    fontSize: 15,
+    fontWeight: '600',
+    flexShrink: 1,
   },
   readyText: {
     color: '#888888',
@@ -395,7 +420,7 @@ export default function HomeScreen() {
         }
       >
         {/* Part 1: Dashboard progress header */}
-        <ProgressHeader t0={t0} doses={doses} />
+        <ProgressHeader t0={t0} doses={doses} patientName={patientName} />
 
         {/* Part 3: Next dose spotlight */}
         <NextDoseCard doses={doses} onPress={setSelectedDose} />

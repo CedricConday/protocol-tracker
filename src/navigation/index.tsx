@@ -11,6 +11,7 @@ import HomeScreen from '../screens/HomeScreen';
 import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import RelapseScreen from '../screens/RelapseScreen';
+import ReportScreen from '../screens/ReportScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -89,6 +90,14 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'Events',
           tabBarIcon: ({ color, size }) => <Ionicons name="alert-circle" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Report"
+        component={ReportScreen}
+        options={{
+          tabBarLabel: 'Report',
+          tabBarIcon: ({ color, size }) => <Ionicons name="document-text" size={size} color={color} />,
         }}
       />
       <Tab.Screen
