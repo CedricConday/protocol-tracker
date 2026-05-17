@@ -19,23 +19,23 @@ const SUPPLEMENTS = [
 // Patient customizes doses at onboarding; these are structural defaults
 const SCHEDULE_RULES = [
   // T+0: Core fat-soluble cluster with first meal
-  { supplement_id: 'vit_d3', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '—', dose_unit: 'IU', display_order: 1 },
-  { supplement_id: 'vit_k2', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '—', dose_unit: 'mcg', display_order: 2 },
-  { supplement_id: 'omega3', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '—', dose_unit: 'g', display_order: 3 },
-  { supplement_id: 'mag_citrate', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '—', dose_unit: 'mg', display_order: 4 },
-  { supplement_id: 'vit_b2', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '—', dose_unit: 'mg', display_order: 5 },
+  { supplement_id: 'vit_d3', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '40000', dose_unit: 'IU', display_order: 1 },
+  { supplement_id: 'vit_k2', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '200', dose_unit: 'mcg', display_order: 2 },
+  { supplement_id: 'omega3', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '2', dose_unit: 'g', display_order: 3 },
+  { supplement_id: 'mag_citrate', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '400', dose_unit: 'mg', display_order: 4 },
+  { supplement_id: 'vit_b2', offset_minutes: 0, tolerance_window: 30, with_food: true, dose_amount: '15', dose_unit: 'mg', display_order: 5 },
 
   // T+2h: Zinc alone (away from magnesium)
-  { supplement_id: 'zinc', offset_minutes: 120, tolerance_window: 30, with_food: false, dose_amount: '—', dose_unit: 'mg', display_order: 6 },
+  { supplement_id: 'zinc', offset_minutes: 120, tolerance_window: 30, with_food: false, dose_amount: '40', dose_unit: 'mg', display_order: 6 },
 
   // T+3h: Selenium (away from zinc)
-  { supplement_id: 'selenium', offset_minutes: 180, tolerance_window: 30, with_food: false, dose_amount: '—', dose_unit: 'mcg', display_order: 7 },
+  { supplement_id: 'selenium', offset_minutes: 180, tolerance_window: 30, with_food: false, dose_amount: '200', dose_unit: 'mcg', display_order: 7 },
 
   // T+4h: Nicotinamide
-  { supplement_id: 'nicotinamide', offset_minutes: 240, tolerance_window: 60, with_food: false, dose_amount: '—', dose_unit: 'mg', display_order: 8 },
+  { supplement_id: 'nicotinamide', offset_minutes: 240, tolerance_window: 60, with_food: false, dose_amount: '500', dose_unit: 'mg', display_order: 8 },
 
   // T+6h: Evening magnesium glycinate with dinner
-  { supplement_id: 'mag_glycinate', offset_minutes: 360, tolerance_window: 60, with_food: true, dose_amount: '—', dose_unit: 'mg', display_order: 9 },
+  { supplement_id: 'mag_glycinate', offset_minutes: 360, tolerance_window: 60, with_food: true, dose_amount: '400', dose_unit: 'mg', display_order: 9 },
 
   // T+6h: Boron with dinner
   { supplement_id: 'boron', offset_minutes: 360, tolerance_window: 60, with_food: true, dose_amount: '—', dose_unit: 'mg', display_order: 10 },
