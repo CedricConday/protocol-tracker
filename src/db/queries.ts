@@ -100,11 +100,11 @@ export async function createDoseLogs(
   });
 }
 
-export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog & { supplement_name: string; supplement_form: string; dose_amount: string; with_food: number; tolerance_window: number })[]> {
+export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog & { supplement_name: string; supplement_form: string; supplement_notes: string; dose_amount: string; with_food: number; tolerance_window: number })[]> {
   const db = await getDb();
   return db.getAllAsync(
     `SELECT dl.*, s.name as supplement_name, s.form as supplement_form,
-            sr.dose_amount, sr.with_food, sr.tolerance_window
+            s.notes as supplement_notes, sr.dose_amount, sr.with_food, sr.tolerance_window
      FROM dose_logs dl
      JOIN supplements s ON dl.supplement_id = s.id
      JOIN schedule_rules sr ON dl.rule_id = sr.id

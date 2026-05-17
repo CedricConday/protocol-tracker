@@ -82,6 +82,12 @@ export default function DoseDetailModal({
             </View>
           )}
 
+          {dose.notes ? (
+            <View style={styles.notesStyle}>
+              <Text style={styles.notesTextStyle}>{dose.notes}</Text>
+            </View>
+          ) : null}
+
           {dose.logId != null && dose.status === 'upcoming' || dose.status === 'due' ? (
             <View style={styles.actions}>
               <TouchableOpacity
@@ -168,6 +174,18 @@ const styles = StyleSheet.create({
     color: '#eab308',
     fontSize: 13,
     fontWeight: '600',
+  },
+  notesStyle: {
+    backgroundColor: '#111111',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 12,
+  },
+  notesTextStyle: {
+    color: '#888888',
+    fontSize: 13,
+    lineHeight: 18,
   },
   actions: {
     flexDirection: 'row',

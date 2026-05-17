@@ -1,4 +1,5 @@
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
+import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
 
 /**
@@ -21,6 +22,11 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   }));
 
   await createDoseLogs(dosesToCreate, dateStr);
+
+  // Fire-and-forget — don't block the schedule return on notification errors
+  scheduleExerciseReminder(t0).catch(() => {});
+  scheduleEndOfDaySummary(t0).catch(() => {});
+  scheduleMorningReminder().catch(() => {});
 
   return buildScheduledDoses(rules, t0Ms);
 }
@@ -61,9 +67,23 @@ export async function getTodaySchedule(): Promise<ScheduledDose[]> {
       toleranceMinutes: log.tolerance_window,
       doseAmount: log.dose_amount,
       withFood: log.with_food === 1,
+      notes: log.supplement_notes ?? '',
       logId: log.id,
     };
   });
+}
+
+/**
+ * Returns the latest T=0 that fits the full schedule before the user's bedtime.
+ * Returns null if profile not set.
+ */
+export async function getLatestStartTime(): Promise<Date | null> {
+  const { getProfile, getScheduleRules } = await import('../db/queries');
+  const profile = await getProfile();
+  if (!profile) return null;
+  const rules = await getScheduleRules();
+  const lastOffset = rules.reduce((max, r) => Math.max(max, r.offset_minutes), 0);
+  return calculateBedtimeCutoff(profile.bedtime_hour, profile.bedtime_minute, lastOffset);
 }
 
 /**
@@ -126,6 +146,7 @@ function buildScheduledDoses(
       toleranceMinutes: rule.tolerance_window,
       doseAmount: rule.dose_amount,
       withFood: Boolean(rule.with_food),
+      notes: '',
     };
   });
 }

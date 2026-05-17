@@ -8,6 +8,7 @@ import HomeScreen from '../screens/HomeScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -56,6 +57,11 @@ function TabNavigator() {
         name="Guide"
         component={GuideScreen}
         options={{ tabBarLabel: 'Guide' }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ tabBarLabel: 'Settings' }}
       />
     </Tab.Navigator>
   );

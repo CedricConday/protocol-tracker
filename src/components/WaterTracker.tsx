@@ -1,4 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const GOAL_ML = 2500;
 
@@ -8,8 +9,13 @@ interface Props {
 }
 
 export default function WaterTracker({ waterMl, onAdd }: Props) {
-  const pct = Math.min((waterMl / GOAL_ML) * 100, 100);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const ratio = Math.min(waterMl / GOAL_ML, 1);
   const goalReached = waterMl >= GOAL_ML;
+
+  const handleLayout = (e: LayoutChangeEvent) => {
+    setContainerWidth(e.nativeEvent.layout.width);
+  };
 
   return (
     <View style={styles.container}>
@@ -20,14 +26,14 @@ export default function WaterTracker({ waterMl, onAdd }: Props) {
         </Text>
       </View>
 
-      <View style={styles.barBg}>
+      <View style={styles.barBg} onLayout={handleLayout}>
         <View
-          style={[styles.barFill, { width: `${pct}%` as unknown as number }]}
+          style={[styles.barFill, { width: containerWidth * ratio }]}
         />
       </View>
 
       {goalReached ? (
-        <Text style={styles.goalText}>Goal reached!</Text>
+        <Text style={styles.goalText}>Goal reached ✓</Text>
       ) : (
         <TouchableOpacity style={styles.button} onPress={onAdd}>
           <Text style={styles.buttonText}>+250 ml</Text>
@@ -56,22 +62,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   amount: {
-    color: '#22c55e',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
   },
   barBg: {
     width: '100%',
-    height: 8,
-    backgroundColor: '#333333',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 12,
   },
   barFill: {
     height: '100%',
     backgroundColor: '#22c55e',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   goalText: {
     color: '#22c55e',
@@ -81,7 +87,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: '#22c55e',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
   },

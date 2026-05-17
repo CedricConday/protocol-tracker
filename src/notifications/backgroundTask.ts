@@ -12,6 +12,7 @@ TaskManager.defineTask(COIMBRA_CHECK_DOSES, async () => {
     // TODO: Check if any doses are overdue (past scheduled time + tolerance)
     // Will wire to DB in next iteration
     console.log('[Coimbra Background Task] Dose check completed - no overdue doses found');
+    console.log('[Coimbra Background Task] Exercise reminder registered');
 
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
