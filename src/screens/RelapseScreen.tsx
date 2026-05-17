@@ -103,10 +103,23 @@ export default function RelapseScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
       }
     >
       <Text style={styles.heading}>Log Event</Text>
+
+      <Text style={styles.sectionTitle}>Date</Text>
+      <View style={styles.sectionCard}>
+        <TextInput
+          style={styles.input}
+          value={eventDate}
+          onChangeText={setEventDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor="#555555"
+          autoCapitalize="none"
+        />
+        <Text style={styles.datePreview}>{formatDate(eventDate)}</Text>
+      </View>
 
       <Text style={styles.sectionTitle}>Type</Text>
       <View style={styles.typeRow}>
@@ -128,7 +141,7 @@ export default function RelapseScreen() {
               <Text
                 style={[
                   styles.typeButtonText,
-                  { color: selected ? '#0d0d0d' : color },
+                  { color: selected ? '#FAF7F4' : color },
                 ]}
               >
                 {typeLabels[t]}
@@ -160,19 +173,6 @@ export default function RelapseScreen() {
           </View>
         </>
       ) : null}
-
-      <Text style={styles.sectionTitle}>Date</Text>
-      <View style={styles.sectionCard}>
-        <TextInput
-          style={styles.input}
-          value={eventDate}
-          onChangeText={setEventDate}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#555555"
-          autoCapitalize="none"
-        />
-        <Text style={styles.datePreview}>{formatDate(eventDate)}</Text>
-      </View>
 
       {eventType === 'cortisone' ? (
         <>
@@ -321,7 +321,7 @@ export default function RelapseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#FAF7F4',
   },
   content: {
     paddingTop: 60,
@@ -329,13 +329,13 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   heading: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,
@@ -344,13 +344,15 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   required: {
-    color: '#ef4444',
+    color: '#C04040',
   },
   sectionCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#D8CFC8',
   },
   typeRow: {
     flexDirection: 'row',
@@ -372,10 +374,10 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     paddingHorizontal: 0,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
+    borderBottomColor: '#D8CFC8',
     marginBottom: 2,
   },
   inputLast: {
@@ -387,7 +389,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   datePreview: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     marginBottom: 8,
   },
@@ -409,7 +411,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C96A50',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -420,21 +422,23 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   logButtonText: {
-    color: '#0d0d0d',
+    color: '#FAF7F4',
     fontSize: 16,
     fontWeight: '700',
   },
   emptyText: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
   },
   eventCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#D8CFC8',
   },
   eventTop: {
     flexDirection: 'row',
@@ -452,7 +456,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   eventDateText: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
@@ -467,7 +471,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   eventNotes: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     fontStyle: 'italic',
     marginTop: 8,
@@ -478,36 +482,36 @@ const styles = StyleSheet.create({
   },
   painSubtypeButton: {
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: '#D8CFC8',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
   },
   painSubtypeSelected: {
-    borderColor: '#a855f7',
-    backgroundColor: '#a855f720',
+    borderColor: '#9B7FC0',
+    backgroundColor: '#F0EBF7',
   },
   painSubtypeText: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     fontWeight: '500',
   },
   painSubtypeTextSelected: {
-    color: '#a855f7',
+    color: '#7B56A8',
     fontWeight: '700',
   },
   painTypeTag: {
-    color: '#a855f7',
+    color: '#7B56A8',
     fontSize: 12,
     marginTop: 6,
     fontStyle: 'italic',
   },
   yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#2a2a2a', paddingVertical: 10, alignItems: 'center' },
-  yesNoBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
-  yesNoBtnText: { color: '#555555', fontSize: 13, fontWeight: '600' },
-  yesNoBtnTextActive: { color: '#22c55e' },
-  feverWarning: { backgroundColor: '#1a0a00', borderRadius: 10, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
-  feverWarningText: { color: '#eab308', fontSize: 12, lineHeight: 18 },
+  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 10, alignItems: 'center' },
+  yesNoBtnActive: { borderColor: '#5A8A5A', backgroundColor: '#EFF7EF' },
+  yesNoBtnText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
+  yesNoBtnTextActive: { color: '#5A8A5A' },
+  feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 10, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
+  feverWarningText: { color: '#C4882A', fontSize: 12, lineHeight: 18 },
 });

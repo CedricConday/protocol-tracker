@@ -126,7 +126,7 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d0d' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 48 },
-  heading: { color: '#ffffff', fontSize: 22, fontWeight: '700', marginBottom: 6 },
+  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
   subtitle: { color: '#888888', fontSize: 13, marginBottom: 24, lineHeight: 18 },
   questionCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 12 },
   questionNumber: { color: '#22c55e', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },

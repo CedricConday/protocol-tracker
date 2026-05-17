@@ -120,7 +120,7 @@ export default function ScannerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d0d' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  heading: { color: '#ffffff', fontSize: 22, fontWeight: '700', marginBottom: 6 },
+  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
   subtitle: { color: '#888888', fontSize: 13, marginBottom: 20, lineHeight: 18 },
   input: { backgroundColor: '#1a1a1a', color: '#ffffff', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 15, lineHeight: 22, textAlignVertical: 'top', marginBottom: 16 },
   button: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 24 },

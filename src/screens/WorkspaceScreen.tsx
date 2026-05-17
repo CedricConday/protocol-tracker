@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d0d' },
   centered: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12 },
-  title: { color: '#ffffff', fontSize: 22, fontWeight: '700' },
+  title: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
   providerChip: { backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   providerText: { color: '#22c55e', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   contextCard: { backgroundColor: '#1a1a1a', borderRadius: 8, padding: 10, marginHorizontal: 20, marginBottom: 8 },

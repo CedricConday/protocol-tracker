@@ -17,6 +17,8 @@ interface Props {
 
 export default function DoseRow({ dose, onPress, isSimple }: Props) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const confirmScale = useRef(new Animated.Value(1)).current;
+  const prevStatus = useRef(dose.status);
 
   useEffect(() => {
     if (dose.status === 'due') {
@@ -33,6 +35,16 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
       return undefined;
     }
   }, [dose.status, pulseAnim]);
+
+  useEffect(() => {
+    if (prevStatus.current !== 'taken' && dose.status === 'taken') {
+      Animated.sequence([
+        Animated.spring(confirmScale, { toValue: 1.06, useNativeDriver: true, friction: 8 }),
+        Animated.spring(confirmScale, { toValue: 1, useNativeDriver: true, friction: 6 }),
+      ]).start();
+    }
+    prevStatus.current = dose.status;
+  }, [dose.status, confirmScale]);
 
   const hour   = dose.scheduledTime.getHours();
   const minute = dose.scheduledTime.getMinutes();
@@ -62,7 +74,7 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
   const borderColor = statusBorderColors[dose.status] ?? '#3b82f6';
 
   const inner = (
-    <View style={[styles.card, { backgroundColor: cardBg }, isSimple && { paddingVertical: 22 }]}>
+    <Animated.View style={[styles.card, { backgroundColor: cardBg }, isSimple && { paddingVertical: 22 }, { transform: [{ scale: confirmScale }] }]}>
       {/* Animated left accent border */}
       <Animated.View
         style={[styles.accentBorder, { backgroundColor: borderColor, opacity: pulseAnim }]}
@@ -95,7 +107,7 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
       <View style={styles.rightCol}>
         {rightEl}
       </View>
-    </View>
+    </Animated.View>
   );
 
   if (onPress) {

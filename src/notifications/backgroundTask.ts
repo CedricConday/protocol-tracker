@@ -74,6 +74,7 @@ export const registerBackgroundTask = async (): Promise<void> => {
       console.log('[Coimbra] Background task registered successfully');
     }
   } catch (error) {
-    console.error('[Coimbra Background Task] Registration error:', error);
+    // Background fetch requires UIBackgroundModes in Info.plist — not available in Expo Go
+    console.warn('[Coimbra Background Task] Registration skipped (Expo Go):', error);
   }
 };

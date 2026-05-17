@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
+import { AppResetProvider } from '../context/AppResetContext';
 import AboutScreen from '../screens/AboutScreen';
 import AwarenessScreen from '../screens/AwarenessScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import CareSurveyScreen from '../screens/CareSurveyScreen';
 import CaregiverScreen from '../screens/CaregiverScreen';
 import DrugCheckerScreen from '../screens/DrugCheckerScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LabResultsScreen from '../screens/LabResultsScreen';
@@ -28,7 +30,6 @@ import SettingsScreen from '../screens/SettingsScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import TerminalLinkScreen from '../screens/TerminalLinkScreen';
 import WorkspaceScreen from '../screens/WorkspaceScreen';
-import FeedbackScreen from '../screens/FeedbackScreen';
 
 const Tab = createBottomTabNavigator();
 const HomeNav = createNativeStackNavigator();
@@ -45,6 +46,7 @@ const SUB_HEADER = {
   headerBackTitleVisible: false,
 } as const;
 
+// ─── Home Tab ──────────────────────────────────────────────────────────────
 function HomeNavigator() {
   return (
     <HomeNav.Navigator screenOptions={{ headerShown: false }}>
@@ -63,6 +65,7 @@ function HomeNavigator() {
   );
 }
 
+// ─── Schedule Tab ──────────────────────────────────────────────────────────
 function ScheduleNavigator() {
   return (
     <ScheduleNav.Navigator screenOptions={{ headerShown: false }}>
@@ -70,12 +73,19 @@ function ScheduleNavigator() {
       <ScheduleNav.Screen
         name="Scanner"
         component={ScannerScreen}
-        options={{ ...SUB_HEADER, title: 'Ingredient Scanner', presentation: 'modal', animation: 'slide_from_bottom' }}
+        options={{
+          ...SUB_HEADER,
+          title: 'Ingredient Scanner',
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
       />
     </ScheduleNav.Navigator>
   );
 }
 
+// ─── Journal Tab ───────────────────────────────────────────────────────────
+// Absorbs: JournalScreen, RelapseScreen (bottom sheet), CareSurveyScreen (prompted)
 function JournalNavigator() {
   return (
     <JournalNav.Navigator screenOptions={{ headerShown: false }}>
@@ -83,12 +93,30 @@ function JournalNavigator() {
       <JournalNav.Screen
         name="Relapse"
         component={RelapseScreen}
-        options={{ ...SUB_HEADER, title: 'Events', animation: 'slide_from_right' }}
+        options={{
+          ...SUB_HEADER,
+          title: 'Events',
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
       />
+      <JournalNav.Screen
+        name="CareSurvey"
+        options={{
+          ...SUB_HEADER,
+          title: 'Care Survey',
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      >
+        {({ navigation }) => <CareSurveyScreen onClose={() => navigation.goBack()} />}
+      </JournalNav.Screen>
     </JournalNav.Navigator>
   );
 }
 
+// ─── Summary Tab ───────────────────────────────────────────────────────────
+// Absorbs: SummaryScreen, ReportScreen (action button), WorkspaceScreen (AI panel)
 function SummaryNavigator() {
   return (
     <SummaryNav.Navigator screenOptions={{ headerShown: false }}>
@@ -108,10 +136,16 @@ function SummaryNavigator() {
         component={LabResultsScreen}
         options={{ ...SUB_HEADER, title: 'Lab Results', animation: 'slide_from_right' }}
       />
+      <SummaryNav.Screen
+        name="Workspace"
+        component={WorkspaceScreen}
+        options={{ ...SUB_HEADER, title: 'AI Workspace', animation: 'slide_from_right' }}
+      />
     </SummaryNav.Navigator>
   );
 }
 
+// ─── Settings Tab ──────────────────────────────────────────────────────────
 function SettingsNavigator() {
   return (
     <SettingsNav.Navigator screenOptions={{ headerShown: false }}>
@@ -137,21 +171,10 @@ function SettingsNavigator() {
         options={{ ...SUB_HEADER, title: 'Protocol Guide', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
-        name="Workspace"
-        component={WorkspaceScreen}
-        options={{ ...SUB_HEADER, title: 'AI Workspace', animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
         name="Caregiver"
         component={CaregiverScreen}
         options={{ ...SUB_HEADER, title: 'Caregiver View', animation: 'slide_from_right' }}
       />
-      <SettingsNav.Screen
-        name="CareSurvey"
-        options={{ ...SUB_HEADER, title: 'Care Survey', animation: 'slide_from_right' }}
-      >
-        {({ navigation }) => <CareSurveyScreen onClose={() => navigation.goBack()} />}
-      </SettingsNav.Screen>
       <SettingsNav.Screen
         name="TerminalLink"
         component={TerminalLinkScreen}
@@ -178,6 +201,7 @@ function SettingsNavigator() {
   );
 }
 
+// ─── Tab Bar ───────────────────────────────────────────────────────────────
 function TabNavigator() {
   return (
     <Tab.Navigator
@@ -243,7 +267,9 @@ function TabNavigator() {
         component={SettingsNavigator}
         options={{
           tabBarLabel: 'Settings',
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings-sharp" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-sharp" size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>
@@ -259,17 +285,17 @@ export default function Navigation() {
     });
   }, []);
 
-  if (hasProfile === null) {
-    return null;
-  }
+  if (hasProfile === null) return null;
 
   if (!hasProfile) {
     return <OnboardingScreen onComplete={() => setHasProfile(true)} />;
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <TabNavigator />
-    </NavigationContainer>
+    <AppResetProvider value={() => setHasProfile(false)}>
+      <NavigationContainer ref={navigationRef}>
+        <TabNavigator />
+      </NavigationContainer>
+    </AppResetProvider>
   );
 }

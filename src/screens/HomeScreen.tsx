@@ -1,8 +1,9 @@
 import { Alert } from 'react-native';
+import * as Sharing from 'expo-sharing';
 import { getSupplementsLowStock } from '../db/queries';
 import { useSimpleMode } from '../context/SimpleModeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as StoreReview from 'expo-store-review';
 import {
@@ -65,6 +66,15 @@ function ProgressHeader({ t0, doses, patientName, firstMealTime, isSimple }: Pro
   const today  = formatDate(new Date());
   const startedStr = t0 ? `Started ${formatTime12(t0)}` : null;
   const allDone = total > 0 && taken === total;
+  const fillAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: pct,
+      duration: 600,
+      useNativeDriver: false,
+    }).start();
+  }, [pct, fillAnim]);
 
   if (isSimple) {
     return (
@@ -100,9 +110,14 @@ function ProgressHeader({ t0, doses, patientName, firstMealTime, isSimple }: Pro
         <Text style={headerStyles.tick}>{total}</Text>
       </View>
 
-      {/* Progress bar */}
+      {/* Progress bar — animated fill */}
       <View style={headerStyles.trackOuter}>
-        <View style={[headerStyles.trackFill, { width: `${Math.round(pct * 100)}%` as `${number}%` }]} />
+        <Animated.View
+          style={[
+            headerStyles.trackFill,
+            { width: fillAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
+          ]}
+        />
       </View>
 
       {/* Summary */}
@@ -335,6 +350,7 @@ export default function HomeScreen() {
   const [showD3MealHint, setShowD3MealHint] = useState(false);
   const [showEngagementNudge, setShowEngagementNudge] = useState(false);
   const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
+  const [reportReadyUri, setReportReadyUri] = useState<string | null>(null);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -393,6 +409,9 @@ export default function HomeScreen() {
   useEffect(() => {
     checkAndGenerateWeeklyReport().catch(() => {});
     clearAppBadge().catch(() => {});
+    AsyncStorage.getItem('auto_report_ready_uri').then((uri) => {
+      if (uri) setReportReadyUri(uri);
+    });
   }, []);
 
   // Task 18: Simple Mode consent banner
@@ -570,13 +589,15 @@ export default function HomeScreen() {
   };
 
   const renderHeader = () => (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: isSimple ? 16 : 12 }}>
-      <Text style={styles.greeting}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: isSimple ? 16 : 12 }}>
+      <Text style={[styles.greeting, { flex: 1, textAlign: isSimple ? 'center' : 'left' }]}>
         {patientName ? `Hello, ${patientName.split(' ')[0]}` : 'Coimbra Protocol'}
       </Text>
-      <TouchableOpacity onPress={toggleSimple} style={{ padding: 8 }}>
-        <MaterialCommunityIcons name={isSimple ? 'circle-half-full' : 'circle-slice-8'} size={24} color="#22c55e" />
-      </TouchableOpacity>
+      {!isSimple && (
+        <TouchableOpacity onPress={toggleSimple} style={{ padding: 8 }}>
+          <MaterialCommunityIcons name="circle-slice-8" size={24} color="#C96A50" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -656,6 +677,23 @@ export default function HomeScreen() {
       >
         {renderHeader()}
 
+        {reportReadyUri ? (
+          <TouchableOpacity
+            style={styles.reportReadyBanner}
+            onPress={async () => {
+              await Sharing.shareAsync(reportReadyUri, { mimeType: 'application/pdf', dialogTitle: 'Weekly Protocol Report' });
+              await AsyncStorage.removeItem('auto_report_ready_uri');
+              setReportReadyUri(null);
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.reportReadyText}>📄 Weekly report ready — tap to share</Text>
+            <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.reportReadyDismiss}>✕</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        ) : null}
+
         {showFatigueAlert ? (
           <View style={styles.fatigueBanner}>
             <Text style={styles.fatigueBannerText}>⚠ Fatigue pattern detected. Consider contacting your prescriber or resting today.</Text>
@@ -679,7 +717,7 @@ export default function HomeScreen() {
         ))}
 
         {showSurveyPrompt ? (
-          <TouchableOpacity style={styles.surveyPrompt} onPress={() => { setShowSurveyPrompt(false); navigation.navigate('Settings'); }} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.surveyPrompt} onPress={() => { setShowSurveyPrompt(false); navigation.navigate('Journal', { screen: 'CareSurvey' }); }} activeOpacity={0.85}>
             <Text style={styles.surveyPromptText}>Quarterly check-in: How coordinated is your MS care? · Tap to take survey</Text>
             <TouchableOpacity onPress={() => setShowSurveyPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.surveyPromptDismiss}>✕</Text>
@@ -730,7 +768,13 @@ export default function HomeScreen() {
 
         {!isSimple && <NextDoseCard doses={doses} onPress={setSelectedDose} />}
 
-        {doses.map((dose) => (
+        {doses.length === 0 ? (
+          <View style={styles.emptyDoses}>
+            <Text style={styles.emptyDosesIcon}>💊</Text>
+            <Text style={styles.emptyDosesTitle}>No supplements scheduled</Text>
+            <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your Coimbra supplements.</Text>
+          </View>
+        ) : doses.map((dose) => (
           <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} isSimple={isSimple} />
         ))}
 
@@ -1040,6 +1084,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
+  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0d1a2a', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#3b82f6' },
+  reportReadyText: { color: '#3b82f6', fontSize: 13, fontWeight: '600', flex: 1 },
+  reportReadyDismiss: { color: '#555555', fontSize: 16, paddingLeft: 12 },
+  emptyDoses: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
+  emptyDosesIcon: { fontSize: 40, marginBottom: 12 },
+  emptyDosesTitle: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyDosesSub: { color: '#555555', fontSize: 13, textAlign: 'center', lineHeight: 20 },
   relapseButtonInline: {
     borderWidth: 1.5,
     borderColor: '#ef4444',
