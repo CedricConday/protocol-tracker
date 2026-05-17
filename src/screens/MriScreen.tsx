@@ -9,7 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { getDb } from '../db/schema';
+import EmptyState from '../components/EmptyState';
 
 interface MriScan {
   id: number;
@@ -108,14 +111,26 @@ export default function MriScreen() {
   };
 
   const assessmentColor = (a: string) =>
-    a === 'stable' ? '#22c55e' : a === 'improved' ? '#3b82f6' : '#ef4444';
+    a === 'stable' ? '#5A8A5A' : a === 'improved' ? '#4A7A9B' : '#C04040';
+
+  const handleCameraCapture = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Camera permission is required to capture MRI reports.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) {
+      Alert.alert('MRI image captured', 'Auto-fill coming soon.');
+    }
+  };
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
       {overdueAlert && (
         <View style={styles.overdueAlert}>
@@ -124,9 +139,14 @@ export default function MriScreen() {
       )}
 
       {!showForm ? (
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
-          <Text style={styles.addBtnText}>+ Log MRI Scan</Text>
-        </TouchableOpacity>
+        <View style={styles.addBtnRow}>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
+            <Text style={styles.addBtnText}>+ Log MRI Scan</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cameraBtn} onPress={handleCameraCapture} activeOpacity={0.8}>
+            <Ionicons name="camera-outline" size={20} color="#FAF7F4" />
+          </TouchableOpacity>
+        </View>
       ) : (
         <View style={styles.form}>
           <Text style={styles.formTitle}>New MRI Scan</Text>
@@ -137,7 +157,7 @@ export default function MriScreen() {
             value={date}
             onChangeText={setDate}
             placeholder="YYYY-MM-DD"
-            placeholderTextColor="#555555"
+            placeholderTextColor="#B0A098"
           />
 
           <Text style={styles.label}>Facility (optional)</Text>
@@ -146,7 +166,7 @@ export default function MriScreen() {
             value={facility}
             onChangeText={setFacility}
             placeholder="e.g. Bethel Bielefeld"
-            placeholderTextColor="#555555"
+            placeholderTextColor="#B0A098"
           />
 
           <Text style={styles.label}>Scan Type</Text>
@@ -183,7 +203,7 @@ export default function MriScreen() {
             value={newLesions}
             onChangeText={setNewLesions}
             placeholder='e.g. "None" or "2 new periventricular"'
-            placeholderTextColor="#555555"
+            placeholderTextColor="#B0A098"
           />
 
           <Text style={styles.label}>Enhancing Lesions?</Text>
@@ -220,7 +240,7 @@ export default function MriScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Radiologist comments, key findings..."
-            placeholderTextColor="#555555"
+            placeholderTextColor="#B0A098"
             multiline
             numberOfLines={3}
           />
@@ -237,10 +257,13 @@ export default function MriScreen() {
       )}
 
       {scans.length === 0 && !showForm ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No MRI scans logged yet.</Text>
-          <Text style={styles.emptySubtext}>Log each scan to track lesion activity over time.</Text>
-        </View>
+        <EmptyState
+          icon="🧠"
+          title="No MRI scans yet"
+          subtitle="Log each scan date to track lesion activity and get a 12-month overdue alert."
+          actionLabel="Log First Scan"
+          onAction={() => setShowForm(true)}
+        />
       ) : (
         scans.map(scan => (
           <TouchableOpacity
@@ -281,40 +304,42 @@ export default function MriScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 20, paddingBottom: 48 },
-  overdueAlert: { backgroundColor: '#2a1a00', borderRadius: 10, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#eab308' },
-  overdueAlertText: { color: '#eab308', fontSize: 13, lineHeight: 19 },
-  addBtn: { backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 20 },
-  addBtnText: { color: '#0d0d0d', fontSize: 15, fontWeight: '700' },
-  form: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 20 },
-  formTitle: { color: '#ffffff', fontSize: 17, fontWeight: '700', marginBottom: 16 },
-  label: { color: '#888888', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: '#0d0d0d', borderRadius: 8, padding: 12, color: '#ffffff', fontSize: 14, borderWidth: 1, borderColor: '#2a2a2a' },
+  overdueAlert: { backgroundColor: '#FDF3E0', borderRadius: 10, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
+  overdueAlertText: { color: '#C4882A', fontSize: 13, lineHeight: 19 },
+  addBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  addBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
+  cameraBtn: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#C96A50', alignItems: 'center', justifyContent: 'center' },
+  form: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#D8CFC8' },
+  formTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 16 },
+  label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
+  input: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 12, color: '#2C2420', fontSize: 14, borderWidth: 1, borderColor: '#D8CFC8' },
   multiline: { height: 80, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#0d0d0d', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#2a2a2a' },
-  chipActive: { backgroundColor: '#22c55e22', borderColor: '#22c55e' },
-  chipText: { color: '#888888', fontSize: 13 },
-  chipTextActive: { color: '#22c55e', fontWeight: '600' },
+  chip: { backgroundColor: '#FAF7F4', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D8CFC8' },
+  chipActive: { backgroundColor: '#FBF0ED', borderColor: '#C96A50' },
+  chipText: { color: '#7A6A62', fontSize: 13 },
+  chipTextActive: { color: '#C96A50', fontWeight: '600' },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, backgroundColor: '#0d0d0d', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#888888', fontSize: 14, fontWeight: '600' },
-  saveBtn: { flex: 2, backgroundColor: '#22c55e', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 8, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#D8CFC8' },
+  cancelBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
+  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#0d0d0d', fontSize: 14, fontWeight: '700' },
+  saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { color: '#555555', fontSize: 16, fontWeight: '600' },
-  emptySubtext: { color: '#3a3a3a', fontSize: 13, marginTop: 6, textAlign: 'center' },
-  card: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12 },
+  emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
+  emptySubtext: { color: '#B0A098', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  card: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
-  cardDate: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
-  cardType: { color: '#888888', fontSize: 12, marginTop: 2 },
+  cardDate: { color: '#2C2420', fontSize: 15, fontWeight: '700' },
+  cardType: { color: '#7A6A62', fontSize: 12, marginTop: 2 },
   assessmentBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   assessmentText: { fontSize: 12, fontWeight: '700' },
-  cardFacility: { color: '#888888', fontSize: 13, marginBottom: 4 },
-  cardDetail: { color: '#cccccc', fontSize: 13, marginBottom: 2 },
-  cardNotes: { color: '#888888', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  cardAge: { color: '#3a3a3a', fontSize: 11, marginTop: 8 },
-  disclaimer: { color: '#3a3a3a', fontSize: 11, textAlign: 'center', marginTop: 24 },
+  cardFacility: { color: '#7A6A62', fontSize: 13, marginBottom: 4 },
+  cardDetail: { color: '#2C2420', fontSize: 13, marginBottom: 2 },
+  cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+  cardAge: { color: '#B0A098', fontSize: 11, marginTop: 8 },
+  disclaimer: { color: '#B0A098', fontSize: 11, textAlign: 'center', marginTop: 24 },
 });

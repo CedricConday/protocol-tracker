@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t } from '../i18n';
+import EmptyState from '../components/EmptyState';
 
 const MOODS = [
   { emoji: '😄', label: 'Great' },
@@ -146,7 +147,7 @@ export default function JournalScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
       }
     >
       <View style={styles.headingRow}>
@@ -236,7 +237,11 @@ export default function JournalScreen() {
 
       <Text style={styles.sectionTitle}>This Week</Text>
       {pastEntries.length === 0 ? (
-        <Text style={styles.emptyText}>No entries yet. Start writing today.</Text>
+        <EmptyState
+          icon="📓"
+          title="No journal entries yet"
+          subtitle="Log your mood and how you feel each day. Patterns emerge over time."
+        />
       ) : (
         pastEntries.map((entry) => {
           const isExpanded = expandedId === entry.id;
@@ -270,7 +275,7 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#FAF7F4',
   },
   content: {
     paddingTop: 60,
@@ -279,30 +284,32 @@ const styles = StyleSheet.create({
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   heading: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 22,
     fontWeight: '700',
   },
-  logEventBtn: { backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  logEventBtnText: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
+  logEventBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#C04040' },
+  logEventBtnText: { color: '#C04040', fontSize: 13, fontWeight: '600' },
   dateSubtitle: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
-    marginTop: 4,
+    marginTop: 24,
   },
   moodRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
+    height: 64,
+    alignItems: 'center',
   },
   moodButton: {
     alignItems: 'center',
@@ -312,12 +319,12 @@ const styles = StyleSheet.create({
     minWidth: 58,
   },
   moodUnselected: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
   },
   moodSelected: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FBF0ED',
     borderWidth: 2,
-    borderColor: '#22c55e',
+    borderColor: '#C96A50',
   },
   moodEmoji: {
     fontSize: 24,
@@ -328,31 +335,31 @@ const styles = StyleSheet.create({
   },
   moodLabel: {
     fontSize: 10,
-    color: '#888888',
+    color: '#7A6A62',
     fontWeight: '600',
   },
   moodLabelSelected: {
-    color: '#22c55e',
+    color: '#C96A50',
   },
   noteInput: {
-    backgroundColor: '#1a1a1a',
-    color: '#ffffff',
+    backgroundColor: '#F2EDE8',
+    color: '#2C2420',
     borderRadius: 12,
     padding: 14,
-    minHeight: 80,
+    minHeight: 120,
     fontSize: 15,
     lineHeight: 22,
     textAlignVertical: 'top',
     marginBottom: 8,
   },
   complianceLine: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: 16,
   },
   saveButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C96A50',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -362,21 +369,21 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#0d0d0d',
+    color: '#FAF7F4',
     fontSize: 16,
     fontWeight: '700',
   },
   saveButtonTextSaved: {
-    color: '#ffffff',
+    color: '#FAF7F4',
   },
   emptyText: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
   },
   entryCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
@@ -390,7 +397,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   entryDate: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
@@ -405,18 +412,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   entryNote: {
-    color: '#999999',
+    color: '#7A6A62',
     fontSize: 14,
     marginTop: 10,
     lineHeight: 20,
   },
   semanticSummary: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     fontStyle: 'italic',
     lineHeight: 18,
     marginBottom: 20,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 10,
     padding: 14,
   },
@@ -433,13 +440,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayEmpty: {
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: '#D8CFC8',
   },
   weekDayEmoji: {
     fontSize: 16,
@@ -450,7 +457,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   weekDayLabel: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 10,
     fontWeight: '600',
   },

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,16 +11,44 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DoseDetailModal from '../components/DoseDetailModal';
-import { confirmDose, getDoseLogs, getScheduleRules, skipDose } from '../db/queries';
+import { confirmDose, getDoseLogs, getDaySummary, getScheduleRules, skipDose } from '../db/queries';
 import { useSimpleMode } from '../context/SimpleModeContext';
 import { formatDoseTime } from '../engine/scheduler';
 import type { DoseLog, DoseStatus, ScheduledDose } from '../types';
+import EmptyState from '../components/EmptyState';
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+interface DayCell { date: string; dayNumber: number; compliancePct: number; totalDoses: number; isToday: boolean; }
+
+function buildLast30Days(): string[] {
+  const days: string[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+function getCellColor(pct: number, total: number) {
+  if (total === 0) return '#E8E0D8';
+  if (pct >= 80) return '#5A8A5A';
+  if (pct >= 50) return '#C4882A';
+  return '#C04040';
+}
 
 const statusColors: Record<string, string> = {
-  upcoming: '#3b82f6',
-  due: '#f97316',
-  taken: '#22c55e',
-  missed: '#ef4444',
+  upcoming: '#4A7A9B',
+  due: '#C96A50',
+  taken: '#5A8A5A',
+  missed: '#C04040',
+};
+
+const statusLabels: Record<string, string> = {
+  upcoming: 'Upcoming',
+  due: 'Due now',
+  taken: 'Done',
+  missed: 'Missed',
 };
 
 function logToScheduledDose(
@@ -85,7 +114,23 @@ export default function ScheduleScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showHighDoseAlert, setShowHighDoseAlert] = useState(false);
+  const [activeView, setActiveView] = useState<'today' | 'history'>('today');
+  const [calCells, setCalCells] = useState<DayCell[]>([]);
+  const [calLoaded, setCalLoaded] = useState(false);
   const { isSimple } = useSimpleMode();
+
+  const loadCalendar = useCallback(async () => {
+    const dateStrs = buildLast30Days();
+    const todayStr = new Date().toISOString().split('T')[0];
+    const results = await Promise.all(
+      dateStrs.map(async (dateStr) => {
+        const summary = await getDaySummary(dateStr);
+        return { date: dateStr, dayNumber: new Date(dateStr + 'T12:00:00').getDate(), compliancePct: summary.compliancePct, totalDoses: summary.totalDoses, isToday: dateStr === todayStr };
+      }),
+    );
+    setCalCells(results);
+    setCalLoaded(true);
+  }, []);
 
   const loadSchedule = useCallback(async () => {
     const logs = await getDoseLogs();
@@ -112,6 +157,10 @@ export default function ScheduleScreen() {
     return () => clearInterval(interval);
   }, [loadSchedule]);
 
+  useEffect(() => {
+    if (activeView === 'history') loadCalendar();
+  }, [activeView, loadCalendar]);
+
   const handleTook = async (dose: ScheduledDose) => {
     if (dose.logId) {
       await confirmDose(dose.logId);
@@ -134,15 +183,67 @@ export default function ScheduleScreen() {
     setRefreshing(false);
   };
 
+  const renderToggle = () => (
+    <View style={styles.toggleRow}>
+      <TouchableOpacity style={[styles.toggleBtn, activeView === 'today' ? styles.toggleBtnActive : null]} onPress={() => setActiveView('today')} activeOpacity={0.7}>
+        <Text style={[styles.toggleBtnText, activeView === 'today' ? styles.toggleBtnTextActive : null]}>Today</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.toggleBtn, activeView === 'history' ? styles.toggleBtnActive : null]} onPress={() => setActiveView('history')} activeOpacity={0.7}>
+        <Text style={[styles.toggleBtnText, activeView === 'history' ? styles.toggleBtnTextActive : null]}>History</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (activeView === 'history') {
+    const now = new Date();
+    const rows: DayCell[][] = [];
+    for (let i = 0; i < calCells.length; i += 6) rows.push(calCells.slice(i, i + 6));
+    return (
+      <View style={styles.container}>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</Text>
+        </View>
+        {renderToggle()}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          {calLoaded && rows.map((row, ri) => (
+            <View key={ri} style={styles.calRow}>
+              {row.map((cell) => {
+                const bg = cell.isToday
+                  ? (cell.totalDoses === 0 ? '#B0A098' : cell.compliancePct >= 80 ? '#4A7A4A' : cell.compliancePct >= 50 ? '#B07820' : '#A03030')
+                  : getCellColor(cell.compliancePct, cell.totalDoses);
+                return (
+                  <View key={cell.date} style={styles.calCellWrapper}>
+                    <View style={[styles.calCell, { backgroundColor: bg }, cell.isToday ? styles.calCellToday : null]}>
+                      <Text style={styles.calCellText}>{cell.dayNumber}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+          <View style={styles.legend}>
+            {[['#5A8A5A','≥80%'],['#C4882A','50–79%'],['#C04040','<50%'],['#E8E0D8','No data']].map(([color, label]) => (
+              <View key={label} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: color, borderWidth: color === '#2a2a2a' ? 1 : 0, borderColor: '#444' }]} />
+                <Text style={styles.legendLabel}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   if (loaded && doses.length === 0) {
     return (
       <View style={styles.container}>
         <Text style={styles.heading}>Today's Schedule</Text>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
-            Start your day from the Home tab to see your schedule.
-          </Text>
-        </View>
+        {renderToggle()}
+        <EmptyState
+          icon="⏱"
+          title="No doses scheduled yet"
+          subtitle="Tap 'Start Day' on the Home tab to anchor your schedule and activate dose reminders."
+        />
       </View>
     );
   }
@@ -155,6 +256,7 @@ export default function ScheduleScreen() {
           <Text style={styles.scanBtnText}>Scan Ingredient</Text>
         </TouchableOpacity>
       </View>
+      {renderToggle()}
 
       {showHighDoseAlert ? (
         <TouchableOpacity
@@ -180,6 +282,7 @@ export default function ScheduleScreen() {
           const isPast = item.status === 'taken' || item.status === 'missed';
           const isDue = item.status === 'due';
           const dotColor = statusColors[item.status];
+          const dotLabel = statusLabels[item.status] ?? item.status;
           const isFirst = index === 0;
           const isLast = index === doses.length - 1;
 
@@ -202,13 +305,14 @@ export default function ScheduleScreen() {
                 </Text>
               </View>}
 
-              {/* Timeline track: vertical line + dot */}
+              {/* Timeline track: vertical line + dot + accessible label */}
               {!isSimple && <View style={styles.trackCol}>
-                {/* Top segment of line — hidden for first item */}
                 <View style={[styles.lineSegment, isFirst ? styles.lineSegmentInvisible : null]} />
-                {/* The status dot */}
-                <View style={[styles.dot, { backgroundColor: dotColor }]} />
-                {/* Bottom segment of line — hidden for last item */}
+                <View
+                  style={[styles.dot, { backgroundColor: dotColor }]}
+                  accessibilityLabel={dotLabel}
+                  accessibilityRole="image"
+                />
                 <View style={[styles.lineSegment, isLast ? styles.lineSegmentInvisible : null]} />
               </View>}
 
@@ -219,6 +323,9 @@ export default function ScheduleScreen() {
                 {!isSimple && item.withFood && (
                   <Text style={styles.foodTag}>with food</Text>
                 )}
+                {!isSimple && (
+                  <Text style={[styles.statusLabel, { color: dotColor }]}>{dotLabel}</Text>
+                )}
                 {item.status === 'missed' && item.logId && (
                   <Text style={styles.skipReasonText}>{item.skipReason ?? 'Skipped'}</Text>
                 )}
@@ -226,12 +333,12 @@ export default function ScheduleScreen() {
                 {isSimple && (
                   <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
                     {item.status === 'taken' ? (
-                      <Text style={{ color: '#22c55e', fontWeight: '700' }}>Taken</Text>
+                      <Text style={{ color: '#5A8A5A', fontWeight: '700' }}>Taken</Text>
                     ) : item.status === 'missed' ? (
-                      <Text style={{ color: '#ef4444', fontWeight: '700' }}>Missed</Text>
+                      <Text style={{ color: '#C04040', fontWeight: '700' }}>Missed</Text>
                     ) : (
-                      <View style={{ backgroundColor: item.status === 'due' ? '#22c55e' : '#1a1a1a', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#22c55e' }}>
-                        <Text style={{ color: item.status === 'due' ? '#0d0d0d' : '#22c55e', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
+                      <View style={{ backgroundColor: item.status === 'due' ? '#C96A50' : '#F2EDE8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#C96A50' }}>
+                        <Text style={{ color: item.status === 'due' ? '#FAF7F4' : '#C96A50', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
                       </View>
                     )}
                   </View>
@@ -243,7 +350,7 @@ export default function ScheduleScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
         }
       />
 
@@ -261,35 +368,35 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#FAF7F4',
     paddingTop: 60,
     paddingHorizontal: 20,
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   heading: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 22,
     fontWeight: '700',
   },
-  scanBtn: { backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  scanBtnText: { color: '#22c55e', fontSize: 13, fontWeight: '600' },
+  scanBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#C96A50' },
+  scanBtnText: { color: '#C96A50', fontSize: 13, fontWeight: '600' },
   highDoseBanner: {
-    backgroundColor: '#2a1a00',
+    backgroundColor: '#FDF3E0',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#eab30860',
+    borderColor: '#C4882A60',
     padding: 12,
     marginBottom: 12,
   },
   highDoseBannerText: {
-    color: '#eab308',
+    color: '#C4882A',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
     marginBottom: 8,
   },
   highDoseBannerDismiss: {
-    color: '#eab308',
+    color: '#C4882A',
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'right',
@@ -310,17 +417,17 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   timeText: {
-    color: '#666666',
+    color: '#7A6A62',
     fontSize: 11,
     fontWeight: '500',
     textAlign: 'right',
     lineHeight: 15,
   },
   timeTextDimmed: {
-    color: '#444444',
+    color: '#B0A098',
   },
   timeTextDue: {
-    color: '#f97316',
+    color: '#C96A50',
   },
   trackCol: {
     width: 20,
@@ -330,7 +437,7 @@ const styles = StyleSheet.create({
   lineSegment: {
     flex: 1,
     width: 1,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#D8CFC8',
   },
   lineSegmentInvisible: {
     backgroundColor: 'transparent',
@@ -347,29 +454,36 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     justifyContent: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: '#E8E0D8',
   },
   name: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 15,
     fontWeight: '600',
   },
   doseAmount: {
-    color: '#666666',
+    color: '#7A6A62',
     fontSize: 13,
     marginTop: 2,
   },
   foodTag: {
-    color: '#eab308',
+    color: '#C4882A',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 3,
   },
   skipReasonText: {
-    color: '#888888',
+    color: '#B0A098',
     fontSize: 11,
     fontStyle: 'italic',
     marginTop: 3,
+  },
+  statusLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginTop: 4,
+    textTransform: 'uppercase',
   },
   emptyState: {
     flex: 1,
@@ -378,9 +492,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
   },
+  toggleRow: { flexDirection: 'row', backgroundColor: '#F2EDE8', borderRadius: 10, padding: 3, marginBottom: 16, borderWidth: 1, borderColor: '#D8CFC8' },
+  toggleBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  toggleBtnActive: { backgroundColor: '#FAF7F4' },
+  toggleBtnText: { color: '#B0A098', fontSize: 13, fontWeight: '700' },
+  toggleBtnTextActive: { color: '#C96A50' },
+  calRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
+  calCellWrapper: { flex: 1, aspectRatio: 1 },
+  calCell: { flex: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 42 },
+  calCellToday: { borderWidth: 2, borderColor: '#2C2420' },
+  calCellText: { color: '#FAF7F4', fontSize: 12, fontWeight: '700' },
+  legend: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, paddingTop: 12 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '500' },
 });

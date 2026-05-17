@@ -254,7 +254,7 @@ export default function GuideScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d0d' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  heading: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  heading: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 4 },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
   subsectionTitle: { color: '#888', fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 12, textTransform: 'uppercase', letterSpacing: 0.5 },

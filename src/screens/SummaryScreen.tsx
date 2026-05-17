@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -45,6 +46,31 @@ export default function SummaryScreen() {
   const [doctorMode, setDoctorMode] = useState(false);
   const [patientName, setPatientName] = useState('Patient');
 
+  const barContainerWidth = useRef(0);
+  const barAnim = useRef(new Animated.Value(0)).current;
+  const countAnim = useRef(new Animated.Value(0)).current;
+  const [displayPct, setDisplayPct] = useState(0);
+
+  useEffect(() => {
+    const id = countAnim.addListener(({ value }) => setDisplayPct(Math.round(value)));
+    return () => countAnim.removeListener(id);
+  }, [countAnim]);
+
+  const animateToCompliance = useCallback((pct: number) => {
+    Animated.parallel([
+      Animated.timing(barAnim, {
+        toValue: barContainerWidth.current * pct / 100,
+        duration: 700,
+        useNativeDriver: false,
+      }),
+      Animated.timing(countAnim, {
+        toValue: pct,
+        duration: 700,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [barAnim, countAnim]);
+
   const loadData = useCallback(async () => {
     const daySummary = await getDaySummary();
     setSummary(daySummary);
@@ -86,6 +112,10 @@ export default function SummaryScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    animateToCompliance(summary?.compliancePct ?? 0);
+  }, [summary, animateToCompliance]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -171,7 +201,7 @@ export default function SummaryScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
       <Text style={styles.heading}>Summary</Text>
 
@@ -195,14 +225,20 @@ export default function SummaryScreen() {
           <View style={[styles.ringOuter, { borderColor: '#2a2a2a' }]}>
             <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
             <View style={styles.ringCenter}>
-              <Text style={[styles.ringNumber, { color: ringColor }]}>{compliancePct}</Text>
+              <Text style={[styles.ringNumber, { color: ringColor }]}>{displayPct}</Text>
               <Text style={styles.ringPercent}>%</Text>
             </View>
           </View>
         </View>
         <Text style={styles.complianceLabel}>Compliance</Text>
-        <View style={styles.barBg}>
-          <View style={[styles.barFill, { width: `${Math.min(compliancePct, 100)}%`, backgroundColor: ringColor }]} />
+        <View
+          style={styles.barBg}
+          onLayout={e => {
+            barContainerWidth.current = e.nativeEvent.layout.width;
+            animateToCompliance(compliancePct);
+          }}
+        >
+          <Animated.View style={[styles.barFill, { width: barAnim, backgroundColor: ringColor }]} />
         </View>
       </View>
 
@@ -297,6 +333,13 @@ export default function SummaryScreen() {
               <Text style={styles.medicalBtnSub}>Lesions · Timeline</Text>
             </TouchableOpacity>
           </View>
+          <TouchableOpacity style={styles.workspaceBtn} onPress={() => navigation.navigate('Workspace')} activeOpacity={0.8}>
+            <Text style={styles.workspaceBtnIcon}>✦</Text>
+            <View>
+              <Text style={styles.workspaceBtnLabel}>AI Workspace</Text>
+              <Text style={styles.workspaceBtnSub}>Ask questions about your data</Text>
+            </View>
+          </TouchableOpacity>
 
           {/* Doctor's Console — Tasks 31/32/33 */}
           <TouchableOpacity
@@ -341,66 +384,70 @@ export default function SummaryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 24, paddingTop: 60 },
   medicalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  medicalBtn: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 10, padding: 14, alignItems: 'center' },
-  medicalBtnLabel: { color: '#ffffff', fontSize: 14, fontWeight: '700', marginBottom: 3 },
-  medicalBtnSub: { color: '#888888', fontSize: 11 },
-  chartSectionTitle: { color: '#888888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 20 },
+  medicalBtn: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 10, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#D8CFC8' },
+  medicalBtnLabel: { color: '#2C2420', fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  medicalBtnSub: { color: '#7A6A62', fontSize: 11 },
+  workspaceBtn: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#FBF0ED', borderRadius: 12, padding: 16, marginTop: 10, borderWidth: 1, borderColor: '#C96A5040' },
+  workspaceBtnIcon: { color: '#C96A50', fontSize: 22 },
+  workspaceBtnLabel: { color: '#C96A50', fontSize: 15, fontWeight: '700' },
+  workspaceBtnSub: { color: '#B0A098', fontSize: 12, marginTop: 2 },
+  chartSectionTitle: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 24 },
   barChartRow: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 6, marginBottom: 4 },
   barCol: { flex: 1, alignItems: 'center', gap: 4, justifyContent: 'flex-end' },
   moodBar: { width: '100%', borderRadius: 4 },
-  barDayLabel: { color: '#888888', fontSize: 10, textAlign: 'center' },
-  waterGoalLine: { position: 'absolute', bottom: 20, left: 0, right: 0, height: 1, backgroundColor: '#ffffff', opacity: 0.15 },
-  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 24 },
+  barDayLabel: { color: '#7A6A62', fontSize: 10, textAlign: 'center' },
+  waterGoalLine: { position: 'absolute', bottom: 20, left: 0, right: 0, height: 1, backgroundColor: '#2C2420', opacity: 0.1 },
+  heading: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginBottom: 24 },
   statRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16 },
-  statValue: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
-  statLabel: { color: '#888888', fontSize: 12, marginTop: 4 },
-  complianceCard: { backgroundColor: '#1a1a1a', borderRadius: 16, padding: 20, alignItems: 'center', marginBottom: 16 },
-  cardDayLabel: { color: '#888888', fontSize: 12, fontWeight: '600', alignSelf: 'flex-start', marginBottom: 12 },
+  statCard: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#D8CFC8' },
+  statValue: { color: '#2C2420', fontSize: 20, fontWeight: '700' },
+  statLabel: { color: '#7A6A62', fontSize: 12, marginTop: 4 },
+  complianceCard: { backgroundColor: '#F2EDE8', borderRadius: 16, padding: 20, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#D8CFC8' },
+  cardDayLabel: { color: '#7A6A62', fontSize: 12, fontWeight: '600', alignSelf: 'flex-start', marginBottom: 12 },
   ringContainer: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginVertical: 10 },
   ringOuter: { width: 120, height: 120, borderRadius: 60, borderWidth: 8, justifyContent: 'center', alignItems: 'center' },
   ringInnerAccent: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderLeftColor: 'transparent', borderBottomColor: 'transparent' },
   ringCenter: { alignItems: 'center' },
   ringNumber: { fontSize: 32, fontWeight: '800' },
-  ringPercent: { color: '#888888', fontSize: 14, fontWeight: '600' },
-  complianceLabel: { color: '#ffffff', fontSize: 16, fontWeight: '600', marginTop: 12 },
-  barBg: { width: '100%', height: 4, backgroundColor: '#2a2a2a', borderRadius: 2, marginTop: 16 },
-  barFill: { height: 4, borderRadius: 2 },
-  scoreCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 12 },
-  scoreValue: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
-  scoreLabel: { color: '#888888', fontSize: 14, fontWeight: '600', marginTop: 2 },
-  scoreSub: { color: '#555555', fontSize: 11, marginTop: 4 },
-  streakCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 24 },
-  streakValue: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
-  streakLabel: { color: '#888888', fontSize: 14, fontWeight: '600', marginTop: 2 },
-  streakNoData: { color: '#444444' },
-  sectionTitle: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 16 },
+  ringPercent: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
+  complianceLabel: { color: '#2C2420', fontSize: 16, fontWeight: '600', marginTop: 12 },
+  barBg: { width: '100%', height: 8, minHeight: 8, backgroundColor: '#E8E0D8', borderRadius: 4, marginTop: 16 },
+  barFill: { height: 8, borderRadius: 4 },
+  scoreCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
+  scoreValue: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
+  scoreLabel: { color: '#7A6A62', fontSize: 14, fontWeight: '600', marginTop: 2 },
+  scoreSub: { color: '#B0A098', fontSize: 11, marginTop: 4 },
+  streakCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#D8CFC8' },
+  streakValue: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
+  streakLabel: { color: '#7A6A62', fontSize: 14, fontWeight: '600', marginTop: 2 },
+  streakNoData: { color: '#B0A098' },
+  sectionTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 16, marginTop: 24 },
   waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, marginBottom: 32 },
   waterCol: { alignItems: 'center', width: 36 },
-  waterMlLabel: { color: '#555555', fontSize: 9, fontWeight: '600', marginBottom: 4 },
-  waterBarTrack: { width: 12, height: 100, backgroundColor: '#1a1a1a', borderRadius: 6, overflow: 'hidden' },
+  waterMlLabel: { color: '#B0A098', fontSize: 9, fontWeight: '600', marginBottom: 4 },
+  waterBarTrack: { width: 12, height: 100, backgroundColor: '#E8E0D8', borderRadius: 6, overflow: 'hidden' },
   waterBarFill: { width: 12, borderRadius: 6 },
   waterBarRemain: { width: 12 },
-  waterDayLabel: { color: '#888888', fontSize: 10, marginTop: 8 },
+  waterDayLabel: { color: '#7A6A62', fontSize: 10, marginTop: 8 },
   weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
   weekCol: { alignItems: 'center' },
   weekBox: { width: 32, height: 32, borderRadius: 6, marginBottom: 6 },
-  weekDay: { color: '#555555', fontSize: 10, fontWeight: '600' },
-  shareBtn: { backgroundColor: '#1a1a1a', borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#22c55e' },
-  shareBtnText: { color: '#22c55e', fontSize: 14, fontWeight: '700' },
-  doctorModeToggle: { backgroundColor: '#0d1a2a', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16, borderWidth: 1, borderColor: '#3b82f6' },
-  doctorModeToggleActive: { backgroundColor: '#1a2a3a' },
-  doctorModeToggleText: { color: '#3b82f6', fontSize: 14, fontWeight: '700' },
-  doctorModeToggleTextActive: { color: '#60a5fa' },
-  doctorConsole: { backgroundColor: '#0d1520', borderRadius: 16, padding: 20, marginTop: 12, borderWidth: 1, borderColor: '#3b82f630' },
-  doctorConsoleTitle: { color: '#3b82f6', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 16 },
+  weekDay: { color: '#B0A098', fontSize: 10, fontWeight: '600' },
+  shareBtn: { backgroundColor: '#F2EDE8', borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#C96A50' },
+  shareBtnText: { color: '#C96A50', fontSize: 14, fontWeight: '700' },
+  doctorModeToggle: { backgroundColor: '#F2EDE8', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16, borderWidth: 1, borderColor: '#7A9ABF' },
+  doctorModeToggleActive: { backgroundColor: '#EAF0F6' },
+  doctorModeToggleText: { color: '#4A7A9B', fontSize: 14, fontWeight: '700' },
+  doctorModeToggleTextActive: { color: '#2A5A7B' },
+  doctorConsole: { backgroundColor: '#EAF0F6', borderRadius: 16, padding: 20, marginTop: 12, borderWidth: 1, borderColor: '#7A9ABF30' },
+  doctorConsoleTitle: { color: '#4A7A9B', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 16 },
   doctorMetricRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
   doctorMetric: { alignItems: 'center' },
-  doctorMetricValue: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
-  doctorMetricLabel: { color: '#555555', fontSize: 11, fontWeight: '600', marginTop: 4 },
-  doctorBtn: { backgroundColor: '#1a2a3a', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#3b82f6' },
-  doctorBtnText: { color: '#3b82f6', fontSize: 14, fontWeight: '700' },
+  doctorMetricValue: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
+  doctorMetricLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '600', marginTop: 4 },
+  doctorBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#4A7A9B' },
+  doctorBtnText: { color: '#4A7A9B', fontSize: 14, fontWeight: '700' },
 });

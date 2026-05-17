@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { getWeekSummary, getDaySummary, getAnchor } from '../db/queries';
 
 const LAST_REPORT_KEY = 'auto_report_last_week';
@@ -76,5 +75,6 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
 
   const { uri } = await Print.printToFileAsync({ html });
   await AsyncStorage.setItem(LAST_REPORT_KEY, currentWeek);
-  await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Weekly Protocol Report' });
+  // Store the generated URI so the user can share it manually via the banner on HomeScreen
+  await AsyncStorage.setItem('auto_report_ready_uri', uri);
 }

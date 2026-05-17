@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { getDb } from '../db/schema';
+import EmptyState from '../components/EmptyState';
 
 interface LabResult {
   id: number;
@@ -223,10 +224,13 @@ export default function LabResultsScreen() {
       )}
 
       {results.length === 0 && !showForm ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No lab results yet.</Text>
-          <Text style={styles.emptySubtext}>Add your blood work to track trends against Coimbra Protocol targets.</Text>
-        </View>
+        <EmptyState
+          icon="🧪"
+          title="No lab results yet"
+          subtitle="Add your Vitamin D, PTH, and Calcium readings to track trends against Coimbra Protocol targets."
+          actionLabel="Add First Result"
+          onAction={() => setShowForm(true)}
+        />
       ) : (
         results.map(r => (
           <TouchableOpacity key={r.id} style={styles.card} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85}>

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -28,6 +29,7 @@ export default function CaregiverScreen() {
   const [patientCompliance, setPatientCompliance] = useState(0);
   const [streak, setStreak] = useState(0);
   const [showNudge, setShowNudge] = useState(false);
+  const [sharingApproved, setSharingApproved] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,12 +42,32 @@ export default function CaregiverScreen() {
       const todayMood = await AsyncStorage.getItem(CAREGIVER_MOOD_KEY + '_' + new Date().toISOString().split('T')[0]);
       if (todayMood) setSelectedMood(parseInt(todayMood, 10));
 
-      // Task 34: Dyad sync nudge — if last sync > 3 days ago
-      if (sync) {
-        const daysSince = Math.floor((Date.now() - new Date(sync).getTime()) / 86_400_000);
-        if (daysSince >= 3) setShowNudge(true);
-      } else {
-        setShowNudge(true);
+      const share = await AsyncStorage.getItem('info_share_approved');
+      setSharingApproved(share === '1');
+
+      // Only show nudge and schedule notifications if patient approved sharing
+      if (share === '1') {
+        if (sync) {
+          const daysSince = Math.floor((Date.now() - new Date(sync).getTime()) / 86_400_000);
+          if (daysSince >= 3) setShowNudge(true);
+        } else {
+          setShowNudge(true);
+        }
+
+        // Schedule a daily compliance summary notification for caregiver
+        const lastNotif = await AsyncStorage.getItem('caregiver_daily_notif_date');
+        const today = new Date().toISOString().split('T')[0];
+        if (lastNotif !== today) {
+          const compliance = summary.compliancePct;
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Patient Daily Update',
+              body: `Today's compliance: ${compliance}%${compliance < 80 ? ' — consider checking in.' : ' — great day!'}`,
+            },
+            trigger: null, // fire immediately
+          });
+          await AsyncStorage.setItem('caregiver_daily_notif_date', today);
+        }
       }
     })();
   }, []);
@@ -73,6 +95,15 @@ export default function CaregiverScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.heading}>Caregiver Mode</Text>
       <Text style={styles.sub}>Supporting someone on the Coimbra Protocol</Text>
+
+      {/* Sharing approval status */}
+      <View style={[styles.sharingBanner, sharingApproved ? styles.sharingOn : styles.sharingOff]}>
+        <Text style={styles.sharingText}>
+          {sharingApproved
+            ? '✓ Patient has approved caregiver notifications'
+            : '⚠ Waiting for patient approval — ask them to enable sharing in Settings'}
+        </Text>
+      </View>
 
       {/* Task 34: Dyad sync nudge */}
       {showNudge ? (
@@ -161,7 +192,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d0d' },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
   heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  sub: { color: '#555555', fontSize: 14, marginBottom: 24 },
+  sub: { color: '#555555', fontSize: 14, marginBottom: 12 },
+  sharingBanner: { borderRadius: 10, padding: 12, marginBottom: 20 },
+  sharingOn: { backgroundColor: '#0d1a0d', borderLeftWidth: 3, borderLeftColor: '#22c55e' },
+  sharingOff: { backgroundColor: '#1a1a00', borderLeftWidth: 3, borderLeftColor: '#eab308' },
+  sharingText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18 },
   nudgeCard: { backgroundColor: '#1a1000', borderRadius: 14, padding: 16, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#eab308' },
   nudgeTitle: { color: '#eab308', fontSize: 14, fontWeight: '800', marginBottom: 6 },
   nudgeText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20, marginBottom: 12 },

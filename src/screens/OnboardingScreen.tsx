@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -49,6 +51,15 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [saving, setSaving] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const iconScale = useRef(new Animated.Value(0.5)).current;
+  const iconOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(iconScale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 80 }),
+      Animated.timing(iconOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const slideTo = (index: number) => {
     Animated.parallel([
@@ -70,6 +81,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   }, [step]);
 
   const handleNext = async () => {
+    Keyboard.dismiss();
     if (step < STEPS.length - 1) {
       setStep(step + 1);
     } else {
@@ -96,8 +108,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
     }
   };
 
+  const isCaregiver = patientType === 'caregiver';
+
   const canProceed = () => {
     if (step === 1) {
+      if (isCaregiver) return name.trim().length > 0;
       return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
     }
     return true;
@@ -125,11 +140,16 @@ export default function OnboardingScreen({ onComplete }: Props) {
         >
           {/* Step 0: Welcome */}
           <View style={styles.page}>
-            <Text style={styles.icon}>🧬</Text>
+            <Animated.Text style={[styles.icon, { transform: [{ scale: iconScale }], opacity: iconOpacity }]}>🧬</Animated.Text>
             <Text style={styles.title}>Welcome to{'  '}Coimbra Protocol</Text>
             <Text style={styles.body}>
               A personal companion for MS patients on Dr. Coimbra's high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.
             </Text>
+            <View style={styles.qolCard}>
+              <Text style={styles.qolStat}>83.6 <Text style={styles.qolUnit}>/ 100</Text></Text>
+              <Text style={styles.qolLabel}>Physical QoL in Coimbra Protocol patients</Text>
+              <Text style={styles.qolSource}>vs 66.9 in controls · doi:10.3390/ctn7020012</Text>
+            </View>
             <Text style={styles.inputLabel}>Who is using this app?</Text>
             <View style={styles.typeRow}>
               {([
@@ -151,7 +171,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
           </View>
 
           {/* Step 1: Profile */}
-          <View style={styles.page}>
+          <ScrollView
+            style={{ width }}
+            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 40 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <Text style={styles.icon}>👤</Text>
             <Text style={styles.title}>Set Up Your Profile</Text>
             <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
@@ -166,41 +191,65 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 onChangeText={setName}
                 autoCapitalize="words"
               />
-              <Text style={styles.inputLabel}>Weight (kg)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 70"
-                placeholderTextColor="#555555"
-                value={weight}
-                onChangeText={setWeight}
-                keyboardType="numeric"
-              />
-              <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 5000"
-                placeholderTextColor="#555555"
-                value={d3Dose}
-                onChangeText={setD3Dose}
-                keyboardType="numeric"
-              />
-              <Text style={styles.hint}>
-                Your doctor determines the right dose. Protocol doses typically range from 10,000 to 100,000+ IU/day based on body weight. Low-dose (1,000–5,000 IU) is NOT the Coimbra Protocol.
-              </Text>
+              {!isCaregiver && (
+                <>
+                  <Text style={styles.inputLabel}>Weight (kg)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 70"
+                    placeholderTextColor="#555555"
+                    value={weight}
+                    onChangeText={setWeight}
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 5000"
+                    placeholderTextColor="#555555"
+                    value={d3Dose}
+                    onChangeText={setD3Dose}
+                    keyboardType="numeric"
+                  />
+                  <Text style={styles.hint}>
+                    Your doctor determines the right dose. Protocol doses typically range from 10,000 to 100,000+ IU/day based on body weight. Low-dose (1,000–5,000 IU) is NOT the Coimbra Protocol.
+                  </Text>
+                </>
+              )}
             </View>
-          </View>
+          </ScrollView>
 
           {/* Step 2: Notifications */}
           <View style={styles.page}>
             <Text style={styles.icon}>🔔</Text>
             <Text style={styles.title}>Almost Ready</Text>
-            <Text style={styles.body}>Enable notifications so you never miss a dose. You can change this later in Settings.</Text>
-            <View style={styles.featureList}>
-              <Text style={styles.featureItem}>• Dose reminders</Text>
-              <Text style={styles.featureItem}>• Water intake nudges</Text>
-              <Text style={styles.featureItem}>• End-of-day summaries</Text>
-              <Text style={styles.featureItem}>• Awareness calendar alerts</Text>
-            </View>
+            {isCaregiver ? (
+              <>
+                <Text style={styles.body}>
+                  Enable notifications to stay in the loop. You'll only receive updates the patient has approved sharing.
+                </Text>
+                <View style={styles.featureList}>
+                  <Text style={styles.featureItem}>• Alert when a dose is overdue</Text>
+                  <Text style={styles.featureItem}>• Daily compliance summary (if patient approves)</Text>
+                  <Text style={styles.featureItem}>• Relapse or symptom events logged</Text>
+                </View>
+                <View style={styles.infoNote}>
+                  <Text style={styles.infoNoteText}>
+                    The patient controls what you see. They can turn sharing on or off anytime in their Settings.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.body}>Enable notifications so you never miss a dose. You can change this later in Settings.</Text>
+                <View style={styles.featureList}>
+                  <Text style={styles.featureItem}>• Dose reminders</Text>
+                  <Text style={styles.featureItem}>• Water intake nudges</Text>
+                  <Text style={styles.featureItem}>• End-of-day summaries</Text>
+                  <Text style={styles.featureItem}>• Awareness calendar alerts</Text>
+                </View>
+              </>
+            )}
           </View>
         </Animated.View>
 
@@ -306,7 +355,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     color: '#ffffff',
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    marginBottom: 4,
   },
+  qolCard: { backgroundColor: '#0d1a0d', borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
+  qolStat: { color: '#22c55e', fontSize: 28, fontWeight: '800' },
+  qolUnit: { color: '#22c55e', fontSize: 16, fontWeight: '600' },
+  qolLabel: { color: '#aaaaaa', fontSize: 13, marginTop: 2 },
+  qolSource: { color: '#555555', fontSize: 11, marginTop: 4 },
   hint: {
     color: '#555555',
     fontSize: 12,
@@ -323,6 +380,20 @@ const styles = StyleSheet.create({
     color: '#888888',
     fontSize: 14,
     lineHeight: 24,
+  },
+  infoNote: {
+    width: '100%',
+    backgroundColor: '#1a1a00',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#eab308',
+  },
+  infoNoteText: {
+    color: '#aaaaaa',
+    fontSize: 13,
+    lineHeight: 18,
   },
   footer: {
     flexDirection: 'row',
