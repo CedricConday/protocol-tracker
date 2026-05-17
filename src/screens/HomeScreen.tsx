@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Animated,
@@ -279,17 +280,33 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [loadDay]);
 
-  const handleStartDay = async () => {
-    setStarting(true);
-    try {
-      const schedule = await startDay();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setT0(new Date());
-      setDoses(schedule);
-    } finally {
-      setStarting(false);
-    }
-  };
+   const handleStartDay = async () => {
+     setStarting(true);
+     try {
+       const schedule = await startDay();
+       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+       setT0(new Date());
+       setDoses(schedule);
+     } catch (error: any) {
+       if (error.message === 'BEDTIME_GATE') {
+         Alert.alert(
+           "Past Bedtime",
+           "It's past your bedtime. Start your day tomorrow morning.",
+           [{ text: 'OK', style: 'cancel' }]
+         );
+       } else {
+         console.error('Error starting day:', error);
+         // Optionally show a generic error alert
+         Alert.alert(
+           'Error',
+           'Failed to start the day. Please try again.',
+           [{ text: 'OK', style: 'cancel' }]
+         );
+       }
+     } finally {
+       setStarting(false);
+     }
+   };
 
   const handleAddWater = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

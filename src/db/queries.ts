@@ -1,5 +1,5 @@
 import { getDb } from './schema';
-import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary } from '../types';
+import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry } from '../types';
 
 export function todayStr(): string {
   return new Date().toISOString().split('T')[0];
@@ -247,4 +247,41 @@ export async function getTodayExercise(date: string = todayStr()): Promise<{ tot
   );
   const totalMinutes = row?.total ?? 0;
   return { totalMinutes, logged: totalMinutes > 0 };
+}
+
+// ── Journal ────────────────────────────────────────────────────────────────────
+
+export async function getJournalEntry(date: string): Promise<JournalEntry | null> {
+  const db = await getDb();
+  return db.getFirstAsync<JournalEntry>(
+    'SELECT * FROM journal_entries WHERE date = ?',
+    [date]
+  );
+}
+
+export async function upsertJournalEntry(entry: {
+  date: string; mood: string; note: string;
+  compliance_pct: number; doses_taken: number; doses_total: number;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO journal_entries (date, mood, note, compliance_pct, doses_taken, doses_total)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(date) DO UPDATE SET
+       mood = excluded.mood,
+       note = excluded.note,
+       compliance_pct = excluded.compliance_pct,
+       doses_taken = excluded.doses_taken,
+       doses_total = excluded.doses_total,
+       updated_at = datetime('now')`,
+    [entry.date, entry.mood, entry.note, entry.compliance_pct, entry.doses_taken, entry.doses_total]
+  );
+}
+
+export async function getRecentJournalEntries(limit: number): Promise<JournalEntry[]> {
+  const db = await getDb();
+  return db.getAllAsync<JournalEntry>(
+    'SELECT * FROM journal_entries ORDER BY date DESC LIMIT ?',
+    [limit]
+  );
 }
