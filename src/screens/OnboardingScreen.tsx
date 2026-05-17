@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getScheduleRules, updateRuleDose } from '../db/queries';
 import { createDefaultProfile } from '../db/seed';
 import * as Notifications from 'expo-notifications';
@@ -44,6 +45,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
+  const [patientType, setPatientType] = useState<'new' | 'experienced' | 'caregiver'>('new');
   const [saving, setSaving] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -74,6 +76,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
       setSaving(true);
       try {
         await createDefaultProfile(name.trim(), parseFloat(weight));
+        await AsyncStorage.setItem('patient_type', patientType);
         if (d3Dose.trim()) {
           const rules = await getScheduleRules();
           const d3Rule = rules.find((r) => r.supplement_id === 'vit_d3');
@@ -127,6 +130,24 @@ export default function OnboardingScreen({ onComplete }: Props) {
             <Text style={styles.body}>
               A personal companion for MS patients on Dr. Coimbra's high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.
             </Text>
+            <Text style={styles.inputLabel}>Who is using this app?</Text>
+            <View style={styles.typeRow}>
+              {([
+                { key: 'new', label: 'New Patient', desc: 'Just starting the protocol' },
+                { key: 'experienced', label: 'Experienced', desc: 'Already on the protocol' },
+                { key: 'caregiver', label: 'Caregiver', desc: 'Supporting someone on protocol' },
+              ] as const).map((t) => (
+                <TouchableOpacity
+                  key={t.key}
+                  style={[styles.typeBtn, patientType === t.key ? styles.typeBtnActive : null]}
+                  onPress={() => setPatientType(t.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.typeBtnLabel, patientType === t.key ? styles.typeBtnLabelActive : null]}>{t.label}</Text>
+                  <Text style={styles.typeBtnDesc}>{t.desc}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Step 1: Profile */}
@@ -164,7 +185,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 keyboardType="numeric"
               />
               <Text style={styles.hint}>
-                Your doctor determines the right dose.
+                Your doctor determines the right dose. Protocol doses typically range from 10,000 to 100,000+ IU/day based on body weight. Low-dose (1,000–5,000 IU) is NOT the Coimbra Protocol.
               </Text>
             </View>
           </View>
@@ -339,4 +360,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  typeRow: { width: '100%', gap: 8, marginTop: 4 },
+  typeBtn: { borderRadius: 10, borderWidth: 1, borderColor: '#2a2a2a', padding: 12, backgroundColor: '#1a1a1a' },
+  typeBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
+  typeBtnLabel: { color: '#aaaaaa', fontSize: 14, fontWeight: '700' },
+  typeBtnLabelActive: { color: '#22c55e' },
+  typeBtnDesc: { color: '#555555', fontSize: 12, marginTop: 2 },
 });

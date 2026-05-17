@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { COIMBRA_CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
 import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
+import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
 
 export { registerBackgroundTask };
@@ -41,12 +42,21 @@ export const requestPermissions = async (): Promise<boolean> => {
   return enabled;
 };
 
+export const clearAppBadge = async (): Promise<void> => {
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch {
+    // badge not supported on this platform
+  }
+};
+
 export const scheduleSupplementNotification = async (params: {
   id: string;
   supplementName: string;
   doseAmount: string;
   scheduledTime: Date;
   notes?: string;
+  pendingCount?: number;
 }): Promise<string> => {
   try {
     const identifier = await Notifications.scheduleNotificationAsync({
@@ -54,7 +64,9 @@ export const scheduleSupplementNotification = async (params: {
         title: `Time for your ${params.doseAmount} ${params.supplementName}, ${patientName}`,
         body: params.notes ?? 'Stay on schedule with Coimbra Protocol',
         sound: true,
+        categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },
+        badge: Math.min(params.pendingCount ?? 1, 9),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -246,8 +258,50 @@ export const cancelNotification = async (id: string): Promise<void> => {
   }
 };
 
+export const confirmDoseFromNotification = async (doseId: number): Promise<void> => {
+  try {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    await db.runAsync(
+      "UPDATE dose_logs SET status = 'taken', taken_time = ? WHERE id = ?",
+      [now, doseId]
+    );
+    await Notifications.scheduleNotificationAsync({
+      content: { title: 'Dose confirmed', body: 'Marked as taken' },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
+    });
+  } catch (e) {
+    console.error('[Coimbra Notifications] Error confirming dose:', e);
+  }
+};
+
+export const skipDoseFromNotification = async (doseId: number): Promise<void> => {
+  try {
+    const db = await getDb();
+    await db.runAsync(
+      "UPDATE dose_logs SET status = 'missed', skip_reason = 'notification_skip' WHERE id = ?",
+      [doseId]
+    );
+  } catch (e) {
+    console.error('[Coimbra Notifications] Error skipping dose:', e);
+  }
+};
+
 export const setupNotificationHandler = (): void => {
   setupAndroidChannels();
+
+  Notifications.setNotificationCategoryAsync('supplement', [
+    {
+      identifier: 'taken',
+      buttonTitle: '✓ Taken',
+      options: { opensAppToForeground: false },
+    },
+    {
+      identifier: 'skip',
+      buttonTitle: 'Skip',
+      options: { opensAppToForeground: false },
+    },
+  ]);
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -278,7 +332,20 @@ export const setupNotificationHandler = (): void => {
   });
 
   Notifications.addNotificationResponseReceivedListener((response) => {
-    const type = response.notification.request.content.data?.type;
+    const actionId = response.actionIdentifier;
+    const data = response.notification.request.content.data;
+    const doseId = data?.doseId as number | undefined;
+    const type = data?.type as string | undefined;
+
+    if (actionId === 'taken' && doseId) {
+      confirmDoseFromNotification(doseId);
+      return;
+    }
+    if (actionId === 'skip' && doseId) {
+      skipDoseFromNotification(doseId);
+      return;
+    }
+
     switch (type) {
       case 'supplement':
         navigate('Schedule');

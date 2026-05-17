@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { getDb } from '../db/schema';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t } from '../i18n';
@@ -36,6 +38,7 @@ function complianceBadgeColor(pct: number): string {
 }
 
 export default function JournalScreen() {
+  const navigation = useNavigation<any>();
   const [note, setNote] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -95,6 +98,18 @@ export default function JournalScreen() {
     setRefreshing(false);
   };
 
+  const checkFatigueSpike = useCallback(async (currentMood: string) => {
+    const currentIdx = MOODS.findIndex((m) => m.label === currentMood || m.emoji === currentMood);
+    if (currentIdx < 0) return;
+    const recent = await getRecentJournalEntries(4);
+    const threeDaysAgo = recent.find((e) => e.date !== today);
+    if (!threeDaysAgo) return;
+    const oldIdx = MOODS.findIndex((m) => m.label === threeDaysAgo.mood || m.emoji === threeDaysAgo.mood);
+    if (oldIdx >= 0 && currentIdx - oldIdx >= 2) {
+      await AsyncStorage.setItem('fatigue_alert_shown', today);
+    }
+  }, [today]);
+
   const handleSave = useCallback(async () => {
     if (!selectedMood) return;
     await upsertJournalEntry({
@@ -107,12 +122,13 @@ export default function JournalScreen() {
       doses_taken: summary.takenDoses,
       doses_total: summary.totalDoses,
     });
+    await checkFatigueSpike(selectedMood);
     setSaved(true);
     setLoadedMood(selectedMood);
     setTimeout(() => setSaved(false), 2000);
     const all = await getRecentJournalEntries(7);
     setPastEntries(all.filter((e) => e.date !== today));
-  }, [selectedMood, note, summary, today]);
+  }, [selectedMood, note, summary, today, checkFatigueSpike]);
 
   const handleBlur = useCallback(() => {
     if (selectedMood) {
@@ -133,7 +149,12 @@ export default function JournalScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
       }
     >
-      <Text style={styles.heading}>Journal</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.heading}>Journal</Text>
+        <TouchableOpacity style={styles.logEventBtn} onPress={() => navigation.navigate('Relapse')} activeOpacity={0.7}>
+          <Text style={styles.logEventBtnText}>+ Log Event</Text>
+        </TouchableOpacity>
+      </View>
       <Text style={styles.dateSubtitle}>{formatDateLabel(today)}</Text>
 
       {/* Semantic memory summary */}
@@ -256,12 +277,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   heading: {
     color: '#ffffff',
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 4,
   },
+  logEventBtn: { backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  logEventBtnText: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
   dateSubtitle: {
     color: '#888888',
     fontSize: 14,
