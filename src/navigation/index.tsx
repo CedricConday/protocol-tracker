@@ -2,8 +2,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { getProfile } from '../db/queries';
-import OnboardingScreen from '../screens/OnboardingScreen';
+import CalendarScreen from '../screens/CalendarScreen';
+import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 
@@ -44,6 +46,16 @@ function TabNavigator() {
         name="Summary"
         component={SummaryScreen}
         options={{ tabBarLabel: 'Summary' }}
+      />
+      <Tab.Screen
+        name="History"
+        component={CalendarScreen}
+        options={{ tabBarLabel: 'History' }}
+      />
+      <Tab.Screen
+        name="Guide"
+        component={GuideScreen}
+        options={{ tabBarLabel: 'Guide' }}
       />
     </Tab.Navigator>
   );
