@@ -18,7 +18,7 @@ import StartDayButton from '../components/StartDayButton';
 import SunTracker from '../components/SunTracker';
 import WaterTracker from '../components/WaterTracker';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog } from '../db/queries';
+import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry } from '../db/queries';
 import type { ScheduledDose } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -47,9 +47,10 @@ interface ProgressHeaderProps {
   t0: Date | null;
   doses: ScheduledDose[];
   patientName?: string;
+  firstMealTime?: string | null;
 }
 
-function ProgressHeader({ t0, doses, patientName }: ProgressHeaderProps) {
+function ProgressHeader({ t0, doses, patientName, firstMealTime }: ProgressHeaderProps) {
   const total  = doses.length;
   const taken  = doses.filter(d => d.status === 'taken').length;
   const pct    = total > 0 ? taken / total : 0;
@@ -62,7 +63,10 @@ function ProgressHeader({ t0, doses, patientName }: ProgressHeaderProps) {
       {/* Top row */}
       <View style={headerStyles.topRow}>
         <Text style={headerStyles.dateText}>{today}</Text>
-        {startedStr && <Text style={headerStyles.startedText}>{startedStr}</Text>}
+        <View style={headerStyles.topRight}>
+          {startedStr && <Text style={headerStyles.startedText}>{startedStr}</Text>}
+          {firstMealTime && <Text style={headerStyles.mealText}>Meal: {firstMealTime}</Text>}
+        </View>
       </View>
 
       {/* Tick marks */}
@@ -110,6 +114,9 @@ const headerStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
+  topRight: {
+    alignItems: 'flex-end',
+  },
   dateText: {
     color: '#555555',
     fontSize: 13,
@@ -117,6 +124,11 @@ const headerStyles = StyleSheet.create({
   startedText: {
     color: '#555555',
     fontSize: 13,
+  },
+  mealText: {
+    color: '#eab308',
+    fontSize: 12,
+    marginTop: 2,
   },
   tickRow: {
     flexDirection: 'row',
@@ -280,6 +292,10 @@ export default function HomeScreen() {
   const [exerciseMinutes, setExerciseMinutes] = useState(0);
   const [patientName, setPatientName] = useState('');
   const [sunMinutes, setSunMinutes] = useState(0);
+  const [firstMealTime, setFirstMealTimeState] = useState<string | null>(null);
+  const [showMealPrompt, setShowMealPrompt] = useState(false);
+  const [todayMood, setTodayMood] = useState<string | null>(null);
+  const [todayNotePreview, setTodayNotePreview] = useState('');
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -290,6 +306,11 @@ export default function HomeScreen() {
     setExerciseMinutes(ex.totalMinutes);
     const sun = await getTodaySunLog();
     setSunMinutes(sun?.minutes ?? 0);
+    const mealTime = await getFirstMealTime();
+    setFirstMealTimeState(mealTime);
+    const journal = await getJournalEntry(new Date().toISOString().split('T')[0]);
+    setTodayMood(journal?.mood ?? null);
+    setTodayNotePreview(journal?.note?.slice(0, 60) ?? '');
     if (anchor?.t0_timestamp) {
       setT0(new Date(anchor.t0_timestamp));
       const schedule = await getTodaySchedule();
@@ -313,9 +334,10 @@ export default function HomeScreen() {
      setStarting(true);
      try {
        const schedule = await startDay();
-       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-       setT0(new Date());
-       setDoses(schedule);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setT0(new Date());
+        setDoses(schedule);
+        setShowMealPrompt(true);
      } catch (error: any) {
        if (error.message === 'BEDTIME_GATE') {
          Alert.alert(
@@ -353,6 +375,14 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await logSunExposure(minutes);
     setSunMinutes(prev => prev + minutes);
+  };
+
+  const handleLogMeal = async () => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    await setFirstMealTime(new Date().toISOString().split('T')[0], timeStr);
+    setFirstMealTimeState(timeStr);
+    setShowMealPrompt(false);
   };
 
   const handleTook = async (dose: ScheduledDose) => {
@@ -434,7 +464,7 @@ export default function HomeScreen() {
         }
       >
         {/* Part 1: Dashboard progress header */}
-        <ProgressHeader t0={t0} doses={doses} patientName={patientName} />
+        <ProgressHeader t0={t0} doses={doses} patientName={patientName} firstMealTime={firstMealTime} />
 
         {/* Part 3: Next dose spotlight */}
         <NextDoseCard doses={doses} onPress={setSelectedDose} />
@@ -464,6 +494,27 @@ export default function HomeScreen() {
           )}
         </View>
         <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
+        {/* Meal timing prompt */}
+        {showMealPrompt && !firstMealTime ? (
+          <View style={styles.mealPromptCard}>
+            <Text style={styles.mealPromptTitle}>When did you have your first meal?</Text>
+            <TouchableOpacity style={styles.mealPromptButton} onPress={handleLogMeal} activeOpacity={0.8}>
+              <Text style={styles.mealPromptButtonText}>Now</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        {/* Journal summary card */}
+        <TouchableOpacity style={styles.journalSummaryCard} onPress={() => navigation.navigate('Journal')} activeOpacity={0.7}>
+          <View style={styles.journalSummaryHeader}>
+            <Text style={styles.journalSummaryEmoji}>{todayMood ?? '—'}</Text>
+            <Text style={styles.journalSummaryTitle}>Journal</Text>
+          </View>
+          {todayMood ? (
+            <Text style={styles.journalSummaryPreview} numberOfLines={1}>{todayNotePreview || 'Tap to write more'}</Text>
+          ) : (
+            <Text style={styles.journalSummaryPrompt}>How are you feeling?</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
       <DoseDetailModal
@@ -555,5 +606,64 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 14,
     fontWeight: '700',
+  },
+  mealPromptCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mealPromptTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
+  },
+  mealPromptButton: {
+    backgroundColor: '#22c55e',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  mealPromptButtonText: {
+    color: '#0d0d0d',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  journalSummaryCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  journalSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  journalSummaryEmoji: {
+    fontSize: 20,
+  },
+  journalSummaryTitle: {
+    color: '#888888',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  journalSummaryPreview: {
+    color: '#888888',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  journalSummaryPrompt: {
+    color: '#555555',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    textDecorationColor: '#22c55e',
   },
 });

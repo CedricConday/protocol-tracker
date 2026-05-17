@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
+import { FOOD_PAIRINGS } from '../data/foodPairings';
 
 interface Props {
   visible: boolean;
@@ -127,6 +128,19 @@ export default function DoseDetailModal({
               <Text style={styles.notesTextStyle}>{dose.notes}</Text>
             </View>
           ) : null}
+
+          {(() => {
+            const pairing = FOOD_PAIRINGS.find(p => p.supplement_id === dose.supplement_id);
+            if (!pairing) return null;
+            return (
+              <View style={styles.foodPairingContainer}>
+                <Text style={styles.foodPairingTitle}>Food Pairing</Text>
+                <Text style={styles.foodPairingGreen}>✓ {pairing.pairs_with}</Text>
+                <Text style={styles.foodPairingRed}>✗ {pairing.avoid}</Text>
+                <Text style={styles.foodPairingTip}>{pairing.tip}</Text>
+              </View>
+            );
+          })()}
 
           {showSkipReasons ? (
             <View style={styles.skipReasonsContainer}>
@@ -274,6 +288,35 @@ const styles = StyleSheet.create({
     color: '#888888',
     fontSize: 13,
     lineHeight: 18,
+  },
+  foodPairingContainer: {
+    backgroundColor: '#111111',
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 12,
+  },
+  foodPairingTitle: {
+    color: '#555555',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  foodPairingGreen: {
+    color: '#22c55e',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  foodPairingRed: {
+    color: '#ef4444',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  foodPairingTip: {
+    color: '#888888',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   skipReasonsContainer: {
     marginTop: 20,

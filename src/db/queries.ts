@@ -294,6 +294,24 @@ export async function getHighComplianceDaysCount(): Promise<number> {
   return row?.count ?? 0;
 }
 
+// ── First Meal Time ──────────────────────────────────────────────────────────
+export async function setFirstMealTime(date: string, time: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE daily_anchors SET first_meal_time = ? WHERE date = ?',
+    [time, date]
+  );
+}
+
+export async function getFirstMealTime(date: string = todayStr()): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ first_meal_time: string | null }>(
+    'SELECT first_meal_time FROM daily_anchors WHERE date = ?',
+    [date]
+  );
+  return row?.first_meal_time ?? null;
+}
+
 // ── Exercise ──────────────────────────────────────────────────────────────────
 
 export async function logExercise(durationMinutes: number = 30, type: string = 'walk', date: string = todayStr()): Promise<void> {
@@ -349,6 +367,34 @@ export async function getRecentJournalEntries(limit: number): Promise<JournalEnt
     'SELECT * FROM journal_entries ORDER BY date DESC LIMIT ?',
     [limit]
   );
+}
+
+export async function getSemanticJournalSummary(): Promise<string> {
+  const db = await getDb();
+  const entries = await db.getAllAsync<{ mood: string; date: string; compliance_pct: number }>(
+    'SELECT mood, date, compliance_pct FROM journal_entries ORDER BY date DESC LIMIT 30'
+  );
+  if (entries.length === 0) return 'No journal entries yet.';
+
+  const moodCounts: Record<string, number> = {};
+  let weightedTotal = 0;
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - 8);
+
+  for (const e of entries) {
+    const entryDate = new Date(e.date + 'T00:00:00');
+    const weight = entryDate >= recentCutoff ? 3 : 1;
+    moodCounts[e.mood] = (moodCounts[e.mood] ?? 0) + weight;
+    weightedTotal += weight;
+  }
+
+  const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+  const streak = await getStreak();
+  const avgCompliance = Math.round(
+    entries.reduce((sum, e) => sum + e.compliance_pct, 0) / entries.length
+  );
+
+  return `Mostly feeling ${topMood} lately. ${streak} day protocol streak. ${avgCompliance}% average compliance.`;
 }
 
 // ── Relapse Events ────────────────────────────────────────────────────────────
