@@ -55,6 +55,16 @@ function logToScheduledDose(
   };
 }
 
+function formatTime12hr(date: Date): string {
+  let hours = date.getHours();
+  const mins = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  const minStr = mins.toString().padStart(2, '0');
+  return `${hours}:${minStr}\n${ampm}`;
+}
+
 export default function ScheduleScreen() {
   const [doses, setDoses] = useState<ScheduledDose[]>([]);
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
@@ -114,30 +124,50 @@ export default function ScheduleScreen() {
       <FlatList
         data={doses}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => {
-          const timeLabel = formatDoseTime(item.scheduledTime);
+        renderItem={({ item, index }) => {
+          const timeStr = formatTime12hr(item.scheduledTime);
+          const isPast = item.status === 'taken' || item.status === 'missed';
+          const isDue = item.status === 'due';
+          const dotColor = statusColors[item.status];
+          const isFirst = index === 0;
+          const isLast = index === doses.length - 1;
+
           return (
             <TouchableOpacity
               style={styles.row}
               onPress={() => setSelectedDose(item)}
               activeOpacity={0.7}
             >
+              {/* Left: time column */}
+              <View style={styles.timeCol}>
+                <Text
+                  style={[
+                    styles.timeText,
+                    isPast ? styles.timeTextDimmed : null,
+                    isDue ? styles.timeTextDue : null,
+                  ]}
+                >
+                  {timeStr}
+                </Text>
+              </View>
+
+              {/* Timeline track: vertical line + dot */}
+              <View style={styles.trackCol}>
+                {/* Top segment of line — hidden for first item */}
+                <View style={[styles.lineSegment, isFirst ? styles.lineSegmentInvisible : null]} />
+                {/* The status dot */}
+                <View style={[styles.dot, { backgroundColor: dotColor }]} />
+                {/* Bottom segment of line — hidden for last item */}
+                <View style={[styles.lineSegment, isLast ? styles.lineSegmentInvisible : null]} />
+              </View>
+
+              {/* Right: supplement info */}
               <View style={styles.info}>
                 <Text style={styles.name}>{item.supplementName}</Text>
-                <Text style={styles.meta}>
-                  {timeLabel} &middot; {item.doseAmount}
-                </Text>
+                <Text style={styles.doseAmount}>{item.doseAmount}</Text>
                 {item.withFood && (
                   <Text style={styles.foodTag}>with food</Text>
                 )}
-              </View>
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: statusColors[item.status] },
-                ]}
-              >
-                <Text style={styles.badgeText}>{item.status}</Text>
               </View>
             </TouchableOpacity>
           );
@@ -178,43 +208,70 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    minHeight: 64,
+  },
+  timeCol: {
+    width: 56,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 12,
+  },
+  timeText: {
+    color: '#666666',
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'right',
+    lineHeight: 15,
+  },
+  timeTextDimmed: {
+    color: '#444444',
+  },
+  timeTextDue: {
+    color: '#f97316',
+  },
+  trackCol: {
+    width: 20,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    justifyContent: 'center',
+  },
+  lineSegment: {
+    flex: 1,
+    width: 1,
+    backgroundColor: '#2a2a2a',
+  },
+  lineSegmentInvisible: {
+    backgroundColor: 'transparent',
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginVertical: 2,
   },
   info: {
     flex: 1,
-    marginRight: 12,
+    paddingLeft: 14,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
   },
   name: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
-  meta: {
-    color: '#888888',
+  doseAmount: {
+    color: '#666666',
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 2,
   },
   foodTag: {
     color: '#eab308',
     fontSize: 11,
     fontWeight: '600',
-    marginTop: 4,
-  },
-  badge: {
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'capitalize',
+    marginTop: 3,
   },
   emptyState: {
     flex: 1,

@@ -199,6 +199,36 @@ export async function getWaterProgress(date: string = todayStr()): Promise<{ wat
   return { waterMl: anchor?.water_ml ?? 0, goalMl: 2500 };
 }
 
+// ── Streak ────────────────────────────────────────────────────────────────────
+
+export async function getStreak(date: string = todayStr()): Promise<number> {
+  const db = await getDb();
+  const todayDate = new Date(date + 'T00:00:00');
+  const startDate = new Date(todayDate);
+  startDate.setDate(startDate.getDate() - 60);
+  const start = startDate.toISOString().split('T')[0];
+
+  const rows = await db.getAllAsync<{ date: string; total: number; taken: number }>(
+    `SELECT date, COUNT(*) as total,
+            SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken
+     FROM dose_logs
+     WHERE date >= ? AND date <= ?
+     GROUP BY date
+     ORDER BY date DESC`,
+    [start, date]
+  );
+
+  let streak = 0;
+  for (const row of rows) {
+    if (row.total > 0 && row.total === row.taken) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 // ── Exercise ──────────────────────────────────────────────────────────────────
 
 export async function logExercise(durationMinutes: number = 30, type: string = 'walk', date: string = todayStr()): Promise<void> {

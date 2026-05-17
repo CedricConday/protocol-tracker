@@ -109,6 +109,15 @@ export async function initDb(): Promise<void> {
       notes TEXT NOT NULL DEFAULT ''
     );
 
+    CREATE TABLE IF NOT EXISTS awareness_dates (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      month INTEGER NOT NULL,
+      day INTEGER NOT NULL,
+      message TEXT NOT NULL,
+      notified INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);

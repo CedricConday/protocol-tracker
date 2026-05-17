@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/navigation';
 import { initDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
+import { setupNotificationHandler, requestPermissions, registerBackgroundTask } from './src/notifications';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -14,6 +15,9 @@ export default function App() {
       try {
         await initDb();
         await seedDb();
+        setupNotificationHandler();
+        await requestPermissions();
+        await registerBackgroundTask();
         setReady(true);
       } catch (e) {
         setError(String(e));
