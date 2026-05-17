@@ -9,8 +9,9 @@ import {
   View,
 } from 'react-native';
 import { getDb } from '../db/schema';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, todayStr, upsertJournalEntry } from '../db/queries';
+import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry } from '../db/queries';
 import type { JournalEntry } from '../types';
+import { t } from '../i18n';
 
 const MOODS = [
   { emoji: '😄', label: 'Great' },
@@ -43,8 +44,9 @@ export default function JournalScreen() {
   const [pastEntries, setPastEntries] = useState<JournalEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loadedMood, setLoadedMood] = useState<string | null>(null);
+  const [semanticSummary, setSemanticSummary] = useState('');
+  const [weekMoods, setWeekMoods] = useState<{ day: string; emoji: string | null; compliancePct: number }[]>([]);
   const noteRef = useRef<TextInput>(null);
-
   const today = todayStr();
 
   const loadData = useCallback(async () => {
@@ -60,6 +62,27 @@ export default function JournalScreen() {
 
     const all = await getRecentJournalEntries(7);
     setPastEntries(all.filter((e) => e.date !== today));
+
+    const summary = await getSemanticJournalSummary();
+    setSemanticSummary(summary);
+
+    // Build week mood data (last 7 days)
+    const weekDays: { day: string; emoji: string | null; compliancePct: number }[] = [];
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const todayIdx = ((new Date().getDay() + 6) % 7);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const entry = all.find((e) => e.date === dateStr);
+      const summary = await getDaySummary(dateStr);
+      weekDays.push({
+        day: dayNames[(todayIdx - i + 7) % 7],
+        emoji: entry?.mood ?? null,
+        compliancePct: summary.compliancePct,
+      });
+    }
+    setWeekMoods(weekDays);
   }, [today]);
 
   useEffect(() => {
@@ -113,7 +136,27 @@ export default function JournalScreen() {
       <Text style={styles.heading}>Journal</Text>
       <Text style={styles.dateSubtitle}>{formatDateLabel(today)}</Text>
 
-      <Text style={styles.sectionTitle}>How are you feeling?</Text>
+      {/* Semantic memory summary */}
+      <Text style={styles.semanticSummary}>{semanticSummary}</Text>
+
+      {/* Mood this week */}
+      <Text style={styles.sectionTitle}>{t('thisWeek')}</Text>
+      <View style={styles.weekRow}>
+        {weekMoods.map((w, i) => {
+          const dotColor = w.compliancePct >= 80 ? '#22c55e' : w.compliancePct >= 50 ? '#eab308' : '#ef4444';
+          return (
+            <View key={i} style={styles.weekDayCol}>
+              <View style={[styles.weekDayCircle, !w.emoji ? styles.weekDayEmpty : null]}>
+                <Text style={styles.weekDayEmoji}>{w.emoji ?? '—'}</Text>
+              </View>
+              <View style={[styles.weekDot, { backgroundColor: dotColor }]} />
+              <Text style={styles.weekDayLabel}>{w.day}</Text>
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={styles.sectionTitle}>{t('howAreYou')}</Text>
       <View style={styles.moodRow}>
         {MOODS.map((m) => {
           const isSelected = selectedMood === m.emoji;
@@ -343,5 +386,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 10,
     lineHeight: 20,
+  },
+  semanticSummary: {
+    color: '#888888',
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 18,
+    marginBottom: 20,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    padding: 14,
+  },
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  weekDayCol: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  weekDayCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weekDayEmpty: {
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  weekDayEmoji: {
+    fontSize: 16,
+  },
+  weekDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  weekDayLabel: {
+    color: '#555555',
+    fontSize: 10,
+    fontWeight: '600',
   },
 });

@@ -186,4 +186,12 @@ export async function initDb(): Promise<void> {
   } catch (e) {
     console.log('[Database] migration: stock_days column already exists');
   }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE day_anchors ADD COLUMN first_meal_time TEXT DEFAULT NULL
+    `);
+  } catch (e) {
+    console.log('[Database] migration: first_meal_time column already exists');
+  }
 }
