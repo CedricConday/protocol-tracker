@@ -1,0 +1,7 @@
+  try {
+    await database.execAsync(`
+      ALTER TABLE supplements ADD COLUMN quantity_on_hand INTEGER
+    `);
+  } catch (e) {
+    console.log('[Database] migration: quantity_on_hand column already exists');
+  }

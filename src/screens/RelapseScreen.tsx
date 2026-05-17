@@ -15,7 +15,15 @@ const TYPE_COLORS: Record<string, string> = {
   relapse: '#ef4444',
   cortisone: '#eab308',
   symptom: '#888888',
+  pain: '#a855f7',
 };
+
+const PAIN_SUBTYPES = [
+  'Dysesthetic (burning/tingling)',
+  'Spasticity (muscle)',
+  'Musculoskeletal',
+  'Headache',
+];
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -30,6 +38,9 @@ export default function RelapseScreen() {
   const [cortisoneDose, setCortisoneDose] = useState('');
   const [severity, setSeverity] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  const [painSubtype, setPainSubtype] = useState<string | null>(null);
+  const [lasted24h, setLasted24h] = useState<boolean | null>(null);
+  const [hasFever, setHasFever] = useState<boolean | null>(null);
   const [events, setEvents] = useState<RelapseEvent[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [logged, setLogged] = useState(false);
@@ -56,12 +67,18 @@ export default function RelapseScreen() {
       cortisone_dose_mg: eventType === 'cortisone' && cortisoneDose ? parseInt(cortisoneDose, 10) : undefined,
       notes,
       severity: severity ?? undefined,
+      pain_type: eventType === 'pain' ? (painSubtype ?? undefined) : undefined,
+      lasted_24h: lasted24h !== null ? (lasted24h ? 1 : 0) : undefined,
+      has_fever: hasFever !== null ? (hasFever ? 1 : 0) : undefined,
     });
     setEventType('relapse');
     setEventDate(todayStr());
     setCortisoneDose('');
     setSeverity(null);
     setNotes('');
+    setPainSubtype(null);
+    setLasted24h(null);
+    setHasFever(null);
     setLogged(true);
     setTimeout(() => setLogged(false), 2000);
     await loadEvents();
@@ -77,6 +94,7 @@ export default function RelapseScreen() {
     relapse: 'Relapse',
     cortisone: 'Cortisone',
     symptom: 'Symptom',
+    pain: 'Pain',
   };
 
   return (
@@ -92,7 +110,7 @@ export default function RelapseScreen() {
 
       <Text style={styles.sectionTitle}>Type</Text>
       <View style={styles.typeRow}>
-        {['relapse', 'cortisone', 'symptom'].map((t) => {
+        {['relapse', 'cortisone', 'symptom', 'pain'].map((t) => {
           const selected = eventType === t;
           const color = TYPE_COLORS[t];
           return (
@@ -119,6 +137,29 @@ export default function RelapseScreen() {
           );
         })}
       </View>
+
+      {eventType === 'pain' ? (
+        <>
+          <Text style={styles.sectionTitle}>Pain Type</Text>
+          <View style={styles.painSubtypeContainer}>
+            {PAIN_SUBTYPES.map((subtype) => {
+              const selected = painSubtype === subtype;
+              return (
+                <TouchableOpacity
+                  key={subtype}
+                  style={[styles.painSubtypeButton, selected ? styles.painSubtypeSelected : null]}
+                  onPress={() => setPainSubtype(subtype)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.painSubtypeText, selected ? styles.painSubtypeTextSelected : null]}>
+                    {subtype}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       <Text style={styles.sectionTitle}>Date</Text>
       <View style={styles.sectionCard}>
@@ -177,6 +218,46 @@ export default function RelapseScreen() {
         })}
       </View>
 
+      {eventType === 'relapse' || eventType === 'symptom' ? (
+        <>
+          <Text style={styles.sectionTitle}>24-Hour Rule</Text>
+          <View style={styles.yesNoRow}>
+            {([true, false] as const).map((val) => (
+              <TouchableOpacity
+                key={String(val)}
+                style={[styles.yesNoBtn, lasted24h === val ? styles.yesNoBtnActive : null]}
+                onPress={() => setLasted24h(val)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.yesNoBtnText, lasted24h === val ? styles.yesNoBtnTextActive : null]}>
+                  {val ? 'Yes — lasted >24h' : 'No — resolved sooner'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.sectionTitle}>Fever Present?</Text>
+          <View style={styles.yesNoRow}>
+            {([true, false] as const).map((val) => (
+              <TouchableOpacity
+                key={String(val)}
+                style={[styles.yesNoBtn, hasFever === val ? styles.yesNoBtnActive : null]}
+                onPress={() => setHasFever(val)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.yesNoBtnText, hasFever === val ? styles.yesNoBtnTextActive : null]}>
+                  {val ? 'Yes' : 'No'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {hasFever === true ? (
+            <View style={styles.feverWarning}>
+              <Text style={styles.feverWarningText}>Fever can mimic or mask a relapse. Contact your neurologist if symptoms persist beyond 48h after fever resolves.</Text>
+            </View>
+          ) : null}
+        </>
+      ) : null}
+
       <Text style={styles.sectionTitle}>Notes</Text>
       <View style={styles.sectionCard}>
         <TextInput
@@ -190,9 +271,9 @@ export default function RelapseScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.logButton, eventType !== 'cortisone' && severity === null ? styles.logButtonDisabled : null]}
+        style={[styles.logButton, (eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null) ? styles.logButtonDisabled : null]}
         onPress={handleLog}
-        disabled={eventType !== 'cortisone' && severity === null}
+        disabled={(eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null)}
         activeOpacity={0.8}
       >
         <Text style={styles.logButtonText}>
@@ -223,6 +304,9 @@ export default function RelapseScreen() {
                   </View>
                 ) : null}
               </View>
+              {e.pain_type ? (
+                <Text style={styles.painTypeTag}>{e.pain_type}</Text>
+              ) : null}
               {e.notes ? (
                 <Text style={styles.eventNotes}>{e.notes}</Text>
               ) : null}
@@ -389,4 +473,41 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 18,
   },
+  painSubtypeContainer: {
+    gap: 8,
+  },
+  painSubtypeButton: {
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#1a1a1a',
+  },
+  painSubtypeSelected: {
+    borderColor: '#a855f7',
+    backgroundColor: '#a855f720',
+  },
+  painSubtypeText: {
+    color: '#888888',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  painSubtypeTextSelected: {
+    color: '#a855f7',
+    fontWeight: '700',
+  },
+  painTypeTag: {
+    color: '#a855f7',
+    fontSize: 12,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#2a2a2a', paddingVertical: 10, alignItems: 'center' },
+  yesNoBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
+  yesNoBtnText: { color: '#555555', fontSize: 13, fontWeight: '600' },
+  yesNoBtnTextActive: { color: '#22c55e' },
+  feverWarning: { backgroundColor: '#1a0a00', borderRadius: 10, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
+  feverWarningText: { color: '#eab308', fontSize: 12, lineHeight: 18 },
 });

@@ -8,30 +8,173 @@ import { navigationRef } from './navigationRef';
 import AboutScreen from '../screens/AboutScreen';
 import AwarenessScreen from '../screens/AwarenessScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import CareSurveyScreen from '../screens/CareSurveyScreen';
+import CaregiverScreen from '../screens/CaregiverScreen';
+import DrugCheckerScreen from '../screens/DrugCheckerScreen';
 import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
+import LabResultsScreen from '../screens/LabResultsScreen';
+import MriScreen from '../screens/MriScreen';
 import JournalScreen from '../screens/JournalScreen';
+import MmasScreen from '../screens/MmasScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import QuizScreen from '../screens/QuizScreen';
 import RelapseScreen from '../screens/RelapseScreen';
 import ReportScreen from '../screens/ReportScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
-import SummaryScreen from '../screens/SummaryScreen';
+import SecurityScreen from '../screens/SecurityScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SummaryScreen from '../screens/SummaryScreen';
+import TerminalLinkScreen from '../screens/TerminalLinkScreen';
+import WorkspaceScreen from '../screens/WorkspaceScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 
 const Tab = createBottomTabNavigator();
-const RootStack = createNativeStackNavigator();
+const HomeNav = createNativeStackNavigator();
+const ScheduleNav = createNativeStackNavigator();
+const JournalNav = createNativeStackNavigator();
+const SummaryNav = createNativeStackNavigator();
+const SettingsNav = createNativeStackNavigator();
 
-function SettingsStack() {
+const SUB_HEADER = {
+  headerShown: true,
+  headerStyle: { backgroundColor: '#0d0d0d' },
+  headerTintColor: '#ffffff',
+  headerShadowVisible: false,
+  headerBackTitleVisible: false,
+} as const;
+
+function HomeNavigator() {
   return (
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      <RootStack.Screen name="SettingsMain" component={SettingsScreen} />
-      <RootStack.Screen
+    <HomeNav.Navigator screenOptions={{ headerShown: false }}>
+      <HomeNav.Screen name="HomeMain" component={HomeScreen} />
+      <HomeNav.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={{ ...SUB_HEADER, title: 'History', animation: 'slide_from_right' }}
+      />
+      <HomeNav.Screen
+        name="Awareness"
+        component={AwarenessScreen}
+        options={{ ...SUB_HEADER, title: 'Awareness Calendar', animation: 'slide_from_right' }}
+      />
+    </HomeNav.Navigator>
+  );
+}
+
+function ScheduleNavigator() {
+  return (
+    <ScheduleNav.Navigator screenOptions={{ headerShown: false }}>
+      <ScheduleNav.Screen name="ScheduleMain" component={ScheduleScreen} />
+      <ScheduleNav.Screen
+        name="Scanner"
+        component={ScannerScreen}
+        options={{ ...SUB_HEADER, title: 'Ingredient Scanner', presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+    </ScheduleNav.Navigator>
+  );
+}
+
+function JournalNavigator() {
+  return (
+    <JournalNav.Navigator screenOptions={{ headerShown: false }}>
+      <JournalNav.Screen name="JournalMain" component={JournalScreen} />
+      <JournalNav.Screen
+        name="Relapse"
+        component={RelapseScreen}
+        options={{ ...SUB_HEADER, title: 'Events', animation: 'slide_from_right' }}
+      />
+    </JournalNav.Navigator>
+  );
+}
+
+function SummaryNavigator() {
+  return (
+    <SummaryNav.Navigator screenOptions={{ headerShown: false }}>
+      <SummaryNav.Screen name="SummaryMain" component={SummaryScreen} />
+      <SummaryNav.Screen
+        name="Report"
+        component={ReportScreen}
+        options={{ ...SUB_HEADER, title: 'Share with Doctor', animation: 'slide_from_right' }}
+      />
+      <SummaryNav.Screen
+        name="MriTracker"
+        component={MriScreen}
+        options={{ ...SUB_HEADER, title: 'MRI History', animation: 'slide_from_right' }}
+      />
+      <SummaryNav.Screen
+        name="LabResults"
+        component={LabResultsScreen}
+        options={{ ...SUB_HEADER, title: 'Lab Results', animation: 'slide_from_right' }}
+      />
+    </SummaryNav.Navigator>
+  );
+}
+
+function SettingsNavigator() {
+  return (
+    <SettingsNav.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsNav.Screen name="SettingsMain" component={SettingsScreen} />
+      <SettingsNav.Screen
+        name="DrugChecker"
+        component={DrugCheckerScreen}
+        options={{ ...SUB_HEADER, title: 'Drug Checker', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="Security"
+        component={SecurityScreen}
+        options={{ ...SUB_HEADER, title: 'Security & Passkeys', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
         name="About"
         component={AboutScreen}
-        options={{ animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: 'About', animation: 'slide_from_right' }}
       />
-    </RootStack.Navigator>
+      <SettingsNav.Screen
+        name="Guide"
+        component={GuideScreen}
+        options={{ ...SUB_HEADER, title: 'Protocol Guide', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="Workspace"
+        component={WorkspaceScreen}
+        options={{ ...SUB_HEADER, title: 'AI Workspace', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="Caregiver"
+        component={CaregiverScreen}
+        options={{ ...SUB_HEADER, title: 'Caregiver View', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="CareSurvey"
+        options={{ ...SUB_HEADER, title: 'Care Survey', animation: 'slide_from_right' }}
+      >
+        {({ navigation }) => <CareSurveyScreen onClose={() => navigation.goBack()} />}
+      </SettingsNav.Screen>
+      <SettingsNav.Screen
+        name="TerminalLink"
+        component={TerminalLinkScreen}
+        options={{ ...SUB_HEADER, title: 'Terminal Link', animation: 'slide_from_bottom' }}
+      />
+      <SettingsNav.Screen
+        name="Mmas"
+        options={{ ...SUB_HEADER, title: 'Monthly Check-In', animation: 'slide_from_right' }}
+      >
+        {({ navigation }) => <MmasScreen onClose={() => navigation.goBack()} />}
+      </SettingsNav.Screen>
+      <SettingsNav.Screen
+        name="Quiz"
+        options={{ ...SUB_HEADER, title: 'Protocol Quiz', animation: 'slide_from_right' }}
+      >
+        {({ navigation }) => <QuizScreen onClose={() => navigation.goBack()} />}
+      </SettingsNav.Screen>
+      <SettingsNav.Screen
+        name="Feedback"
+        component={FeedbackScreen}
+        options={{ ...SUB_HEADER, title: 'Send Feedback', animation: 'slide_from_right' }}
+      />
+    </SettingsNav.Navigator>
   );
 }
 
@@ -63,7 +206,7 @@ function TabNavigator() {
     >
       <Tab.Screen
         name="Home"
-        component={HomeScreen}
+        component={HomeNavigator}
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
@@ -71,79 +214,33 @@ function TabNavigator() {
       />
       <Tab.Screen
         name="Schedule"
-        component={ScheduleScreen}
+        component={ScheduleNavigator}
         options={{
           tabBarLabel: 'Schedule',
           tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
         }}
       />
       <Tab.Screen
+        name="Journal"
+        component={JournalNavigator}
+        options={{
+          tabBarLabel: 'Journal',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="notebook-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Summary"
-        component={SummaryScreen}
+        component={SummaryNavigator}
         options={{
           tabBarLabel: 'Summary',
           tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart" size={size} color={color} />,
         }}
       />
       <Tab.Screen
-        name="History"
-        component={CalendarScreen}
-        options={{
-          tabBarLabel: 'History',
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Journal"
-        component={JournalScreen}
-        options={{
-          tabBarLabel: 'Journal',
-          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="notebook-outline" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Events"
-        component={RelapseScreen}
-        options={{
-          tabBarLabel: 'Events',
-          tabBarIcon: ({ color, size }) => <Ionicons name="alert-circle" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Report"
-        component={ReportScreen}
-        options={{
-          tabBarLabel: 'Report',
-          tabBarIcon: ({ color, size }) => <Ionicons name="document-text" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Awareness"
-        component={AwarenessScreen}
-        options={{
-          tabBarLabel: 'Awareness',
-          tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Scanner"
-        component={ScannerScreen}
-        options={{
-          tabBarLabel: 'Scanner',
-          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Guide"
-        component={GuideScreen}
-        options={{
-          tabBarLabel: 'Guide',
-          tabBarIcon: ({ color, size }) => <Ionicons name="book" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
         name="Settings"
-        component={SettingsStack}
+        component={SettingsNavigator}
         options={{
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-sharp" size={size} color={color} />,

@@ -1,5 +1,10 @@
 import { Alert } from 'react-native';
+import { getSupplementsLowStock } from '../db/queries';
+import { useSimpleMode } from '../context/SimpleModeContext';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as StoreReview from 'expo-store-review';
 import {
   Animated,
   SafeAreaView,
@@ -18,7 +23,9 @@ import StartDayButton from '../components/StartDayButton';
 import SunTracker from '../components/SunTracker';
 import WaterTracker from '../components/WaterTracker';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry } from '../db/queries';
+import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals } from '../db/queries';
+import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
+import { clearAppBadge } from '../notifications';
 import type { ScheduledDose } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -48,15 +55,33 @@ interface ProgressHeaderProps {
   doses: ScheduledDose[];
   patientName?: string;
   firstMealTime?: string | null;
+  isSimple?: boolean;
 }
 
-function ProgressHeader({ t0, doses, patientName, firstMealTime }: ProgressHeaderProps) {
+function ProgressHeader({ t0, doses, patientName, firstMealTime, isSimple }: ProgressHeaderProps) {
   const total  = doses.length;
   const taken  = doses.filter(d => d.status === 'taken').length;
   const pct    = total > 0 ? taken / total : 0;
   const today  = formatDate(new Date());
   const startedStr = t0 ? `Started ${formatTime12(t0)}` : null;
   const allDone = total > 0 && taken === total;
+
+  if (isSimple) {
+    return (
+       <View style={[headerStyles.card, { paddingBottom: 10 }]}>
+         <Text style={headerStyles.dateText}>{today}</Text>
+         <View style={{ height: 12 }} />
+         {allDone ? (
+           <Text style={[headerStyles.celebrationText, { fontSize: 18 }]}>All doses done! ✓</Text>
+         ) : (
+           <View style={headerStyles.summaryRow}>
+             <Text style={headerStyles.summaryCount}>{taken}</Text>
+             <Text style={headerStyles.summaryOf}> of {total} doses</Text>
+           </View>
+         )}
+       </View>
+    );
+  }
 
   return (
     <View style={headerStyles.card}>
@@ -283,6 +308,7 @@ const nextStyles = StyleSheet.create({
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
+  const { isSimple, toggleSimple } = useSimpleMode();
   const [t0, setT0] = useState<Date | null>(null);
   const [doses, setDoses] = useState<ScheduledDose[]>([]);
   const [waterMl, setWaterMl] = useState(0);
@@ -298,6 +324,17 @@ export default function HomeScreen() {
   const [todayNotePreview, setTodayNotePreview] = useState('');
   const [exerciseType, setExerciseType] = useState('walk');
   const [exerciseIntensity, setExerciseIntensity] = useState('moderate');
+  const [showFatigueAlert, setShowFatigueAlert] = useState(false);
+  const [showSurveyPrompt, setShowSurveyPrompt] = useState(false);
+  const [lowStockSupps, setLowStockSupps] = useState<{id: string; name: string; quantity_on_hand: number}[]>([]);
+  const [latestJournal, setLatestJournal] = useState<{ mood: string; note: string; date: string } | null | undefined>(undefined);
+  const [todayMeals, setTodayMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
+  const [showSimpleModeConsent, setShowSimpleModeConsent] = useState(false);
+  const [insightText, setInsightText] = useState('');
+  const [showMagnesiumHint, setShowMagnesiumHint] = useState(false);
+  const [showD3MealHint, setShowD3MealHint] = useState(false);
+  const [showEngagementNudge, setShowEngagementNudge] = useState(false);
+  const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -315,16 +352,20 @@ export default function HomeScreen() {
     const journal = await getJournalEntry(new Date().toISOString().split('T')[0]);
     setTodayMood(journal?.mood ?? null);
     setTodayNotePreview(journal?.note?.slice(0, 60) ?? '');
+    const latest = await getLatestJournalEntry();
+    setLatestJournal(latest ? { mood: latest.mood, note: latest.note, date: latest.date } : null);
+    const meals = await getTodayMeals(new Date().toISOString().split('T')[0]);
+    setTodayMeals(meals);
     if (anchor?.t0_timestamp) {
       setT0(new Date(anchor.t0_timestamp));
       const schedule = await getTodaySchedule();
       setDoses(schedule);
       const dueCount = schedule.filter(d => d.status === 'due').length;
-      navigation.setOptions({ tabBarBadge: dueCount > 0 ? dueCount : undefined });
+      navigation.getParent()?.setOptions({ tabBarBadge: dueCount > 0 ? dueCount : undefined });
     } else {
       setT0(null);
       setDoses([]);
-      navigation.setOptions({ tabBarBadge: undefined });
+      navigation.getParent()?.setOptions({ tabBarBadge: undefined });
     }
   }, [navigation]);
 
@@ -333,6 +374,108 @@ export default function HomeScreen() {
     const interval = setInterval(loadDay, 60_000);
     return () => clearInterval(interval);
   }, [loadDay]);
+
+  useEffect(() => {
+    AsyncStorage.getItem('fatigue_alert_shown').then((date) => {
+      const today = new Date().toISOString().split('T')[0];
+      setShowFatigueAlert(date === today);
+    });
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('last_care_survey_date').then((date) => {
+      if (!date) { setShowSurveyPrompt(true); return; }
+      const daysSince = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
+      if (daysSince >= 90) setShowSurveyPrompt(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    checkAndGenerateWeeklyReport().catch(() => {});
+    clearAppBadge().catch(() => {});
+  }, []);
+
+  // Task 18: Simple Mode consent banner
+  useEffect(() => {
+    AsyncStorage.getItem('simple_mode_consent_shown').then((v) => {
+      if (!v) setShowSimpleModeConsent(true);
+    });
+  }, []);
+
+  // Task 19: Daily insight card — rotates by day-of-year
+  useEffect(() => {
+    const INSIGHTS = [
+      'Drink 2.5L+ of water daily to protect your kidneys on high-dose D3.',
+      'Avoid dairy to keep dietary calcium low on the Coimbra Protocol.',
+      'Sun exposure produces D3 sulfate — a form your body uses differently from supplements.',
+      'Magnesium helps your body convert D3 to its active form. Don\'t skip it.',
+      'Low PTH on your blood test means your D3 is working — this is the target.',
+      'Exercise supports neuroprotection and bone density. Even a short walk counts.',
+      'Omega-3 reduces neuroinflammation. Take it with your largest meal of the day.',
+      'Consistent dosing time reduces variability in blood levels. Set a routine.',
+      'Track your mood — it correlates with protocol adherence in clinical studies.',
+      'Vitamin K2 (MK-7) directs calcium to bones, not arteries. Essential with high D3.',
+      'Resveratrol supports immune modulation. Take it away from other supplements.',
+      'Boron improves magnesium absorption. Small amounts make a difference.',
+    ];
+    const idx = Math.floor(Date.now() / 86_400_000) % INSIGHTS.length;
+    setInsightText(INSIGHTS[idx]);
+  }, []);
+
+  // Task 22: Magnesium balance hint — show once per week
+  useEffect(() => {
+    const week = new Date().toISOString().slice(0, 7);
+    AsyncStorage.getItem(`mag_hint_${week}`).then((v) => {
+      if (!v) setShowMagnesiumHint(true);
+    });
+  }, []);
+
+  // Task 23: Meal-timed D3 hint — show until dismissed
+  useEffect(() => {
+    AsyncStorage.getItem('d3_meal_hint_dismissed').then((v) => {
+      if (!v) setShowD3MealHint(true);
+    });
+  }, []);
+
+  // Task 25: First entry wizard — show once after first T0 is set
+  useEffect(() => {
+    if (t0) {
+      AsyncStorage.getItem('first_entry_wizard_shown').then((v) => {
+        if (!v) setShowFirstEntryWizard(true);
+      });
+    }
+  }, [t0]);
+
+  // Task 28: 48-hour re-engagement nudge (new users only, Days 1-8)
+  useEffect(() => {
+    (async () => {
+      const [last, installDate] = await Promise.all([
+        AsyncStorage.getItem('last_active_date'),
+        AsyncStorage.getItem('install_date'),
+      ]);
+      const now = new Date().toISOString().split('T')[0];
+      if (!installDate) await AsyncStorage.setItem('install_date', now);
+      const appAge = Math.floor((Date.now() - new Date(installDate ?? now).getTime()) / 86_400_000);
+      if (appAge < 8 && last) {
+        const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000);
+        if (daysSince >= 2) setShowEngagementNudge(true);
+      }
+      await AsyncStorage.setItem('last_active_date', now);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const supps = await getSupplementsLowStock();
+      const week = new Date().toISOString().slice(0, 7);
+      const visible: { id: string; name: string; quantity_on_hand: number }[] = [];
+      for (const s of supps as any[]) {
+        const dismissed = await AsyncStorage.getItem(`dismissed_reorder_${s.id}_${week}`);
+        if (!dismissed) visible.push(s);
+      }
+      setLowStockSupps(visible);
+    })();
+  }, []);
 
    const handleStartDay = async () => {
      setStarting(true);
@@ -351,7 +494,6 @@ export default function HomeScreen() {
          );
        } else {
          console.error('Error starting day:', error);
-         // Optionally show a generic error alert
          Alert.alert(
            'Error',
            'Failed to start the day. Please try again.',
@@ -391,14 +533,22 @@ export default function HomeScreen() {
     setShowMealPrompt(false);
   };
 
-  const handleTook = async (dose: ScheduledDose) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (dose.logId) {
-      await confirmDose(dose.logId);
-    }
-    setSelectedDose(null);
-    await loadDay();
-  };
+    const handleTook = async (dose: ScheduledDose) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (dose.logId) {
+        await confirmDose(dose.logId);
+        
+        const reviewPrompted = await AsyncStorage.getItem('review_prompted');
+        const streak = await getStreak();
+        const todayCompliance = await getDaySummary();
+        if (!reviewPrompted && streak >= 7 && todayCompliance.compliancePct === 100) {
+          StoreReview.requestReview();
+          await AsyncStorage.setItem('review_prompted', 'true');
+        }
+      }
+      setSelectedDose(null);
+      await loadDay();
+    };
 
   const handleSkip = async (dose: ScheduledDose, reason?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -419,61 +569,76 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const renderHeader = () => (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: isSimple ? 16 : 12 }}>
+      <Text style={styles.greeting}>
+        {patientName ? `Hello, ${patientName.split(' ')[0]}` : 'Coimbra Protocol'}
+      </Text>
+      <TouchableOpacity onPress={toggleSimple} style={{ padding: 8 }}>
+        <MaterialCommunityIcons name={isSimple ? 'circle-half-full' : 'circle-slice-8'} size={24} color="#22c55e" />
+      </TouchableOpacity>
+    </View>
+  );
+
   // ── Pre-day view ───────────────────────────────────────────────────────────
 
   if (!t0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Text style={styles.greeting}>
-            {patientName ? `Hello, ${patientName}` : 'Coimbra Protocol'}
-          </Text>
+          {renderHeader()}
           <Text style={styles.subtitle}>
-            Tap when you're ready to take your first supplement.{'\n'}
-            This sets your schedule for the day.
+            {isSimple 
+              ? "Time for your supplements."
+              : "Tap when you're ready to take your first supplement.\nThis sets your schedule for the day."}
           </Text>
           <StartDayButton onPress={handleStartDay} loading={starting} />
-          <TouchableOpacity
-            style={styles.relapseButton}
-            onPress={() => navigation.navigate('Events')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.relapseButtonText}>Log Event</Text>
-          </TouchableOpacity>
-          {waterMl > 0 && (
-            <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+          
+          {!isSimple && (
+            <>
+              <TouchableOpacity
+                style={styles.relapseButton}
+                onPress={() => navigation.navigate('Journal', { screen: 'Relapse' })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.relapseButtonText}>Log Event</Text>
+              </TouchableOpacity>
+              {waterMl > 0 && (
+                <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+              )}
+              <View style={styles.exerciseCard}>
+                <Text style={styles.exerciseLabel}>Exercise today</Text>
+                {exerciseMinutes >= 30 ? (
+                  <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
+                ) : (
+                  <>
+                    <View style={styles.exercisePillRow}>
+                      {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
+                        <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
+                          <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={styles.exercisePillRow}>
+                      {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
+                        <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
+                          <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <View style={styles.exerciseMinRow}>
+                      {[15, 30, 60].map((min) => (
+                        <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
+                          <Text style={styles.exerciseMinButtonText}>+{min}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </View>
+              <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
+            </>
           )}
-          <View style={styles.exerciseCard}>
-            <Text style={styles.exerciseLabel}>Exercise today</Text>
-            {exerciseMinutes >= 30 ? (
-              <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
-            ) : (
-              <>
-                <View style={styles.exercisePillRow}>
-                  {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
-                    <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
-                      <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.exercisePillRow}>
-                  {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
-                    <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
-                      <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.exerciseMinRow}>
-                  {[15, 30, 60].map((min) => (
-                    <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
-                      <Text style={styles.exerciseMinButtonText}>+{min}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
-            )}
-          </View>
-          <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
         </View>
       </SafeAreaView>
     );
@@ -489,78 +654,234 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
         }
       >
-        {/* Part 1: Dashboard progress header */}
-        <ProgressHeader t0={t0} doses={doses} patientName={patientName} firstMealTime={firstMealTime} />
+        {renderHeader()}
 
-        {/* Part 3: Next dose spotlight */}
-        <NextDoseCard doses={doses} onPress={setSelectedDose} />
-
-        {/* Dose list */}
-        {doses.map((dose) => (
-          <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} />
-        ))}
-
-        {/* Bottom trackers — unchanged */}
-        <TouchableOpacity
-          style={styles.relapseButtonInline}
-          onPress={() => navigation.navigate('Events')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.relapseButtonText}>Log Event</Text>
-        </TouchableOpacity>
-        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
-        <View style={styles.exerciseCard}>
-          <Text style={styles.exerciseLabel}>Exercise today</Text>
-          {exerciseMinutes >= 30 ? (
-            <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
-          ) : (
-            <>
-              <View style={styles.exercisePillRow}>
-                {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
-                  <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
-                    <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.exercisePillRow}>
-                {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
-                  <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
-                    <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.exerciseMinRow}>
-                {[15, 30, 60].map((min) => (
-                  <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
-                    <Text style={styles.exerciseMinButtonText}>+{min}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
-        </View>
-        <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
-        {/* Meal timing prompt */}
-        {showMealPrompt && !firstMealTime ? (
-          <View style={styles.mealPromptCard}>
-            <Text style={styles.mealPromptTitle}>When did you have your first meal?</Text>
-            <TouchableOpacity style={styles.mealPromptButton} onPress={handleLogMeal} activeOpacity={0.8}>
-              <Text style={styles.mealPromptButtonText}>Now</Text>
+        {showFatigueAlert ? (
+          <View style={styles.fatigueBanner}>
+            <Text style={styles.fatigueBannerText}>⚠ Fatigue pattern detected. Consider contacting your prescriber or resting today.</Text>
+            <TouchableOpacity onPress={() => setShowFatigueAlert(false)}>
+              <Text style={styles.fatigueBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
         ) : null}
-        {/* Journal summary card */}
-        <TouchableOpacity style={styles.journalSummaryCard} onPress={() => navigation.navigate('Journal')} activeOpacity={0.7}>
-          <View style={styles.journalSummaryHeader}>
-            <Text style={styles.journalSummaryEmoji}>{todayMood ?? '—'}</Text>
-            <Text style={styles.journalSummaryTitle}>Journal</Text>
+
+        {lowStockSupps.map((s) => (
+          <View key={s.id} style={styles.reorderBanner}>
+            <Text style={styles.reorderBannerText}>⚠ {s.name} running low — ~{s.quantity_on_hand} doses remaining. Restock soon.</Text>
+            <TouchableOpacity onPress={async () => {
+              const week = new Date().toISOString().slice(0, 7);
+              await AsyncStorage.setItem(`dismissed_reorder_${s.id}_${week}`, 'true');
+              setLowStockSupps((prev) => prev.filter((x) => x.id !== s.id));
+            }}>
+              <Text style={styles.reorderBannerDismiss}>✕</Text>
+            </TouchableOpacity>
           </View>
-          {todayMood ? (
-            <Text style={styles.journalSummaryPreview} numberOfLines={1}>{todayNotePreview || 'Tap to write more'}</Text>
-          ) : (
-            <Text style={styles.journalSummaryPrompt}>How are you feeling?</Text>
-          )}
-        </TouchableOpacity>
+        ))}
+
+        {showSurveyPrompt ? (
+          <TouchableOpacity style={styles.surveyPrompt} onPress={() => { setShowSurveyPrompt(false); navigation.navigate('Settings'); }} activeOpacity={0.85}>
+            <Text style={styles.surveyPromptText}>Quarterly check-in: How coordinated is your MS care? · Tap to take survey</Text>
+            <TouchableOpacity onPress={() => setShowSurveyPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.surveyPromptDismiss}>✕</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        ) : null}
+
+        {showSimpleModeConsent ? (
+          <View style={styles.consentBanner}>
+            <Text style={styles.consentBannerTitle}>Simple Mode Active</Text>
+            <Text style={styles.consentBannerText}>Advanced charts, trends, and protocol details are hidden. All data is still recorded. Tap below to acknowledge.</Text>
+            <TouchableOpacity style={styles.consentBannerBtn} onPress={async () => { await AsyncStorage.setItem('simple_mode_consent_shown', 'true'); setShowSimpleModeConsent(false); }} activeOpacity={0.8}>
+              <Text style={styles.consentBannerBtnText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {showEngagementNudge ? (
+          <View style={styles.nudgeBanner}>
+            <Text style={styles.nudgeBannerText}>Welcome back. It looks like you may have missed some doses. Your protocol works best with daily consistency.</Text>
+            <TouchableOpacity onPress={() => setShowEngagementNudge(false)}>
+              <Text style={styles.nudgeBannerDismiss}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {insightText ? (
+          <View style={styles.insightCard}>
+            <Text style={styles.insightLabel}>TODAY'S INSIGHT</Text>
+            <Text style={styles.insightText}>{insightText}</Text>
+          </View>
+        ) : null}
+
+        <ProgressHeader t0={t0} doses={doses} patientName={patientName} firstMealTime={firstMealTime} isSimple={isSimple} />
+
+        {showFirstEntryWizard ? (
+          <View style={styles.wizardCard}>
+            <Text style={styles.wizardTitle}>Your First Day Started</Text>
+            <Text style={styles.wizardStep}>1 — Your T=0 anchor is now set. All supplements are scheduled from this moment.</Text>
+            <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
+            <Text style={styles.wizardStep}>3 — Drink 2.5L+ of water today. Track it with the Water tracker below.</Text>
+            <Text style={styles.wizardStep}>4 — Log your sun exposure and exercise each day to support the protocol.</Text>
+            <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8}>
+              <Text style={styles.wizardBtnText}>Got it, let's start</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {!isSimple && <NextDoseCard doses={doses} onPress={setSelectedDose} />}
+
+        {doses.map((dose) => (
+          <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} isSimple={isSimple} />
+        ))}
+
+        {!isSimple && (
+          <>
+            <TouchableOpacity
+              style={styles.relapseButtonInline}
+              onPress={() => navigation.navigate('Journal', { screen: 'Relapse' })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.relapseButtonText}>Log Event</Text>
+            </TouchableOpacity>
+            <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+            <View style={styles.exerciseCard}>
+              <Text style={styles.exerciseLabel}>Exercise today</Text>
+              {exerciseMinutes >= 30 ? (
+                <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
+              ) : (
+                <>
+                  <View style={styles.exercisePillRow}>
+                    {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
+                      <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
+                        <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={styles.exercisePillRow}>
+                    {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
+                      <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
+                        <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <View style={styles.exerciseMinRow}>
+                    {[15, 30, 60].map((min) => (
+                      <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
+                        <Text style={styles.exerciseMinButtonText}>+{min}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+            <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
+            
+            {showMealPrompt && !firstMealTime && (
+              <View style={styles.mealPromptCard}>
+                <Text style={styles.mealPromptTitle}>When did you have your first meal?</Text>
+                <TouchableOpacity style={styles.mealPromptButton} onPress={handleLogMeal} activeOpacity={0.8}>
+                  <Text style={styles.mealPromptButtonText}>Now</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
+            <TouchableOpacity style={styles.journalSummaryCard} onPress={() => navigation.navigate('Journal')} activeOpacity={0.7}>
+              <View style={styles.journalSummaryHeader}>
+                <Text style={styles.journalSummaryEmoji}>{todayMood ?? '—'}</Text>
+                <Text style={styles.journalSummaryTitle}>Journal</Text>
+              </View>
+              {todayMood ? (
+                <Text style={styles.journalSummaryPreview} numberOfLines={1}>{todayNotePreview || 'Tap to write more'}</Text>
+              ) : (
+                <Text style={styles.journalSummaryPrompt}>How are you feeling?</Text>
+              )}
+            </TouchableOpacity>
+
+            {latestJournal !== undefined ? (
+              <TouchableOpacity style={styles.lastEntryCard} onPress={() => navigation.navigate('Journal')} activeOpacity={0.7}>
+                {latestJournal ? (
+                  <>
+                    <View style={styles.lastEntryTop}>
+                      <Text style={styles.lastEntryEmoji}>{latestJournal.mood}</Text>
+                      <Text style={styles.lastEntryDate}>{latestJournal.date}</Text>
+                    </View>
+                    <Text style={styles.lastEntryNote} numberOfLines={2}>
+                      {latestJournal.note.slice(0, 80)}{latestJournal.note.length > 80 ? '...' : ''}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.lastEntryEmpty}>No journal entries yet. Tap to write your first.</Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+
+            {showD3MealHint ? (
+              <View style={styles.hintCard}>
+                <View style={styles.hintCardInner}>
+                  <Text style={styles.hintCardTitle}>D3 WITH MEALS</Text>
+                  <Text style={styles.hintCardText}>Vitamin D3 is fat-soluble. Take it with your largest meal of the day for best absorption — ideally breakfast or lunch.</Text>
+                </View>
+                <TouchableOpacity onPress={async () => { await AsyncStorage.setItem('d3_meal_hint_dismissed', 'true'); setShowD3MealHint(false); }}>
+                  <Text style={styles.hintCardDismiss}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {showMagnesiumHint ? (
+              <View style={styles.hintCard}>
+                <View style={styles.hintCardInner}>
+                  <Text style={styles.hintCardTitle}>MAGNESIUM BALANCE</Text>
+                  <Text style={styles.hintCardText}>High-dose D3 depletes magnesium. Ensure you're taking magnesium glycinate or malate at a separate time from calcium-rich foods.</Text>
+                </View>
+                <TouchableOpacity onPress={async () => { const week = new Date().toISOString().slice(0, 7); await AsyncStorage.setItem(`mag_hint_${week}`, 'true'); setShowMagnesiumHint(false); }}>
+                  <Text style={styles.hintCardDismiss}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <View style={styles.mealCard}>
+              <Text style={styles.mealCardTitle}>MEALS TODAY</Text>
+              <View style={styles.mealButtonRow}>
+                {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const).map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={styles.mealTypeBtn}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      const today = new Date().toISOString().split('T')[0];
+                      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      await logMeal(today, type, time);
+                      const meals = await getTodayMeals(today);
+                      setTodayMeals(meals);
+                    }}
+                  >
+                    <Text style={styles.mealTypeBtnText}>{type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {todayMeals.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mealChipScroll}>
+                  {todayMeals.map((m) => (
+                    <View key={m.id} style={styles.mealChip}>
+                      <Text style={styles.mealChipText}>{m.meal_type} {m.time}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : null}
+            </View>
+
+            <View style={styles.quickLinksRow}>
+              <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Calendar')} activeOpacity={0.7}>
+                <Ionicons name="calendar-outline" size={16} color="#888888" />
+                <Text style={styles.quickLinkText}>History</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Awareness')} activeOpacity={0.7}>
+                <Ionicons name="heart-outline" size={16} color="#888888" />
+                <Text style={styles.quickLinkText}>Awareness</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <DoseDetailModal
@@ -579,9 +900,89 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0d0d0d',
   },
+  lastEntryCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
+  lastEntryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  lastEntryEmoji: { fontSize: 22 },
+  lastEntryDate: { color: '#888888', fontSize: 12 },
+  lastEntryNote: { color: '#cccccc', fontSize: 14, lineHeight: 20 },
+  lastEntryEmpty: { color: '#555555', fontSize: 14, textAlign: 'center' },
+  quickLinksRow: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 16 },
+  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#1a1a1a', borderRadius: 8, paddingVertical: 10 },
+  quickLinkText: { color: '#888888', fontSize: 13, fontWeight: '600' },
+  reorderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eab308',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 12,
+    gap: 10,
+  },
+  reorderBannerText: {
+    flex: 1,
+    color: '#0d0d0d',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  reorderBannerDismiss: {
+    color: '#0d0d0d',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
+  fatigueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eab308',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 12,
+    gap: 10,
+  },
+  fatigueBannerText: {
+    flex: 1,
+    color: '#0d0d0d',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  fatigueBannerDismiss: {
+    color: '#0d0d0d',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
+  surveyPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a2a1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#22c55e40',
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 12,
+    gap: 10,
+  },
+  surveyPromptText: {
+    flex: 1,
+    color: '#22c55e',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  surveyPromptDismiss: {
+    color: '#555555',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
   centered: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
@@ -589,7 +990,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 28,
     fontWeight: '800',
-    marginBottom: 8,
   },
   subtitle: {
     color: '#888888',
@@ -638,6 +1038,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     marginTop: 12,
+    marginBottom: 8,
   },
   relapseButtonInline: {
     borderWidth: 1.5,
@@ -768,4 +1169,33 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
     textDecorationColor: '#22c55e',
   },
+  consentBanner: { backgroundColor: '#0d1a2a', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#3b82f6' },
+  consentBannerTitle: { color: '#3b82f6', fontSize: 13, fontWeight: '800', marginBottom: 6 },
+  consentBannerText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  consentBannerBtn: { backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  consentBannerBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#1a0d00', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#eab308', gap: 10 },
+  nudgeBannerText: { flex: 1, color: '#eab308', fontSize: 13, lineHeight: 18 },
+  nudgeBannerDismiss: { color: '#555555', fontSize: 16, fontWeight: '700' },
+  insightCard: { backgroundColor: '#0d1a0d', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
+  insightLabel: { color: '#22c55e', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6 },
+  insightText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20 },
+  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#1a1a0d', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#eab308', gap: 10 },
+  hintCardInner: { flex: 1 },
+  hintCardTitle: { color: '#eab308', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 },
+  hintCardText: { color: '#aaaaaa', fontSize: 12, lineHeight: 18 },
+  hintCardDismiss: { color: '#555555', fontSize: 16, fontWeight: '700' },
+  wizardCard: { backgroundColor: '#0d1a0d', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#22c55e40' },
+  wizardTitle: { color: '#22c55e', fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  wizardStep: { color: '#aaaaaa', fontSize: 13, lineHeight: 20, marginBottom: 8 },
+  wizardBtn: { backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  wizardBtnText: { color: '#0d0d0d', fontSize: 14, fontWeight: '800' },
+  mealCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12 },
+  mealCardTitle: { color: '#888888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
+  mealButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  mealTypeBtn: { flex: 1, backgroundColor: '#2a2a2a', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  mealTypeBtnText: { color: '#22c55e', fontSize: 12, fontWeight: '700' },
+  mealChipScroll: { marginTop: 4 },
+  mealChip: { backgroundColor: '#1a1a1a', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#22c55e30' },
+  mealChipText: { color: '#22c55e', fontSize: 12 },
 });

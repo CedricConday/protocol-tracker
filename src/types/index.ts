@@ -95,9 +95,12 @@ export interface JournalEntry {
 export interface RelapseEvent {
   id: number;
   date: string;
-  type: 'relapse' | 'cortisone' | 'symptom';
+  type: 'relapse' | 'cortisone' | 'symptom' | 'pain';
   cortisone_dose_mg: number | null;
   notes: string;
   severity: number | null;
+  pain_type: string | null;
+  lasted_24h: number | null;
+  has_fever: number | null;
   created_at: string;
 }

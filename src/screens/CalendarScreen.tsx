@@ -4,8 +4,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
 import { getDaySummary } from '../db/queries';
 
 const COLS = 6;
@@ -91,16 +95,59 @@ export default function CalendarScreen() {
     rows.push(cells.slice(i, i + COLS));
   }
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+    const handleShare = async () => {
+      try {
+        // Create an HTML table of the calendar for sharing
+        const htmlRows = cells
+          .map((c) => {
+            const date = new Date(c.date);
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+            return `<tr>
+              <td style="border:1px solid #333;padding:8px;text-align:center;">${dayName}<br/>${c.date}</td>
+              <td style="border:1px solid #333;padding:8px;text-align:center;background-color:${getBoxColor(c.compliancePct, c.totalDoses)};color:white;">
+                ${c.compliancePct}%<br/>${c.totalDoses} doses
+              </td>
+            </tr>`;
+          })
+          .join('');
+        
+        const html = `
+          <html><body style="background:#0d0d0d;color:#fff;font-family:sans-serif;padding:20px">
+            <h1 style="color:#22c55e">Compliance Calendar</h1>
+            <p style="color:#888;margin-bottom:16px">Last 30 days</p>
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <thead>
+                <tr style="background:#1a1a1a">
+                  <th style="border:1px solid #333;padding:8px;">Date</th>
+                  <th style="border:1px solid #333;padding:8px;">Compliance / Doses</th>
+                </tr>
+              </thead>
+              <tbody>${htmlRows}</tbody>
+            </table>
+          </body></html>`;
+        
+        const { uri } = await Print.printToFileAsync({ html });
+        await Sharing.shareAsync(uri, { mimeType: 'text/html' });
+      } catch (e) {
+        Alert.alert('Share Failed', e instanceof Error ? e.message : 'Unknown error');
       }
-    >
-      <Text style={styles.heading}>History</Text>
+    };
+
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+        }
+      >
+        <View style={styles.headerRow}>
+          <Text style={styles.heading}>History</Text>
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
+            <Text style={styles.shareButtonText}>Share</Text>
+          </TouchableOpacity>
+        </View>
 
       {/* Month / year header */}
       <Text style={styles.monthHeader}>{getCurrentMonthYear()}</Text>
@@ -256,5 +303,22 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 12,
     fontWeight: '500',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  shareButton: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  shareButtonText: {
+    color: '#22c55e',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

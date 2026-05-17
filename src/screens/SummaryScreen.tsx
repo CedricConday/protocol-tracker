@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,20 +10,15 @@ import {
 } from 'react-native';
 import * as Privacy from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { getDaySummary, getWeekSummary, getStreak, getAnchor, getWeightedAdherenceScore } from '../db/queries';
+import { useNavigation } from '@react-navigation/native';
+import { getDaySummary, getWeekSummary, getStreak, getAnchor, getWeightedAdherenceScore, getRecentJournalEntries, getProfile } from '../db/queries';
+import { useSimpleMode } from '../context/SimpleModeContext';
 import type { DaySummary } from '../types';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function todayDayIndex(): number {
   return ((new Date().getDay() + 6) % 7);
-}
-
-function getBoxColor(compliancePct: number, totalDoses: number) {
-  if (totalDoses === 0) return '#333333';
-  if (compliancePct >= 80) return '#22c55e';
-  if (compliancePct >= 50) return '#eab308';
-  return '#ef4444';
 }
 
 function getComplianceColor(compliancePct: number) {
@@ -36,12 +32,18 @@ function formatDate(d: Date): string {
 }
 
 export default function SummaryScreen() {
+  const navigation = useNavigation<any>();
+  const { isSimple } = useSimpleMode();
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [weekData, setWeekData] = useState<{ date: string; compliancePct: number; totalDoses: number; waterMl: number }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [streak, setStreak] = useState(0);
   const [adherenceScore, setAdherenceScore] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const [moodWeek, setMoodWeek] = useState<{ day: string; score: number | null }[]>([]);
+  const [waterWeek, setWaterWeek] = useState<{ day: string; ml: number }[]>([]);
+  const [doctorMode, setDoctorMode] = useState(false);
+  const [patientName, setPatientName] = useState('Patient');
 
   const loadData = useCallback(async () => {
     const daySummary = await getDaySummary();
@@ -60,6 +62,25 @@ export default function SummaryScreen() {
       }),
     );
     setWeekData(enriched);
+
+    const MOOD_SCORES: Record<string, number> = { '😄': 5, '🙂': 4, '😐': 3, '😔': 2, '😞': 1 };
+    const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const todayIdx = ((new Date().getDay() + 6) % 7);
+    const journals = await getRecentJournalEntries(7);
+    const moodData = [];
+    const waterData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const entry = journals.find((j) => j.date === dateStr);
+      const anchor = await getAnchor(dateStr);
+      moodData.push({ day: DAY3[(todayIdx - i + 7) % 7], score: entry ? (MOOD_SCORES[entry.mood] ?? null) : null });
+      waterData.push({ day: DAY3[(todayIdx - i + 7) % 7], ml: anchor?.water_ml ?? 0 });
+    }
+    setMoodWeek(moodData);
+    setWaterWeek(waterData);
+    const profile = await getProfile();
+    if (profile?.name) setPatientName(profile.name);
   }, []);
 
   useEffect(() => {
@@ -79,10 +100,9 @@ export default function SummaryScreen() {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - 6);
       const rows = weekData.map((d, i) => {
-        const date = new Date(d.date + 'T00:00:00');
-        const dayName = WEEKDAYS[i];
+        const dayName = WEEKDAYS[(todayDayIndex() - 6 + i + 7) % 7];
         return `<tr style="border-bottom:1px solid #2a2a2a">
-          <td style="padding:8px;color:#fff">${WEEKDAYS[(todayDayIndex() - 6 + i + 7) % 7]}</td>
+          <td style="padding:8px;color:#fff">${dayName}</td>
           <td style="padding:8px;color:${getComplianceColor(d.compliancePct)}">${d.compliancePct}%</td>
           <td style="padding:8px;color:#fff">${d.totalDoses}</td>
           <td style="padding:8px;color:#fff">${d.waterMl}ml</td>
@@ -104,12 +124,46 @@ export default function SummaryScreen() {
     }
   };
 
+  const handleProviderReport = async () => {
+    setSharing(true);
+    try {
+      const now = new Date();
+      const avgCompliance = weekData.length > 0 ? Math.round(weekData.reduce((a, b) => a + b.compliancePct, 0) / weekData.length) : 0;
+      const html = `<html><body style="font-family:sans-serif;padding:32px;background:#fff;color:#111">
+        <h1 style="color:#166534;margin-bottom:4px">Coimbra Protocol — Provider Summary</h1>
+        <p style="color:#666;font-size:12px;margin-bottom:24px">Generated ${now.toLocaleDateString()}</p>
+        <table style="border-collapse:collapse;width:100%;font-size:14px">
+          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:600">Patient</td><td style="padding:10px;border:1px solid #ddd">${patientName}</td></tr>
+          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:600">7-Day Avg Compliance</td><td style="padding:10px;border:1px solid #ddd">${avgCompliance}%</td></tr>
+          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:600">Protocol Score (14d)</td><td style="padding:10px;border:1px solid #ddd">${adherenceScore}/100</td></tr>
+          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:600">Adherence Streak</td><td style="padding:10px;border:1px solid #ddd">${streak} days</td></tr>
+          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:600">Today's Compliance</td><td style="padding:10px;border:1px solid #ddd">${compliancePct}%</td></tr>
+        </table>
+        <h2 style="color:#166534;font-size:14px;margin-top:24px">Daily Breakdown (Last 7 Days)</h2>
+        <table style="border-collapse:collapse;width:100%;font-size:13px">
+          <tr style="background:#f0fdf4"><th style="padding:8px;border:1px solid #ddd">Date</th><th style="padding:8px;border:1px solid #ddd">Compliance</th><th style="padding:8px;border:1px solid #ddd">Doses</th><th style="padding:8px;border:1px solid #ddd">Water</th></tr>
+          ${weekData.map((d, i) => `<tr><td style="padding:8px;border:1px solid #ddd">${WEEKDAYS[(todayDayIndex() - 6 + i + 7) % 7]}</td><td style="padding:8px;border:1px solid #ddd">${d.compliancePct}%</td><td style="padding:8px;border:1px solid #ddd">${d.totalDoses}</td><td style="padding:8px;border:1px solid #ddd">${d.waterMl}ml</td></tr>`).join('')}
+        </table>
+        <p style="color:#999;font-size:10px;margin-top:32px">This report was auto-generated by the Coimbra Protocol App. It is for informational purposes only and does not constitute medical advice.</p>
+      </body></html>`;
+      const { uri } = await Privacy.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Provider Report' });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleClinicalMessage = () => {
+    const avgCompliance = weekData.length > 0 ? Math.round(weekData.reduce((a, b) => a + b.compliancePct, 0) / weekData.length) : 0;
+    const msg = `Dear Doctor,\n\nI am reaching out with my Coimbra Protocol tracking update for your review.\n\nThis week's average compliance: ${avgCompliance}%\nProtocol score (14 days): ${adherenceScore}/100\nCurrent adherence streak: ${streak} days\n\nI have attached my weekly compliance report. Please let me know if any adjustments to my protocol are needed.\n\nThank you,\n${patientName}`;
+    Alert.alert('Clinical Message Draft', msg, [{ text: 'Close' }]);
+  };
+
   const taken = summary?.takenDoses ?? 0;
   const total = summary?.totalDoses ?? 0;
   const compliancePct = summary?.compliancePct ?? 0;
   const waterMl = summary?.waterMl ?? 0;
   const ringColor = getComplianceColor(compliancePct);
-  const maxBarHeight = 120;
   const waterGoal = 2500;
 
   return (
@@ -126,10 +180,12 @@ export default function SummaryScreen() {
           <Text style={styles.statValue}>{taken}/{total}</Text>
           <Text style={styles.statLabel}>Doses Taken</Text>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{waterMl}</Text>
-          <Text style={styles.statLabel}>Water (ml)</Text>
-        </View>
+        {!isSimple && (
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{waterMl}</Text>
+            <Text style={styles.statLabel}>Water (ml)</Text>
+          </View>
+        )}
       </View>
 
       {/* Compliance Ring Card */}
@@ -146,116 +202,205 @@ export default function SummaryScreen() {
         </View>
         <Text style={styles.complianceLabel}>Compliance</Text>
         <View style={styles.barBg}>
-          <View style={[styles.barFill, { width: `${Math.min(compliancePct, 100)}%` as `${number}%`, backgroundColor: ringColor }]} />
+          <View style={[styles.barFill, { width: `${Math.min(compliancePct, 100)}%`, backgroundColor: ringColor }]} />
         </View>
       </View>
 
-      {/* Protocol Score */}
-      <View style={styles.scoreCard}>
-        <Text style={styles.scoreValue}>{adherenceScore}</Text>
-        <Text style={styles.scoreLabel}>Protocol Score</Text>
-        <Text style={styles.scoreSub}>Weighted for recency and supplement priority</Text>
-      </View>
+      {!isSimple && (
+        <>
+          {/* Protocol Score */}
+          <View style={styles.scoreCard}>
+            <Text style={styles.scoreValue}>{adherenceScore}</Text>
+            <Text style={styles.scoreLabel}>Protocol Score</Text>
+            <Text style={styles.scoreSub}>Weighted for recency and supplement priority</Text>
+          </View>
 
-      {/* Streak Card */}
-      <View style={styles.streakCard}>
-        <Text style={styles.streakValue}>{streak === 0 ? '—' : `${streak}`}{streak >= 3 ? ' 🔥' : ''}</Text>
-        <Text style={[styles.streakLabel, streak === 0 ? styles.streakNoData : null]}>{streak === 0 ? 'no streak yet' : 'day streak'}</Text>
-      </View>
+          {/* Streak Card */}
+          <View style={styles.streakCard}>
+            <Text style={styles.streakValue}>{streak === 0 ? '—' : `${streak}`}{streak >= 3 ? ' 🔥' : ''}</Text>
+            <Text style={[styles.streakLabel, streak === 0 ? styles.streakNoData : null]}>{streak === 0 ? 'no streak yet' : 'day streak'}</Text>
+          </View>
 
-      {/* Water This Week */}
-      <Text style={styles.sectionTitle}>Water This Week</Text>
-      <View style={styles.waterChartRow}>
-        {weekData.map((d, i) => {
-          const barHeight = Math.min((d.waterMl / waterGoal) * maxBarHeight, maxBarHeight);
-          const dayName = WEEKDAYS[(todayDayIndex() - 6 + i + 7) % 7];
-          return (
-            <View key={d.date} style={styles.waterCol}>
-              <Text style={styles.waterMlLabel}>{d.waterMl > 0 ? `${Math.round(d.waterMl / 100) * 100}` : ''}</Text>
-              <View style={styles.waterBarTrack}>
-                <View style={[styles.waterBarFill, { height: `${barHeight}%` as `${number}%`, backgroundColor: '#3b82f6' }]} />
-                <View style={[styles.waterBarRemain, { height: `${maxBarHeight - barHeight}%` as `${number}%` }]} />
+          {/* Mood Chart */}
+          <Text style={styles.chartSectionTitle}>MOOD — LAST 7 DAYS</Text>
+          <View style={styles.barChartRow}>
+            {moodWeek.map((m, i) => {
+              const h = m.score ? (m.score / 5) * 64 : 4;
+              const bg = m.score ? (m.score >= 4 ? '#22c55e' : m.score === 3 ? '#eab308' : '#ef4444') : '#222222';
+              return (
+                <View key={i} style={styles.barCol}>
+                  <View style={[styles.moodBar, { height: h, backgroundColor: bg }]} />
+                  <Text style={styles.barDayLabel}>{m.day}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Water Chart */}
+          <Text style={styles.chartSectionTitle}>WATER — LAST 7 DAYS</Text>
+          <View style={[styles.barChartRow, { position: 'relative' }]}>
+            <View style={styles.waterGoalLine} />
+            {waterWeek.map((w, i) => {
+              const h = Math.min((w.ml / 2500) * 64, 64);
+              const bg = w.ml === 0 ? '#222222' : w.ml >= 2200 ? '#22c55e' : w.ml >= 1500 ? '#eab308' : '#ef4444';
+              return (
+                <View key={i} style={styles.barCol}>
+                  <View style={[styles.moodBar, { height: Math.max(h, 4), backgroundColor: bg }]} />
+                  <Text style={styles.barDayLabel}>{w.day}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Water This Week */}
+          <Text style={styles.sectionTitle}>Water This Week</Text>
+          <View style={styles.waterChartRow}>
+            {weekData.map((d, i) => {
+              const barHeight = Math.min((d.waterMl / waterGoal) * 100, 100);
+              const dayName = WEEKDAYS[(todayDayIndex() - 6 + i + 7) % 7];
+              return (
+                <View key={d.date} style={styles.waterCol}>
+                  <Text style={styles.waterMlLabel}>{d.waterMl > 0 ? `${Math.round(d.waterMl / 100) * 100}` : ''}</Text>
+                  <View style={styles.waterBarTrack}>
+                    <View style={[styles.waterBarFill, { height: `${barHeight}%`, backgroundColor: '#3b82f6' }]} />
+                    <View style={[styles.waterBarRemain, { height: `${100 - barHeight}%` }]} />
+                  </View>
+                  <Text style={styles.waterDayLabel}>{dayName}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Week compliance boxes */}
+          <Text style={styles.sectionTitle}>This Week</Text>
+          <View style={styles.weekRow}>
+            {weekData.map((d, i) => (
+              <View key={d.date} style={styles.weekCol}>
+                <View style={[styles.weekBox, { backgroundColor: getComplianceColor(d.compliancePct) }]} />
+                <Text style={styles.weekDay}>{WEEKDAYS[(todayDayIndex() - 6 + i + 7) % 7]}</Text>
               </View>
-              <View style={styles.goalDash}>
-                <View style={styles.goalDashSeg} />
-                <View style={styles.goalDashSegTrans} />
-                <View style={styles.goalDashSeg} />
-                <View style={styles.goalDashSegTrans} />
-                <View style={styles.goalDashSeg} />
+            ))}
+          </View>
+          
+          <TouchableOpacity style={styles.shareBtn} onPress={handleShareWeek} disabled={sharing}>
+             <Text style={styles.shareBtnText}>{sharing ? 'Preparing...' : 'Share Week'}</Text>
+          </TouchableOpacity>
+
+          {/* Medical Records */}
+          <View style={styles.medicalRow}>
+            <TouchableOpacity style={styles.medicalBtn} onPress={() => navigation.navigate('LabResults')} activeOpacity={0.7}>
+              <Text style={styles.medicalBtnLabel}>Lab Results</Text>
+              <Text style={styles.medicalBtnSub}>PTH · Vit D · Ca</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.medicalBtn} onPress={() => navigation.navigate('MriTracker')} activeOpacity={0.7}>
+              <Text style={styles.medicalBtnLabel}>MRI History</Text>
+              <Text style={styles.medicalBtnSub}>Lesions · Timeline</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Doctor's Console — Tasks 31/32/33 */}
+          <TouchableOpacity
+            style={[styles.doctorModeToggle, doctorMode ? styles.doctorModeToggleActive : null]}
+            onPress={() => setDoctorMode((v) => !v)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.doctorModeToggleText, doctorMode ? styles.doctorModeToggleTextActive : null]}>
+              {doctorMode ? 'Exit Doctor View' : "Doctor's Consult View"}
+            </Text>
+          </TouchableOpacity>
+
+          {doctorMode ? (
+            <View style={styles.doctorConsole}>
+              <Text style={styles.doctorConsoleTitle}>PROVIDER SUMMARY</Text>
+              <View style={styles.doctorMetricRow}>
+                <View style={styles.doctorMetric}>
+                  <Text style={styles.doctorMetricValue}>{adherenceScore}</Text>
+                  <Text style={styles.doctorMetricLabel}>Protocol Score</Text>
+                </View>
+                <View style={styles.doctorMetric}>
+                  <Text style={styles.doctorMetricValue}>{streak}d</Text>
+                  <Text style={styles.doctorMetricLabel}>Streak</Text>
+                </View>
+                <View style={styles.doctorMetric}>
+                  <Text style={styles.doctorMetricValue}>{compliancePct}%</Text>
+                  <Text style={styles.doctorMetricLabel}>Today</Text>
+                </View>
               </View>
-              <Text style={styles.waterDayLabel}>{dayName}</Text>
+              <TouchableOpacity style={styles.doctorBtn} onPress={handleClinicalMessage} activeOpacity={0.8}>
+                <Text style={styles.doctorBtnText}>Draft Clinical Message</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.doctorBtn, { marginTop: 8 }]} onPress={handleProviderReport} disabled={sharing} activeOpacity={0.8}>
+                <Text style={styles.doctorBtnText}>{sharing ? 'Generating...' : 'Export Provider PDF'}</Text>
+              </TouchableOpacity>
             </View>
-          );
-        })}
-      </View>
-
-      {/* Week compliance boxes */}
-      <Text style={styles.sectionTitle}>This Week</Text>
-      <View style={styles.weekRow}>
-        {weekData.map((d, i) => {
-          const isToday = i === todayDayIndex();
-          return (
-            <View key={d.date} style={styles.dayCol}>
-              <View style={[styles.dayBox, { backgroundColor: getBoxColor(d.compliancePct, d.totalDoses) }, isToday ? styles.dayBoxToday : null]} />
-              <Text style={[styles.dayLabel, isToday ? styles.dayLabelToday : null]}>{WEEKDAYS[i]}</Text>
-            </View>
-          );
-        })}
-      </View>
-
-      {/* Share Week button */}
-      <TouchableOpacity style={[styles.shareButton, sharing ? styles.shareButtonDisabled : null]} onPress={handleShareWeek} disabled={sharing} activeOpacity={0.8}>
-        <Text style={styles.shareButtonText}>{sharing ? 'Sharing...' : 'Share Week Report'}</Text>
-      </TouchableOpacity>
+          ) : null}
+        </>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0d0d0d' },
-  content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  heading: { color: '#ffffff', fontSize: 22, fontWeight: '700', marginBottom: 24 },
+  content: { padding: 24, paddingTop: 60 },
+  medicalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  medicalBtn: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 10, padding: 14, alignItems: 'center' },
+  medicalBtnLabel: { color: '#ffffff', fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  medicalBtnSub: { color: '#888888', fontSize: 11 },
+  chartSectionTitle: { color: '#888888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 20 },
+  barChartRow: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 6, marginBottom: 4 },
+  barCol: { flex: 1, alignItems: 'center', gap: 4, justifyContent: 'flex-end' },
+  moodBar: { width: '100%', borderRadius: 4 },
+  barDayLabel: { color: '#888888', fontSize: 10, textAlign: 'center' },
+  waterGoalLine: { position: 'absolute', bottom: 20, left: 0, right: 0, height: 1, backgroundColor: '#ffffff', opacity: 0.15 },
+  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 24 },
   statRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 12, padding: 20, alignItems: 'center' },
-  statValue: { color: '#ffffff', fontSize: 32, fontWeight: '800' },
-  statLabel: { color: '#888888', fontSize: 13, marginTop: 4 },
-  complianceCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 16 },
-  cardDayLabel: { color: '#888888', fontSize: 12, fontWeight: '600', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 },
-  ringContainer: { marginBottom: 8 },
-  ringOuter: { width: 120, height: 120, borderRadius: 60, borderWidth: 8, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  ringInnerAccent: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderTopColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: 'transparent', transform: [{ rotate: '-45deg' }] },
-  ringCenter: { flexDirection: 'row', alignItems: 'flex-end' },
-  ringNumber: { fontSize: 36, fontWeight: '800', lineHeight: 40 },
-  ringPercent: { color: '#888888', fontSize: 14, fontWeight: '600', marginBottom: 4 },
-  complianceLabel: { color: '#888888', fontSize: 13, marginTop: 4, marginBottom: 16 },
-  barBg: { width: '100%', height: 6, backgroundColor: '#2a2a2a', borderRadius: 3, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 3 },
-  scoreCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 16 },
-  scoreValue: { color: '#22c55e', fontSize: 32, fontWeight: '800' },
-  scoreLabel: { color: '#ffffff', fontSize: 14, fontWeight: '600', marginTop: 4 },
+  statCard: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16 },
+  statValue: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
+  statLabel: { color: '#888888', fontSize: 12, marginTop: 4 },
+  complianceCard: { backgroundColor: '#1a1a1a', borderRadius: 16, padding: 20, alignItems: 'center', marginBottom: 16 },
+  cardDayLabel: { color: '#888888', fontSize: 12, fontWeight: '600', alignSelf: 'flex-start', marginBottom: 12 },
+  ringContainer: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginVertical: 10 },
+  ringOuter: { width: 120, height: 120, borderRadius: 60, borderWidth: 8, justifyContent: 'center', alignItems: 'center' },
+  ringInnerAccent: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderLeftColor: 'transparent', borderBottomColor: 'transparent' },
+  ringCenter: { alignItems: 'center' },
+  ringNumber: { fontSize: 32, fontWeight: '800' },
+  ringPercent: { color: '#888888', fontSize: 14, fontWeight: '600' },
+  complianceLabel: { color: '#ffffff', fontSize: 16, fontWeight: '600', marginTop: 12 },
+  barBg: { width: '100%', height: 4, backgroundColor: '#2a2a2a', borderRadius: 2, marginTop: 16 },
+  barFill: { height: 4, borderRadius: 2 },
+  scoreCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 12 },
+  scoreValue: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
+  scoreLabel: { color: '#888888', fontSize: 14, fontWeight: '600', marginTop: 2 },
   scoreSub: { color: '#555555', fontSize: 11, marginTop: 4 },
-  streakCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 20, alignItems: 'center', marginBottom: 24 },
-  streakValue: { color: '#22c55e', fontSize: 32, fontWeight: '800' },
-  streakLabel: { color: '#888888', fontSize: 13, marginTop: 4 },
-  streakNoData: { color: '#555555' },
-  waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, paddingHorizontal: 4 },
-  waterCol: { alignItems: 'center', gap: 4, flex: 1 },
-  waterMlLabel: { color: '#555555', fontSize: 9, height: 14 },
-  waterBarTrack: { width: 16, height: 120, backgroundColor: '#2a2a2a', borderRadius: 4, overflow: 'hidden', justifyContent: 'flex-end' },
-  waterBarFill: { width: '100%', borderRadius: 4, position: 'absolute', bottom: 0 },
-  waterBarRemain: { width: '100%', backgroundColor: 'transparent' },
-  goalDash: { height: 12, width: 16, alignItems: 'center', justifyContent: 'space-between' },
-  goalDashSeg: { width: 10, height: 2, backgroundColor: '#3b82f644' },
-  goalDashSegTrans: { width: 10, height: 2, backgroundColor: 'transparent' },
-  waterDayLabel: { color: '#888888', fontSize: 10, fontWeight: '600' },
-  sectionTitle: { color: '#ffffff', fontSize: 16, fontWeight: '600', marginBottom: 12 },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  dayCol: { alignItems: 'center', gap: 6 },
-  dayBox: { width: 36, height: 36, borderRadius: 8 },
-  dayBoxToday: { borderWidth: 2, borderColor: '#ffffff' },
-  dayLabel: { color: '#888888', fontSize: 11, fontWeight: '600' },
-  dayLabelToday: { color: '#ffffff' },
-  shareButton: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  shareButtonDisabled: { opacity: 0.4 },
-  shareButtonText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
+  streakCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 24 },
+  streakValue: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
+  streakLabel: { color: '#888888', fontSize: 14, fontWeight: '600', marginTop: 2 },
+  streakNoData: { color: '#444444' },
+  sectionTitle: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 16 },
+  waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, marginBottom: 32 },
+  waterCol: { alignItems: 'center', width: 36 },
+  waterMlLabel: { color: '#555555', fontSize: 9, fontWeight: '600', marginBottom: 4 },
+  waterBarTrack: { width: 12, height: 100, backgroundColor: '#1a1a1a', borderRadius: 6, overflow: 'hidden' },
+  waterBarFill: { width: 12, borderRadius: 6 },
+  waterBarRemain: { width: 12 },
+  waterDayLabel: { color: '#888888', fontSize: 10, marginTop: 8 },
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  weekCol: { alignItems: 'center' },
+  weekBox: { width: 32, height: 32, borderRadius: 6, marginBottom: 6 },
+  weekDay: { color: '#555555', fontSize: 10, fontWeight: '600' },
+  shareBtn: { backgroundColor: '#1a1a1a', borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#22c55e' },
+  shareBtnText: { color: '#22c55e', fontSize: 14, fontWeight: '700' },
+  doctorModeToggle: { backgroundColor: '#0d1a2a', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 16, borderWidth: 1, borderColor: '#3b82f6' },
+  doctorModeToggleActive: { backgroundColor: '#1a2a3a' },
+  doctorModeToggleText: { color: '#3b82f6', fontSize: 14, fontWeight: '700' },
+  doctorModeToggleTextActive: { color: '#60a5fa' },
+  doctorConsole: { backgroundColor: '#0d1520', borderRadius: 16, padding: 20, marginTop: 12, borderWidth: 1, borderColor: '#3b82f630' },
+  doctorConsoleTitle: { color: '#3b82f6', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 16 },
+  doctorMetricRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
+  doctorMetric: { alignItems: 'center' },
+  doctorMetricValue: { color: '#ffffff', fontSize: 24, fontWeight: '800' },
+  doctorMetricLabel: { color: '#555555', fontSize: 11, fontWeight: '600', marginTop: 4 },
+  doctorBtn: { backgroundColor: '#1a2a3a', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#3b82f6' },
+  doctorBtnText: { color: '#3b82f6', fontSize: 14, fontWeight: '700' },
 });

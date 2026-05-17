@@ -134,10 +134,56 @@ export async function initDb(): Promise<void> {
     CREATE TABLE IF NOT EXISTS relapse_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('relapse','cortisone','symptom')),
+      type TEXT NOT NULL CHECK(type IN ('relapse','cortisone','symptom','pain')),
       cortisone_dose_mg INTEGER,
       notes TEXT NOT NULL DEFAULT '',
       severity INTEGER CHECK(severity BETWEEN 1 AND 5),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS mri_scans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      facility TEXT NOT NULL DEFAULT '',
+      scan_type TEXT NOT NULL DEFAULT 'brain',
+      contrast INTEGER NOT NULL DEFAULT 0,
+      new_lesions TEXT NOT NULL DEFAULT '',
+      enhancing_lesions INTEGER,
+      overall_assessment TEXT NOT NULL DEFAULT 'stable',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS lab_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      vit_d_ngml REAL,
+      pth_pgml REAL,
+      calcium_serum_mgdl REAL,
+      calcium_urine_mg_g_cr REAL,
+      creatinine_mgdl REAL,
+      sulkowitch TEXT,
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS contraindication_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      drug_name TEXT NOT NULL,
+      drug_aliases TEXT NOT NULL DEFAULT '',
+      severity TEXT NOT NULL DEFAULT 'warning',
+      message TEXT NOT NULL,
+      safe_alternative TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE IF NOT EXISTS patient_medications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      form TEXT NOT NULL DEFAULT '',
+      dose_mg REAL,
+      frequency TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -157,12 +203,56 @@ export async function initDb(): Promise<void> {
       interval_days INTEGER NOT NULL DEFAULT 90
     );
 
+    CREATE TABLE IF NOT EXISTS meal_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      meal_type TEXT NOT NULL,
+      time TEXT NOT NULL,
+      notes TEXT NOT NULL DEFAULT '',
+      logged_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS care_surveys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      scores_json TEXT NOT NULL,
+      total INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS news_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      url TEXT NOT NULL UNIQUE,
+      published_date TEXT NOT NULL,
+      fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS feedback (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      message TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
+      sent INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
   `);
 
   // Migrations: Add columns to existing tables (try/catch for idempotency)
+  try {
+    await database.execAsync(`
+      ALTER TABLE supplements ADD COLUMN quantity_on_hand INTEGER
+    `);
+  } catch (e) {
+    console.log('[Database] migration: quantity_on_hand column already exists');
+  }
+
+
   try {
     await database.execAsync(`
       ALTER TABLE dose_logs ADD COLUMN missed_alerted INTEGER NOT NULL DEFAULT 0
@@ -201,5 +291,90 @@ export async function initDb(): Promise<void> {
     `);
   } catch (e) {
     console.log('[Database] migration: exercise_logs.intensity already exists');
+  }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE relapse_events ADD COLUMN pain_type TEXT
+    `);
+  } catch (e) {
+    console.log('[Database] migration: relapse_events.pain_type already exists');
+  }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE relapse_events ADD COLUMN lasted_24h INTEGER
+    `);
+  } catch (e) {
+    console.log('[Database] migration: relapse_events.lasted_24h already exists');
+  }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE relapse_events ADD COLUMN has_fever INTEGER
+    `);
+  } catch (e) {
+    console.log('[Database] migration: relapse_events.has_fever already exists');
+  }
+
+  // Migrate relapse_events CHECK constraint to include 'pain' type
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS relapse_events_v2 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('relapse','cortisone','symptom','pain')),
+        cortisone_dose_mg INTEGER,
+        notes TEXT NOT NULL DEFAULT '',
+        severity INTEGER CHECK(severity BETWEEN 1 AND 5),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        pain_type TEXT,
+        lasted_24h INTEGER,
+        has_fever INTEGER
+      );
+      INSERT OR IGNORE INTO relapse_events_v2
+        SELECT id, date, type, cortisone_dose_mg, notes, severity, created_at,
+               pain_type, lasted_24h, has_fever
+        FROM relapse_events
+        WHERE type IN ('relapse','cortisone','symptom','pain');
+      DROP TABLE relapse_events;
+      ALTER TABLE relapse_events_v2 RENAME TO relapse_events;
+    `);
+  } catch (e) {
+    console.log('[Database] migration: relapse_events constraint already updated');
+  }
+
+  // Seed contraindication rules (idempotent — only if table is empty)
+  const existingRules = await database.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) as c FROM contraindication_rules'
+  );
+  if (!existingRules || existingRules.c === 0) {
+    await database.execAsync(`
+      INSERT INTO contraindication_rules (drug_name, drug_aliases, severity, message, safe_alternative) VALUES
+      ('Lithium Carbonate', 'lithium carbonate,lithiumcarbonat', 'danger',
+       'Lithium Carbonate is contraindicated with high-dose D3. It causes dangerous calcium dysregulation. Discuss with your doctor immediately.',
+       'Lithium Orotate is prescribed by some Coimbra doctors and is considered safe — confirm the exact form with your prescriber.'),
+      ('Thiazide Diuretics', 'hydrochlorothiazide,HCTZ,chlorthalidone,indapamide,bendroflumethiazide', 'danger',
+       'Thiazide diuretics increase kidney calcium reabsorption. Combined with high-dose D3 this significantly raises hypercalcemia risk.',
+       'Discuss alternative diuretics with your doctor. Loop diuretics (furosemide) have a different calcium profile.'),
+      ('Calcium Supplements', 'calcium carbonate,calcium citrate,calciumcarbonat,kalzium', 'danger',
+       'Supplemental calcium is incompatible with the Coimbra Protocol. The protocol relies on strict dietary calcium restriction — supplementation defeats this.',
+       'Get calcium from diet only. Your target is <400mg dietary calcium per day on the standard protocol.'),
+      ('Cortisone', 'prednisone,prednisolone,methylprednisolone,dexamethasone,hydrocortisone,kortison', 'warning',
+       'Corticosteroids reduce Vitamin D efficacy and transiently alter calcium handling. Log any cortisone pulse in Events. Do not stop either medication without doctor approval.',
+       'Continue both. Flag the combination to your neurologist for monitoring.'),
+      ('Hormonal Contraceptives', 'birth control pill,pille,estrogen,ethinylestradiol,levonorgestrel', 'warning',
+       'Some hormonal contraceptives affect Vitamin D metabolism and serum calcium levels. Monitor your blood results more frequently.',
+       'Discuss with your gynecologist. Non-hormonal contraception avoids this interaction.'),
+      ('Ibuprofen', 'ibuprofen,nurofen,advil,ibu,ibuprofeno', 'warning',
+       'NSAIDs including ibuprofen impair kidney function. The Coimbra Protocol depends on healthy kidney calcium excretion. Occasional use is lower risk; chronic use is a concern.',
+       'Paracetamol/acetaminophen for pain relief has no interaction with the protocol.'),
+      ('Naproxen', 'naproxen,aleve,naproxeno', 'warning',
+       'NSAIDs including naproxen impair kidney function needed for safe calcium excretion on high-dose D3.',
+       'Paracetamol/acetaminophen for pain relief has no interaction with the protocol.'),
+      ('Cholestyramine', 'cholestyramine,colestyramin,questran', 'warning',
+       'Cholestyramine binds fat-soluble vitamins in the gut including Vitamin D3, significantly reducing absorption.',
+       'If cholestyramine is required, take Vitamin D3 at least 4 hours before or after the dose.');
+    `);
   }
 }

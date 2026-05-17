@@ -44,13 +44,13 @@ export async function setT0(timestamp: number, date: string = todayStr()): Promi
 export async function addWater(amount_ml: number, date: string = todayStr()): Promise<void> {
   const db = await getDb();
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  await db.runAsync(
       `INSERT INTO daily_anchors (date, t0_timestamp, water_ml)
        VALUES (?, NULL, ?)
        ON CONFLICT(date) DO UPDATE SET water_ml = water_ml + excluded.water_ml`,
       [date, amount_ml]
     );
-    await db.runAsync(
+  await db.runAsync(
       'INSERT INTO water_logs (date, amount_ml, logged_at) VALUES (?, ?, ?)',
       [date, amount_ml, Date.now()]
     );
@@ -104,12 +104,12 @@ export async function createDoseLogs(
   const db = await getDb();
   await db.withTransactionAsync(async () => {
     // Clear any existing upcoming logs for today (in case of re-start)
-    await db.runAsync(
+  await db.runAsync(
       "DELETE FROM dose_logs WHERE date = ? AND status = 'upcoming'",
       [date]
     );
     for (const d of doses) {
-      await db.runAsync(
+  await db.runAsync(
         `INSERT INTO dose_logs (date, supplement_id, rule_id, scheduled_time, status)
          VALUES (?, ?, ?, ?, 'upcoming')`,
         [date, d.supplement_id, d.rule_id, d.scheduled_time]
@@ -134,22 +134,29 @@ export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog &
 
 export async function confirmDose(logId: number): Promise<void> {
   const db = await getDb();
+  const log = await db.getFirstAsync<{ supplement_id: string }>('SELECT supplement_id FROM dose_logs WHERE id = ?', [logId]);
   await db.runAsync(
     "UPDATE dose_logs SET status = 'taken', logged_time = ? WHERE id = ?",
     [Date.now(), logId]
   );
+  if (log?.supplement_id) {
+    await decrementQuantity(log.supplement_id);
+  }
 }
 
 export async function skipDose(logId: number): Promise<void> {
   const db = await getDb();
+  const log = await db.getFirstAsync<{supplement_id: string}>("SELECT supplement_id FROM dose_logs WHERE id = ?", [logId]);
   await db.runAsync(
     "UPDATE dose_logs SET status = 'missed', logged_time = ? WHERE id = ?",
     [Date.now(), logId]
   );
+  if (log?.supplement_id) await decrementQuantity(log.supplement_id);
 }
 
 export async function skipDoseWithReason(logId: number, reason: string): Promise<void> {
   const db = await getDb();
+  const log = await db.getFirstAsync<{supplement_id: string}>("SELECT supplement_id FROM dose_logs WHERE id = ?", [logId]);
   await db.runAsync(
     "UPDATE dose_logs SET status = 'missed', logged_time = ?, skip_reason = ? WHERE id = ?",
     [Date.now(), reason, logId]
@@ -370,6 +377,11 @@ export async function getRecentJournalEntries(limit: number): Promise<JournalEnt
   );
 }
 
+export async function getLatestJournalEntry(): Promise<JournalEntry | null> {
+  const db = await getDb();
+  return db.getFirstAsync<JournalEntry>('SELECT * FROM journal_entries ORDER BY date DESC LIMIT 1');
+}
+
 export async function getSemanticJournalSummary(): Promise<string> {
   const db = await getDb();
   const entries = await db.getAllAsync<{ mood: string; date: string; compliance_pct: number }>(
@@ -402,12 +414,14 @@ export async function getSemanticJournalSummary(): Promise<string> {
 
 export async function logRelapseEvent(event: {
   date: string; type: string; cortisone_dose_mg?: number; notes: string; severity?: number;
+  pain_type?: string; lasted_24h?: number; has_fever?: number;
 }): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO relapse_events (date, type, cortisone_dose_mg, notes, severity)
-     VALUES (?, ?, ?, ?, ?)`,
-    [event.date, event.type, event.cortisone_dose_mg ?? null, event.notes, event.severity ?? null]
+    `INSERT INTO relapse_events (date, type, cortisone_dose_mg, notes, severity, pain_type, lasted_24h, has_fever)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [event.date, event.type, event.cortisone_dose_mg ?? null, event.notes, event.severity ?? null,
+     event.pain_type ?? null, event.lasted_24h ?? null, event.has_fever ?? null]
   );
 }
 
@@ -469,6 +483,21 @@ export async function setLastBloodTestDate(date: string): Promise<void> {
 }
 
 // ── Supplement Stock ──────────────────────────────────────────────────────────
+
+export async function decrementQuantity(supplementId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "UPDATE supplements SET quantity_on_hand = quantity_on_hand - 1 WHERE id = ? AND quantity_on_hand > 0",
+    [supplementId]
+  );
+}
+
+export async function getSupplementsLowStock(): Promise<Supplement[]> {
+  const db = await getDb();
+  return db.getAllAsync<Supplement>(
+    "SELECT * FROM supplements WHERE quantity_on_hand <= 7 AND quantity_on_hand IS NOT NULL AND quantity_on_hand > 0"
+  );
+}
 export async function updateSupplementStock(supplementId: string, stockDays: number | null): Promise<void> {
   const db = await getDb();
   await db.runAsync(
@@ -531,4 +560,36 @@ export async function getWeightedAdherenceScore(days: number = 14): Promise<numb
   }
 
   return Math.round((weightedSum / maxScore) * 100);
+}
+
+// ── Meal Log ──────────────────────────────────────────────────────────────────
+
+export async function logMeal(date: string, meal_type: string, time: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO meal_log (date, meal_type, time) VALUES (?, ?, ?)',
+    [date, meal_type, time]
+  );
+}
+
+export async function getTodayMeals(date: string): Promise<{ id: number; meal_type: string; time: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ id: number; meal_type: string; time: string }>(
+    'SELECT id, meal_type, time FROM meal_log WHERE date = ? ORDER BY logged_at ASC',
+    [date]
+  );
+}
+
+// ── Supplement Form ───────────────────────────────────────────────────────────
+
+export async function getSupplementForms(): Promise<{ id: string; name: string; form: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ id: string; name: string; form: string }>(
+    'SELECT id, name, form FROM supplements ORDER BY name'
+  );
+}
+
+export async function updateSupplementForm(supplementId: string, form: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE supplements SET form = ? WHERE id = ?', [form, supplementId]);
 }

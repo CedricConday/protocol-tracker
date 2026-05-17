@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { AppState, View, Text, Linking, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/navigation';
 import { initDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
 import { loadPatientName, setupNotificationHandler, registerBackgroundTask } from './src/notifications';
+import { FontScaleProvider } from './src/context/FontScaleContext';
+import { SimpleModeProvider } from './src/context/SimpleModeContext';
 import PermissionPrimingModal from './src/components/PermissionPrimingModal';
+import { navigate } from './src/navigation/navigationRef';
 
 const PRIMING_KEY = '@coimbra:permission_primed';
 
@@ -40,6 +44,28 @@ export default function App() {
     }
     boot();
   }, [completeBoot]);
+
+  // Clear badge when app comes to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        Notifications.setBadgeCountAsync(0).catch(() => {});
+      }
+    });
+    // Clear on first mount too
+    Notifications.setBadgeCountAsync(0).catch(() => {});
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    const handler = Linking.addEventListener('url', (event) => {
+      const url = event.url;
+      if (url === 'coimbra://start-day') {
+        navigate('Home');
+      }
+    });
+    return () => handler.remove();
+  }, []);
 
   const handlePrimingComplete = async () => {
     await AsyncStorage.setItem(PRIMING_KEY, 'true');
@@ -75,10 +101,12 @@ export default function App() {
   }
 
   return (
-    <>
-      <StatusBar style="light" />
-      <Navigation />
-    </>
+    <FontScaleProvider>
+      <SimpleModeProvider>
+        <StatusBar style="light" />
+        <Navigation />
+      </SimpleModeProvider>
+    </FontScaleProvider>
   );
 }
 
