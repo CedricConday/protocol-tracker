@@ -1,13 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { getProfile } from '../db/queries';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 
-const ONBOARDING_KEY = 'coimbra_onboarding_complete';
 const Tab = createBottomTabNavigator();
 
 function TabNavigator() {
@@ -51,26 +50,20 @@ function TabNavigator() {
 }
 
 export default function Navigation() {
-  const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-      setOnboarded(val === 'true');
+    getProfile().then((profile) => {
+      setHasProfile(profile !== null);
     });
   }, []);
 
-  const handleComplete = useCallback(() => {
-    AsyncStorage.setItem(ONBOARDING_KEY, 'true').then(() => {
-      setOnboarded(true);
-    });
-  }, []);
-
-  if (onboarded === null) {
+  if (hasProfile === null) {
     return null;
   }
 
-  if (!onboarded) {
-    return <OnboardingScreen onComplete={handleComplete} />;
+  if (!hasProfile) {
+    return <OnboardingScreen onComplete={() => setHasProfile(true)} />;
   }
 
   return (
