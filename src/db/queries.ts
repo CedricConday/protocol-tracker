@@ -520,6 +520,65 @@ export async function getAllSupplements(): Promise<{ id: string; name: string; s
   );
 }
 
+export async function getSupplementsWithRules(): Promise<{
+  id: string; name: string; form: string;
+  dose_amount: string; dose_unit: string; offset_minutes: number;
+  with_food: number; tolerance_window: number; rule_id: number | null;
+}[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT s.id, s.name, s.form,
+       COALESCE(sr.dose_amount, '') as dose_amount,
+       COALESCE(sr.dose_unit, '') as dose_unit,
+       COALESCE(sr.offset_minutes, 0) as offset_minutes,
+       COALESCE(sr.with_food, 0) as with_food,
+       COALESCE(sr.tolerance_window, 30) as tolerance_window,
+       sr.id as rule_id
+     FROM supplements s
+     LEFT JOIN schedule_rules sr ON sr.supplement_id = s.id
+     ORDER BY s.name`
+  );
+}
+
+export async function addSupplement(data: {
+  name: string; form: string;
+  dose_amount: string; dose_unit: string;
+  offset_minutes: number; with_food: boolean; tolerance_window: number;
+}): Promise<void> {
+  const db = await getDb();
+  const id = data.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
+  await db.runAsync(
+    'INSERT INTO supplements (id, name, form) VALUES (?, ?, ?)',
+    [id, data.name.trim(), data.form]
+  );
+  await db.runAsync(
+    `INSERT INTO schedule_rules (supplement_id, dose_amount, dose_unit, offset_minutes, with_food, tolerance_window, anchor_type)
+     VALUES (?, ?, ?, ?, ?, ?, 't0')`,
+    [id, data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window]
+  );
+}
+
+export async function updateSupplementAndRule(data: {
+  supplementId: string; ruleId: number;
+  name: string; form: string;
+  dose_amount: string; dose_unit: string;
+  offset_minutes: number; with_food: boolean; tolerance_window: number;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE supplements SET name = ?, form = ? WHERE id = ?', [data.name, data.form, data.supplementId]);
+  await db.runAsync(
+    `UPDATE schedule_rules SET dose_amount=?, dose_unit=?, offset_minutes=?, with_food=?, tolerance_window=? WHERE id=?`,
+    [data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window, data.ruleId]
+  );
+}
+
+export async function deleteSupplement(supplementId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM dose_logs WHERE supplement_id = ?', [supplementId]);
+  await db.runAsync('DELETE FROM schedule_rules WHERE supplement_id = ?', [supplementId]);
+  await db.runAsync('DELETE FROM supplements WHERE id = ?', [supplementId]);
+}
+
 // ── Doctor Profile ────────────────────────────────────────────────────────
 export async function getDoctor(): Promise<DoctorProfile | null> {
   const db = await getDb();

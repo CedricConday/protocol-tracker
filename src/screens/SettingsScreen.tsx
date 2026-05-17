@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { FlatList, Switch } from 'react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Switch } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
 import { useAppReset } from '../context/AppResetContext';
 import {
   KeyboardAvoidingView,
@@ -299,64 +299,42 @@ export default function SettingsScreen() {
 
   const BEDTIME_HOURS = [18, 19, 20, 21, 22, 23];
   const BEDTIME_MINUTES = [0, 15, 30, 45];
-  const ITEM_H = 44;
-
-  const hourRef = useRef<FlatList>(null);
-  const minRef = useRef<FlatList>(null);
 
   const BedtimeWheel = () => (
-    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 24, paddingVertical: 8 }}>
-      <View style={{ alignItems: 'center' }}>
-        <Text style={styles.wheelLabel}>Hour</Text>
-        <FlatList
-          ref={hourRef}
-          data={BEDTIME_HOURS}
-          keyExtractor={(item) => String(item)}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ITEM_H}
-          decelerationRate="fast"
-          style={{ height: ITEM_H * 3 }}
-          contentOffset={{ x: 0, y: BEDTIME_HOURS.indexOf(bedtimeHour) * ITEM_H }}
-          onMomentumScrollEnd={(e) => {
-            const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-            setBedtimeHour(BEDTIME_HOURS[Math.max(0, Math.min(idx, BEDTIME_HOURS.length - 1))]);
-          }}
-          renderItem={({ item }) => (
-            <View style={[styles.wheelItem, item === bedtimeHour ? styles.wheelItemActive : null]}>
-              <Text style={[styles.wheelItemText, item === bedtimeHour ? styles.wheelItemTextActive : null]}>
-                {String(item).padStart(2, '0')}
-              </Text>
-            </View>
-          )}
-        />
+    <View style={{ paddingVertical: 8 }}>
+      <Text style={styles.wheelLabel}>Hour</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {BEDTIME_HOURS.map((h) => (
+          <TouchableOpacity
+            key={h}
+            style={[styles.timeChip, bedtimeHour === h && styles.timeChipActive]}
+            onPress={() => setBedtimeHour(h)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.timeChipText, bedtimeHour === h && styles.timeChipTextActive]}>
+              {String(h).padStart(2, '0')}:00
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
-      <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 24 }}>
-        <Text style={{ color: '#C96A50', fontSize: 22, fontWeight: '700' }}>:</Text>
+      <Text style={styles.wheelLabel}>Minutes</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {BEDTIME_MINUTES.map((m) => (
+          <TouchableOpacity
+            key={m}
+            style={[styles.timeChip, bedtimeMinute === m && styles.timeChipActive]}
+            onPress={() => setBedtimeMinute(m)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.timeChipText, bedtimeMinute === m && styles.timeChipTextActive]}>
+              :{String(m).padStart(2, '0')}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
-      <View style={{ alignItems: 'center' }}>
-        <Text style={styles.wheelLabel}>Min</Text>
-        <FlatList
-          ref={minRef}
-          data={BEDTIME_MINUTES}
-          keyExtractor={(item) => String(item)}
-          showsVerticalScrollIndicator={false}
-          snapToInterval={ITEM_H}
-          decelerationRate="fast"
-          style={{ height: ITEM_H * 3 }}
-          contentOffset={{ x: 0, y: BEDTIME_MINUTES.indexOf(bedtimeMinute) * ITEM_H }}
-          onMomentumScrollEnd={(e) => {
-            const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
-            setBedtimeMinute(BEDTIME_MINUTES[Math.max(0, Math.min(idx, BEDTIME_MINUTES.length - 1))]);
-          }}
-          renderItem={({ item }) => (
-            <View style={[styles.wheelItem, item === bedtimeMinute ? styles.wheelItemActive : null]}>
-              <Text style={[styles.wheelItemText, item === bedtimeMinute ? styles.wheelItemTextActive : null]}>
-                {String(item).padStart(2, '0')}
-              </Text>
-            </View>
-          )}
-        />
-      </View>
+      <Text style={[styles.privacyNotice, { textAlign: 'center', marginTop: 12 }]}>
+        Bedtime cutoff: {String(bedtimeHour).padStart(2, '0')}:{String(bedtimeMinute).padStart(2, '0')}
+      </Text>
     </View>
   );
 
@@ -456,6 +434,8 @@ export default function SettingsScreen() {
                 <TextInput style={[styles.input, { marginBottom: 12 }]} placeholder="e.g. 5000" placeholderTextColor="#B0A098" value={d3Dose} onChangeText={setD3Dose} keyboardType="numeric" />
               </View>
             )}
+            <View style={styles.rowDivider} />
+            <NavRow icon="list-outline" label="Manage Supplements" sub="Add, edit, or remove" onPress={() => navigation.navigate('SupplementEditor')} />
             <View style={styles.rowDivider} />
             <SectionHeader sectionKey="stock" icon="cube-outline" label="Supplement Stock" sub="Days on hand per supplement" />
             {expandedSection === 'stock' && (
@@ -700,11 +680,11 @@ const styles = StyleSheet.create({
   subMenuRow: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#D8CFC8', marginBottom: 4 },
   subMenuRowText: { color: '#2C2420', fontSize: 14, fontWeight: '600' },
   subMenuRowSub: { color: '#7A6A62', fontSize: 12, marginTop: 2 },
-  wheelLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
-  wheelItem: { height: 44, alignItems: 'center', justifyContent: 'center', width: 64 },
-  wheelItemActive: { backgroundColor: '#FBF0ED', borderRadius: 8 },
-  wheelItemText: { color: '#B0A098', fontSize: 22, fontWeight: '600' },
-  wheelItemTextActive: { color: '#C96A50', fontWeight: '800' },
+  wheelLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
+  timeChip: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' },
+  timeChipActive: { backgroundColor: '#FBF0ED', borderColor: '#C96A50' },
+  timeChipText: { color: '#7A6A62', fontSize: 15, fontWeight: '600' },
+  timeChipTextActive: { color: '#C96A50', fontWeight: '700' },
   inputLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginBottom: 4, marginTop: 14 },
   input: { backgroundColor: 'transparent', borderRadius: 0, paddingHorizontal: 0, paddingVertical: 12, color: '#2C2420', fontSize: 16, borderBottomWidth: 1, borderBottomColor: '#D8CFC8', marginBottom: 2 },
   inputLast: { borderBottomWidth: 0, marginBottom: 10 },
