@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -12,125 +13,202 @@ import {
 } from 'react-native';
 import { getScheduleRules, updateRuleDose } from '../db/queries';
 import { createDefaultProfile } from '../db/seed';
+import * as Notifications from 'expo-notifications';
+
+const { width } = Dimensions.get('window');
 
 interface Props {
   onComplete: () => void;
 }
 
+const STEPS = [
+  {
+    title: 'Welcome to Coimbra Protocol',
+    icon: '🧬',
+    body: 'A personal companion for MS patients on Dr. Coimbra\'s high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
+  },
+  {
+    title: 'Set Up Your Profile',
+    icon: '👤',
+    body: 'Your information stays on your device — nothing is shared without your consent.',
+  },
+  {
+    title: 'Almost Ready',
+    icon: '🔔',
+    body: 'Enable notifications so you never miss a dose. You can change this later in Settings.',
+  },
+];
+
 export default function OnboardingScreen({ onComplete }: Props) {
+  const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
   const [saving, setSaving] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const slideTo = (index: number) => {
+    Animated.parallel([
+      Animated.timing(translateX, {
+        toValue: -index * width,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]);
+    slideTo(step);
+  }, [step]);
 
-  const handleSubmit = useCallback(async () => {
-    setSaving(true);
-    try {
-      await createDefaultProfile(name.trim(), parseFloat(weight));
-
-      if (d3Dose.trim()) {
-        const rules = await getScheduleRules();
-        const d3Rule = rules.find((r) => r.supplement_id === 'vit_d3');
-        if (d3Rule) {
-          await updateRuleDose(d3Rule.id, d3Dose.trim(), 'IU');
+  const handleNext = async () => {
+    if (step < STEPS.length - 1) {
+      setStep(step + 1);
+    } else {
+      setSaving(true);
+      try {
+        await createDefaultProfile(name.trim(), parseFloat(weight));
+        if (d3Dose.trim()) {
+          const rules = await getScheduleRules();
+          const d3Rule = rules.find((r) => r.supplement_id === 'vit_d3');
+          if (d3Rule) {
+            await updateRuleDose(d3Rule.id, d3Dose.trim(), 'IU');
+          }
         }
+        try {
+          await Notifications.requestPermissionsAsync();
+        } catch {
+          // permission denied
+        }
+        onComplete();
+      } finally {
+        setSaving(false);
       }
-
-      onComplete();
-    } finally {
-      setSaving(false);
     }
-  }, [name, weight, d3Dose, onComplete]);
+  };
 
-  const canSubmit =
-    name.trim().length > 0 &&
-    weight.trim().length > 0 &&
-    !isNaN(parseFloat(weight));
+  const canProceed = () => {
+    if (step === 1) {
+      return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
+    }
+    return true;
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* Top dots */}
+        <View style={styles.dots}>
+          {STEPS.map((_, i) => (
+            <View key={i} style={[styles.dot, i === step ? styles.dotActive : null]} />
+          ))}
+        </View>
+
+        {/* Sliding pages */}
+        <Animated.View
+          style={[
+            styles.slider,
+            { transform: [{ translateX }] },
+          ]}
         >
-          <View style={styles.header}>
-            {/* App logo mark */}
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoLetter}>C</Text>
-            </View>
-
-            <Text style={styles.title}>Coimbra Protocol</Text>
-            <Text style={styles.subtitle}>Set up your profile to begin</Text>
-            <Text style={styles.tagline}>
-              Designed for MS patients on Dr. Coimbra's high-dose Vitamin D3 protocol
-            </Text>
-
-            {/* Step dots */}
-            <View style={styles.stepDots}>
-              <View style={[styles.dot, styles.dotActive]} />
-              <View style={styles.dot} />
-              <View style={styles.dot} />
-            </View>
-          </View>
-
-          <View style={styles.form}>
-            <Text style={styles.inputLabel}>Your Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Alex"
-              placeholderTextColor="#555555"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-
-            <Text style={styles.inputLabel}>Weight (kg)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 70"
-              placeholderTextColor="#555555"
-              value={weight}
-              onChangeText={setWeight}
-              keyboardType="numeric"
-            />
-
-            <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 5000"
-              placeholderTextColor="#555555"
-              value={d3Dose}
-              onChangeText={setD3Dose}
-              keyboardType="numeric"
-            />
-            <Text style={styles.hint}>
-              Typical range: 1000-10000 IU. Your doctor determines the right dose.
+          {/* Step 0: Welcome */}
+          <View style={styles.page}>
+            <Text style={styles.icon}>🧬</Text>
+            <Text style={styles.title}>Welcome to{'  '}Coimbra Protocol</Text>
+            <Text style={styles.body}>
+              A personal companion for MS patients on Dr. Coimbra's high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.
             </Text>
           </View>
 
-          <View style={styles.footer}>
-           <TouchableOpacity
-             style={[styles.button, saving ? styles.buttonDisabled : null]}
-             onPress={handleSubmit}
-             disabled={saving || !canSubmit}
-           >
-              <Text style={styles.buttonText}>
-                {saving ? 'Saving...' : 'Start'}
+          {/* Step 1: Profile */}
+          <View style={styles.page}>
+            <Text style={styles.icon}>👤</Text>
+            <Text style={styles.title}>Set Up Your Profile</Text>
+            <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
+
+            <View style={styles.form}>
+              <Text style={styles.inputLabel}>Your Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Alex"
+                placeholderTextColor="#555555"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
+              <Text style={styles.inputLabel}>Weight (kg)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 70"
+                placeholderTextColor="#555555"
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="numeric"
+              />
+              <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 5000"
+                placeholderTextColor="#555555"
+                value={d3Dose}
+                onChangeText={setD3Dose}
+                keyboardType="numeric"
+              />
+              <Text style={styles.hint}>
+                Your doctor determines the right dose.
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
-        </KeyboardAvoidingView>
-      </Animated.View>
+
+          {/* Step 2: Notifications */}
+          <View style={styles.page}>
+            <Text style={styles.icon}>🔔</Text>
+            <Text style={styles.title}>Almost Ready</Text>
+            <Text style={styles.body}>Enable notifications so you never miss a dose. You can change this later in Settings.</Text>
+            <View style={styles.featureList}>
+              <Text style={styles.featureItem}>• Dose reminders</Text>
+              <Text style={styles.featureItem}>• Water intake nudges</Text>
+              <Text style={styles.featureItem}>• End-of-day summaries</Text>
+              <Text style={styles.featureItem}>• Awareness calendar alerts</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Bottom buttons */}
+        <View style={styles.footer}>
+          {step > 0 ? (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setStep(step - 1)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backPlaceholder} />
+          )}
+
+          <TouchableOpacity
+            style={[styles.nextButton, !canProceed() ? styles.buttonDisabled : null]}
+            onPress={handleNext}
+            disabled={!canProceed() || saving}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.nextText}>
+              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : 'Start'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -143,62 +221,55 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  header: {
-    alignItems: 'center',
-    paddingTop: 52,
-    paddingBottom: 28,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#22c55e',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  logoLetter: {
-    color: '#0d0d0d',
-    fontSize: 38,
-    fontWeight: '900',
-    lineHeight: 44,
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 30,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  subtitle: {
-    color: '#888888',
-    fontSize: 14,
-    marginTop: 6,
-  },
-  tagline: {
-    color: '#555555',
-    fontSize: 12,
-    marginTop: 10,
-    textAlign: 'center',
-    lineHeight: 17,
-    paddingHorizontal: 32,
-  },
-  stepDots: {
+  dots: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 8,
-    marginTop: 20,
+    paddingTop: 60,
+    paddingBottom: 24,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#333333',
   },
   dotActive: {
     backgroundColor: '#22c55e',
+    width: 28,
+    borderRadius: 5,
+  },
+  slider: {
+    flex: 1,
+    flexDirection: 'row',
+    width: width * 3,
+  },
+  page: {
+    width,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  icon: {
+    fontSize: 48,
+    marginBottom: 20,
+  },
+  title: {
+    color: '#ffffff',
+    fontSize: 26,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  body: {
+    color: '#888888',
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
   },
   form: {
-    flex: 1,
-    paddingHorizontal: 24,
+    width: '100%',
   },
   inputLabel: {
     color: '#aaaaaa',
@@ -221,24 +292,51 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 16,
   },
+  featureList: {
+    width: '100%',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+  },
+  featureItem: {
+    color: '#888888',
+    fontSize: 14,
+    lineHeight: 24,
+  },
   footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: '#1a1a1a',
   },
-  button: {
+  backButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  backText: {
+    color: '#555555',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  backPlaceholder: {
+    width: 50,
+  },
+  nextButton: {
     backgroundColor: '#22c55e',
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.4,
   },
-  buttonText: {
+  nextText: {
     color: '#0d0d0d',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
 });

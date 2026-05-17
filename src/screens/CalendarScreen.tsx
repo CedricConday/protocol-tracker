@@ -106,7 +106,13 @@ export default function CalendarScreen() {
       <Text style={styles.monthHeader}>{getCurrentMonthYear()}</Text>
 
       {!loaded ? null : cells.length === 0 ? (
-        <Text style={styles.emptyText}>No data yet.</Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyIcon}>📊</Text>
+          <Text style={styles.emptyTitle}>No History Yet</Text>
+          <Text style={styles.emptyText}>
+            Start your day from the Home tab to begin tracking your compliance.
+          </Text>
+        </View>
       ) : (
         <View style={styles.grid}>
           {rows.map((row, ri) => (
@@ -180,11 +186,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     letterSpacing: 0.5,
   },
+  emptyWrap: {
+    alignItems: 'center',
+    marginTop: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
   emptyText: {
     color: '#888888',
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center',
-    marginTop: 40,
+    lineHeight: 20,
   },
   grid: {
     gap: 8,

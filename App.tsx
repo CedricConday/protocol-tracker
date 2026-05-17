@@ -1,14 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/navigation';
 import { initDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
-import { loadPatientName, setupNotificationHandler, requestPermissions, registerBackgroundTask } from './src/notifications';
+import { loadPatientName, setupNotificationHandler, registerBackgroundTask } from './src/notifications';
+import PermissionPrimingModal from './src/components/PermissionPrimingModal';
+
+const PRIMING_KEY = '@coimbra:permission_primed';
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPriming, setShowPriming] = useState(false);
+
+  const completeBoot = useCallback(async () => {
+    await registerBackgroundTask();
+    setReady(true);
+  }, []);
 
   useEffect(() => {
     async function boot() {
@@ -17,15 +27,31 @@ export default function App() {
         await seedDb();
         setupNotificationHandler();
         await loadPatientName();
-        await requestPermissions();
-        await registerBackgroundTask();
-        setReady(true);
+
+        const primed = await AsyncStorage.getItem(PRIMING_KEY);
+        if (primed === 'true') {
+          await completeBoot();
+        } else {
+          setShowPriming(true);
+        }
       } catch (e) {
         setError(String(e));
       }
     }
     boot();
-  }, []);
+  }, [completeBoot]);
+
+  const handlePrimingComplete = async () => {
+    await AsyncStorage.setItem(PRIMING_KEY, 'true');
+    setShowPriming(false);
+    await completeBoot();
+  };
+
+  const handlePrimingSkip = async () => {
+    await AsyncStorage.setItem(PRIMING_KEY, 'true');
+    setShowPriming(false);
+    await completeBoot();
+  };
 
   if (error) {
     return (
@@ -39,6 +65,11 @@ export default function App() {
     return (
       <View style={styles.splash}>
         <Text style={styles.splashText}>Coimbra</Text>
+        <PermissionPrimingModal
+          visible={showPriming}
+          onComplete={handlePrimingComplete}
+          onSkip={handlePrimingSkip}
+        />
       </View>
     );
   }
