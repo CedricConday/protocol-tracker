@@ -59,10 +59,10 @@ export async function addWater(amount_ml: number, date: string = todayStr()): Pr
 
 // ── Schedule Rules ────────────────────────────────────────────────────────────
 
-export async function getScheduleRules(): Promise<(ScheduleRule & { supplement_name: string; supplement_form: string })[]> {
+export async function getScheduleRules(): Promise<(ScheduleRule & { supplement_name: string; supplement_form: string; notes: string })[]> {
   const db = await getDb();
-  return db.getAllAsync<ScheduleRule & { supplement_name: string; supplement_form: string }>(
-    `SELECT sr.*, s.name as supplement_name, s.form as supplement_form
+  return db.getAllAsync<ScheduleRule & { supplement_name: string; supplement_form: string; notes: string }>(
+    `SELECT sr.*, s.name as supplement_name, s.form as supplement_form, s.notes
      FROM schedule_rules sr
      JOIN supplements s ON sr.supplement_id = s.id
      ORDER BY sr.display_order ASC`
@@ -245,6 +245,45 @@ export async function getStreak(date: string = todayStr()): Promise<number> {
     }
   }
   return streak;
+}
+
+// ── Patient Notifications ──────────────────────────────────────────────────────
+
+export async function getPatientName(): Promise<string> {
+  const db = await getDb();
+  const profile = await db.getFirstAsync<{ name: string }>(
+    'SELECT name FROM user_profile WHERE id = 1'
+  );
+  return profile?.name ?? 'there';
+}
+
+export async function getAverageStartTime(): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ avg_time: string | null }>(
+    `SELECT strftime('%H:%M', AVG(strftime('%s', t0_timestamp))) as avg_time
+     FROM (
+       SELECT t0_timestamp FROM daily_anchors
+       WHERE t0_timestamp IS NOT NULL
+       ORDER BY date DESC
+       LIMIT 14
+     )`
+  );
+  return row?.avg_time ?? null;
+}
+
+export async function getHighComplianceDaysCount(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM (
+      SELECT date,
+        SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken,
+        COUNT(*) as total
+      FROM dose_logs
+      GROUP BY date
+      HAVING taken = total AND total > 0
+    )`
+  );
+  return row?.count ?? 0;
 }
 
 // ── Exercise ──────────────────────────────────────────────────────────────────

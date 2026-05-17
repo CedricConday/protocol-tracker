@@ -3,10 +3,20 @@ import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { COIMBRA_CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
-import { getAnchor, todayStr } from '../db/queries';
+import { getAnchor, getAverageStartTime, getPatientName, getWaterProgress, todayStr } from '../db/queries';
 import { navigate } from '../navigation/navigationRef';
 
 export { registerBackgroundTask };
+
+let patientName = 'there';
+
+export async function loadPatientName(): Promise<void> {
+  try {
+    patientName = await getPatientName();
+  } catch {
+    patientName = 'there';
+  }
+}
 
 export const requestPermissions = async (): Promise<boolean> => {
   if (!Device.isDevice) {
@@ -23,7 +33,7 @@ export const requestPermissions = async (): Promise<boolean> => {
   }
 
   const enabled = finalStatus === 'granted';
-  
+
   if (enabled) {
     console.log('[Coimbra Notifications] Permissions granted');
   }
@@ -36,12 +46,13 @@ export const scheduleSupplementNotification = async (params: {
   supplementName: string;
   doseAmount: string;
   scheduledTime: Date;
+  notes?: string;
 }): Promise<string> => {
   try {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Supplement Reminder',
-        body: `Time to take ${params.doseAmount} ${params.supplementName}`,
+        title: `Time for your ${params.doseAmount} ${params.supplementName}, ${patientName}`,
+        body: params.notes ?? 'Stay on schedule with Coimbra Protocol',
         sound: true,
         data: { doseId: params.id, type: 'supplement' },
       },
@@ -63,10 +74,11 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
   try {
     const notifications: Promise<string>[] = [];
     const intervalMs = 90 * 60 * 1000;
-    const body = 'Drink 500ml of water now (Coimbra Protocol)';
 
     let currentTime = new Date(t0);
     while (currentTime <= endTime) {
+      const progress = await getWaterProgress();
+      const body = `${patientName}, 500ml now — you're at ${progress.waterMl}ml of ${progress.goalMl}ml`;
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
@@ -99,7 +111,7 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Exercise Time',
-        body: '30 minutes walking — your Coimbra Protocol exercise for today',
+        body: `30 minutes walking — your Coimbra Protocol exercise for today, ${patientName}`,
         sound: true,
         data: { type: 'exercise' },
       },
@@ -122,10 +134,15 @@ export const scheduleMorningReminder = async (): Promise<void> => {
     const alreadySet = scheduled.some(n => n.content.data?.type === 'morning');
     if (alreadySet) return;
 
+    const avgTime = await getAverageStartTime();
+    const body = avgTime
+      ? `${patientName}, you usually start around ${avgTime}. Ready?`
+      : `${patientName}, time to start your Coimbra day`;
+
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Start Your Day',
-        body: "Don't forget to take your first supplement and set your T=0",
+        body,
         sound: true,
         data: { type: 'morning' },
       },
@@ -149,7 +166,7 @@ export const scheduleMissedDoseAlert = async (supplementName: string, scheduledT
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Missed Dose',
-        body: `You missed ${supplementName} — last chance within your window`,
+        body: `${patientName} — ${supplementName} window is closing`,
         sound: true,
         data: { type: 'missed', supplementName },
       },
@@ -173,7 +190,7 @@ export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Daily Summary Ready',
-        body: 'Check your compliance for today in the Summary tab',
+        body: `${patientName}, check your compliance for today in the Summary tab`,
         sound: true,
         data: { type: 'summary' },
       },

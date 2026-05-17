@@ -49,6 +49,7 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
           supplementName: rule.supplement_name,
           doseAmount: rule.dose_amount,
           scheduledTime: scheduledTime,
+          notes: rule.notes,
         }).catch(() => {});
       }
     }
