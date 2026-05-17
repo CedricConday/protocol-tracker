@@ -90,3 +90,13 @@ export interface JournalEntry {
   created_at: string;
   updated_at: string;
 }
+
+export interface RelapseEvent {
+  id: number;
+  date: string;
+  type: 'relapse' | 'cortisone' | 'symptom';
+  cortisone_dose_mg: number | null;
+  notes: string;
+  severity: number | null;
+  created_at: string;
+}

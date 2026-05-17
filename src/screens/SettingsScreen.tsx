@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getProfile, updateProfile, getScheduleRules, updateRuleDose, updateRuleTolerance, getScheduleRulesWithNames, getDoctor, updateDoctor } from '../db/queries';
+import { getProfile, updateProfile, getScheduleRules, updateRuleDose, updateRuleTolerance, getDoctor, updateDoctor } from '../db/queries';
+import { getDb } from '../db/schema';
 
 type ToleranceRule = { id: number; supplement_name: string; tolerance_window: number };
 
@@ -24,41 +25,54 @@ export default function SettingsScreen() {
   const [doctorClinic, setDoctorClinic] = useState('');
   const [doctorEmail, setDoctorEmail] = useState('');
   const [doctorPhone, setDoctorPhone] = useState('');
-  const [toleranceRules, setToleranceRules] = useState<Array<{id: number; supplement_name: string}>>([]);
-  const [toleranceValues, setToleranceValues] = useState<Map<number, number>>(new Map());
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [toleranceRules, setToleranceRules] = useState<ToleranceRule[]>([]);
   const [toleranceChanges, setToleranceChanges] = useState<Map<number, number>>(new Map());
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const profile = await getProfile();
-      if (profile) {
-        setName(profile.name);
-        setWeight(String(profile.weight_kg));
-        setBedtimeHour(profile.bedtime_hour ?? 22);
-        setBedtimeMinute(profile.bedtime_minute ?? 0);
-      }
-      const rules = await getScheduleRules();
-      const d3 = rules.find((r) => r.supplement_id === 'vit_d3');
-      if (d3) {
-        setD3RuleId(d3.id);
-        setD3Dose(d3.dose_amount);
-      }
-
-      const tol = await getScheduleRulesWithNames();
-      setToleranceRules(tol);
-
-      const doctor = await getDoctor();
-      if (doctor) {
-        setDoctorName(doctor.name ?? '');
-        setDoctorClinic(doctor.clinic ?? '');
-        setDoctorEmail(doctor.email ?? '');
-        setDoctorPhone(doctor.phone ?? '');
-      }
-    })();
-  }, []);
+    useEffect(() => {
+      (async () => {
+        const profile = await getProfile();
+        if (profile) {
+          setName(profile.name);
+          setWeight(String(profile.weight_kg));
+          setBedtimeHour(profile.bedtime_hour ?? 22);
+          setBedtimeMinute(profile.bedtime_minute ?? 0);
+        }
+        const rules = await getScheduleRules();
+        const d3 = rules.find((r) => r.supplement_id === 'vit_d3');
+        if (d3) {
+          setD3RuleId(d3.id);
+          setD3Dose(d3.dose_amount);
+        }
+        
+        // Load doctor profile
+        const doctor = await getDoctor();
+        if (doctor) {
+          setDoctorName(doctor.name ?? '');
+          setDoctorClinic(doctor.clinic ?? '');
+          setDoctorEmail(doctor.email ?? '');
+          setDoctorPhone(doctor.phone ?? '');
+        }
+        
+        // Load tolerance rules (supplement rules with their current tolerance values)
+        const db = await getDb();
+        const toleranceRulesData = await db.getAllAsync(`
+          SELECT sr.id, s.name as supplement_name, sr.tolerance_window
+          FROM schedule_rules sr
+          JOIN supplements s ON sr.supplement_id = s.id
+          ORDER BY sr.display_order ASC
+        `) as ToleranceRule[];
+        setToleranceRules(toleranceRulesData);
+        
+        // Initialize tolerance values map
+        const valuesMap = new Map<number, number>();
+        toleranceRulesData.forEach((rule: ToleranceRule) => {
+          valuesMap.set(rule.id, rule.tolerance_window);
+        });
+        // No need to store valuesMap separately since we use toleranceChanges
+      })();
+    }, []);
 
   const handleSave = useCallback(async () => {
     setSaving(true);

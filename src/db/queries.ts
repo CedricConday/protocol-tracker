@@ -1,5 +1,5 @@
 import { getDb } from './schema';
-import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry } from '../types';
+import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent } from '../types';
 
 export function todayStr(): string {
   return new Date().toISOString().split('T')[0];
@@ -301,6 +301,27 @@ export async function getRecentJournalEntries(limit: number): Promise<JournalEnt
   return db.getAllAsync<JournalEntry>(
     'SELECT * FROM journal_entries ORDER BY date DESC LIMIT ?',
     [limit]
+  );
+}
+
+// ── Relapse Events ────────────────────────────────────────────────────────────
+
+export async function logRelapseEvent(event: {
+  date: string; type: string; cortisone_dose_mg?: number; notes: string; severity?: number;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO relapse_events (date, type, cortisone_dose_mg, notes, severity)
+     VALUES (?, ?, ?, ?, ?)`,
+    [event.date, event.type, event.cortisone_dose_mg ?? null, event.notes, event.severity ?? null]
+  );
+}
+
+export async function getRelapseEvents(limit?: number): Promise<RelapseEvent[]> {
+  const db = await getDb();
+  return db.getAllAsync<RelapseEvent>(
+    'SELECT * FROM relapse_events ORDER BY date DESC LIMIT COALESCE(?, 50)',
+    [limit ?? null]
   );
 }
 
