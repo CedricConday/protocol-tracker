@@ -275,6 +275,9 @@ export const setupNotificationHandler = (): void => {
       case 'awareness':
         navigate('Awareness');
         break;
+      case 'events':
+        navigate('Events');
+        break;
     }
   });
 };

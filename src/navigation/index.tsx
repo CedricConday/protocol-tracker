@@ -4,15 +4,16 @@ import { useEffect, useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
+import AwarenessScreen from '../screens/AwarenessScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import RelapseScreen from '../screens/RelapseScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import AwarenessScreen from '../screens/AwarenessScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -80,6 +81,14 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'Journal',
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="notebook-outline" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Events"
+        component={RelapseScreen}
+        options={{
+          tabBarLabel: 'Events',
+          tabBarIcon: ({ color, size }) => <Ionicons name="alert-circle" size={size} color={color} />,
         }}
       />
       <Tab.Screen

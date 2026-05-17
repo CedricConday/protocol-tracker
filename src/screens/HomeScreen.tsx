@@ -358,6 +358,13 @@ export default function HomeScreen() {
             This sets your schedule for the day.
           </Text>
           <StartDayButton onPress={handleStartDay} loading={starting} />
+          <TouchableOpacity
+            style={styles.relapseButton}
+            onPress={() => navigation.navigate('Events')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.relapseButtonText}>Log Event</Text>
+          </TouchableOpacity>
           {waterMl > 0 && (
             <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
           )}
@@ -399,6 +406,13 @@ export default function HomeScreen() {
         ))}
 
         {/* Bottom trackers — unchanged */}
+        <TouchableOpacity
+          style={styles.relapseButtonInline}
+          onPress={() => navigation.navigate('Events')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.relapseButtonText}>Log Event</Text>
+        </TouchableOpacity>
         <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
         <View style={styles.exerciseCard}>
           <Text style={styles.exerciseLabel}>Exercise today</Text>
@@ -478,5 +492,28 @@ const styles = StyleSheet.create({
   exerciseLogButtonText: {
     color: '#22c55e',
     fontWeight: '600',
+  },
+  relapseButton: {
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  relapseButtonInline: {
+    borderWidth: 1.5,
+    borderColor: '#ef4444',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  relapseButtonText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
