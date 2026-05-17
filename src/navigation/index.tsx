@@ -14,6 +14,7 @@ import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import RelapseScreen from '../screens/RelapseScreen';
 import ReportScreen from '../screens/ReportScreen';
+import ScannerScreen from '../screens/ScannerScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -122,6 +123,14 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'Awareness',
           tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Scanner"
+        component={ScannerScreen}
+        options={{
+          tabBarLabel: 'Scanner',
+          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
         }}
       />
       <Tab.Screen

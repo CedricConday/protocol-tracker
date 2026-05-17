@@ -314,22 +314,23 @@ export async function getFirstMealTime(date: string = todayStr()): Promise<strin
 
 // ── Exercise ──────────────────────────────────────────────────────────────────
 
-export async function logExercise(durationMinutes: number = 30, type: string = 'walk', date: string = todayStr()): Promise<void> {
+export async function logExercise(durationMinutes: number = 30, type: string = 'walk', date: string = todayStr(), intensity: string = 'moderate'): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    'INSERT INTO exercise_logs (date, duration_minutes, type, logged_at) VALUES (?, ?, ?, ?)',
-    [date, durationMinutes, type, Date.now()]
+    'INSERT INTO exercise_logs (date, duration_minutes, type, intensity, logged_at) VALUES (?, ?, ?, ?, ?)',
+    [date, durationMinutes, type, intensity, Date.now()]
   );
 }
 
-export async function getTodayExercise(date: string = todayStr()): Promise<{ totalMinutes: number; logged: boolean }> {
+export async function getTodayExercise(date: string = todayStr()): Promise<{ totalMinutes: number; logged: boolean; type: string; intensity: string }> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ total: number }>(
-    'SELECT COALESCE(SUM(duration_minutes), 0) as total FROM exercise_logs WHERE date = ?',
+  const rows = await db.getAllAsync<{ duration_minutes: number; type: string; intensity: string }>(
+    'SELECT duration_minutes, type, intensity FROM exercise_logs WHERE date = ? ORDER BY logged_at DESC',
     [date]
   );
-  const totalMinutes = row?.total ?? 0;
-  return { totalMinutes, logged: totalMinutes > 0 };
+  const totalMinutes = rows.reduce((sum, r) => sum + r.duration_minutes, 0);
+  const last = rows[0];
+  return { totalMinutes, logged: totalMinutes > 0, type: last?.type ?? 'walk', intensity: last?.intensity ?? 'moderate' };
 }
 
 // ── Journal ────────────────────────────────────────────────────────────────────
@@ -507,3 +508,27 @@ export async function updateDoctor(data: { name: string; clinic: string; email: 
 }
 
 
+
+// ── Protocol Adherence Score ──────────────────────────────────────────────────
+export async function getWeightedAdherenceScore(days: number = 14): Promise<number> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ supplement_id: string; status: string; row_num: number; total_rows: number }>(
+    'SELECT dl.supplement_id, dl.status, ROW_NUMBER() OVER (ORDER BY dl.date DESC) as row_num, COUNT(*) OVER () as total_rows FROM dose_logs dl WHERE dl.date >= date("now", "-" || ? || " days") ORDER BY dl.date DESC, dl.scheduled_time ASC',
+    [days]
+  );
+  if (rows.length === 0) return 0;
+
+  let weightedSum = 0;
+  let maxScore = 0;
+  const totalRows = rows[0]?.total_rows ?? 1;
+
+  for (const r of rows) {
+    const recencyWeight = r.row_num <= 7 ? 2 : 1;
+    const supplementWeight = ['vit_d3', 'vit_k2', 'mag_citrate'].includes(r.supplement_id) ? 1.5 : 1;
+    const w = recencyWeight * supplementWeight;
+    maxScore += w;
+    if (r.status === 'taken') weightedSum += w;
+  }
+
+  return Math.round((weightedSum / maxScore) * 100);
+}
