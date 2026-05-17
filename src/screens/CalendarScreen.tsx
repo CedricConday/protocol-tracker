@@ -10,11 +10,23 @@ import { getDaySummary } from '../db/queries';
 
 const COLS = 6;
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 function getBoxColor(compliancePct: number, totalDoses: number) {
-  if (totalDoses === 0) return '#333333';
+  if (totalDoses === 0) return '#2a2a2a';
   if (compliancePct >= 80) return '#22c55e';
   if (compliancePct >= 50) return '#eab308';
   return '#ef4444';
+}
+
+function getTodayBrighter(compliancePct: number, totalDoses: number) {
+  if (totalDoses === 0) return '#3a3a3a';
+  if (compliancePct >= 80) return '#34d974';
+  if (compliancePct >= 50) return '#f5c842';
+  return '#f76060';
 }
 
 interface DayCell {
@@ -33,6 +45,11 @@ function buildLast30Days(): string[] {
     days.push(d.toISOString().split('T')[0]);
   }
   return days;
+}
+
+function getCurrentMonthYear(): string {
+  const now = new Date();
+  return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 }
 
 export default function CalendarScreen() {
@@ -85,29 +102,57 @@ export default function CalendarScreen() {
     >
       <Text style={styles.heading}>History</Text>
 
+      {/* Month / year header */}
+      <Text style={styles.monthHeader}>{getCurrentMonthYear()}</Text>
+
       {!loaded ? null : cells.length === 0 ? (
         <Text style={styles.emptyText}>No data yet.</Text>
       ) : (
         <View style={styles.grid}>
           {rows.map((row, ri) => (
             <View key={ri} style={styles.row}>
-              {row.map((cell) => (
-                <View key={cell.date} style={styles.cellWrapper}>
-                  <View
-                    style={[
-                      styles.cell,
-                      { backgroundColor: getBoxColor(cell.compliancePct, cell.totalDoses) },
-                      cell.isToday && styles.cellToday,
-                    ]}
-                  >
-                    <Text style={styles.cellText}>{cell.dayNumber}</Text>
+              {row.map((cell) => {
+                const bgColor = cell.isToday
+                  ? getTodayBrighter(cell.compliancePct, cell.totalDoses)
+                  : getBoxColor(cell.compliancePct, cell.totalDoses);
+                return (
+                  <View key={cell.date} style={styles.cellWrapper}>
+                    <View
+                      style={[
+                        styles.cell,
+                        { backgroundColor: bgColor },
+                        cell.isToday ? styles.cellToday : null,
+                      ]}
+                    >
+                      <Text style={styles.cellText}>{cell.dayNumber}</Text>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           ))}
         </View>
       )}
+
+      {/* Legend */}
+      <View style={styles.legend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+          <Text style={styles.legendLabel}>≥80%</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
+          <Text style={styles.legendLabel}>50–79%</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+          <Text style={styles.legendLabel}>{'<'}50%</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#2a2a2a', borderWidth: 1, borderColor: '#444' }]} />
+          <Text style={styles.legendLabel}>No data</Text>
+        </View>
+      </View>
     </ScrollView>
   );
 }
@@ -126,7 +171,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 24,
+    marginBottom: 4,
+  },
+  monthHeader: {
+    color: '#888888',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 20,
+    letterSpacing: 0.5,
   },
   emptyText: {
     color: '#888888',
@@ -136,6 +188,7 @@ const styles = StyleSheet.create({
   },
   grid: {
     gap: 8,
+    marginBottom: 24,
   },
   row: {
     flexDirection: 'row',
@@ -147,9 +200,10 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 44,
   },
   cellToday: {
     borderWidth: 2,
@@ -159,5 +213,27 @@ const styles = StyleSheet.create({
     color: '#0d0d0d',
     fontSize: 13,
     fontWeight: '700',
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
+    paddingTop: 4,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendLabel: {
+    color: '#666666',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

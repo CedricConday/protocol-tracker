@@ -16,6 +16,16 @@ interface Props {
   onSkip: (dose: ScheduledDose) => void;
 }
 
+function getStatusAccentColor(status: ScheduledDose['status']): string {
+  switch (status) {
+    case 'taken': return '#22c55e';
+    case 'due': return '#f97316';
+    case 'upcoming': return '#3b82f6';
+    case 'missed': return '#ef4444';
+    default: return '#555555';
+  }
+}
+
 export default function DoseDetailModal({
   visible,
   dose,
@@ -38,6 +48,11 @@ export default function DoseDetailModal({
     minute: '2-digit',
   });
 
+  const accentColor = getStatusAccentColor(dose.status);
+  const isTaken = dose.status === 'taken';
+  const isMissed = dose.status === 'missed';
+  const canAct = (dose.logId != null && dose.status === 'upcoming') || dose.status === 'due';
+
   return (
     <Modal
       visible={visible}
@@ -47,10 +62,18 @@ export default function DoseDetailModal({
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
+          {/* Top accent line */}
+          <View style={[styles.accentLine, { backgroundColor: accentColor }]} />
+
           <View style={styles.handle} />
 
-          <Text style={styles.name}>{dose.supplementName}</Text>
-          <Text style={styles.form}>{dose.form}</Text>
+          {/* Supplement name + form badge row */}
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{dose.supplementName}</Text>
+            <View style={styles.formBadge}>
+              <Text style={styles.formBadgeText}>{dose.form}</Text>
+            </View>
+          </View>
 
           <View style={styles.detailRow}>
             <Text style={styles.label}>Dose</Text>
@@ -88,13 +111,13 @@ export default function DoseDetailModal({
             </View>
           ) : null}
 
-          {dose.logId != null && dose.status === 'upcoming' || dose.status === 'due' ? (
+          {canAct ? (
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.tookButton}
                 onPress={() => onTook(dose)}
               >
-                <Text style={styles.tookButtonText}>Took it</Text>
+                <Text style={styles.tookButtonText}>✓ Took it</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.skipButton}
@@ -102,6 +125,14 @@ export default function DoseDetailModal({
               >
                 <Text style={styles.skipButtonText}>Skip</Text>
               </TouchableOpacity>
+            </View>
+          ) : isTaken ? (
+            <View style={styles.takenBanner}>
+              <Text style={styles.takenBannerText}>✓ Dose logged</Text>
+            </View>
+          ) : isMissed ? (
+            <View style={styles.missedBanner}>
+              <Text style={styles.missedBannerText}>✕ Marked as missed</Text>
             </View>
           ) : (
             <Text style={styles.statusText}>
@@ -117,7 +148,7 @@ export default function DoseDetailModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -126,26 +157,45 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 24,
     paddingBottom: 40,
-    paddingTop: 12,
+    paddingTop: 0,
+    overflow: 'hidden',
+  },
+  accentLine: {
+    height: 2,
+    width: '100%',
+    marginBottom: 0,
   },
   handle: {
-    width: 36,
+    width: 44,
     height: 4,
     borderRadius: 2,
     backgroundColor: '#444444',
     alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
     marginBottom: 20,
   },
   name: {
     color: '#ffffff',
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 2,
   },
-  form: {
+  formBadge: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  formBadgeText: {
     color: '#888888',
-    fontSize: 14,
-    marginBottom: 20,
+    fontSize: 12,
+    fontWeight: '600',
   },
   detailRow: {
     flexDirection: 'row',
@@ -214,6 +264,30 @@ const styles = StyleSheet.create({
   skipButtonText: {
     color: '#ef4444',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  takenBanner: {
+    backgroundColor: '#0d2a1a',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  takenBannerText: {
+    color: '#22c55e',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  missedBanner: {
+    backgroundColor: '#2a0d0d',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  missedBannerText: {
+    color: '#ef4444',
+    fontSize: 15,
     fontWeight: '700',
   },
   statusText: {

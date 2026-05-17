@@ -1,8 +1,10 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Alert } from 'react-native';
+import { Platform } from 'react-native';
 import { COIMBRA_CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
 import { getAnchor, todayStr } from '../db/queries';
+import { navigate } from '../navigation/navigationRef';
 
 export { registerBackgroundTask };
 
@@ -197,6 +199,20 @@ export const cancelAllNotifications = async (): Promise<void> => {
   }
 };
 
+export const cancelSupplementNotifications = async (): Promise<void> => {
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    const supplementIds = all
+      .filter(n => n.content.data?.type === 'supplement')
+      .map(n => n.identifier);
+    await Promise.all(supplementIds.map(id => Notifications.cancelScheduledNotificationAsync(id)));
+    console.log('[Coimbra Notifications] Cancelled supplement notifications:', supplementIds.length);
+  } catch (error) {
+    console.error('[Coimbra Notifications] Error cancelling supplement notifications:', error);
+    throw error;
+  }
+};
+
 export const cancelNotification = async (id: string): Promise<void> => {
   try {
     await Notifications.cancelScheduledNotificationAsync(id);
@@ -208,6 +224,8 @@ export const cancelNotification = async (id: string): Promise<void> => {
 };
 
 export const setupNotificationHandler = (): void => {
+  setupAndroidChannels();
+
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -237,6 +255,50 @@ export const setupNotificationHandler = (): void => {
   });
 
   Notifications.addNotificationResponseReceivedListener((response) => {
-    console.log('[Coimbra Notifications] User tapped notification:', response);
+    const type = response.notification.request.content.data?.type;
+    switch (type) {
+      case 'supplement':
+        navigate('Schedule');
+        break;
+      case 'water':
+        navigate('Home');
+        break;
+      case 'exercise':
+        navigate('Home');
+        break;
+      case 'summary':
+        navigate('Summary');
+        break;
+      case 'morning':
+        navigate('Home');
+        break;
+      case 'awareness':
+        navigate('Awareness');
+        break;
+    }
   });
+};
+
+export const setupAndroidChannels = (): void => {
+  if (Platform.OS !== 'android') return;
+
+  Notifications.setNotificationChannelAsync('supplements', {
+    name: 'Supplements',
+    importance: Notifications.AndroidImportance.HIGH,
+  }).catch(() => {});
+
+  Notifications.setNotificationChannelAsync('water', {
+    name: 'Water Reminders',
+    importance: Notifications.AndroidImportance.DEFAULT,
+  }).catch(() => {});
+
+  Notifications.setNotificationChannelAsync('exercise', {
+    name: 'Exercise',
+    importance: Notifications.AndroidImportance.DEFAULT,
+  }).catch(() => {});
+
+  Notifications.setNotificationChannelAsync('general', {
+    name: 'General',
+    importance: Notifications.AndroidImportance.LOW,
+  }).catch(() => {});
 };

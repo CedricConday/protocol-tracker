@@ -1,47 +1,134 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { getDb } from '../db/schema';
 
-const SECTIONS = [
-  {
-    title: 'Daily Water',
-    body: 'Minimum 2.5 L per day. Track with the water counter.',
-  },
-  {
-    title: 'Diet',
-    body: 'No dairy, no sardines, no calcium-rich foods. Low-calcium diet is mandatory.',
-  },
-  {
-    title: 'Sun Exposure',
-    body: 'Daily sun exposure without sunscreen when possible (Vitamin D synthesis).',
-  },
-  {
-    title: 'Exercise',
-    body: '30 minutes walking daily. Avoid intense exercise — no heavy weights, no running.',
-  },
-  {
-    title: 'Supplements',
-    body: 'Take all supplements at the times shown in the schedule. Never skip D3.',
-  },
-  {
-    title: 'Warning Signs',
-    body: 'Kidney stone symptoms: flank pain, blood in urine. Contact your prescriber immediately.',
-  },
-];
+interface DietaryRestriction {
+  id: number;
+  ingredient: string;
+  aliases: string;
+  severity: string;
+  notes: string;
+  source: string;
+}
+
+interface SupplementStackItem {
+  name: string;
+  notes: string;
+  dose_amount: string;
+  dose_unit: string;
+}
 
 export default function GuideScreen() {
+  const [forbidden, setForbidden] = useState<DietaryRestriction[]>([]);
+  const [caution, setCaution] = useState<DietaryRestriction[]>([]);
+  const [supplements, setSupplements] = useState<SupplementStackItem[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    const db = await getDb();
+
+    const restrictions = await db.getAllAsync<DietaryRestriction>(
+      'SELECT * FROM dietary_restrictions ORDER BY severity, ingredient'
+    );
+    setForbidden(restrictions.filter((r) => r.severity === 'forbidden'));
+    setCaution(restrictions.filter((r) => r.severity === 'caution'));
+
+    const stack = await db.getAllAsync<SupplementStackItem>(
+      `SELECT s.name, s.notes, sr.dose_amount, sr.dose_unit
+       FROM supplements s
+       JOIN schedule_rules sr ON s.id = sr.supplement_id
+       ORDER BY sr.display_order`
+    );
+    setSupplements(stack);
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+      }
     >
       <Text style={styles.heading}>Coimbra Protocol Guide</Text>
 
-      {SECTIONS.map((section, i) => (
-        <View key={i} style={styles.card}>
-          <Text style={styles.cardTitle}>{section.title}</Text>
-          <Text style={styles.cardBody}>{section.body}</Text>
-        </View>
-      ))}
+      <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
+
+      <Text style={styles.subsectionTitle}>Forbidden</Text>
+      {forbidden.length === 0 ? (
+        <Text style={styles.emptyText}>Loading...</Text>
+      ) : (
+        forbidden.map((r) => (
+          <View key={r.id} style={styles.card}>
+            <View style={styles.cardTop}>
+              <Text style={styles.ingredient}>{r.ingredient}</Text>
+              <View style={[styles.chip, styles.chipForbidden]}>
+                <Text style={[styles.chipText, styles.chipTextForbidden]}>forbidden</Text>
+              </View>
+            </View>
+            {r.aliases ? (
+              <Text style={styles.aliases}>{r.aliases}</Text>
+            ) : null}
+            {r.notes ? (
+              <Text style={styles.notes}>{r.notes}</Text>
+            ) : null}
+          </View>
+        ))
+      )}
+
+      <Text style={styles.subsectionTitle}>Use With Caution</Text>
+      {caution.length === 0 ? (
+        <Text style={styles.emptyText}>None listed</Text>
+      ) : (
+        caution.map((r) => (
+          <View key={r.id} style={styles.card}>
+            <View style={styles.cardTop}>
+              <Text style={styles.ingredient}>{r.ingredient}</Text>
+              <View style={[styles.chip, styles.chipCaution]}>
+                <Text style={[styles.chipText, styles.chipTextCaution]}>caution</Text>
+              </View>
+            </View>
+            {r.aliases ? (
+              <Text style={styles.aliases}>{r.aliases}</Text>
+            ) : null}
+            {r.notes ? (
+              <Text style={styles.notes}>{r.notes}</Text>
+            ) : null}
+          </View>
+        ))
+      )}
+
+      <Text style={styles.sectionTitle}>Supplement Stack</Text>
+      {supplements.length === 0 ? (
+        <Text style={styles.emptyText}>Loading...</Text>
+      ) : (
+        supplements.map((s, i) => (
+          <View key={i} style={styles.card}>
+            <Text style={styles.supplementName}>{s.name}</Text>
+            <Text style={styles.supplementDose}>{s.dose_amount} {s.dose_unit}</Text>
+            {s.notes ? (
+              <Text style={styles.supplementNotes}>{s.notes}</Text>
+            ) : null}
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 }
@@ -62,21 +149,93 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 20,
   },
+  sectionTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  subsectionTitle: {
+    color: '#888888',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  emptyText: {
+    color: '#666666',
+    fontSize: 13,
+    marginBottom: 16,
+  },
   card: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 8,
   },
-  cardTitle: {
-    color: '#22c55e',
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ingredient: {
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 6,
+    flex: 1,
+    marginRight: 8,
   },
-  cardBody: {
-    color: '#cccccc',
-    fontSize: 14,
-    lineHeight: 20,
+  chip: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  chipForbidden: {
+    backgroundColor: '#ef444430',
+  },
+  chipCaution: {
+    backgroundColor: '#eab30830',
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chipTextForbidden: {
+    color: '#ef4444',
+  },
+  chipTextCaution: {
+    color: '#eab308',
+  },
+  aliases: {
+    color: '#888888',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  notes: {
+    color: '#999999',
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+  supplementName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  supplementDose: {
+    color: '#22c55e',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  supplementNotes: {
+    color: '#999999',
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
   },
 });

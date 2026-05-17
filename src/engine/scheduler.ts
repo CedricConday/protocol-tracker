@@ -1,5 +1,5 @@
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
-import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder } from '../notifications';
+import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
 
 /**
@@ -11,6 +11,7 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   const t0Ms = t0.getTime();
   const dateStr = t0.toISOString().split('T')[0];
 
+  await cancelSupplementNotifications();
   await setT0(t0Ms, dateStr);
 
   const rules = await getScheduleRules();
@@ -22,6 +23,22 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   }));
 
   await createDoseLogs(dosesToCreate, dateStr);
+
+  // Schedule notifications for future doses
+  for (const d of dosesToCreate) {
+    const scheduledTime = new Date(d.scheduled_time);
+    if (scheduledTime.getTime() > Date.now()) {
+      const rule = rules.find(r => r.id === d.rule_id);
+      if (rule) {
+        scheduleSupplementNotification({
+          id: rule.supplement_id,
+          supplementName: rule.supplement_name,
+          doseAmount: rule.dose_amount,
+          scheduledTime: scheduledTime,
+        }).catch(() => {});
+      }
+    }
+  }
 
   // Fire-and-forget — don't block the schedule return on notification errors
   scheduleExerciseReminder(t0).catch(() => {});

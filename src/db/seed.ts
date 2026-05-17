@@ -1,4 +1,5 @@
 import { getDb } from './schema';
+import { AWARENESS_DATES } from './awarenessData';
 
 // Coimbra Protocol standard supplement stack
 // Timing based on standard protocol — your prescriber specific doses to be entered at onboarding
@@ -49,6 +50,24 @@ const CONFLICTS = [
 
 export async function seedDb(): Promise<void> {
   const db = await getDb();
+
+  // Ensure doctor_profile singleton row exists
+  await db.runAsync('INSERT OR IGNORE INTO doctor_profile (id) VALUES (1)');
+
+  // Seed awareness_dates independently
+  const awarenessSeeded = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM awareness_dates'
+  );
+  if (!awarenessSeeded || awarenessSeeded.count === 0) {
+    await db.withTransactionAsync(async () => {
+      for (const a of AWARENESS_DATES) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO awareness_dates (id, title, month, day, message) VALUES (?, ?, ?, ?, ?)',
+          [a.id, a.title, a.month, a.day, a.message]
+        );
+      }
+    });
+  }
 
   // Seed dietary_restrictions independently (may already exist from migration)
   const restrictedSeeded = await db.getFirstAsync<{ count: number }>(
