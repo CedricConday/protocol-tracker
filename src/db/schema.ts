@@ -90,6 +90,25 @@ export async function initDb(): Promise<void> {
       logged_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS dietary_restrictions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ingredient TEXT NOT NULL,
+      aliases TEXT NOT NULL DEFAULT '',
+      severity TEXT NOT NULL DEFAULT 'forbidden',
+      notes TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT 'coimbra_standard'
+    );
+
+    CREATE TABLE IF NOT EXISTS doctor_profile (
+      id INTEGER PRIMARY KEY NOT NULL DEFAULT 1,
+      name TEXT NOT NULL DEFAULT '',
+      clinic TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      protocol_variant TEXT NOT NULL DEFAULT 'standard',
+      notes TEXT NOT NULL DEFAULT ''
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
