@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/navigation';
 import { initDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
-import { setupNotificationHandler, requestPermissions, registerBackgroundTask } from './src/notifications';
+import { loadPatientName, setupNotificationHandler, requestPermissions, registerBackgroundTask } from './src/notifications';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -16,6 +16,7 @@ export default function App() {
         await initDb();
         await seedDb();
         setupNotificationHandler();
+        await loadPatientName();
         await requestPermissions();
         await registerBackgroundTask();
         setReady(true);
