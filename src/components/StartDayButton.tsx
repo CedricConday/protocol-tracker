@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import {
+  Animated,
   ActivityIndicator,
   StyleSheet,
   Text,
@@ -11,19 +13,46 @@ interface Props {
 }
 
 export default function StartDayButton({ onPress, loading }: Props) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!loading) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.03,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1.0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      scaleAnim.setValue(1);
+    }
+  }, [loading, scaleAnim]);
+
   return (
-    <TouchableOpacity
-      style={[styles.button, loading && styles.buttonDisabled]}
-      onPress={onPress}
-      disabled={loading}
-      activeOpacity={0.8}
-    >
-      {loading ? (
-        <ActivityIndicator color="#0d0d0d" size="small" />
-      ) : (
-        <Text style={styles.text}>Start My Day</Text>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+       <TouchableOpacity
+         style={[styles.button, loading ? styles.buttonDisabled : null]}
+         onPress={onPress}
+         disabled={loading}
+         activeOpacity={0.8}
+       >
+        {loading ? (
+          <ActivityIndicator color="#0d0d0d" size="small" />
+        ) : (
+          <Text style={styles.text}>Start My Day</Text>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 

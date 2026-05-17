@@ -63,43 +63,50 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.inputLabel}>Your Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Alex"
-            placeholderTextColor="#555555"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-          />
+          {/* Section 1: PROFILE */}
+          <Text style={styles.sectionTitle}>PROFILE</Text>
+          <View style={styles.sectionCard}>
+            <Text style={styles.inputLabel}>Your Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Alex"
+              placeholderTextColor="#555555"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+            <Text style={styles.inputLabel}>Weight (kg)</Text>
+            <TextInput
+              style={[styles.input, styles.inputLast]}
+              placeholder="e.g. 70"
+              placeholderTextColor="#555555"
+              value={weight}
+              onChangeText={setWeight}
+              keyboardType="numeric"
+            />
+          </View>
 
-          <Text style={styles.inputLabel}>Weight (kg)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 70"
-            placeholderTextColor="#555555"
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="numeric"
-          />
-
-          <Text style={styles.inputLabel}>Daily Vitamin D3 (IU)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 5000"
-            placeholderTextColor="#555555"
-            value={d3Dose}
-            onChangeText={setD3Dose}
-            keyboardType="numeric"
-          />
+          {/* Section 2: PROTOCOL */}
+          <Text style={styles.sectionTitle}>PROTOCOL</Text>
+          <View style={styles.sectionCard}>
+            <Text style={styles.inputLabel}>Daily Vitamin D3 (IU)</Text>
+            <TextInput
+              style={[styles.input, styles.inputLast]}
+              placeholder="e.g. 5000"
+              placeholderTextColor="#555555"
+              value={d3Dose}
+              onChangeText={setD3Dose}
+              keyboardType="numeric"
+            />
+          </View>
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.button, saving && styles.buttonDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-          >
+         <TouchableOpacity
+           style={[styles.button, saving ? styles.buttonDisabled : null]}
+           onPress={handleSave}
+           disabled={saving}
+         >
             <Text style={styles.buttonText}>
               {saving ? 'Saving...' : 'Save'}
             </Text>
@@ -135,20 +142,42 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
+  sectionTitle: {
+    color: '#555555',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginTop: 24,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  sectionCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
   inputLabel: {
     color: '#aaaaaa',
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 16,
+    marginBottom: 4,
+    marginTop: 14,
   },
   input: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 12,
     color: '#ffffff',
     fontSize: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+    marginBottom: 2,
+  },
+  inputLast: {
+    borderBottomWidth: 0,
+    marginBottom: 10,
   },
   footer: {
     paddingHorizontal: 24,
