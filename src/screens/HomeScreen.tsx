@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   RefreshControl,
 } from 'react-native';
@@ -11,8 +12,8 @@ import DoseDetailModal from '../components/DoseDetailModal';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import WaterTracker from '../components/WaterTracker';
-import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose } from '../db/queries';
+import { startDay, getTodaySchedule, getLatestStartTime } from '../engine/scheduler';
+import { getAnchor, addWater, confirmDose, skipDose, logExercise, getTodayExercise } from '../db/queries';
 import type { ScheduledDose } from '../types';
 
 export default function HomeScreen() {
@@ -22,10 +23,13 @@ export default function HomeScreen() {
   const [starting, setStarting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
+  const [exerciseMinutes, setExerciseMinutes] = useState(0);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
     setWaterMl(anchor?.water_ml ?? 0);
+    const ex = await getTodayExercise();
+    setExerciseMinutes(ex.totalMinutes);
     if (anchor?.t0_timestamp) {
       setT0(new Date(anchor.t0_timestamp));
       const schedule = await getTodaySchedule();
@@ -56,6 +60,11 @@ export default function HomeScreen() {
   const handleAddWater = async () => {
     await addWater(250);
     setWaterMl((prev) => prev + 250);
+  };
+
+  const handleLogExercise = async () => {
+    await logExercise(30, 'walk');
+    setExerciseMinutes(prev => prev + 30);
   };
 
   const handleTook = async (dose: ScheduledDose) => {
@@ -93,6 +102,16 @@ export default function HomeScreen() {
           {waterMl > 0 && (
             <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
           )}
+          <View style={styles.exerciseCard}>
+            <Text style={styles.exerciseLabel}>Exercise today</Text>
+            {exerciseMinutes >= 30 ? (
+              <Text style={styles.exerciseDone}>{exerciseMinutes} min ✓</Text>
+            ) : (
+              <TouchableOpacity onPress={handleLogExercise} style={styles.exerciseLogButton}>
+                <Text style={styles.exerciseLogButtonText}>Log 30 min walk</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -112,6 +131,16 @@ export default function HomeScreen() {
           <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} />
         ))}
         <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+        <View style={styles.exerciseCard}>
+          <Text style={styles.exerciseLabel}>Exercise today</Text>
+          {exerciseMinutes >= 30 ? (
+            <Text style={styles.exerciseDone}>{exerciseMinutes} min ✓</Text>
+          ) : (
+            <TouchableOpacity onPress={handleLogExercise} style={styles.exerciseLogButton}>
+              <Text style={styles.exerciseLogButtonText}>Log 30 min walk</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
       <DoseDetailModal
@@ -158,5 +187,33 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 16,
+  },
+  exerciseCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  exerciseLabel: {
+    color: '#888888',
+    fontSize: 14,
+  },
+  exerciseDone: {
+    color: '#22c55e',
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  exerciseLogButton: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#22c55e',
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  exerciseLogButtonText: {
+    color: '#22c55e',
+    fontWeight: '600',
   },
 });

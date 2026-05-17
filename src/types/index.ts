@@ -43,6 +43,7 @@ export interface ScheduledDose {
   toleranceMinutes: number;
   doseAmount: string;
   withFood: boolean;
+  notes?: string;
   logId?: number;
 }
 

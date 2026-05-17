@@ -91,6 +91,102 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
   }
 };
 
+export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
+  try {
+    const exerciseTime = new Date(t0.getTime() + 4 * 60 * 60 * 1000);
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Exercise Time',
+        body: '30 minutes walking — your Coimbra Protocol exercise for today',
+        sound: true,
+        data: { type: 'exercise' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: exerciseTime,
+      },
+    });
+
+    console.log(`[Coimbra Notifications] Scheduled exercise reminder ${identifier} for ${exerciseTime.toISOString()}`);
+  } catch (error) {
+    console.error('[Coimbra Notifications] Error scheduling exercise reminder:', error);
+    throw error;
+  }
+};
+
+export const scheduleMorningReminder = async (): Promise<void> => {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const alreadySet = scheduled.some(n => n.content.data?.type === 'morning');
+    if (alreadySet) return;
+
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Start Your Day',
+        body: "Don't forget to take your first supplement and set your T=0",
+        sound: true,
+        data: { type: 'morning' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 9,
+        minute: 0,
+      },
+    });
+
+    console.log(`[Coimbra Notifications] Scheduled morning reminder ${identifier}`);
+  } catch (error) {
+    console.error('[Coimbra Notifications] Error scheduling morning reminder:', error);
+    throw error;
+  }
+};
+
+export const scheduleMissedDoseAlert = async (supplementName: string, scheduledTime: Date): Promise<string> => {
+  try {
+    const alertTime = new Date(scheduledTime.getTime() + 30 * 60 * 1000);
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Missed Dose',
+        body: `You missed ${supplementName} — last chance within your window`,
+        sound: true,
+        data: { type: 'missed', supplementName },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: alertTime,
+      },
+    });
+
+    console.log(`[Coimbra Notifications] Scheduled missed dose alert ${identifier} for ${supplementName}`);
+    return identifier;
+  } catch (error) {
+    console.error('[Coimbra Notifications] Error scheduling missed dose alert:', error);
+    throw error;
+  }
+};
+
+export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
+  try {
+    const summaryTime = new Date(t0.getTime() + 8 * 60 * 60 * 1000);
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Daily Summary Ready',
+        body: 'Check your compliance for today in the Summary tab',
+        sound: true,
+        data: { type: 'summary' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: summaryTime,
+      },
+    });
+    console.log(`[Coimbra Notifications] Scheduled end-of-day summary for ${summaryTime.toISOString()}`);
+  } catch (error) {
+    console.error('[Coimbra Notifications] Error scheduling end-of-day summary:', error);
+    throw error;
+  }
+};
+
 export const cancelAllNotifications = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
