@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -21,6 +22,15 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
   const [saving, setSaving] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
 
   const handleSubmit = useCallback(async () => {
     setSaving(true);
@@ -48,62 +58,79 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Coimbra Protocol</Text>
-          <Text style={styles.subtitle}>Set up your profile to begin</Text>
-        </View>
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.header}>
+            {/* App logo mark */}
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoLetter}>C</Text>
+            </View>
 
-        <View style={styles.form}>
-          <Text style={styles.inputLabel}>Your Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Alex"
-            placeholderTextColor="#555555"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-          />
-
-          <Text style={styles.inputLabel}>Weight (kg)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 70"
-            placeholderTextColor="#555555"
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="numeric"
-          />
-
-          <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 5000"
-            placeholderTextColor="#555555"
-            value={d3Dose}
-            onChangeText={setD3Dose}
-            keyboardType="numeric"
-          />
-          <Text style={styles.hint}>
-            Typical range: 1000-10000 IU. Your doctor determines the right dose.
-          </Text>
-        </View>
-
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.button, saving && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={saving || !canSubmit}
-          >
-            <Text style={styles.buttonText}>
-              {saving ? 'Saving...' : 'Start'}
+            <Text style={styles.title}>Coimbra Protocol</Text>
+            <Text style={styles.subtitle}>Set up your profile to begin</Text>
+            <Text style={styles.tagline}>
+              Designed for MS patients on Dr. Coimbra's high-dose Vitamin D3 protocol
             </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+
+            {/* Step dots */}
+            <View style={styles.stepDots}>
+              <View style={[styles.dot, styles.dotActive]} />
+              <View style={styles.dot} />
+              <View style={styles.dot} />
+            </View>
+          </View>
+
+          <View style={styles.form}>
+            <Text style={styles.inputLabel}>Your Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. Alex"
+              placeholderTextColor="#555555"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.inputLabel}>Weight (kg)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 70"
+              placeholderTextColor="#555555"
+              value={weight}
+              onChangeText={setWeight}
+              keyboardType="numeric"
+            />
+
+            <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 5000"
+              placeholderTextColor="#555555"
+              value={d3Dose}
+              onChangeText={setD3Dose}
+              keyboardType="numeric"
+            />
+            <Text style={styles.hint}>
+              Typical range: 1000-10000 IU. Your doctor determines the right dose.
+            </Text>
+          </View>
+
+          <View style={styles.footer}>
+           <TouchableOpacity
+             style={[styles.button, saving ? styles.buttonDisabled : null]}
+             onPress={handleSubmit}
+             disabled={saving || !canSubmit}
+           >
+              <Text style={styles.buttonText}>
+                {saving ? 'Saving...' : 'Start'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -118,18 +145,56 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 32,
+    paddingTop: 52,
+    paddingBottom: 28,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#22c55e',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  logoLetter: {
+    color: '#0d0d0d',
+    fontSize: 38,
+    fontWeight: '900',
+    lineHeight: 44,
   },
   title: {
     color: '#ffffff',
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: '800',
+    letterSpacing: 1,
   },
   subtitle: {
     color: '#888888',
     fontSize: 14,
-    marginTop: 4,
+    marginTop: 6,
+  },
+  tagline: {
+    color: '#555555',
+    fontSize: 12,
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 17,
+    paddingHorizontal: 32,
+  },
+  stepDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 20,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#333333',
+  },
+  dotActive: {
+    backgroundColor: '#22c55e',
   },
   form: {
     flex: 1,
