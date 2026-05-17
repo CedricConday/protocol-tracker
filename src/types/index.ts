@@ -78,3 +78,15 @@ export interface DayState {
   doses: ScheduledDose[];
   waterMl: number;
 }
+
+export interface JournalEntry {
+  id: number;
+  date: string;
+  mood: string;
+  note: string;
+  compliance_pct: number;
+  doses_taken: number;
+  doses_total: number;
+  created_at: string;
+  updated_at: string;
+}

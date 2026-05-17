@@ -1,12 +1,13 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
 import CalendarScreen from '../screens/CalendarScreen';
 import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
+import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SummaryScreen from '../screens/SummaryScreen';
@@ -71,6 +72,14 @@ function TabNavigator() {
         options={{
           tabBarLabel: 'History',
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="Journal"
+        component={JournalScreen}
+        options={{
+          tabBarLabel: 'Journal',
+          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="notebook-outline" size={size} color={color} />,
         }}
       />
       <Tab.Screen

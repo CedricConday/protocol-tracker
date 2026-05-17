@@ -1,5 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
+import { getDb } from '../db/schema';
+import { scheduleMissedDoseAlert } from './index';
 
 export const COIMBRA_CHECK_DOSES = 'COIMBRA_CHECK_DOSES';
 
@@ -9,11 +11,46 @@ TaskManager.defineTask(COIMBRA_CHECK_DOSES, async () => {
     const nowISO = now.toISOString();
     console.log(`[Coimbra Background Task] Checking doses at ${nowISO}`);
 
-    // TODO: Check if any doses are overdue (past scheduled time + tolerance)
-    // Will wire to DB in next iteration
-    console.log('[Coimbra Background Task] Dose check completed - no overdue doses found');
-    console.log('[Coimbra Background Task] Exercise reminder registered');
+    const db = await getDb();
+    
+    // Query today's pending dose logs
+    type DoseRow = { id: number; supplement_name: string; scheduled_time: number; status: string; tolerance_window: number };
+    const doseLogs = await db.getAllAsync<DoseRow>(`
+      SELECT dl.id, s.name as supplement_name, dl.scheduled_time,
+             dl.status, sr.tolerance_window
+      FROM dose_logs dl
+      JOIN schedule_rules sr ON dl.rule_id = sr.id
+      JOIN supplements s ON sr.supplement_id = s.id
+      WHERE dl.date = date('now') AND dl.status = 'pending'
+    `);
 
+    for (const log of doseLogs) {
+      const scheduledTime = new Date(log.scheduled_time);
+      const toleranceWindow = log.tolerance_window;
+      const deadline = new Date(scheduledTime.getTime() + (toleranceWindow * 60 * 1000));
+      
+      // Check if past deadline and still pending
+      if (now >= deadline && log.status === 'pending') {
+        // Check if we've already alerted for this dose to avoid duplicates
+        const existingLog = await db.getFirstAsync<{ missed_alerted: number }>(`
+          SELECT missed_alerted FROM dose_logs WHERE id = ?
+        `, [log.id]);
+        
+        if (existingLog && existingLog.missed_alerted === 0) {
+          // Schedule the missed dose alert
+          await scheduleMissedDoseAlert(log.supplement_name, scheduledTime);
+          
+          // Mark as alerted to prevent re-firing
+          await db.runAsync(`
+            UPDATE dose_logs SET missed_alerted = 1 WHERE id = ?
+          `, [log.id]);
+          
+          console.log(`[Coimbra Background Task] Scheduled missed dose alert for ${log.supplement_name}`);
+        }
+      }
+    }
+
+    console.log('[Coimbra Background Task] Dose check completed');
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
     console.error('[Coimbra Background Task] Error:', error);

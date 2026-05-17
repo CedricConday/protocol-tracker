@@ -71,6 +71,7 @@ export async function initDb(): Promise<void> {
       scheduled_time INTEGER NOT NULL,
       logged_time INTEGER,
       status TEXT NOT NULL DEFAULT 'upcoming',
+      missed_alerted INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY(supplement_id) REFERENCES supplements(id),
       FOREIGN KEY(rule_id) REFERENCES schedule_rules(id)
     );
@@ -118,8 +119,30 @@ export async function initDb(): Promise<void> {
       notified INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS journal_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      mood TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      compliance_pct INTEGER NOT NULL DEFAULT 0,
+      doses_taken INTEGER NOT NULL DEFAULT 0,
+      doses_total INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
   `);
+
+  // Migration: Add missed_alerted column to existing dose_logs table
+  try {
+    await database.execAsync(`
+      ALTER TABLE dose_logs ADD COLUMN missed_alerted INTEGER NOT NULL DEFAULT 0
+    `);
+  } catch (e) {
+    // Column already exists, which is fine
+    console.log('[Database] migration: missed_alerted column already exists');
+  }
 }

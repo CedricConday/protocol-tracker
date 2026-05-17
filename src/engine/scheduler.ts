@@ -1,3 +1,4 @@
+import { getProfile } from '../db/queries';
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
 import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
@@ -8,6 +9,19 @@ import type { ScheduledDose, DoseStatus } from '../types';
  * All dose times calculate forward from this anchor.
  */
 export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> {
+  // Bedtime gate check
+  const profile = await getProfile();
+  if (profile) {
+    const now = new Date();
+    const cutoffHour = profile.bedtime_hour ?? 22;
+    const cutoffMin = profile.bedtime_minute ?? 0;
+    const cutoff = new Date();
+    cutoff.setHours(cutoffHour, cutoffMin, 0, 0);
+    if (now >= cutoff) {
+      throw new Error('BEDTIME_GATE');
+    }
+  }
+
   const t0Ms = t0.getTime();
   const dateStr = t0.toISOString().split('T')[0];
 
