@@ -118,7 +118,7 @@ export async function createDoseLogs(
   });
 }
 
-export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog & { supplement_name: string; supplement_form: string; supplement_notes: string; dose_amount: string; with_food: number; tolerance_window: number })[]> {
+export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog & { supplement_name: string; supplement_form: string; supplement_notes: string; dose_amount: string; with_food: number; tolerance_window: number; skip_reason: string | null })[]> {
   const db = await getDb();
   return db.getAllAsync(
     `SELECT dl.*, s.name as supplement_name, s.form as supplement_form,
@@ -145,6 +145,14 @@ export async function skipDose(logId: number): Promise<void> {
   await db.runAsync(
     "UPDATE dose_logs SET status = 'missed', logged_time = ? WHERE id = ?",
     [Date.now(), logId]
+  );
+}
+
+export async function skipDoseWithReason(logId: number, reason: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    "UPDATE dose_logs SET status = 'missed', logged_time = ?, skip_reason = ? WHERE id = ?",
+    [Date.now(), reason, logId]
   );
 }
 
@@ -373,6 +381,70 @@ export interface DoctorProfile {
   phone: string | null;
 }
 
+// ── Sun Exposure ─────────────────────────────────────────────────────────────
+export async function logSunExposure(minutes: number, notes: string = '', uvIndex?: string): Promise<void> {
+  const db = await getDb();
+  const date = todayStr();
+  await db.runAsync(
+    `INSERT INTO sun_log (date, minutes, uv_index, notes)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, uv_index = excluded.uv_index, notes = excluded.notes`,
+    [date, minutes, uvIndex ?? null, notes]
+  );
+}
+
+export async function getTodaySunLog(): Promise<{ minutes: number; notes: string } | null> {
+  const db = await getDb();
+  return db.getFirstAsync<{ minutes: number; notes: string }>(
+    'SELECT minutes, notes FROM sun_log WHERE date = ?',
+    [todayStr()]
+  );
+}
+
+// ── Blood Test Reminders ─────────────────────────────────────────────────────
+export async function getLastBloodTestDate(): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ last_test_date: string | null }>(
+    'SELECT last_test_date FROM blood_test_reminders WHERE id = 1'
+  );
+  return row?.last_test_date ?? null;
+}
+
+export async function setLastBloodTestDate(date: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO blood_test_reminders (id, last_test_date, next_reminder_date)
+     VALUES (1, ?, date(?, '+' || interval_days || ' days'))
+     ON CONFLICT(id) DO UPDATE SET last_test_date = excluded.last_test_date,
+       next_reminder_date = date(excluded.last_test_date, '+' || interval_days || ' days')`,
+    [date, date]
+  );
+}
+
+// ── Supplement Stock ──────────────────────────────────────────────────────────
+export async function updateSupplementStock(supplementId: string, stockDays: number | null): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE supplements SET stock_days = ? WHERE id = ?',
+    [stockDays, supplementId]
+  );
+}
+
+export async function getLowStockSupplements(): Promise<{ name: string; stock_days: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ name: string; stock_days: number }>(
+    "SELECT name, stock_days FROM supplements WHERE stock_days IS NOT NULL AND stock_days <= 7"
+  );
+}
+
+export async function getAllSupplements(): Promise<{ id: string; name: string; stock_days: number | null }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ id: string; name: string; stock_days: number | null }>(
+    'SELECT id, name, stock_days FROM supplements ORDER BY name'
+  );
+}
+
+// ── Doctor Profile ────────────────────────────────────────────────────────
 export async function getDoctor(): Promise<DoctorProfile | null> {
   const db = await getDb();
   return db.getFirstAsync<DoctorProfile>('SELECT * FROM doctor_profile WHERE id = 1');

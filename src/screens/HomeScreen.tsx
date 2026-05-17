@@ -15,9 +15,10 @@ import * as Haptics from 'expo-haptics';
 import DoseDetailModal from '../components/DoseDetailModal';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
+import SunTracker from '../components/SunTracker';
 import WaterTracker from '../components/WaterTracker';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, logExercise, getTodayExercise, getProfile } from '../db/queries';
+import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog } from '../db/queries';
 import type { ScheduledDose } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -278,6 +279,7 @@ export default function HomeScreen() {
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [exerciseMinutes, setExerciseMinutes] = useState(0);
   const [patientName, setPatientName] = useState('');
+  const [sunMinutes, setSunMinutes] = useState(0);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -286,6 +288,8 @@ export default function HomeScreen() {
     const profile = await getProfile();
     setPatientName(profile?.name ?? '');
     setExerciseMinutes(ex.totalMinutes);
+    const sun = await getTodaySunLog();
+    setSunMinutes(sun?.minutes ?? 0);
     if (anchor?.t0_timestamp) {
       setT0(new Date(anchor.t0_timestamp));
       const schedule = await getTodaySchedule();
@@ -345,6 +349,12 @@ export default function HomeScreen() {
     setExerciseMinutes(prev => prev + 30);
   };
 
+  const handleLogSun = async (minutes: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await logSunExposure(minutes);
+    setSunMinutes(prev => prev + minutes);
+  };
+
   const handleTook = async (dose: ScheduledDose) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (dose.logId) {
@@ -354,10 +364,14 @@ export default function HomeScreen() {
     await loadDay();
   };
 
-  const handleSkip = async (dose: ScheduledDose) => {
+  const handleSkip = async (dose: ScheduledDose, reason?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (dose.logId) {
-      await skipDose(dose.logId);
+      if (reason) {
+        await skipDoseWithReason(dose.logId, reason);
+      } else {
+        await skipDose(dose.logId);
+      }
     }
     setSelectedDose(null);
     await loadDay();
@@ -400,16 +414,16 @@ export default function HomeScreen() {
             ) : (
               <TouchableOpacity onPress={handleLogExercise} style={styles.exerciseLogButton}>
                 <Text style={styles.exerciseLogButtonText}>Log 30 min walk</Text>
-              </TouchableOpacity>
-            )}
+            </TouchableOpacity>
+          )}
           </View>
+          <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
         </View>
       </SafeAreaView>
     );
   }
 
   // ── Active day view ────────────────────────────────────────────────────────
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -449,6 +463,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         </View>
+        <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
       </ScrollView>
 
       <DoseDetailModal

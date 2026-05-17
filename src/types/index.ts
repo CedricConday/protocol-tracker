@@ -45,6 +45,7 @@ export interface ScheduledDose {
   withFood: boolean;
   notes?: string;
   logId?: number;
+  skipReason?: string;
 }
 
 export interface DailyAnchor {

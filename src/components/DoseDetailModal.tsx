@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -13,8 +14,10 @@ interface Props {
   dose: ScheduledDose | null;
   onClose: () => void;
   onTook: (dose: ScheduledDose) => void;
-  onSkip: (dose: ScheduledDose) => void;
+  onSkip: (dose: ScheduledDose, reason?: string) => void;
 }
+
+const SKIP_REASONS = ['Forgot', 'Felt unwell', 'No food available', 'Other'];
 
 function getStatusAccentColor(status: ScheduledDose['status']): string {
   switch (status) {
@@ -33,6 +36,8 @@ export default function DoseDetailModal({
   onTook,
   onSkip,
 }: Props) {
+  const [showSkipReasons, setShowSkipReasons] = useState(false);
+
   if (!dose) return null;
 
   const timeStr = dose.scheduledTime.toLocaleTimeString([], {
@@ -53,21 +58,33 @@ export default function DoseDetailModal({
   const isMissed = dose.status === 'missed';
   const canAct = (dose.logId != null && dose.status === 'upcoming') || dose.status === 'due';
 
+  const handleSkipPress = () => {
+    setShowSkipReasons(true);
+  };
+
+  const handleReasonSelect = (reason: string) => {
+    setShowSkipReasons(false);
+    onSkip(dose, reason);
+  };
+
+  const handleDismiss = () => {
+    setShowSkipReasons(false);
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleDismiss}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={styles.overlay} onPress={handleDismiss}>
         <Pressable style={styles.sheet} onPress={() => {}}>
-          {/* Top accent line */}
           <View style={[styles.accentLine, { backgroundColor: accentColor }]} />
 
           <View style={styles.handle} />
 
-          {/* Supplement name + form badge row */}
           <View style={styles.nameRow}>
             <Text style={styles.name}>{dose.supplementName}</Text>
             <View style={styles.formBadge}>
@@ -111,7 +128,28 @@ export default function DoseDetailModal({
             </View>
           ) : null}
 
-          {canAct ? (
+          {showSkipReasons ? (
+            <View style={styles.skipReasonsContainer}>
+              <Text style={styles.skipReasonsTitle}>Why are you skipping?</Text>
+              {SKIP_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={styles.skipReasonButton}
+                  onPress={() => handleReasonSelect(reason)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.skipReasonText}>{reason}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.cancelReasonButton}
+                onPress={() => setShowSkipReasons(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelReasonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          ) : canAct ? (
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.tookButton}
@@ -121,7 +159,7 @@ export default function DoseDetailModal({
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.skipButton}
-                onPress={() => onSkip(dose)}
+                onPress={handleSkipPress}
               >
                 <Text style={styles.skipButtonText}>Skip</Text>
               </TouchableOpacity>
@@ -236,6 +274,36 @@ const styles = StyleSheet.create({
     color: '#888888',
     fontSize: 13,
     lineHeight: 18,
+  },
+  skipReasonsContainer: {
+    marginTop: 20,
+  },
+  skipReasonsTitle: {
+    color: '#888888',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  skipReasonButton: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  skipReasonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  cancelReasonButton: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  cancelReasonText: {
+    color: '#555555',
+    fontSize: 14,
   },
   actions: {
     flexDirection: 'row',
