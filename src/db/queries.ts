@@ -171,9 +171,7 @@ export async function getDaySummary(date: string = todayStr()): Promise<DaySumma
 }
 
 export async function getWeekSummary(): Promise<{ date: string; compliancePct: number }[]> {
-  const db = await getDb();
   const days: { date: string; compliancePct: number }[] = [];
-
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -181,6 +179,42 @@ export async function getWeekSummary(): Promise<{ date: string; compliancePct: n
     const summary = await getDaySummary(dateStr);
     days.push({ date: dateStr, compliancePct: summary.compliancePct });
   }
-
   return days;
+}
+
+export async function getMonthSummary(): Promise<{ date: string; compliancePct: number; totalDoses: number }[]> {
+  const days: { date: string; compliancePct: number; totalDoses: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const summary = await getDaySummary(dateStr);
+    days.push({ date: dateStr, compliancePct: summary.compliancePct, totalDoses: summary.totalDoses });
+  }
+  return days;
+}
+
+export async function getWaterProgress(date: string = todayStr()): Promise<{ waterMl: number; goalMl: number }> {
+  const anchor = await getAnchor(date);
+  return { waterMl: anchor?.water_ml ?? 0, goalMl: 2500 };
+}
+
+// ── Exercise ──────────────────────────────────────────────────────────────────
+
+export async function logExercise(durationMinutes: number = 30, type: string = 'walk', date: string = todayStr()): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO exercise_logs (date, duration_minutes, type, logged_at) VALUES (?, ?, ?, ?)',
+    [date, durationMinutes, type, Date.now()]
+  );
+}
+
+export async function getTodayExercise(date: string = todayStr()): Promise<{ totalMinutes: number; logged: boolean }> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ total: number }>(
+    'SELECT COALESCE(SUM(duration_minutes), 0) as total FROM exercise_logs WHERE date = ?',
+    [date]
+  );
+  const totalMinutes = row?.total ?? 0;
+  return { totalMinutes, logged: totalMinutes > 0 };
 }

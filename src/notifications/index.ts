@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { COIMBRA_CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
+import { getAnchor, todayStr } from '../db/queries';
 
 export { registerBackgroundTask };
 
@@ -119,7 +120,22 @@ export const setupNotificationHandler = (): void => {
     } as Notifications.NotificationBehavior),
   });
 
-  Notifications.addNotificationReceivedListener((notification) => {
+  Notifications.addNotificationReceivedListener(async (notification) => {
+    const data = notification.request.content.data;
+    const notificationType = data?.type;
+
+    if (notificationType === 'water') {
+      try {
+        const anchor = await getAnchor(todayStr());
+        if ((anchor?.water_ml ?? 0) >= 2500) {
+          await cancelNotification(notification.request.identifier);
+          return;
+        }
+      } catch (error) {
+        console.error('[Coimbra Notifications] Error checking water progress:', error);
+      }
+    }
+
     const { title, body } = notification.request.content;
     Alert.alert(title ?? 'Notification', body ?? '');
   });

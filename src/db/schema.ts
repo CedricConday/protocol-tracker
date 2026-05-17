@@ -82,7 +82,16 @@ export async function initDb(): Promise<void> {
       logged_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS exercise_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      duration_minutes INTEGER NOT NULL DEFAULT 30,
+      type TEXT NOT NULL DEFAULT 'walk',
+      logged_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
+    CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
   `);
 }
