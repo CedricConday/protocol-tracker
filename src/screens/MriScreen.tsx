@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
 
@@ -55,6 +57,7 @@ export default function MriScreen() {
   const [assessment, setAssessment] = useState('Stable');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     const db = await getDb();
@@ -119,11 +122,108 @@ export default function MriScreen() {
       Alert.alert('Permission needed', 'Camera permission is required to capture MRI reports.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!result.canceled) {
-      Alert.alert('MRI image captured', 'Auto-fill coming soon.');
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true });
+    if (result.canceled || !result.assets[0]?.base64) return;
+
+    const b64 = result.assets[0].base64;
+    const [provider, apiKey] = await Promise.all([
+      AsyncStorage.getItem('ai_provider'),
+      AsyncStorage.getItem('ai_api_key'),
+    ]);
+
+    if (!apiKey) {
+      Alert.alert(
+        'AI key required',
+        'Go to Settings → Advanced → AI Workspace and add your API key to enable auto-fill.',
+      );
+      return;
+    }
+
+    setScanning(true);
+    try {
+      const extracted = await callVisionApi(provider ?? 'groq', apiKey, b64);
+      if (extracted) {
+        if (extracted.date) setDate(extracted.date);
+        if (extracted.facility) setFacility(extracted.facility);
+        if (extracted.scan_type && SCAN_TYPES.includes(extracted.scan_type)) setScanType(extracted.scan_type);
+        if (extracted.new_lesions) setNewLesions(extracted.new_lesions);
+        if (extracted.enhancing_lesions != null) setEnhancing(extracted.enhancing_lesions);
+        if (extracted.assessment && ASSESSMENTS.map(a => a.toLowerCase()).includes(extracted.assessment.toLowerCase())) {
+          setAssessment(extracted.assessment.charAt(0).toUpperCase() + extracted.assessment.slice(1).toLowerCase());
+        }
+        setShowForm(true);
+      } else {
+        Alert.alert('Could not parse', 'The image could not be read automatically. Fill in the fields manually.');
+        setShowForm(true);
+      }
+    } catch {
+      Alert.alert('Scan failed', 'Could not connect to AI service. Fill in manually.');
+      setShowForm(true);
+    } finally {
+      setScanning(false);
     }
   };
+
+  async function callVisionApi(
+    provider: string,
+    apiKey: string,
+    base64: string,
+  ): Promise<{ date?: string; facility?: string; scan_type?: string; new_lesions?: string; enhancing_lesions?: boolean; assessment?: string } | null> {
+    const PROMPT = `Extract from this MRI report image. Return ONLY valid JSON with these keys (omit any you cannot find): date (YYYY-MM-DD), facility (string), scan_type (one of: "Brain", "Spine", "Brain + Spine"), new_lesions (string, e.g. "none" or "2"), enhancing_lesions (boolean), assessment (one of: "stable", "improved", "progressed").`;
+
+    let responseText: string;
+
+    if (provider === 'anthropic') {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 256,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+              { type: 'text', text: PROMPT },
+            ],
+          }],
+        }),
+      });
+      const json = await res.json();
+      responseText = json.content?.[0]?.text ?? '';
+    } else {
+      // OpenAI-compatible (openai or groq)
+      const baseUrl = provider === 'groq'
+        ? 'https://api.groq.com/openai/v1/chat/completions'
+        : 'https://api.openai.com/v1/chat/completions';
+      const model = provider === 'groq' ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'gpt-4o-mini';
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          max_tokens: 256,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+              { type: 'text', text: PROMPT },
+            ],
+          }],
+        }),
+      });
+      const json = await res.json();
+      responseText = json.choices?.[0]?.message?.content ?? '';
+    }
+
+    const match = responseText.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try { return JSON.parse(match[0]); } catch { return null; }
+  }
 
   return (
     <ScrollView
@@ -143,8 +243,10 @@ export default function MriScreen() {
           <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
             <Text style={styles.addBtnText}>+ Log MRI Scan</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cameraBtn} onPress={handleCameraCapture} activeOpacity={0.8}>
-            <Ionicons name="camera-outline" size={20} color="#FAF7F4" />
+          <TouchableOpacity style={styles.cameraBtn} onPress={handleCameraCapture} disabled={scanning} activeOpacity={0.8}>
+            {scanning
+              ? <ActivityIndicator size="small" color="#FAF7F4" />
+              : <Ionicons name="camera-outline" size={20} color="#FAF7F4" />}
           </TouchableOpacity>
         </View>
       ) : (

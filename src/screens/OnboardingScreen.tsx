@@ -48,6 +48,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
   const [patientType, setPatientType] = useState<'new' | 'experienced' | 'caregiver'>('new');
+  const [caregiverPatientName, setCaregiverPatientName] = useState('');
   const [saving, setSaving] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -87,8 +88,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
     } else {
       setSaving(true);
       try {
-        await createDefaultProfile(name.trim(), parseFloat(weight));
+        await createDefaultProfile(name.trim(), isCaregiver ? 0 : parseFloat(weight));
         await AsyncStorage.setItem('patient_type', patientType);
+        if (isCaregiver && caregiverPatientName.trim()) {
+          await AsyncStorage.setItem('caregiver_patient_name', caregiverPatientName.trim());
+        }
         if (d3Dose.trim()) {
           const rules = await getScheduleRules();
           const d3Rule = rules.find((r) => r.supplement_id === 'vit_d3');
@@ -112,7 +116,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   const canProceed = () => {
     if (step === 1) {
-      if (isCaregiver) return name.trim().length > 0;
+      if (isCaregiver) return name.trim().length > 0 && caregiverPatientName.trim().length > 0;
       return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
     }
     return true;
@@ -191,7 +195,24 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 onChangeText={setName}
                 autoCapitalize="words"
               />
-              {!isCaregiver && (
+              {isCaregiver ? (
+                <>
+                  <Text style={styles.inputLabel}>Patient's Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="The person you're supporting"
+                    placeholderTextColor="#555555"
+                    value={caregiverPatientName}
+                    onChangeText={setCaregiverPatientName}
+                    autoCapitalize="words"
+                  />
+                  <View style={styles.caregiverNote}>
+                    <Text style={styles.caregiverNoteText}>
+                      You'll track their protocol from your device. The patient controls what data you can view.
+                    </Text>
+                  </View>
+                </>
+              ) : (
                 <>
                   <Text style={styles.inputLabel}>Weight (kg)</Text>
                   <TextInput
@@ -431,6 +452,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
+  caregiverNote: { width: '100%', backgroundColor: '#1a1a00', borderRadius: 10, padding: 12, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
+  caregiverNoteText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18 },
   typeRow: { width: '100%', gap: 8, marginTop: 4 },
   typeBtn: { borderRadius: 10, borderWidth: 1, borderColor: '#2a2a2a', padding: 12, backgroundColor: '#1a1a1a' },
   typeBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },

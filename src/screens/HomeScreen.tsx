@@ -143,7 +143,7 @@ function ProgressHeader({ t0, doses, patientName, firstMealTime, isSimple }: Pro
 
 const headerStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#111111',
+    backgroundColor: '#F2EDE8',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
@@ -158,15 +158,15 @@ const headerStyles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   dateText: {
-    color: '#555555',
+    color: '#7A6A62',
     fontSize: 13,
   },
   startedText: {
-    color: '#555555',
+    color: '#7A6A62',
     fontSize: 13,
   },
   mealText: {
-    color: '#eab308',
+    color: '#C4882A',
     fontSize: 12,
     marginTop: 2,
   },
@@ -176,19 +176,19 @@ const headerStyles = StyleSheet.create({
     marginBottom: 4,
   },
   tick: {
-    color: '#444444',
+    color: '#B0A098',
     fontSize: 10,
   },
   trackOuter: {
     height: 10,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#E8E0D8',
     borderRadius: 5,
     overflow: 'hidden',
     marginBottom: 14,
   },
   trackFill: {
     height: 10,
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C96A50',
     borderRadius: 5,
   },
   summaryRow: {
@@ -196,17 +196,17 @@ const headerStyles = StyleSheet.create({
     alignItems: 'baseline',
   },
   summaryCount: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 20,
     fontWeight: '700',
   },
   summaryOf: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 20,
     fontWeight: '700',
   },
   summaryLabel: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 15,
   },
   celebrationRow: {
@@ -215,18 +215,18 @@ const headerStyles = StyleSheet.create({
     gap: 8,
   },
   celebrationIcon: {
-    color: '#22c55e',
+    color: '#C96A50',
     fontSize: 22,
     fontWeight: '900',
   },
   celebrationText: {
-    color: '#22c55e',
+    color: '#C96A50',
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
   },
   readyText: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 15,
   },
 });
@@ -272,7 +272,7 @@ function NextDoseCard({ doses, onPress }: NextDoseCardProps) {
 
 const nextStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
@@ -285,23 +285,23 @@ const nextStyles = StyleSheet.create({
     marginRight: 12,
   },
   nextLabel: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 10,
     letterSpacing: 2,
     marginBottom: 4,
   },
   name: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 20,
     fontWeight: '700',
   },
   meta: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     marginTop: 2,
   },
   foodTag: {
-    color: '#f97316',
+    color: '#C4882A',
     fontSize: 11,
     marginTop: 4,
   },
@@ -309,12 +309,12 @@ const nextStyles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   countdown: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 16,
     fontWeight: '700',
   },
   countdownDue: {
-    color: '#f97316',
+    color: '#C96A50',
     fontSize: 18,
   },
 });
@@ -351,6 +351,8 @@ export default function HomeScreen() {
   const [showEngagementNudge, setShowEngagementNudge] = useState(false);
   const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
   const [reportReadyUri, setReportReadyUri] = useState<string | null>(null);
+  const [isCaregiver, setIsCaregiver] = useState(false);
+  const [caregiverPatientName, setCaregiverPatientName] = useState('');
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -372,6 +374,10 @@ export default function HomeScreen() {
     setLatestJournal(latest ? { mood: latest.mood, note: latest.note, date: latest.date } : null);
     const meals = await getTodayMeals(new Date().toISOString().split('T')[0]);
     setTodayMeals(meals);
+    const pt = await AsyncStorage.getItem('patient_type');
+    const caregiverName = await AsyncStorage.getItem('caregiver_patient_name');
+    setIsCaregiver(pt === 'caregiver');
+    if (caregiverName) setCaregiverPatientName(caregiverName);
     if (anchor?.t0_timestamp) {
       setT0(new Date(anchor.t0_timestamp));
       const schedule = await getTodaySchedule();
@@ -590,12 +596,30 @@ export default function HomeScreen() {
 
   const renderHeader = () => (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: isSimple ? 16 : 12 }}>
-      <Text style={[styles.greeting, { flex: 1, textAlign: isSimple ? 'center' : 'left' }]}>
-        {patientName ? `Hello, ${patientName.split(' ')[0]}` : 'Coimbra Protocol'}
-      </Text>
-      {!isSimple && (
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.greeting, { textAlign: isSimple ? 'center' : 'left' }]}>
+          {isCaregiver
+            ? (caregiverPatientName ? `Tracking ${caregiverPatientName.split(' ')[0]}` : 'Caregiver View')
+            : (patientName ? `Hello, ${patientName.split(' ')[0]}` : 'Coimbra Protocol')}
+        </Text>
+        {isCaregiver && (
+          <Text style={{ fontSize: 12, color: '#B0A098', marginTop: 2, textAlign: isSimple ? 'center' : 'left' }}>
+            Caregiver · {patientName || 'Your account'}
+          </Text>
+        )}
+      </View>
+      {!isSimple && !isCaregiver && (
         <TouchableOpacity onPress={toggleSimple} style={{ padding: 8 }}>
           <MaterialCommunityIcons name="circle-slice-8" size={24} color="#C96A50" />
+        </TouchableOpacity>
+      )}
+      {isCaregiver && (
+        <TouchableOpacity
+          style={{ backgroundColor: '#C96A50', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+          onPress={() => navigation.navigate('Settings', { screen: 'Caregiver' })}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#FAF7F4', fontSize: 12, fontWeight: '700' }}>Dashboard</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -942,22 +966,24 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#FAF7F4',
   },
-  lastEntryCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
+  lastEntryCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
   lastEntryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   lastEntryEmoji: { fontSize: 22 },
-  lastEntryDate: { color: '#888888', fontSize: 12 },
-  lastEntryNote: { color: '#cccccc', fontSize: 14, lineHeight: 20 },
-  lastEntryEmpty: { color: '#555555', fontSize: 14, textAlign: 'center' },
+  lastEntryDate: { color: '#7A6A62', fontSize: 12 },
+  lastEntryNote: { color: '#2C2420', fontSize: 14, lineHeight: 20 },
+  lastEntryEmpty: { color: '#B0A098', fontSize: 14, textAlign: 'center' },
   quickLinksRow: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 16 },
-  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#1a1a1a', borderRadius: 8, paddingVertical: 10 },
-  quickLinkText: { color: '#888888', fontSize: 13, fontWeight: '600' },
+  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F2EDE8', borderRadius: 8, paddingVertical: 10 },
+  quickLinkText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
   reorderBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eab308',
+    backgroundColor: '#FBF0ED',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C96A50',
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -965,13 +991,13 @@ const styles = StyleSheet.create({
   },
   reorderBannerText: {
     flex: 1,
-    color: '#0d0d0d',
+    color: '#A8503A',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   reorderBannerDismiss: {
-    color: '#0d0d0d',
+    color: '#B0A098',
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -979,8 +1005,10 @@ const styles = StyleSheet.create({
   fatigueBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eab308',
+    backgroundColor: '#FFF8EC',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C4882A',
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -988,13 +1016,13 @@ const styles = StyleSheet.create({
   },
   fatigueBannerText: {
     flex: 1,
-    color: '#0d0d0d',
+    color: '#8A5A10',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   fatigueBannerDismiss: {
-    color: '#0d0d0d',
+    color: '#B0A098',
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -1002,10 +1030,10 @@ const styles = StyleSheet.create({
   surveyPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a2a1a',
+    backgroundColor: '#FBF0ED',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#22c55e40',
+    borderColor: '#C96A5040',
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -1013,13 +1041,13 @@ const styles = StyleSheet.create({
   },
   surveyPromptText: {
     flex: 1,
-    color: '#22c55e',
+    color: '#A8503A',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   surveyPromptDismiss: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -1031,12 +1059,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   greeting: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 28,
     fontWeight: '800',
   },
   subtitle: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 40,
@@ -1047,36 +1075,36 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
   exerciseCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
   },
   exerciseLabel: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
   },
   exerciseDone: {
-    color: '#22c55e',
+    color: '#5A8A5A',
     fontWeight: '700',
     marginTop: 8,
   },
   exerciseLogButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FBF0ED',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#22c55e',
+    borderColor: '#C96A50',
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 8,
   },
   exerciseLogButtonText: {
-    color: '#22c55e',
+    color: '#C96A50',
     fontWeight: '600',
   },
   relapseButton: {
     borderWidth: 1.5,
-    borderColor: '#ef4444',
+    borderColor: '#C04040',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 24,
@@ -1084,16 +1112,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
-  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0d1a2a', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#3b82f6' },
-  reportReadyText: { color: '#3b82f6', fontSize: 13, fontWeight: '600', flex: 1 },
-  reportReadyDismiss: { color: '#555555', fontSize: 16, paddingLeft: 12 },
+  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#EBF0F5', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#4A7A9B' },
+  reportReadyText: { color: '#4A7A9B', fontSize: 13, fontWeight: '600', flex: 1 },
+  reportReadyDismiss: { color: '#B0A098', fontSize: 16, paddingLeft: 12 },
   emptyDoses: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
   emptyDosesIcon: { fontSize: 40, marginBottom: 12 },
-  emptyDosesTitle: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  emptyDosesSub: { color: '#555555', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyDosesTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyDosesSub: { color: '#B0A098', fontSize: 13, textAlign: 'center', lineHeight: 20 },
   relapseButtonInline: {
     borderWidth: 1.5,
-    borderColor: '#ef4444',
+    borderColor: '#C04040',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 24,
@@ -1101,7 +1129,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   relapseButtonText: {
-    color: '#ef4444',
+    color: '#C04040',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -1114,33 +1142,33 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: '#D8CFC8',
     paddingVertical: 8,
     alignItems: 'center',
   },
   exercisePillActive: {
-    borderColor: '#22c55e',
-    backgroundColor: '#0d2a1a',
+    borderColor: '#C96A50',
+    backgroundColor: '#FBF0ED',
   },
   exercisePillText: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 12,
     fontWeight: '600',
   },
   exercisePillTextActive: {
-    color: '#22c55e',
+    color: '#C96A50',
   },
   exerciseIntensityPill: {
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: '#D8CFC8',
     paddingVertical: 8,
     alignItems: 'center',
   },
   exerciseIntensityActive: {
-    borderColor: '#eab308',
-    backgroundColor: '#2a1f00',
+    borderColor: '#C4882A',
+    backgroundColor: '#FFF8EC',
   },
   exerciseMinRow: {
     flexDirection: 'row',
@@ -1150,19 +1178,19 @@ const styles = StyleSheet.create({
   exerciseMinButton: {
     flex: 1,
     borderRadius: 8,
-    backgroundColor: '#1a3a2a',
+    backgroundColor: '#FBF0ED',
     borderWidth: 1,
-    borderColor: '#22c55e22',
+    borderColor: '#C96A5030',
     paddingVertical: 10,
     alignItems: 'center',
   },
   exerciseMinButtonText: {
-    color: '#22c55e',
+    color: '#C96A50',
     fontSize: 14,
     fontWeight: '700',
   },
   mealPromptCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -1171,25 +1199,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   mealPromptTitle: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
     marginRight: 12,
   },
   mealPromptButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C96A50',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   mealPromptButtonText: {
-    color: '#0d0d0d',
+    color: '#FAF7F4',
     fontSize: 14,
     fontWeight: '800',
   },
   journalSummaryCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -1204,49 +1232,49 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   journalSummaryTitle: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     fontWeight: '600',
   },
   journalSummaryPreview: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     fontStyle: 'italic',
   },
   journalSummaryPrompt: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
-    textDecorationColor: '#22c55e',
+    textDecorationColor: '#C96A50',
   },
-  consentBanner: { backgroundColor: '#0d1a2a', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#3b82f6' },
-  consentBannerTitle: { color: '#3b82f6', fontSize: 13, fontWeight: '800', marginBottom: 6 },
-  consentBannerText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18, marginBottom: 12 },
-  consentBannerBtn: { backgroundColor: '#3b82f6', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  consentBannerBtnText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
-  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#1a0d00', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#eab308', gap: 10 },
-  nudgeBannerText: { flex: 1, color: '#eab308', fontSize: 13, lineHeight: 18 },
-  nudgeBannerDismiss: { color: '#555555', fontSize: 16, fontWeight: '700' },
-  insightCard: { backgroundColor: '#0d1a0d', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
-  insightLabel: { color: '#22c55e', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6 },
-  insightText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20 },
-  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#1a1a0d', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#eab308', gap: 10 },
+  consentBanner: { backgroundColor: '#EBF0F5', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#4A7A9B' },
+  consentBannerTitle: { color: '#4A7A9B', fontSize: 13, fontWeight: '800', marginBottom: 6 },
+  consentBannerText: { color: '#7A6A62', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  consentBannerBtn: { backgroundColor: '#4A7A9B', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  consentBannerBtnText: { color: '#FAF7F4', fontSize: 13, fontWeight: '700' },
+  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
+  nudgeBannerText: { flex: 1, color: '#8A5A10', fontSize: 13, lineHeight: 18 },
+  nudgeBannerDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
+  insightCard: { backgroundColor: '#FBF0ED', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
+  insightLabel: { color: '#C96A50', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6 },
+  insightText: { color: '#7A6A62', fontSize: 13, lineHeight: 20 },
+  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
   hintCardInner: { flex: 1 },
-  hintCardTitle: { color: '#eab308', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 },
-  hintCardText: { color: '#aaaaaa', fontSize: 12, lineHeight: 18 },
-  hintCardDismiss: { color: '#555555', fontSize: 16, fontWeight: '700' },
-  wizardCard: { backgroundColor: '#0d1a0d', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#22c55e40' },
-  wizardTitle: { color: '#22c55e', fontSize: 15, fontWeight: '800', marginBottom: 12 },
-  wizardStep: { color: '#aaaaaa', fontSize: 13, lineHeight: 20, marginBottom: 8 },
-  wizardBtn: { backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
-  wizardBtnText: { color: '#0d0d0d', fontSize: 14, fontWeight: '800' },
-  mealCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12 },
-  mealCardTitle: { color: '#888888', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
+  hintCardTitle: { color: '#C4882A', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 },
+  hintCardText: { color: '#7A6A62', fontSize: 12, lineHeight: 18 },
+  hintCardDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
+  wizardCard: { backgroundColor: '#FBF0ED', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#C96A5040' },
+  wizardTitle: { color: '#C96A50', fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  wizardStep: { color: '#7A6A62', fontSize: 13, lineHeight: 20, marginBottom: 8 },
+  wizardBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  wizardBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '800' },
+  mealCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12 },
+  mealCardTitle: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
   mealButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  mealTypeBtn: { flex: 1, backgroundColor: '#2a2a2a', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  mealTypeBtnText: { color: '#22c55e', fontSize: 12, fontWeight: '700' },
+  mealTypeBtn: { flex: 1, backgroundColor: '#E8E0D8', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  mealTypeBtnText: { color: '#C96A50', fontSize: 12, fontWeight: '700' },
   mealChipScroll: { marginTop: 4 },
-  mealChip: { backgroundColor: '#1a1a1a', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#22c55e30' },
-  mealChipText: { color: '#22c55e', fontSize: 12 },
+  mealChip: { backgroundColor: '#FBF0ED', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#C96A5030' },
+  mealChipText: { color: '#C96A50', fontSize: 12 },
 });

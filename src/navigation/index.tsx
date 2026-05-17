@@ -27,6 +27,7 @@ import ScannerScreen from '../screens/ScannerScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SecurityScreen from '../screens/SecurityScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SupplementEditorScreen from '../screens/SupplementEditorScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import TerminalLinkScreen from '../screens/TerminalLinkScreen';
 import WorkspaceScreen from '../screens/WorkspaceScreen';
@@ -40,8 +41,8 @@ const SettingsNav = createNativeStackNavigator();
 
 const SUB_HEADER = {
   headerShown: true,
-  headerStyle: { backgroundColor: '#0d0d0d' },
-  headerTintColor: '#ffffff',
+  headerStyle: { backgroundColor: '#FAF7F4' },
+  headerTintColor: '#2C2420',
   headerShadowVisible: false,
   headerBackTitleVisible: false,
 } as const;
@@ -151,6 +152,11 @@ function SettingsNavigator() {
     <SettingsNav.Navigator screenOptions={{ headerShown: false }}>
       <SettingsNav.Screen name="SettingsMain" component={SettingsScreen} />
       <SettingsNav.Screen
+        name="SupplementEditor"
+        component={SupplementEditorScreen}
+        options={{ ...SUB_HEADER, title: 'Manage Supplements', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
         name="DrugChecker"
         component={DrugCheckerScreen}
         options={{ ...SUB_HEADER, title: 'Drug Checker', animation: 'slide_from_right' }}
@@ -209,15 +215,15 @@ function TabNavigator() {
         headerShown: false,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          backgroundColor: '#0d0d0d',
-          borderTopColor: '#1f1f1f',
+          backgroundColor: '#FAF7F4',
+          borderTopColor: '#D8CFC8',
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: 16,
           height: 72,
         },
-        tabBarActiveTintColor: '#22c55e',
-        tabBarInactiveTintColor: '#555555',
+        tabBarActiveTintColor: '#C96A50',
+        tabBarInactiveTintColor: '#B0A098',
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
