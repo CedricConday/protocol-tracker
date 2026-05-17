@@ -296,6 +296,8 @@ export default function HomeScreen() {
   const [showMealPrompt, setShowMealPrompt] = useState(false);
   const [todayMood, setTodayMood] = useState<string | null>(null);
   const [todayNotePreview, setTodayNotePreview] = useState('');
+  const [exerciseType, setExerciseType] = useState('walk');
+  const [exerciseIntensity, setExerciseIntensity] = useState('moderate');
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -304,6 +306,8 @@ export default function HomeScreen() {
     const profile = await getProfile();
     setPatientName(profile?.name ?? '');
     setExerciseMinutes(ex.totalMinutes);
+    setExerciseType(ex.type);
+    setExerciseIntensity(ex.intensity);
     const sun = await getTodaySunLog();
     setSunMinutes(sun?.minutes ?? 0);
     const mealTime = await getFirstMealTime();
@@ -365,10 +369,12 @@ export default function HomeScreen() {
     setWaterMl((prev) => prev + 250);
   };
 
-  const handleLogExercise = async () => {
+  const handleLogExercise = async (minutes: number = 30, type: string = 'walk', intensity: string = 'moderate') => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await logExercise(30, 'walk');
-    setExerciseMinutes(prev => prev + 30);
+    await logExercise(minutes, type, new Date().toISOString().split('T')[0], intensity);
+    setExerciseMinutes(prev => prev + minutes);
+    setExerciseType(type);
+    setExerciseIntensity(intensity);
   };
 
   const handleLogSun = async (minutes: number) => {
@@ -440,12 +446,32 @@ export default function HomeScreen() {
           <View style={styles.exerciseCard}>
             <Text style={styles.exerciseLabel}>Exercise today</Text>
             {exerciseMinutes >= 30 ? (
-              <Text style={styles.exerciseDone}>{exerciseMinutes} min ✓</Text>
+              <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
             ) : (
-              <TouchableOpacity onPress={handleLogExercise} style={styles.exerciseLogButton}>
-                <Text style={styles.exerciseLogButtonText}>Log 30 min walk</Text>
-            </TouchableOpacity>
-          )}
+              <>
+                <View style={styles.exercisePillRow}>
+                  {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
+                    <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
+                      <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.exercisePillRow}>
+                  {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
+                    <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
+                      <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.exerciseMinRow}>
+                  {[15, 30, 60].map((min) => (
+                    <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
+                      <Text style={styles.exerciseMinButtonText}>+{min}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
           </View>
           <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
         </View>
@@ -486,11 +512,31 @@ export default function HomeScreen() {
         <View style={styles.exerciseCard}>
           <Text style={styles.exerciseLabel}>Exercise today</Text>
           {exerciseMinutes >= 30 ? (
-            <Text style={styles.exerciseDone}>{exerciseMinutes} min ✓</Text>
+            <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
           ) : (
-            <TouchableOpacity onPress={handleLogExercise} style={styles.exerciseLogButton}>
-              <Text style={styles.exerciseLogButtonText}>Log 30 min walk</Text>
-            </TouchableOpacity>
+            <>
+              <View style={styles.exercisePillRow}>
+                {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
+                  <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
+                    <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.exercisePillRow}>
+                {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
+                  <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
+                    <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.exerciseMinRow}>
+                {[15, 30, 60].map((min) => (
+                  <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
+                    <Text style={styles.exerciseMinButtonText}>+{min}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
           )}
         </View>
         <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
@@ -604,6 +650,62 @@ const styles = StyleSheet.create({
   },
   relapseButtonText: {
     color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  exercisePillRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  exercisePill: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  exercisePillActive: {
+    borderColor: '#22c55e',
+    backgroundColor: '#0d2a1a',
+  },
+  exercisePillText: {
+    color: '#555555',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  exercisePillTextActive: {
+    color: '#22c55e',
+  },
+  exerciseIntensityPill: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  exerciseIntensityActive: {
+    borderColor: '#eab308',
+    backgroundColor: '#2a1f00',
+  },
+  exerciseMinRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  exerciseMinButton: {
+    flex: 1,
+    borderRadius: 8,
+    backgroundColor: '#1a3a2a',
+    borderWidth: 1,
+    borderColor: '#22c55e22',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  exerciseMinButtonText: {
+    color: '#22c55e',
     fontSize: 14,
     fontWeight: '700',
   },

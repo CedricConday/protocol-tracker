@@ -194,4 +194,12 @@ export async function initDb(): Promise<void> {
   } catch (e) {
     console.log('[Database] migration: first_meal_time column already exists');
   }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE exercise_logs ADD COLUMN intensity TEXT DEFAULT 'moderate'
+    `);
+  } catch (e) {
+    console.log('[Database] migration: exercise_logs.intensity already exists');
+  }
 }
