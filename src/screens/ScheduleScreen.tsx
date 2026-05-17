@@ -26,6 +26,7 @@ function logToScheduledDose(
     dose_amount: string;
     with_food: number;
     tolerance_window: number;
+    skip_reason: string | null;
   },
 ): ScheduledDose {
   const scheduledTime = new Date(log.scheduled_time);
@@ -52,6 +53,7 @@ function logToScheduledDose(
     doseAmount: log.dose_amount,
     withFood: log.with_food === 1,
     logId: log.id,
+    skipReason: log.skip_reason ?? undefined,
   };
 }
 
@@ -168,6 +170,9 @@ export default function ScheduleScreen() {
                 {item.withFood && (
                   <Text style={styles.foodTag}>with food</Text>
                 )}
+                {item.status === 'missed' && item.logId && (
+                  <Text style={styles.skipReasonText}>{item.skipReason ?? 'Skipped'}</Text>
+                )}
               </View>
             </TouchableOpacity>
           );
@@ -271,6 +276,12 @@ const styles = StyleSheet.create({
     color: '#eab308',
     fontSize: 11,
     fontWeight: '600',
+    marginTop: 3,
+  },
+  skipReasonText: {
+    color: '#888888',
+    fontSize: 11,
+    fontStyle: 'italic',
     marginTop: 3,
   },
   emptyState: {

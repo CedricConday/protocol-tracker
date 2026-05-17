@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { COIMBRA_CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
-import { getAnchor, getAverageStartTime, getPatientName, getWaterProgress, todayStr } from '../db/queries';
+import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
 import { navigate } from '../navigation/navigationRef';
 
 export { registerBackgroundTask };
@@ -135,9 +135,15 @@ export const scheduleMorningReminder = async (): Promise<void> => {
     if (alreadySet) return;
 
     const avgTime = await getAverageStartTime();
-    const body = avgTime
+    let body = avgTime
       ? `${patientName}, you usually start around ${avgTime}. Ready?`
       : `${patientName}, time to start your Coimbra day`;
+
+    const lowStock = await getLowStockSupplements();
+    if (lowStock.length > 0) {
+      const lowNames = lowStock.map(s => `${s.name} (${s.stock_days} days)`).join(', ');
+      body += ` ⚠️ Running low: ${lowNames}`;
+    }
 
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {

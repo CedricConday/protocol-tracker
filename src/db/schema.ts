@@ -141,18 +141,49 @@ export async function initDb(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS sun_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      minutes INTEGER NOT NULL DEFAULT 0,
+      uv_index TEXT,
+      notes TEXT NOT NULL DEFAULT '',
+      logged_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS blood_test_reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      last_test_date TEXT,
+      next_reminder_date TEXT,
+      interval_days INTEGER NOT NULL DEFAULT 90
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
   `);
 
-  // Migration: Add missed_alerted column to existing dose_logs table
+  // Migrations: Add columns to existing tables (try/catch for idempotency)
   try {
     await database.execAsync(`
       ALTER TABLE dose_logs ADD COLUMN missed_alerted INTEGER NOT NULL DEFAULT 0
     `);
   } catch (e) {
-    // Column already exists, which is fine
     console.log('[Database] migration: missed_alerted column already exists');
+  }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE dose_logs ADD COLUMN skip_reason TEXT
+    `);
+  } catch (e) {
+    console.log('[Database] migration: skip_reason column already exists');
+  }
+
+  try {
+    await database.execAsync(`
+      ALTER TABLE supplements ADD COLUMN stock_days INTEGER DEFAULT NULL
+    `);
+  } catch (e) {
+    console.log('[Database] migration: stock_days column already exists');
   }
 }

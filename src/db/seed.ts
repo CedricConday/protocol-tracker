@@ -54,6 +54,9 @@ export async function seedDb(): Promise<void> {
   // Ensure doctor_profile singleton row exists
   await db.runAsync('INSERT OR IGNORE INTO doctor_profile (id) VALUES (1)');
 
+  // Ensure blood_test_reminders singleton row exists
+  await db.runAsync('INSERT OR IGNORE INTO blood_test_reminders (id, interval_days) VALUES (1, 90)');
+
   // Seed awareness_dates independently
   const awarenessSeeded = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM awareness_dates'
