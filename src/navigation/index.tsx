@@ -1,9 +1,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
+import AboutScreen from '../screens/AboutScreen';
 import AwarenessScreen from '../screens/AwarenessScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import GuideScreen from '../screens/GuideScreen';
@@ -17,6 +19,20 @@ import SummaryScreen from '../screens/SummaryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
+const RootStack = createNativeStackNavigator();
+
+function SettingsStack() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="SettingsMain" component={SettingsScreen} />
+      <RootStack.Screen
+        name="About"
+        component={AboutScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+    </RootStack.Navigator>
+  );
+}
 
 function TabNavigator() {
   return (
@@ -118,7 +134,7 @@ function TabNavigator() {
       />
       <Tab.Screen
         name="Settings"
-        component={SettingsScreen}
+        component={SettingsStack}
         options={{
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-sharp" size={size} color={color} />,

@@ -119,7 +119,13 @@ export default function AwarenessScreen() {
       <Text style={styles.heading}>Awareness Calendar</Text>
 
       {events.length === 0 ? (
-        <Text style={styles.emptyText}>No awareness dates loaded.</Text>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyIcon}>📅</Text>
+          <Text style={styles.emptyTitle}>No Upcoming Events</Text>
+          <Text style={styles.emptyText}>
+            Awareness dates will appear here once added by your doctor.
+          </Text>
+        </View>
       ) : (
         events.map((event) => {
           const countdown = countdownLabel(event.daysUntil);
@@ -161,11 +167,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 20,
   },
+  emptyWrap: {
+    alignItems: 'center',
+    marginTop: 60,
+    paddingHorizontal: 20,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
   emptyText: {
-    color: '#666666',
+    color: '#888888',
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 40,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#1a1a1a',

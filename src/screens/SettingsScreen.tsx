@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -9,8 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { getProfile, updateProfile, getScheduleRules, updateRuleDose, updateRuleTolerance, getDoctor, updateDoctor } from '../db/queries';
 import { getDb } from '../db/schema';
+import ProFeatureGate from '../components/ProFeatureGate';
 
 type ToleranceRule = { id: number; supplement_name: string; tolerance_window: number };
 
@@ -29,6 +32,7 @@ export default function SettingsScreen() {
   const [toleranceChanges, setToleranceChanges] = useState<Map<number, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const navigation = useNavigation<any>();
 
     useEffect(() => {
       (async () => {
@@ -239,7 +243,8 @@ export default function SettingsScreen() {
 
           {/* Section 5: TIMING WINDOWS */}
           <Text style={styles.sectionTitle}>TIMING WINDOWS</Text>
-          <View style={styles.sectionCard}>
+          <ProFeatureGate featureName="Timing Windows">
+            <View style={styles.sectionCard}>
             {toleranceRules.map((rule) => {
               const val = getToleranceValue(rule.id);
               return (
@@ -268,6 +273,17 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+          </ProFeatureGate>
+
+          {/* Section 6: ABOUT */}
+          <TouchableOpacity
+            style={styles.aboutLink}
+            onPress={() => navigation.navigate('About')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.aboutLinkText}>About This App</Text>
+            <Ionicons name="chevron-forward" size={18} color="#555555" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
@@ -421,5 +437,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginTop: 12,
+  },
+  aboutLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+  },
+  aboutLinkText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
