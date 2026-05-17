@@ -50,7 +50,45 @@ const CONFLICTS = [
 export async function seedDb(): Promise<void> {
   const db = await getDb();
 
-  // Check if already seeded
+  // Seed dietary_restrictions independently (may already exist from migration)
+  const restrictedSeeded = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM dietary_restrictions'
+  );
+  if (!restrictedSeeded || restrictedSeeded.count === 0) {
+    const DIETARY_RESTRICTIONS: {
+      ingredient: string; aliases: string; severity: string; notes: string;
+    }[] = [
+      { ingredient: 'dairy', aliases: 'Milch, Laktose, Magermilchpulver, Molke', severity: 'forbidden', notes: 'All dairy products are forbidden under your prescriber protocol' },
+      { ingredient: 'calcium-fortified plant milk', aliases: '', severity: 'forbidden', notes: 'Fortified plant milks contain added calcium' },
+      { ingredient: 'green juice', aliases: '', severity: 'forbidden', notes: 'Green juices and smoothies are forbidden' },
+      { ingredient: 'mate', aliases: 'chimarrão', severity: 'forbidden', notes: 'Mate tea and chimarrão are forbidden' },
+      { ingredient: 'poppy seed', aliases: '', severity: 'forbidden', notes: '' },
+      { ingredient: 'sesame seed', aliases: 'Sesam', severity: 'forbidden', notes: '' },
+      { ingredient: 'chia seed', aliases: '', severity: 'forbidden', notes: '' },
+      { ingredient: 'quinoa', aliases: '', severity: 'forbidden', notes: '' },
+      { ingredient: 'sardines', aliases: '', severity: 'forbidden', notes: '' },
+      { ingredient: 'tahini', aliases: 'Tahini, Hummus', severity: 'forbidden', notes: 'Tahini-based foods are forbidden' },
+      { ingredient: 'cola', aliases: '', severity: 'forbidden', notes: '' },
+      { ingredient: 'calcium compound', aliases: 'E341, E333, E578, E516', severity: 'forbidden', notes: 'Calcium-based food additives (E-numbers)' },
+      { ingredient: 'almonds', aliases: '', severity: 'caution', notes: 'Limit intake — contains calcium' },
+      { ingredient: 'brazil nuts', aliases: '', severity: 'caution', notes: 'Limit intake — contains calcium' },
+      { ingredient: 'flaxseed', aliases: '', severity: 'caution', notes: 'Limit intake' },
+      { ingredient: 'hazelnuts', aliases: '', severity: 'caution', notes: 'Limit intake — contains calcium' },
+      { ingredient: 'walnuts', aliases: '', severity: 'caution', notes: 'Limit intake' },
+      { ingredient: 'hemp seeds', aliases: '', severity: 'caution', notes: 'Limit intake' },
+    ];
+
+    await db.withTransactionAsync(async () => {
+      for (const r of DIETARY_RESTRICTIONS) {
+        await db.runAsync(
+          'INSERT OR IGNORE INTO dietary_restrictions (ingredient, aliases, severity, notes, source) VALUES (?, ?, ?, ?, ?)',
+          [r.ingredient, r.aliases, r.severity, r.notes, 'coimbra_standard']
+        );
+      }
+    });
+  }
+
+  // Check if supplements already seeded
   const existing = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM supplements'
   );
