@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -80,7 +81,7 @@ function FormFields({
           <TouchableOpacity
             key={f}
             style={[styles.chip, form.form === f && styles.chipActive]}
-            onPress={() => onChange({ ...form, form: f })}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, form: f }); }}
             activeOpacity={0.7}
           >
             <Text style={[styles.chipText, form.form === f && styles.chipTextActive]}>
@@ -144,7 +145,7 @@ function FormFields({
         <Text style={[styles.label, { flex: 1, marginTop: 0, marginBottom: 0 }]}>Take with food</Text>
         <Switch
           value={form.with_food}
-          onValueChange={(v) => onChange({ ...form, with_food: v })}
+          onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, with_food: v }); }}
           trackColor={{ false: C.border, true: C.primary }}
           thumbColor="#ffffff"
         />
@@ -256,7 +257,7 @@ export default function SupplementEditorScreen() {
           <Text style={styles.title}>Supplements</Text>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => { setShowAddForm((v) => !v); setExpandedId(null); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
             activeOpacity={0.8}
           >
             <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#FAF7F4" />
@@ -271,7 +272,7 @@ export default function SupplementEditorScreen() {
               <FormFields form={addForm} onChange={setAddForm} />
               <TouchableOpacity
                 style={[styles.saveBtn, saving === '__add__' && styles.saveBtnDisabled]}
-                onPress={handleAdd}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdd().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
                 disabled={saving === '__add__'}
                 activeOpacity={0.8}
               >
@@ -300,7 +301,7 @@ export default function SupplementEditorScreen() {
               <View key={row.id} style={styles.card}>
                 <TouchableOpacity
                   style={styles.cardRow}
-                  onPress={() => toggleExpand(row.id, row)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleExpand(row.id, row); }}
                   activeOpacity={0.7}
                 >
                   <View style={{ flex: 1 }}>
@@ -324,13 +325,13 @@ export default function SupplementEditorScreen() {
                       onChange={(next) => setEditForms((prev) => ({ ...prev, [row.id]: next }))}
                     />
                     <View style={styles.actionRow}>
-                      <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(row)} activeOpacity={0.7}>
+                      <TouchableOpacity style={styles.deleteBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleDelete(row); }} activeOpacity={0.7}>
                         <Ionicons name="trash-outline" size={16} color={C.danger} />
                         <Text style={styles.deleteBtnText}>Delete</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.saveBtnInline, saving === row.id && styles.saveBtnDisabled]}
-                        onPress={() => handleSave(row)}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave(row).then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
                         disabled={saving === row.id}
                         activeOpacity={0.8}
                       >
@@ -372,14 +373,9 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: C.surface,
-    borderRadius: 16,
-    marginBottom: 10,
+    borderRadius: 14,
+    marginBottom: 14,
     overflow: 'hidden',
-    shadowColor: '#2C2420',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
   },
   cardRow: {
     flexDirection: 'row',
@@ -403,9 +399,9 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: C.surface2,
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
     color: C.text,
   },
   row2: { flexDirection: 'row' },
@@ -435,7 +431,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
     borderRadius: 10,
     paddingHorizontal: 20,
-    paddingVertical: 11,
+    paddingVertical: 14,
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 14,

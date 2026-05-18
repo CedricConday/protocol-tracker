@@ -1,5 +1,22 @@
 export type DoseStatus = 'upcoming' | 'due' | 'taken' | 'missed';
 export type AnchorType = 't0' | 'meal' | 'fixed';
+export type MedicalEventType = 'bloodwork' | 'mri' | 'appointment' | 'urine';
+
+export interface MedicalEvent {
+  id: number;
+  type: MedicalEventType;
+  title: string;
+  scheduled_date: string;
+  scheduled_time?: string;
+  location?: string;
+  notes?: string;
+  reminder_7d: boolean;
+  reminder_3d: boolean;
+  reminder_1d: boolean;
+  reminder_2h: boolean;
+  completed: boolean;
+  created_at: string;
+}
 
 export interface UserProfile {
   id: number;

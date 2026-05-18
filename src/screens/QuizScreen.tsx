@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import {
   ScrollView,
@@ -86,7 +87,7 @@ export default function QuizScreen({ onClose }: Props) {
         <Text style={styles.resultSub}>
           {pct === 100 ? 'Perfect score! You know the protocol well.' : pct >= 75 ? 'Great knowledge. Review the explanations for anything you missed.' : 'Keep learning — the protocol details matter for safety.'}
         </Text>
-        <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.doneBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onClose(); }} activeOpacity={0.8}>
           <Text style={styles.doneBtnText}>Done</Text>
         </TouchableOpacity>
       </View>
@@ -123,7 +124,7 @@ export default function QuizScreen({ onClose }: Props) {
             }
           }
           return (
-            <TouchableOpacity key={String(val)} style={btnStyle} onPress={() => handleAnswer(val)} activeOpacity={0.8}>
+            <TouchableOpacity key={String(val)} style={btnStyle} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleAnswer(val); }} activeOpacity={0.8}>
               <Text style={textStyle}>{val ? 'FACT' : 'MYTH'}</Text>
             </TouchableOpacity>
           );
@@ -136,13 +137,13 @@ export default function QuizScreen({ onClose }: Props) {
             {isCorrect ? 'Correct!' : 'Not quite.'}
           </Text>
           <Text style={styles.explanationText}>{q.explanation}</Text>
-          <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.nextBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleNext(); }} activeOpacity={0.8}>
             <Text style={styles.nextBtnText}>{current + 1 >= QUIZ.length ? 'See Results' : 'Next Question'}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
-      <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
+      <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onClose(); }} activeOpacity={0.7}>
         <Text style={styles.cancelBtnText}>Exit Quiz</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -162,22 +163,22 @@ const styles = StyleSheet.create({
   progressDotActive: { backgroundColor: '#C96A50' },
   progressDotDone: { backgroundColor: '#155724' },
   counter: { color: '#7A6A62', fontSize: 12, fontWeight: '600', marginBottom: 20 },
-  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 16, padding: 20, marginBottom: 20 },
+  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, marginBottom: 20 },
   factOrMyth: { color: '#C96A50', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 12 },
   questionText: { color: '#FAF7F4', fontSize: 16, lineHeight: 24, fontWeight: '500' },
   btnRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  answerBtn: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 12, paddingVertical: 18, alignItems: 'center', borderWidth: 2, borderColor: '#E8E0D8' },
+  answerBtn: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 18, alignItems: 'center', borderWidth: 2, borderColor: '#E8E0D8' },
   answerBtnCorrect: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
   answerBtnWrong: { borderColor: '#ef4444', backgroundColor: '#1a0a0a' },
   answerBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
-  explanationCard: { borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 3 },
+  explanationCard: { borderRadius: 14, padding: 16, marginBottom: 14, borderLeftWidth: 3 },
   explanationCorrect: { backgroundColor: '#0a1a0a', borderLeftColor: '#C96A50' },
   explanationWrong: { backgroundColor: '#1a0a0a', borderLeftColor: '#ef4444' },
   explanationVerdict: { fontSize: 14, fontWeight: '800', marginBottom: 8 },
   explanationText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20, marginBottom: 16 },
-  nextBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  nextBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   nextBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '800' },
-  doneBtn: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 },
+  doneBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, paddingHorizontal: 40 },
   doneBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   cancelBtn: { alignItems: 'center', paddingVertical: 12 },
   cancelBtnText: { color: '#7A6A62', fontSize: 13 },

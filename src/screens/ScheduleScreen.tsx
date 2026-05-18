@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
@@ -185,10 +186,10 @@ export default function ScheduleScreen() {
 
   const renderToggle = () => (
     <View style={styles.toggleRow}>
-      <TouchableOpacity style={[styles.toggleBtn, activeView === 'today' ? styles.toggleBtnActive : null]} onPress={() => setActiveView('today')} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.toggleBtn, activeView === 'today' ? styles.toggleBtnActive : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveView('today'); }} activeOpacity={0.7}>
         <Text style={[styles.toggleBtnText, activeView === 'today' ? styles.toggleBtnTextActive : null]}>Today</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.toggleBtn, activeView === 'history' ? styles.toggleBtnActive : null]} onPress={() => setActiveView('history')} activeOpacity={0.7}>
+      <TouchableOpacity style={[styles.toggleBtn, activeView === 'history' ? styles.toggleBtnActive : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveView('history'); }} activeOpacity={0.7}>
         <Text style={[styles.toggleBtnText, activeView === 'history' ? styles.toggleBtnTextActive : null]}>History</Text>
       </TouchableOpacity>
     </View>
@@ -252,7 +253,7 @@ export default function ScheduleScreen() {
     <View style={styles.container}>
       <View style={styles.headingRow}>
         <Text style={styles.heading}>Today's Schedule</Text>
-        <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('Scanner')} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.scanBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Scanner'); }} activeOpacity={0.7}>
           <Text style={styles.scanBtnText}>Scan Ingredient</Text>
         </TouchableOpacity>
       </View>
@@ -262,6 +263,7 @@ export default function ScheduleScreen() {
         <TouchableOpacity
           style={styles.highDoseBanner}
           onPress={async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             await AsyncStorage.setItem('high_dose_alert_week', isoWeek(new Date()));
             setShowHighDoseAlert(false);
           }}
@@ -289,7 +291,7 @@ export default function ScheduleScreen() {
           return (
             <TouchableOpacity
               style={styles.row}
-              onPress={() => setSelectedDose(item)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedDose(item); }}
               activeOpacity={0.7}
             >
               {/* Left: time column */}
@@ -378,15 +380,15 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
-  scanBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#C96A50' },
-  scanBtnText: { color: '#C96A50', fontSize: 13, fontWeight: '600' },
+  scanBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#C96A50' },
+  scanBtnText: { color: '#C96A50', fontSize: 14, fontWeight: '600' },
   highDoseBanner: {
     backgroundColor: '#FDF3E0',
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#C4882A60',
-    padding: 12,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 14,
   },
   highDoseBannerText: {
     color: '#C4882A',
@@ -403,7 +405,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   list: {
-    paddingBottom: 20,
+    paddingBottom: 40,
   },
   row: {
     flexDirection: 'row',
@@ -418,10 +420,10 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: '#7A6A62',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '500',
     textAlign: 'right',
-    lineHeight: 15,
+    lineHeight: 18,
   },
   timeTextDimmed: {
     color: '#B0A098',
@@ -463,18 +465,18 @@ const styles = StyleSheet.create({
   },
   doseAmount: {
     color: '#7A6A62',
-    fontSize: 13,
+    fontSize: 15,
     marginTop: 2,
   },
   foodTag: {
     color: '#C4882A',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
     marginTop: 3,
   },
   skipReasonText: {
     color: '#B0A098',
-    fontSize: 11,
+    fontSize: 13,
     fontStyle: 'italic',
     marginTop: 3,
   },
@@ -496,14 +498,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  toggleRow: { flexDirection: 'row', backgroundColor: '#F2EDE8', borderRadius: 10, padding: 3, marginBottom: 16, borderWidth: 1, borderColor: '#D8CFC8' },
-  toggleBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  toggleRow: { flexDirection: 'row', backgroundColor: '#F2EDE8', borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#D8CFC8' },
+  toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   toggleBtnActive: { backgroundColor: '#FAF7F4' },
   toggleBtnText: { color: '#B0A098', fontSize: 13, fontWeight: '700' },
   toggleBtnTextActive: { color: '#C96A50' },
   calRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   calCellWrapper: { flex: 1, aspectRatio: 1 },
-  calCell: { flex: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 42 },
+  calCell: { flex: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', minHeight: 48, minWidth: 48 },
   calCellToday: { borderWidth: 2, borderColor: '#2C2420' },
   calCellText: { color: '#FAF7F4', fontSize: 12, fontWeight: '700' },
   legend: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, paddingTop: 12 },

@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import {
   Alert,
@@ -66,7 +67,7 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
           <Text style={styles.resultScore}>{total}<Text style={styles.resultScoreMax}>/40</Text></Text>
           <Text style={[styles.resultLabel, { color }]}>{label}</Text>
           <Text style={styles.resultNote}>Higher scores indicate better coordinated care. Share this with your neurologist.</Text>
-          <TouchableOpacity style={styles.doneButton} onPress={onClose}>
+          <TouchableOpacity style={styles.doneButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onClose?.(); }}>
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -90,7 +91,7 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
                 <TouchableOpacity
                   key={score}
                   style={[styles.scaleCircle, selected ? styles.scaleCircleSelected : null]}
-                  onPress={() => setAnswer(qIdx, score)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAnswer(qIdx, score); }}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.scaleText, selected ? styles.scaleTextSelected : null]}>{score}</Text>
@@ -107,7 +108,7 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
 
       <TouchableOpacity
         style={[styles.submitButton, !allAnswered ? styles.submitButtonDisabled : null]}
-        onPress={handleSubmit}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSubmit().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
         disabled={!allAnswered}
         activeOpacity={0.8}
       >
@@ -115,7 +116,7 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
       </TouchableOpacity>
 
       {onClose ? (
-        <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+        <TouchableOpacity style={styles.cancelButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onClose?.(); }}>
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       ) : null}
@@ -127,10 +128,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 48 },
   heading: { color: '#FAF7F4', fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  subtitle: { color: '#7A6A62', fontSize: 13, marginBottom: 24, lineHeight: 18 },
-  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 12 },
+  subtitle: { color: '#7A6A62', fontSize: 15, marginBottom: 24, lineHeight: 22 },
+  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 18, marginBottom: 14 },
   questionNumber: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
-  questionText: { color: '#FAF7F4', fontSize: 14, lineHeight: 20, marginBottom: 14 },
+  questionText: { color: '#FAF7F4', fontSize: 15, lineHeight: 22, marginBottom: 14 },
   scaleRow: { flexDirection: 'row', justifyContent: 'space-between' },
   scaleCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
   scaleCircleSelected: { backgroundColor: '#C96A50', borderColor: '#C96A50' },
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
   scaleTextSelected: { color: '#FAF7F4', fontWeight: '700' },
   scaleLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   scaleLabel: { color: '#7A6A62', fontSize: 10 },
-  submitButton: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  submitButton: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   submitButtonDisabled: { opacity: 0.4 },
   submitButtonText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   cancelButton: { alignItems: 'center', paddingVertical: 16 },
@@ -148,7 +149,7 @@ const styles = StyleSheet.create({
   resultScore: { color: '#FAF7F4', fontSize: 64, fontWeight: '800', lineHeight: 72 },
   resultScoreMax: { color: '#7A6A62', fontSize: 32 },
   resultLabel: { fontSize: 16, fontWeight: '600', marginTop: 8, marginBottom: 16 },
-  resultNote: { color: '#7A6A62', fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
-  doneButton: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 48 },
+  resultNote: { color: '#7A6A62', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  doneButton: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, paddingHorizontal: 48 },
   doneButtonText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
 });

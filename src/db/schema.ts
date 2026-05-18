@@ -238,9 +238,26 @@ export async function initDb(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS medical_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      scheduled_date TEXT NOT NULL,
+      scheduled_time TEXT,
+      location TEXT,
+      notes TEXT,
+      reminder_7d INTEGER DEFAULT 1,
+      reminder_3d INTEGER DEFAULT 1,
+      reminder_1d INTEGER DEFAULT 1,
+      reminder_2h INTEGER DEFAULT 1,
+      completed INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
+    CREATE INDEX IF NOT EXISTS idx_medical_events_date ON medical_events(scheduled_date);
   `);
 
   // Migrations: Add columns to existing tables (try/catch for idempotency)

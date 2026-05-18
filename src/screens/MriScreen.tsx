@@ -46,6 +46,22 @@ export default function MriScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [overdueAlert, setOverdueAlert] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 5000);
+        await fetch('https://clients3.google.com/generate_204', { method: 'HEAD', signal: controller.signal });
+        clearTimeout(id);
+        setIsOffline(false);
+      } catch { setIsOffline(true); }
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Form state
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -232,6 +248,13 @@ export default function MriScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color="#C96A50" style={{ marginRight: 8 }} />
+          <Text style={styles.offlineBannerText}>No connection — data shown is from last sync</Text>
+        </View>
+      )}
+
       {overdueAlert && (
         <View style={styles.overdueAlert}>
           <Text style={styles.overdueAlertText}>⚠ It has been over 12 months since your last MRI. Consider scheduling a follow-up scan.</Text>
@@ -408,32 +431,32 @@ export default function MriScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 20, paddingBottom: 48 },
-  overdueAlert: { backgroundColor: '#FDF3E0', borderRadius: 10, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
+  overdueAlert: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
   overdueAlertText: { color: '#C4882A', fontSize: 13, lineHeight: 19 },
   addBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  addBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  addBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
   addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
   cameraBtn: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#C96A50', alignItems: 'center', justifyContent: 'center' },
-  form: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#D8CFC8' },
+  form: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#D8CFC8' },
   formTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 16 },
   label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 12, color: '#2C2420', fontSize: 14, borderWidth: 1, borderColor: '#D8CFC8' },
+  input: { backgroundColor: '#FAF7F4', borderRadius: 10, padding: 14, color: '#2C2420', fontSize: 14, borderWidth: 1, borderColor: '#D8CFC8' },
   multiline: { height: 80, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#FAF7F4', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#D8CFC8' },
+  chip: { backgroundColor: '#FAF7F4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#D8CFC8' },
   chipActive: { backgroundColor: '#FBF0ED', borderColor: '#C96A50' },
   chipText: { color: '#7A6A62', fontSize: 13 },
   chipTextActive: { color: '#C96A50', fontWeight: '600' },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 8, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#D8CFC8' },
+  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#D8CFC8' },
   cancelBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
   emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
   emptySubtext: { color: '#B0A098', fontSize: 13, marginTop: 6, textAlign: 'center' },
-  card: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
+  card: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   cardDate: { color: '#2C2420', fontSize: 15, fontWeight: '700' },
   cardType: { color: '#7A6A62', fontSize: 12, marginTop: 2 },
@@ -444,4 +467,6 @@ const styles = StyleSheet.create({
   cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
   cardAge: { color: '#B0A098', fontSize: 11, marginTop: 8 },
   disclaimer: { color: '#B0A098', fontSize: 11, textAlign: 'center', marginTop: 24 },
+  offlineBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF7F4', borderRadius: 14, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#C96A50' },
+  offlineBannerText: { color: '#7A6A62', fontSize: 13, flex: 1, lineHeight: 18 },
 });

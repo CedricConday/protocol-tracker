@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
@@ -144,7 +145,7 @@ export default function CalendarScreen() {
       >
         <View style={styles.headerRow}>
           <Text style={styles.heading}>History</Text>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.shareButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleShare(); }} activeOpacity={0.8}>
             <Text style={styles.shareButtonText}>Share</Text>
           </TouchableOpacity>
         </View>
@@ -271,7 +272,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: 48,
+    minWidth: 48,
   },
   cellToday: {
     borderWidth: 2,
@@ -314,13 +316,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2EDE8',
     borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#D8CFC8',
   },
   shareButtonText: {
     color: '#C96A50',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

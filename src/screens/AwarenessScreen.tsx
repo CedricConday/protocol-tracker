@@ -60,6 +60,22 @@ async function scheduleAwarenessNotification(event: AwarenessEvent): Promise<voi
 export default function AwarenessScreen() {
   const [events, setEvents] = useState<AwarenessEvent[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 5000);
+        await fetch('https://clients3.google.com/generate_204', { method: 'HEAD', signal: controller.signal });
+        clearTimeout(id);
+        setIsOffline(false);
+      } catch { setIsOffline(true); }
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadEvents = useCallback(async () => {
     const db = await getDb();
@@ -117,6 +133,12 @@ export default function AwarenessScreen() {
       }
     >
       <Text style={styles.heading}>Awareness Calendar</Text>
+
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>No connection — showing last loaded content</Text>
+        </View>
+      )}
 
       {events.length === 0 ? (
         <View style={styles.emptyWrap}>
@@ -190,7 +212,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#F2EDE8',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 10,
   },
@@ -219,8 +241,10 @@ const styles = StyleSheet.create({
   },
   eventMessage: {
     color: '#7A6A62',
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 6,
-    lineHeight: 18,
+    lineHeight: 21,
   },
+  offlineBanner: { backgroundColor: '#FAF7F4', borderRadius: 14, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#C96A50' },
+  offlineBannerText: { color: '#7A6A62', fontSize: 13, textAlign: 'center', lineHeight: 18 },
 });

@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buildHealthContext } from '../utils/buildHealthContext';
 import { getDb } from '../db/schema';
@@ -61,7 +62,23 @@ export default function WorkspaceScreen() {
   const [apiKey, setApiKey] = useState('');
   const [context, setContext] = useState('');
   const [contextReady, setContextReady] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 5000);
+        await fetch('https://clients3.google.com/generate_204', { method: 'HEAD', signal: controller.signal });
+        clearTimeout(id);
+        setIsOffline(false);
+      } catch { setIsOffline(true); }
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -142,6 +159,13 @@ export default function WorkspaceScreen() {
         </View>
       </View>
 
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <MaterialCommunityIcons name="cloud-off-outline" size={16} color="#C96A50" style={{ marginRight: 8 }} />
+          <Text style={styles.offlineBannerText}>No connection — AI features unavailable while offline</Text>
+        </View>
+      )}
+
       {contextReady && (
         <TouchableOpacity style={styles.contextCard} activeOpacity={0.7}>
           <Text style={styles.contextText}>
@@ -192,16 +216,16 @@ const styles = StyleSheet.create({
   centered: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12 },
   title: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
-  providerChip: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#D8CFC8' },
+  providerChip: { backgroundColor: '#F2EDE8', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#D8CFC8' },
   providerText: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  contextCard: { backgroundColor: '#F2EDE8', borderRadius: 8, padding: 10, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: '#E8E0D8' },
+  contextCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 12, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: '#E8E0D8' },
   contextText: { color: '#7A6A62', fontSize: 12, textAlign: 'center' },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   quickChip: { backgroundColor: '#F2EDE8', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#D8CFC8' },
   quickChipText: { color: '#C96A50', fontSize: 12, fontWeight: '600' },
   chat: { flex: 1, paddingHorizontal: 20 },
   chatContent: { paddingBottom: 12, paddingTop: 10 },
-  bubble: { borderRadius: 12, padding: 12, marginBottom: 12, maxWidth: '85%' },
+  bubble: { borderRadius: 14, padding: 14, marginBottom: 12, maxWidth: '85%' },
   userBubble: { alignSelf: 'flex-end', backgroundColor: '#C96A50' },
   assistantBubble: { alignSelf: 'flex-start', backgroundColor: '#F2EDE8', borderWidth: 1, borderColor: '#E8E0D8' },
   bubbleText: { fontSize: 15, lineHeight: 20 },
@@ -210,11 +234,13 @@ const styles = StyleSheet.create({
   saveBtn: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#E8E0D8', paddingTop: 8 },
   saveBtnText: { color: '#C96A50', fontSize: 12, fontWeight: '600' },
   inputRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderTopWidth: 1, borderTopColor: '#E8E0D8', backgroundColor: '#FAF7F4' },
-  input: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, color: '#2C2420', fontSize: 15, marginRight: 10, borderWidth: 1, borderColor: '#D8CFC8' },
-  sendBtn: { backgroundColor: '#C96A50', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10 },
+  input: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, color: '#2C2420', fontSize: 15, marginRight: 10, borderWidth: 1, borderColor: '#D8CFC8' },
+  sendBtn: { backgroundColor: '#C96A50', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 12 },
   sendBtnDisabled: { opacity: 0.5 },
   sendBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
   emptyText: { color: '#7A6A62', textAlign: 'center', marginTop: 12, marginBottom: 24, fontSize: 15, lineHeight: 22 },
-  settingsBtn: { backgroundColor: '#F2EDE8', borderWidth: 1, borderColor: '#C96A50', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
+  settingsBtn: { backgroundColor: '#F2EDE8', borderWidth: 1, borderColor: '#C96A50', borderRadius: 10, paddingVertical: 14, paddingHorizontal: 24 },
   settingsBtnText: { color: '#C96A50', fontWeight: '700' },
+  offlineBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF7F4', borderRadius: 14, padding: 12, marginHorizontal: 20, marginBottom: 8, borderWidth: 1, borderColor: '#C96A50' },
+  offlineBannerText: { color: '#7A6A62', fontSize: 13, flex: 1, lineHeight: 18 },
 });
