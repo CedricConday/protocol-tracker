@@ -51,8 +51,8 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
   };
 
   const getInterpretation = (score: number) => {
-    if (score >= 35) return { label: 'Excellent coordination', color: '#22c55e' };
-    if (score >= 25) return { label: 'Good coordination', color: '#22c55e' };
+    if (score >= 35) return { label: 'Excellent coordination', color: '#C96A50' };
+    if (score >= 25) return { label: 'Good coordination', color: '#C96A50' };
     if (score >= 15) return { label: 'Moderate coordination', color: '#eab308' };
     return { label: 'Room for improvement', color: '#ef4444' };
   };
@@ -124,31 +124,31 @@ export default function CareSurveyScreen({ onClose }: { onClose?: () => void }) 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 48 },
-  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  subtitle: { color: '#888888', fontSize: 13, marginBottom: 24, lineHeight: 18 },
-  questionCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 12 },
-  questionNumber: { color: '#22c55e', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
-  questionText: { color: '#ffffff', fontSize: 14, lineHeight: 20, marginBottom: 14 },
+  heading: { color: '#FAF7F4', fontSize: 24, fontWeight: '800', marginBottom: 6 },
+  subtitle: { color: '#7A6A62', fontSize: 13, marginBottom: 24, lineHeight: 18 },
+  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 12 },
+  questionNumber: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
+  questionText: { color: '#FAF7F4', fontSize: 14, lineHeight: 20, marginBottom: 14 },
   scaleRow: { flexDirection: 'row', justifyContent: 'space-between' },
   scaleCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#333', alignItems: 'center', justifyContent: 'center' },
-  scaleCircleSelected: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-  scaleText: { color: '#888888', fontSize: 15, fontWeight: '600' },
-  scaleTextSelected: { color: '#0d0d0d', fontWeight: '700' },
+  scaleCircleSelected: { backgroundColor: '#C96A50', borderColor: '#C96A50' },
+  scaleText: { color: '#7A6A62', fontSize: 15, fontWeight: '600' },
+  scaleTextSelected: { color: '#FAF7F4', fontWeight: '700' },
   scaleLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  scaleLabel: { color: '#555555', fontSize: 10 },
-  submitButton: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  scaleLabel: { color: '#7A6A62', fontSize: 10 },
+  submitButton: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   submitButtonDisabled: { opacity: 0.4 },
-  submitButtonText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
+  submitButtonText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   cancelButton: { alignItems: 'center', paddingVertical: 16 },
-  cancelText: { color: '#555555', fontSize: 14 },
+  cancelText: { color: '#7A6A62', fontSize: 14 },
   resultCard: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  resultTitle: { color: '#888888', fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 },
-  resultScore: { color: '#ffffff', fontSize: 64, fontWeight: '800', lineHeight: 72 },
-  resultScoreMax: { color: '#555555', fontSize: 32 },
+  resultTitle: { color: '#7A6A62', fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 },
+  resultScore: { color: '#FAF7F4', fontSize: 64, fontWeight: '800', lineHeight: 72 },
+  resultScoreMax: { color: '#7A6A62', fontSize: 32 },
   resultLabel: { fontSize: 16, fontWeight: '600', marginTop: 8, marginBottom: 16 },
-  resultNote: { color: '#888888', fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
-  doneButton: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 48 },
-  doneButtonText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
+  resultNote: { color: '#7A6A62', fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
+  doneButton: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 48 },
+  doneButtonText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
 });

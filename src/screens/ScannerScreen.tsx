@@ -58,10 +58,10 @@ export default function ScannerScreen() {
 
   const getResultStyle = (severity: string) => {
     switch (severity) {
-      case 'safe': return { color: '#22c55e', label: '✓ Safe' };
+      case 'safe': return { color: '#C96A50', label: '✓ Safe' };
       case 'forbidden': return { color: '#ef4444', label: '✗ AVOID' };
       case 'caution': return { color: '#eab308', label: '⚠ Caution' };
-      default: return { color: '#555555', label: '— Not in database' };
+      default: return { color: '#7A6A62', label: '— Not in database' };
     }
   };
 
@@ -118,19 +118,19 @@ export default function ScannerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  subtitle: { color: '#888888', fontSize: 13, marginBottom: 20, lineHeight: 18 },
-  input: { backgroundColor: '#1a1a1a', color: '#ffffff', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 15, lineHeight: 22, textAlignVertical: 'top', marginBottom: 16 },
-  button: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 24 },
+  heading: { color: '#FAF7F4', fontSize: 24, fontWeight: '800', marginBottom: 6 },
+  subtitle: { color: '#7A6A62', fontSize: 13, marginBottom: 20, lineHeight: 18 },
+  input: { backgroundColor: '#F2EDE8', color: '#FAF7F4', borderRadius: 12, padding: 14, minHeight: 100, fontSize: 15, lineHeight: 22, textAlignVertical: 'top', marginBottom: 16 },
+  button: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 24 },
   buttonDisabled: { opacity: 0.4 },
-  buttonText: { color: '#0d0d0d', fontSize: 17, fontWeight: '800' },
+  buttonText: { color: '#FAF7F4', fontSize: 17, fontWeight: '800' },
   resultContainer: { gap: 8 },
-  resultRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#1a1a1a', borderRadius: 10, padding: 12 },
+  resultRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#F2EDE8', borderRadius: 10, padding: 12 },
   resultBadge: { fontSize: 11, fontWeight: '700', borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 1 },
   resultInfo: { flex: 1 },
-  resultText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
+  resultText: { color: '#FAF7F4', fontSize: 14, fontWeight: '600' },
   resultNotes: { fontSize: 12, marginTop: 2 },
-  emptyText: { color: '#555555', fontSize: 14, textAlign: 'center', marginTop: 20 },
+  emptyText: { color: '#7A6A62', fontSize: 14, textAlign: 'center', marginTop: 20 },
 });

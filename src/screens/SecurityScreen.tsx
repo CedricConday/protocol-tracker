@@ -28,7 +28,7 @@ export default function SecurityScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Ionicons name="key-outline" size={60} color="#22c55e" />
+          <Ionicons name="key-outline" size={60} color="#C96A50" />
         </View>
         <Text style={styles.title}>Security & Passkeys</Text>
         <Text style={styles.description}>
@@ -50,7 +50,7 @@ export default function SecurityScreen() {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#0d0d0d" />
+            <ActivityIndicator color="#FAF7F4" />
           ) : (
             <Text style={styles.buttonText}>Connect Passkey</Text>
           )}
@@ -65,16 +65,16 @@ export default function SecurityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
-  iconContainer: { marginBottom: 24, backgroundColor: '#1a1a1a', padding: 20, borderRadius: 30 },
-  title: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 12 },
-  description: { color: '#888888', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
-  card: { backgroundColor: '#1a1a1a', borderRadius: 16, padding: 20, width: '100%', marginBottom: 32 },
-  cardTitle: { color: '#ffffff', fontSize: 16, fontWeight: '700', marginBottom: 8 },
-  cardText: { color: '#888888', fontSize: 14, lineHeight: 20 },
-  button: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center' },
+  iconContainer: { marginBottom: 24, backgroundColor: '#F2EDE8', padding: 20, borderRadius: 30 },
+  title: { color: '#FAF7F4', fontSize: 24, fontWeight: '800', marginBottom: 12 },
+  description: { color: '#7A6A62', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+  card: { backgroundColor: '#F2EDE8', borderRadius: 16, padding: 20, width: '100%', marginBottom: 32 },
+  cardTitle: { color: '#FAF7F4', fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  cardText: { color: '#7A6A62', fontSize: 14, lineHeight: 20 },
+  button: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center' },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
-  privacyNote: { color: '#444444', fontSize: 12, marginTop: 16 },
+  buttonText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
+  privacyNote: { color: '#B0A098', fontSize: 12, marginTop: 16 },
 });

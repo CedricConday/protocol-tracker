@@ -403,7 +403,7 @@ export default function SettingsScreen() {
           )}
 
           {/* ── ACCOUNT ─────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+          <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.sectionCard}>
             <SectionHeader sectionKey="profile" icon="person-outline" label="Profile" sub={name || 'Name, weight, language'} />
             {expandedSection === 'profile' && (
@@ -425,7 +425,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── SUPPLEMENTS ─────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>SUPPLEMENTS</Text>
+          <Text style={styles.sectionTitle}>Supplements</Text>
           <View style={styles.sectionCard}>
             <SectionHeader sectionKey="protocol" icon="flask-outline" label="Protocol Doses" sub={d3Dose ? `D3: ${d3Dose} IU` : 'Daily D3 dose'} />
             {expandedSection === 'protocol' && (
@@ -463,7 +463,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── SCHEDULE ─────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>SCHEDULE</Text>
+          <Text style={styles.sectionTitle}>Schedule</Text>
           <View style={styles.sectionCard}>
             <SectionHeader sectionKey="bedtimeInline" icon="moon-outline" label="Bedtime Schedule" sub={`Cutoff: ${String(bedtimeHour).padStart(2,'0')}:${String(bedtimeMinute).padStart(2,'0')}`} />
             {expandedSection === 'bedtimeInline' && (
@@ -495,7 +495,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── HEALTH TRACKING ──────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>HEALTH TRACKING</Text>
+          <Text style={styles.sectionTitle}>Health tracking</Text>
           <View style={styles.sectionCard}>
             <SectionHeader sectionKey="healthChecks" icon="medical-outline" label="Health Checks" sub="Blood test · Care survey" />
             {expandedSection === 'healthChecks' && (
@@ -515,7 +515,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── DOCTOR ───────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>DOCTOR</Text>
+          <Text style={styles.sectionTitle}>Your doctor</Text>
           <View style={styles.sectionCard}>
             <SectionHeader sectionKey="doctor" icon="medical-outline" label="Doctor & Clinic" sub={doctorName || 'Not set'} />
             {expandedSection === 'doctor' && (
@@ -533,7 +533,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+          <Text style={styles.sectionTitle}>Reminders</Text>
           <View style={styles.sectionCard}>
             <SectionHeader sectionKey="nudge" icon="notifications-outline" label="Reminder Focus" sub={nudgeFocus === 'all' ? 'All reminders' : nudgeFocus.charAt(0).toUpperCase() + nudgeFocus.slice(1) + ' only'} />
             {expandedSection === 'nudge' && (
@@ -564,7 +564,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── ADVANCED ─────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>ADVANCED</Text>
+          <Text style={styles.sectionTitle}>Advanced</Text>
           <View style={styles.sectionCard}>
             <View style={[styles.navRow, { paddingVertical: 14 }]}>
               <Ionicons name="contrast-outline" size={20} color="#22c55e" style={{ marginRight: 12 }} />
@@ -595,7 +595,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── MORE ─────────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>MORE</Text>
+          <Text style={styles.sectionTitle}>More</Text>
           <View style={styles.sectionCard}>
             <NavRow icon="book-outline" label="Protocol Guide" onPress={() => navigation.navigate('Guide')} />
             <View style={styles.rowDivider} />
@@ -611,7 +611,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── SUPPORT ──────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>SUPPORT</Text>
+          <Text style={styles.sectionTitle}>Support</Text>
           <View style={styles.sectionCard}>
             <NavRow icon="help-buoy-outline" label="FAQ" sub="Frequently asked questions" onPress={() => Alert.alert('FAQ', 'Visit coimbra.app/faq for frequently asked questions.')} />
             <View style={styles.rowDivider} />
@@ -627,7 +627,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── DANGER ZONE ──────────────────────────────────────────────── */}
-          <Text style={[styles.sectionTitle, { color: '#C04040', marginTop: 32 }]}>DANGER ZONE</Text>
+          <Text style={[styles.sectionTitle, { color: '#C04040', marginTop: 32 }]}>Danger zone</Text>
           <View style={styles.dangerCard}>
             <View style={styles.dangerRow}>
               <View style={{ flex: 1 }}>
@@ -671,8 +671,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 24 },
   title: { color: '#2C2420', fontSize: 26, fontWeight: '800' },
   form: { flex: 1, paddingHorizontal: 24 },
-  sectionTitle: { color: '#B0A098', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginTop: 24, marginBottom: 8, marginLeft: 4 },
-  sectionCard: { backgroundColor: '#F2EDE8', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 4, borderWidth: 1, borderColor: '#D8CFC8' },
+  sectionTitle: { color: '#7A6A62', fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginTop: 28, marginBottom: 8, marginLeft: 4 },
+  sectionCard: { backgroundColor: '#F2EDE8', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 4, borderWidth: 1, borderColor: '#E8E0D8', shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   primaryBtnRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 4 },
   primaryBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   primaryBtnText: { color: '#FAF7F4', fontSize: 13, fontWeight: '700' },

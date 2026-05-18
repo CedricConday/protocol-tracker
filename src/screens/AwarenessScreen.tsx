@@ -102,9 +102,9 @@ export default function AwarenessScreen() {
   }
 
   function countdownLabel(daysUntil: number): { text: string; color: string } {
-    if (daysUntil === 0) return { text: 'TODAY', color: '#22c55e' };
-    if (daysUntil < 0) return { text: 'passed', color: '#555555' };
-    return { text: `in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`, color: '#888888' };
+    if (daysUntil === 0) return { text: 'TODAY', color: '#C96A50' };
+    if (daysUntil < 0) return { text: 'passed', color: '#7A6A62' };
+    return { text: `in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`, color: '#7A6A62' };
   }
 
   return (
@@ -113,7 +113,7 @@ export default function AwarenessScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
       }
     >
       <Text style={styles.heading}>Awareness Calendar</Text>
@@ -154,7 +154,7 @@ export default function AwarenessScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#FAF7F4',
   },
   content: {
     paddingTop: 60,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   heading: {
-    color: '#ffffff',
+    color: '#FAF7F4',
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 20,
@@ -177,19 +177,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyTitle: {
-    color: '#ffffff',
+    color: '#FAF7F4',
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 6,
   },
   emptyText: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
   },
   card: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 16,
     marginBottom: 10,
@@ -204,12 +204,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   eventTitle: {
-    color: '#ffffff',
+    color: '#FAF7F4',
     fontSize: 16,
     fontWeight: '700',
   },
   eventDate: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     marginTop: 2,
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   eventMessage: {
-    color: '#999999',
+    color: '#7A6A62',
     fontSize: 13,
     marginTop: 6,
     lineHeight: 18,

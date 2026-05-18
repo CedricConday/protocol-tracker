@@ -77,7 +77,7 @@ export default function QuizScreen({ onClose }: Props) {
 
   if (done) {
     const pct = Math.round((correct / QUIZ.length) * 100);
-    const color = pct >= 80 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444';
+    const color = pct >= 80 ? '#C96A50' : pct >= 50 ? '#eab308' : '#ef4444';
     return (
       <View style={[styles.container, styles.resultWrap]}>
         <Text style={styles.resultTitle}>Quiz Complete</Text>
@@ -116,7 +116,7 @@ export default function QuizScreen({ onClose }: Props) {
           if (selected !== null) {
             if (val === q.answer) {
               btnStyle = { ...btnStyle, ...styles.answerBtnCorrect };
-              textStyle = { ...textStyle, color: '#22c55e' };
+              textStyle = { ...textStyle, color: '#C96A50' };
             } else if (val === selected && val !== q.answer) {
               btnStyle = { ...btnStyle, ...styles.answerBtnWrong };
               textStyle = { ...textStyle, color: '#ef4444' };
@@ -132,7 +132,7 @@ export default function QuizScreen({ onClose }: Props) {
 
       {selected !== null ? (
         <View style={[styles.explanationCard, isCorrect ? styles.explanationCorrect : styles.explanationWrong]}>
-          <Text style={[styles.explanationVerdict, { color: isCorrect ? '#22c55e' : '#ef4444' }]}>
+          <Text style={[styles.explanationVerdict, { color: isCorrect ? '#C96A50' : '#ef4444' }]}>
             {isCorrect ? 'Correct!' : 'Not quite.'}
           </Text>
           <Text style={styles.explanationText}>{q.explanation}</Text>
@@ -150,35 +150,35 @@ export default function QuizScreen({ onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
   resultWrap: { justifyContent: 'center', alignItems: 'center', padding: 40 },
-  resultTitle: { color: '#888888', fontSize: 13, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+  resultTitle: { color: '#7A6A62', fontSize: 13, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
   resultScore: { fontSize: 64, fontWeight: '900', marginBottom: 4 },
   resultPct: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
   resultSub: { color: '#aaaaaa', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 32 },
   progressRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
-  progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#2a2a2a' },
-  progressDotActive: { backgroundColor: '#22c55e' },
+  progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#E8E0D8' },
+  progressDotActive: { backgroundColor: '#C96A50' },
   progressDotDone: { backgroundColor: '#155724' },
-  counter: { color: '#555555', fontSize: 12, fontWeight: '600', marginBottom: 20 },
-  questionCard: { backgroundColor: '#1a1a1a', borderRadius: 16, padding: 20, marginBottom: 20 },
-  factOrMyth: { color: '#22c55e', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 12 },
-  questionText: { color: '#ffffff', fontSize: 16, lineHeight: 24, fontWeight: '500' },
+  counter: { color: '#7A6A62', fontSize: 12, fontWeight: '600', marginBottom: 20 },
+  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 16, padding: 20, marginBottom: 20 },
+  factOrMyth: { color: '#C96A50', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginBottom: 12 },
+  questionText: { color: '#FAF7F4', fontSize: 16, lineHeight: 24, fontWeight: '500' },
   btnRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  answerBtn: { flex: 1, backgroundColor: '#1a1a1a', borderRadius: 12, paddingVertical: 18, alignItems: 'center', borderWidth: 2, borderColor: '#2a2a2a' },
-  answerBtnCorrect: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
+  answerBtn: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 12, paddingVertical: 18, alignItems: 'center', borderWidth: 2, borderColor: '#E8E0D8' },
+  answerBtnCorrect: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
   answerBtnWrong: { borderColor: '#ef4444', backgroundColor: '#1a0a0a' },
-  answerBtnText: { color: '#ffffff', fontSize: 16, fontWeight: '800' },
+  answerBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   explanationCard: { borderRadius: 12, padding: 16, marginBottom: 12, borderLeftWidth: 3 },
-  explanationCorrect: { backgroundColor: '#0a1a0a', borderLeftColor: '#22c55e' },
+  explanationCorrect: { backgroundColor: '#0a1a0a', borderLeftColor: '#C96A50' },
   explanationWrong: { backgroundColor: '#1a0a0a', borderLeftColor: '#ef4444' },
   explanationVerdict: { fontSize: 14, fontWeight: '800', marginBottom: 8 },
   explanationText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20, marginBottom: 16 },
-  nextBtn: { backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  nextBtnText: { color: '#0d0d0d', fontSize: 14, fontWeight: '800' },
-  doneBtn: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 },
-  doneBtnText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
+  nextBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  nextBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '800' },
+  doneBtn: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 },
+  doneBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   cancelBtn: { alignItems: 'center', paddingVertical: 12 },
-  cancelBtnText: { color: '#555555', fontSize: 13 },
+  cancelBtnText: { color: '#7A6A62', fontSize: 13 },
 });

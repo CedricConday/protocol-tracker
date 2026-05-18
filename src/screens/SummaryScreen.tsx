@@ -138,7 +138,7 @@ export default function SummaryScreen() {
           <td style="padding:8px;color:#fff">${d.waterMl}ml</td>
         </tr>`;
       }).join('');
-      const html = `<html><body style="background:#0d0d0d;padding:24px;font-family:sans-serif">
+      const html = `<html><body style="background:#FAF7F4;color:#2C2420;padding:24px;font-family:sans-serif">
         <h1 style="color:#22c55e;font-size:18px">Coimbra Protocol — Weekly Report</h1>
         <p style="color:#888;font-size:13px">${formatDate(weekStart)} — ${formatDate(now)}</p>
         <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -420,11 +420,11 @@ const styles = StyleSheet.create({
   scoreValue: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
   scoreLabel: { color: '#7A6A62', fontSize: 14, fontWeight: '600', marginTop: 2 },
   scoreSub: { color: '#B0A098', fontSize: 11, marginTop: 4 },
-  streakCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#D8CFC8' },
+  streakCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#E8E0D8', shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   streakValue: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
   streakLabel: { color: '#7A6A62', fontSize: 14, fontWeight: '600', marginTop: 2 },
   streakNoData: { color: '#B0A098' },
-  sectionTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 16, marginTop: 24 },
+  sectionTitle: { color: '#2C2420', fontSize: 15, fontWeight: '700', marginBottom: 14, marginTop: 28, letterSpacing: 0.1 },
   waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, marginBottom: 32 },
   waterCol: { alignItems: 'center', width: 36 },
   waterMlLabel: { color: '#B0A098', fontSize: 9, fontWeight: '600', marginBottom: 4 },

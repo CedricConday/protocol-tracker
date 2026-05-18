@@ -481,9 +481,8 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.3,
     marginTop: 4,
-    textTransform: 'uppercase',
   },
   emptyState: {
     flex: 1,

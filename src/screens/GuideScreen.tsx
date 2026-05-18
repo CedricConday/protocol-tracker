@@ -159,7 +159,7 @@ export default function GuideScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
       }
     >
       <Text style={styles.heading}>Coimbra Protocol Guide</Text>
@@ -168,12 +168,12 @@ export default function GuideScreen() {
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Research Updates</Text>
         <TouchableOpacity onPress={() => loadNews(true)} activeOpacity={0.7}>
-          <Ionicons name="refresh" size={18} color="#22c55e" />
+          <Ionicons name="refresh" size={18} color="#C96A50" />
         </TouchableOpacity>
       </View>
 
       {newsLoading && news.length === 0 ? (
-        <ActivityIndicator color="#22c55e" style={{ marginBottom: 16 }} />
+        <ActivityIndicator color="#C96A50" style={{ marginBottom: 16 }} />
       ) : newsError ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorText}>Unable to load news. Pull down to retry.</Text>
@@ -252,33 +252,33 @@ export default function GuideScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
-  heading: { color: '#fff', fontSize: 24, fontWeight: '800', marginBottom: 20 },
+  heading: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 4 },
-  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  subsectionTitle: { color: '#888', fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  newsCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#3b82f6' },
-  newsTitle: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 19, marginBottom: 6 },
-  newsSummary: { color: '#888', fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  sectionTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  subsectionTitle: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginBottom: 8, marginTop: 12, letterSpacing: 0.2 },
+  newsCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#4A7A9B', borderWidth: 1, borderColor: '#E8E0D8' },
+  newsTitle: { color: '#2C2420', fontSize: 14, fontWeight: '700', lineHeight: 19, marginBottom: 6 },
+  newsSummary: { color: '#7A6A62', fontSize: 13, lineHeight: 18, marginBottom: 8 },
   newsMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  newsDate: { color: '#555', fontSize: 11 },
-  newsLink: { color: '#3b82f6', fontSize: 11, fontWeight: '700' },
-  errorCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12 },
-  errorText: { color: '#888', fontSize: 13 },
-  emptyText: { color: '#666', fontSize: 13, marginBottom: 16 },
-  card: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 8 },
+  newsDate: { color: '#B0A098', fontSize: 11 },
+  newsLink: { color: '#4A7A9B', fontSize: 11, fontWeight: '700' },
+  errorCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#E8E0D8' },
+  errorText: { color: '#7A6A62', fontSize: 13 },
+  emptyText: { color: '#B0A098', fontSize: 13, marginBottom: 16 },
+  card: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#E8E0D8' },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ingredient: { color: '#fff', fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
+  ingredient: { color: '#2C2420', fontSize: 16, fontWeight: '700', flex: 1, marginRight: 8 },
   chip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
-  chipForbidden: { backgroundColor: '#ef444430' },
-  chipCaution: { backgroundColor: '#eab30830' },
-  chipText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  chipTextForbidden: { color: '#ef4444' },
-  chipTextCaution: { color: '#eab308' },
-  aliases: { color: '#888', fontSize: 12, marginTop: 4 },
-  notes: { color: '#999', fontSize: 13, marginTop: 2, lineHeight: 18 },
-  supplementName: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  supplementDose: { color: '#22c55e', fontSize: 13, fontWeight: '600', marginTop: 2 },
-  supplementNotes: { color: '#999', fontSize: 13, marginTop: 4, lineHeight: 18 },
+  chipForbidden: { backgroundColor: '#C0404018' },
+  chipCaution: { backgroundColor: '#C4882A18' },
+  chipText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  chipTextForbidden: { color: '#C04040' },
+  chipTextCaution: { color: '#C4882A' },
+  aliases: { color: '#7A6A62', fontSize: 12, marginTop: 4 },
+  notes: { color: '#7A6A62', fontSize: 13, marginTop: 2, lineHeight: 18 },
+  supplementName: { color: '#2C2420', fontSize: 16, fontWeight: '700' },
+  supplementDose: { color: '#C96A50', fontSize: 13, fontWeight: '600', marginTop: 2 },
+  supplementNotes: { color: '#7A6A62', fontSize: 13, marginTop: 4, lineHeight: 18 },
 });
