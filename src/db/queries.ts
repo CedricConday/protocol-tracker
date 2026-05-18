@@ -728,6 +728,25 @@ export async function completeMedicalEvent(id: number): Promise<void> {
   await db.runAsync('UPDATE medical_events SET completed = 1 WHERE id = ?', [id]);
 }
 
+// ── Calcium Logs ─────────────────────────────────────────────────────────────
+
+export async function saveCalciumLog(data: {
+  testStartDate: string; day: number; calciumMg: number; notes: string;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO calcium_logs (test_start_date, day, calcium_mg, notes) VALUES (?, ?, ?, ?)',
+    [data.testStartDate, data.day, data.calciumMg, data.notes]
+  );
+}
+
+export async function getCalciumLogs(): Promise<{ test_start_date: string; day: number; calcium_mg: number; notes: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ test_start_date: string; day: number; calcium_mg: number; notes: string }>(
+    'SELECT * FROM calcium_logs ORDER BY test_start_date DESC, day ASC'
+  );
+}
+
 // ── Sleep Checkin ────────────────────────────────────────────────────────────
 
 export async function saveSleepCheckin(date: string, score: number, answers: string): Promise<void> {

@@ -9,6 +9,7 @@ import { AppResetProvider } from '../context/AppResetContext';
 import AboutScreen from '../screens/AboutScreen';
 import AwarenessScreen from '../screens/AwarenessScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import CalciumLogScreen from '../screens/CalciumLogScreen';
 import CareSurveyScreen from '../screens/CareSurveyScreen';
 import CaregiverScreen from '../screens/CaregiverScreen';
 import DrugCheckerScreen from '../screens/DrugCheckerScreen';
@@ -181,6 +182,11 @@ function SettingsNavigator() {
         name="Sleep"
         component={SleepScreen}
         options={{ ...SUB_HEADER, title: 'Sleep Check-in', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="CalciumLog"
+        component={CalciumLogScreen}
+        options={{ ...SUB_HEADER, title: 'Calcium Log', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Caregiver"

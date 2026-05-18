@@ -224,6 +224,7 @@ export default function SettingsScreen() {
               DELETE FROM relapse_events;
               DELETE FROM care_surveys;
               DELETE FROM sleep_checkins;
+              DELETE FROM calcium_logs;
             `);
             await AsyncStorage.multiRemove([
               'fatigue_alert_shown',
@@ -267,6 +268,7 @@ export default function SettingsScreen() {
               DELETE FROM lab_results;
               DELETE FROM mri_scans;
               DELETE FROM sleep_checkins;
+              DELETE FROM calcium_logs;
             `);
             await AsyncStorage.clear();
             resetToOnboarding();
@@ -631,6 +633,8 @@ export default function SettingsScreen() {
             <NavRow icon="book-outline" label="Protocol Guide" onPress={() => navigation.navigate('Guide')} />
             <View style={styles.rowDivider} />
             <NavRow icon="moon-outline" label="Sleep Check-in" sub="Weekly hygiene scorecard" onPress={() => navigation.navigate('Sleep')} />
+            <View style={styles.rowDivider} />
+            <NavRow icon="flame-outline" label="Calcium Reintroduction Log" sub="3-day test window" onPress={() => navigation.navigate('CalciumLog')} />
             <View style={styles.rowDivider} />
             <NavRow icon="people-outline" label="Caregiver View" onPress={() => navigation.navigate('Caregiver')} />
             <View style={styles.rowDivider} />
