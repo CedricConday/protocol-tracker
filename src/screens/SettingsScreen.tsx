@@ -223,6 +223,7 @@ export default function SettingsScreen() {
               DELETE FROM meal_log;
               DELETE FROM relapse_events;
               DELETE FROM care_surveys;
+              DELETE FROM sleep_checkins;
             `);
             await AsyncStorage.multiRemove([
               'fatigue_alert_shown',
@@ -265,6 +266,7 @@ export default function SettingsScreen() {
               DELETE FROM blood_test_reminders;
               DELETE FROM lab_results;
               DELETE FROM mri_scans;
+              DELETE FROM sleep_checkins;
             `);
             await AsyncStorage.clear();
             resetToOnboarding();
@@ -627,6 +629,8 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>More</Text>
           <View style={styles.sectionCard}>
             <NavRow icon="book-outline" label="Protocol Guide" onPress={() => navigation.navigate('Guide')} />
+            <View style={styles.rowDivider} />
+            <NavRow icon="moon-outline" label="Sleep Check-in" sub="Weekly hygiene scorecard" onPress={() => navigation.navigate('Sleep')} />
             <View style={styles.rowDivider} />
             <NavRow icon="people-outline" label="Caregiver View" onPress={() => navigation.navigate('Caregiver')} />
             <View style={styles.rowDivider} />
