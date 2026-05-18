@@ -257,6 +257,29 @@ export default function SummaryScreen() {
             <Text style={[styles.streakLabel, streak === 0 ? styles.streakNoData : null]}>{streak === 0 ? 'no streak yet' : 'day streak'}</Text>
           </View>
 
+          {/* Streak Badges */}
+          <View style={styles.badgeRow}>
+            {[
+              { threshold: 30, label: '30 Day Streak' },
+              { threshold: 60, label: '60 Day Streak' },
+              { threshold: 90, label: '90 Day Streak' },
+            ].map((badge) => {
+              const earned = streak >= badge.threshold;
+              return (
+                <View
+                  key={badge.threshold}
+                  style={[styles.badgeCard, earned ? styles.badgeCardGold : styles.badgeCardGrey]}
+                >
+                  <Text style={styles.badgeIcon}>{earned ? '✓' : '🔒'}</Text>
+                  <Text style={[styles.badgeLabel, earned ? styles.badgeLabelEarned : styles.badgeLabelLocked]}>
+                    {badge.label}
+                  </Text>
+                  <Text style={styles.badgeCaption}>Consistency builds remission</Text>
+                </View>
+              );
+            })}
+          </View>
+
           {/* Mood Chart */}
           <Text style={styles.chartSectionTitle}>MOOD — LAST 7 DAYS</Text>
           <View style={styles.barChartRow}>
@@ -438,6 +461,15 @@ const styles = StyleSheet.create({
   weekDay: { color: '#B0A098', fontSize: 10, fontWeight: '600' },
   shareBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#C96A50' },
   shareBtnText: { color: '#C96A50', fontSize: 15, fontWeight: '700' },
+  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 24, marginTop: 4 },
+  badgeCard: { flex: 1, borderRadius: 14, padding: 14, alignItems: 'center', borderWidth: 1 },
+  badgeCardGold: { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' },
+  badgeCardGrey: { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' },
+  badgeIcon: { fontSize: 22, marginBottom: 4 },
+  badgeLabel: { fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
+  badgeLabelEarned: { color: '#2C2420' },
+  badgeLabelLocked: { color: '#9CA3AF' },
+  badgeCaption: { color: '#B0A098', fontSize: 10, textAlign: 'center' },
   doctorModeToggle: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 16, borderWidth: 1, borderColor: '#7A9ABF' },
   doctorModeToggleActive: { backgroundColor: '#EAF0F6' },
   doctorModeToggleText: { color: '#4A7A9B', fontSize: 14, fontWeight: '700' },
