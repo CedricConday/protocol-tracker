@@ -257,6 +257,14 @@ export async function initDb(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
+    CREATE TABLE IF NOT EXISTS calcium_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      test_start_date TEXT NOT NULL,
+      day INTEGER NOT NULL,
+      calcium_mg INTEGER NOT NULL,
+      notes TEXT NOT NULL DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS sleep_checkins (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
