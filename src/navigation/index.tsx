@@ -27,6 +27,7 @@ import ScannerScreen from '../screens/ScannerScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SecurityScreen from '../screens/SecurityScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SleepScreen from '../screens/SleepScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import TerminalLinkScreen from '../screens/TerminalLinkScreen';
@@ -175,6 +176,11 @@ function SettingsNavigator() {
         name="Guide"
         component={GuideScreen}
         options={{ ...SUB_HEADER, title: 'Protocol Guide', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="Sleep"
+        component={SleepScreen}
+        options={{ ...SUB_HEADER, title: 'Sleep Check-in', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Caregiver"

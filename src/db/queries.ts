@@ -728,6 +728,23 @@ export async function completeMedicalEvent(id: number): Promise<void> {
   await db.runAsync('UPDATE medical_events SET completed = 1 WHERE id = ?', [id]);
 }
 
+// ── Sleep Checkin ────────────────────────────────────────────────────────────
+
+export async function saveSleepCheckin(date: string, score: number, answers: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO sleep_checkins (date, score, answers) VALUES (?, ?, ?)',
+    [date, score, answers]
+  );
+}
+
+export async function getLastSleepCheckin(): Promise<{ date: string; score: number; answers: string } | null> {
+  const db = await getDb();
+  return db.getFirstAsync<{ date: string; score: number; answers: string }>(
+    'SELECT date, score, answers FROM sleep_checkins ORDER BY date DESC LIMIT 1'
+  );
+}
+
 // ── Misc Flags ───────────────────────────────────────────────────────────────
 
 export async function getMiscFlag(key: string): Promise<string | null> {
