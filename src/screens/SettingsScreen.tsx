@@ -22,7 +22,7 @@ import {
   getProfile, updateProfile, getScheduleRules, updateRuleDose,
   updateRuleTolerance, getDoctor, updateDoctor, getLastBloodTestDate,
   setLastBloodTestDate, getAllSupplements, updateSupplementStock,
-  getSupplementForms, updateSupplementForm,
+  getSupplementForms, updateSupplementForm, getMiscFlag, setMiscFlag,
 } from '../db/queries';
 import { getDb } from '../db/schema';
 import { useSimpleMode } from '../context/SimpleModeContext';
@@ -60,6 +60,11 @@ export default function SettingsScreen() {
   const [patientType, setPatientTypeState] = useState<string>('new');
   const [infoShareApproved, setInfoShareApproved] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
+    supplements: true, water: true, exercise: true, morning_checkin: true, weekly_summary: true,
+  });
+  const [quietStart, setQuietStart] = useState('22:00');
+  const [quietEnd, setQuietEnd] = useState('07:00');
 
   const toggleSection = (key: string | null) => setExpandedSection((prev) => (!key || prev === key ? null : key));
 
@@ -129,6 +134,19 @@ export default function SettingsScreen() {
       if (pt) setPatientTypeState(pt);
       const share = await AsyncStorage.getItem('info_share_approved');
       setInfoShareApproved(share === '1');
+
+      // Load notification preferences from misc_flags
+      const topics = ['supplements', 'water', 'exercise', 'morning_checkin', 'weekly_summary'];
+      const loaded: Record<string, boolean> = {};
+      for (const t of topics) {
+        const val = await getMiscFlag(`notif_pref_${t}`);
+        loaded[t] = val === null ? true : val === 'true';
+      }
+      setNotifPrefs(loaded);
+      const qs = await getMiscFlag('notif_quiet_start');
+      if (qs) setQuietStart(qs);
+      const qe = await getMiscFlag('notif_quiet_end');
+      if (qe) setQuietEnd(qe);
     })();
   }, []);
 
@@ -170,12 +188,19 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem('ai_provider', aiProvider);
       await AsyncStorage.setItem('ai_api_key', aiApiKey);
 
+      // Save notification preferences
+      for (const [key, val] of Object.entries(notifPrefs)) {
+        await setMiscFlag(`notif_pref_${key}`, val ? 'true' : 'false');
+      }
+      await setMiscFlag('notif_quiet_start', quietStart);
+      await setMiscFlag('notif_quiet_end', quietEnd);
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
       setSaving(false);
     }
-  }, [name, weight, d3Dose, d3RuleId, bedtimeHour, bedtimeMinute, toleranceChanges, doctorName, doctorClinic, doctorEmail, doctorPhone, bloodTestDate, stockChanges, aiProvider, aiApiKey]);
+  }, [name, weight, d3Dose, d3RuleId, bedtimeHour, bedtimeMinute, toleranceChanges, doctorName, doctorClinic, doctorEmail, doctorPhone, bloodTestDate, stockChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
 
   const handleResetAll = () => {
     Alert.alert(
@@ -505,6 +530,51 @@ export default function SettingsScreen() {
                   ))}
                 </View>
                 <Text style={[styles.privacyNotice, { marginBottom: 8 }]}>Reminders are local only — no data sent externally.</Text>
+              </View>
+            )}
+            <View style={styles.rowDivider} />
+            <SectionHeader sectionKey="notifPrefs" icon="notifications-circle-outline" label="Notification Preferences" sub="Per-topic toggles & quiet hours" />
+            {expandedSection === 'notifPrefs' && (
+              <View style={styles.expandedContent}>
+                <Text style={styles.inputLabel}>Notification Topics</Text>
+                {[
+                  { key: 'supplements', label: 'Supplement reminders' },
+                  { key: 'water', label: 'Water reminders' },
+                  { key: 'exercise', label: 'Exercise reminders' },
+                  { key: 'morning_checkin', label: 'Morning check-in' },
+                  { key: 'weekly_summary', label: 'Weekly summary' },
+                ].map((item) => (
+                  <View key={item.key} style={[styles.navRow, { paddingVertical: 10 }]}>
+                    <Text style={[styles.navRowLabel, { flex: 1 }]}>{item.label}</Text>
+                    <Switch
+                      value={notifPrefs[item.key]}
+                      onValueChange={(v) => setNotifPrefs((prev) => ({ ...prev, [item.key]: v }))}
+                      trackColor={{ false: '#D8CFC8', true: '#C96A50' }}
+                      thumbColor="#ffffff"
+                    />
+                  </View>
+                ))}
+                <Text style={[styles.inputLabel, { marginTop: 12 }]}>Quiet hours</Text>
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 8 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="22:00"
+                    placeholderTextColor="#B0A098"
+                    value={quietStart}
+                    onChangeText={setQuietStart}
+                    autoCapitalize="none"
+                  />
+                  <Text style={{ color: '#7A6A62', fontSize: 14 }}>to</Text>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="07:00"
+                    placeholderTextColor="#B0A098"
+                    value={quietEnd}
+                    onChangeText={setQuietEnd}
+                    autoCapitalize="none"
+                  />
+                </View>
+                <Text style={[styles.privacyNotice, { marginBottom: 8 }]}>No notifications fire during quiet hours.</Text>
               </View>
             )}
             {patientType !== 'caregiver' && (
