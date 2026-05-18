@@ -3,10 +3,10 @@ import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { ScheduledDose } from '../types';
 
 const statusBorderColors: Record<string, string> = {
-  taken:    '#22c55e',
-  due:      '#f97316',
-  upcoming: '#3b82f6',
-  missed:   '#ef4444',
+  taken:    '#5A8A5A',
+  due:      '#C96A50',
+  upcoming: '#4A7A9B',
+  missed:   '#C04040',
 };
 
 interface Props {
@@ -54,11 +54,11 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
   const timeLabel = `${hour12}:${minStr}`;
 
   const timeColor =
-    dose.status === 'due'   ? '#f97316' :
-    dose.status === 'taken' ? '#444444' :
-                              '#888888';
+    dose.status === 'due'   ? '#C96A50' :
+    dose.status === 'taken' ? '#B0A098' :
+                              '#7A6A62';
 
-  const cardBg = dose.status === 'due' ? '#1a1200' : '#111111';
+  const cardBg = dose.status === 'due' ? '#FBF0ED' : '#F2EDE8';
 
   let rightEl: React.ReactElement | null = null;
   if (dose.status === 'taken') {
@@ -83,7 +83,7 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
       {/* Left: time column */}
       <View style={styles.timeCol}>
         <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
-        <Text style={[styles.timeAmPm, { color: timeColor === '#888888' ? '#555555' : timeColor }]}>
+        <Text style={[styles.timeAmPm, { color: timeColor === '#7A6A62' ? '#B0A098' : timeColor }]}>
           {ampm}
         </Text>
       </View>
@@ -162,24 +162,24 @@ const styles = StyleSheet.create({
   separator: {
     width: 1,
     height: 36,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#D8CFC8',
     marginHorizontal: 12,
   },
   center: {
     flex: 1,
   },
   name: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 15,
     fontWeight: '600',
   },
   meta: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     marginTop: 2,
   },
   withFoodTag: {
-    color: '#eab308',
+    color: '#C4882A',
     fontSize: 11,
     marginTop: 4,
   },
@@ -189,22 +189,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rightTaken: {
-    color: '#22c55e',
+    color: '#5A8A5A',
     fontSize: 16,
     fontWeight: '700',
   },
   rightDue: {
-    color: '#f97316',
+    color: '#C96A50',
     fontSize: 11,
     fontWeight: '800',
   },
   rightMissed: {
-    color: '#ef4444',
+    color: '#C04040',
     fontSize: 14,
     fontWeight: '700',
   },
   rightUpcoming: {
-    color: '#333333',
+    color: '#B0A098',
     fontSize: 18,
   },
 });

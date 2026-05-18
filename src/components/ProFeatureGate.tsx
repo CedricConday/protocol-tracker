@@ -42,11 +42,13 @@ export default function ProFeatureGate({ children, featureName = 'Advanced Setti
 
 const styles = StyleSheet.create({
   gate: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 12,
     padding: 16,
     marginTop: 24,
-    opacity: 0.7,
+    opacity: 0.85,
+    borderWidth: 1,
+    borderColor: '#D8CFC8',
   },
   lockRow: {
     flexDirection: 'row',
@@ -58,30 +60,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   gateTitle: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 14,
     fontWeight: '700',
   },
   gateSub: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#E8E0D8',
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 6,
   },
   progressFill: {
     height: 6,
-    backgroundColor: '#eab308',
+    backgroundColor: '#C4882A',
     borderRadius: 3,
   },
   progressLabel: {
-    color: '#555555',
+    color: '#B0A098',
     fontSize: 12,
     textAlign: 'right',
   },

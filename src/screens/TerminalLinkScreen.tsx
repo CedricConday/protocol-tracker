@@ -169,7 +169,7 @@ export default function TerminalLinkScreen() {
           />
         ) : (
           <View style={[styles.camera, styles.linkingOverlay]}>
-            <ActivityIndicator size="large" color="#22c55e" />
+            <ActivityIndicator size="large" color="#C96A50" />
             <Text style={styles.linkingText}>Linking session…</Text>
           </View>
         )}
@@ -189,25 +189,25 @@ const CORNER = 24;
 const BORDER = 3;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  heading: { color: '#ffffff', fontSize: 22, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  subtitle: { color: '#888888', fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
+  container: { flex: 1, backgroundColor: '#FAF7F4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  heading: { color: '#FAF7F4', fontSize: 22, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  subtitle: { color: '#7A6A62', fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 32 },
   cameraWrapper: { width: 260, height: 260, borderRadius: 20, overflow: 'hidden', position: 'relative', marginBottom: 32 },
   camera: { width: '100%', height: '100%' },
   linkingOverlay: { backgroundColor: '#111', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  linkingText: { color: '#22c55e', fontSize: 13, fontWeight: '600' },
-  corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: '#22c55e', borderWidth: 0 },
+  linkingText: { color: '#C96A50', fontSize: 13, fontWeight: '600' },
+  corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: '#C96A50', borderWidth: 0 },
   cornerTL: { top: 0, left: 0, borderTopWidth: BORDER, borderLeftWidth: BORDER, borderTopLeftRadius: 4 },
   cornerTR: { top: 0, right: 0, borderTopWidth: BORDER, borderRightWidth: BORDER, borderTopRightRadius: 4 },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: BORDER, borderLeftWidth: BORDER, borderBottomLeftRadius: 4 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: BORDER, borderRightWidth: BORDER, borderBottomRightRadius: 4 },
-  hint: { color: '#444', fontSize: 12, textAlign: 'center', lineHeight: 18 },
-  btn: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
-  btnOutline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#22c55e' },
-  btnText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
-  btnTextOutline: { color: '#22c55e' },
-  successIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#22c55e20', borderWidth: 2, borderColor: '#22c55e', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  successCheck: { color: '#22c55e', fontSize: 32, fontWeight: '700' },
+  hint: { color: '#B0A098', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  btn: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40, marginTop: 8 },
+  btnOutline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#C96A50' },
+  btnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
+  btnTextOutline: { color: '#C96A50' },
+  successIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#C96A5020', borderWidth: 2, borderColor: '#C96A50', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  successCheck: { color: '#C96A50', fontSize: 32, fontWeight: '700' },
   errorIcon: { color: '#ef4444', fontSize: 40, marginBottom: 12 },
-  errorMsg: { color: '#888', fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  errorMsg: { color: '#7A6A62', fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
 });

@@ -297,10 +297,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: '#7A6A62',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.1,
     marginBottom: 10,
     marginTop: 24,
   },
@@ -351,6 +350,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlignVertical: 'top',
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#D8CFC8',
   },
   complianceLine: {
     color: '#7A6A62',

@@ -64,7 +64,7 @@ function FormFields({
 }) {
   return (
     <View style={styles.formBlock}>
-      <Text style={[styles.label, { marginTop: 0 }]}>Name</Text>
+      <Text style={[styles.label, { marginTop: 0 }]}>Supplement name</Text>
       <TextInput
         style={styles.input}
         value={form.name}
@@ -74,7 +74,7 @@ function FormFields({
         autoCapitalize="words"
       />
 
-      <Text style={styles.label}>Form</Text>
+      <Text style={styles.label}>How you take it</Text>
       <View style={styles.chipRow}>
         {FORMS.map((f) => (
           <TouchableOpacity
@@ -92,7 +92,7 @@ function FormFields({
 
       <View style={styles.row2}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.label}>Dose Amount</Text>
+          <Text style={styles.label}>Dose</Text>
           <TextInput
             style={styles.input}
             value={form.dose_amount}
@@ -117,7 +117,7 @@ function FormFields({
 
       <View style={styles.row2}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.label}>Offset (min after T0)</Text>
+          <Text style={styles.label}>Minutes after first dose</Text>
           <TextInput
             style={styles.input}
             value={form.offset_minutes}
@@ -128,7 +128,7 @@ function FormFields({
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Window (±min)</Text>
+          <Text style={styles.label}>Flexibility (±min)</Text>
           <TextInput
             style={styles.input}
             value={form.tolerance_window}
@@ -283,8 +283,8 @@ export default function SupplementEditorScreen() {
           {supplements.length === 0 && !showAddForm && (
             <View style={styles.emptyState}>
               <Ionicons name="flask-outline" size={40} color={C.textMuted} />
-              <Text style={styles.emptyText}>No supplements yet.</Text>
-              <Text style={styles.emptySub}>Tap + to add your first one.</Text>
+              <Text style={styles.emptyText}>Your protocol starts here</Text>
+              <Text style={styles.emptySub}>Tap + to add your first supplement.</Text>
             </View>
           )}
 
@@ -372,9 +372,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: C.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 10,
     overflow: 'hidden',
+    shadowColor: '#2C2420',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   cardRow: {
     flexDirection: 'row',

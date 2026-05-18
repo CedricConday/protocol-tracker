@@ -135,7 +135,7 @@ function ProgressHeader({ t0, doses, patientName, firstMealTime, isSimple }: Pro
           <Text style={headerStyles.summaryLabel}> today</Text>
         </View>
       ) : (
-        <Text style={headerStyles.readyText}>Ready when you are</Text>
+        <Text style={headerStyles.readyText}>Start when you're ready</Text>
       )}
     </View>
   );
@@ -147,6 +147,11 @@ const headerStyles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
+    shadowColor: '#2C2420',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   topRow: {
     flexDirection: 'row',
@@ -279,6 +284,11 @@ const nextStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    shadowColor: '#2C2420',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   left: {
     flex: 1,
@@ -287,8 +297,9 @@ const nextStyles = StyleSheet.create({
   nextLabel: {
     color: '#B0A098',
     fontSize: 10,
-    letterSpacing: 2,
+    letterSpacing: 1,
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   name: {
     color: '#2C2420',
@@ -633,9 +644,9 @@ export default function HomeScreen() {
         <View style={styles.centered}>
           {renderHeader()}
           <Text style={styles.subtitle}>
-            {isSimple 
-              ? "Time for your supplements."
-              : "Tap when you're ready to take your first supplement.\nThis sets your schedule for the day."}
+            {isSimple
+              ? "Ready for today's doses?"
+              : "Tap when you take your first supplement.\nEverything else falls into place from there."}
           </Text>
           <StartDayButton onPress={handleStartDay} loading={starting} />
           
@@ -646,7 +657,7 @@ export default function HomeScreen() {
                 onPress={() => navigation.navigate('Journal', { screen: 'Relapse' })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.relapseButtonText}>Log Event</Text>
+                <Text style={styles.relapseButtonText}>Log a symptom</Text>
               </TouchableOpacity>
               {waterMl > 0 && (
                 <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
@@ -770,7 +781,7 @@ export default function HomeScreen() {
 
         {insightText ? (
           <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>TODAY'S INSIGHT</Text>
+            <Text style={styles.insightLabel}>Protocol tip</Text>
             <Text style={styles.insightText}>{insightText}</Text>
           </View>
         ) : null}
@@ -861,7 +872,7 @@ export default function HomeScreen() {
               {todayMood ? (
                 <Text style={styles.journalSummaryPreview} numberOfLines={1}>{todayNotePreview || 'Tap to write more'}</Text>
               ) : (
-                <Text style={styles.journalSummaryPrompt}>How are you feeling?</Text>
+                <Text style={styles.journalSummaryPrompt}>How are you feeling today?</Text>
               )}
             </TouchableOpacity>
 
@@ -886,7 +897,7 @@ export default function HomeScreen() {
             {showD3MealHint ? (
               <View style={styles.hintCard}>
                 <View style={styles.hintCardInner}>
-                  <Text style={styles.hintCardTitle}>D3 WITH MEALS</Text>
+                  <Text style={styles.hintCardTitle}>D3 with meals</Text>
                   <Text style={styles.hintCardText}>Vitamin D3 is fat-soluble. Take it with your largest meal of the day for best absorption — ideally breakfast or lunch.</Text>
                 </View>
                 <TouchableOpacity onPress={async () => { await AsyncStorage.setItem('d3_meal_hint_dismissed', 'true'); setShowD3MealHint(false); }}>
@@ -898,7 +909,7 @@ export default function HomeScreen() {
             {showMagnesiumHint ? (
               <View style={styles.hintCard}>
                 <View style={styles.hintCardInner}>
-                  <Text style={styles.hintCardTitle}>MAGNESIUM BALANCE</Text>
+                  <Text style={styles.hintCardTitle}>Magnesium balance</Text>
                   <Text style={styles.hintCardText}>High-dose D3 depletes magnesium. Ensure you're taking magnesium glycinate or malate at a separate time from calcium-rich foods.</Text>
                 </View>
                 <TouchableOpacity onPress={async () => { const week = new Date().toISOString().slice(0, 7); await AsyncStorage.setItem(`mag_hint_${week}`, 'true'); setShowMagnesiumHint(false); }}>
@@ -908,7 +919,7 @@ export default function HomeScreen() {
             ) : null}
 
             <View style={styles.mealCard}>
-              <Text style={styles.mealCardTitle}>MEALS TODAY</Text>
+              <Text style={styles.mealCardTitle}>Meals today</Text>
               <View style={styles.mealButtonRow}>
                 {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const).map((type) => (
                   <TouchableOpacity
@@ -1257,11 +1268,11 @@ const styles = StyleSheet.create({
   nudgeBannerText: { flex: 1, color: '#8A5A10', fontSize: 13, lineHeight: 18 },
   nudgeBannerDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
   insightCard: { backgroundColor: '#FBF0ED', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
-  insightLabel: { color: '#C96A50', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 6 },
+  insightLabel: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
   insightText: { color: '#7A6A62', fontSize: 13, lineHeight: 20 },
   hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
   hintCardInner: { flex: 1 },
-  hintCardTitle: { color: '#C4882A', fontSize: 10, fontWeight: '800', letterSpacing: 1.5, marginBottom: 4 },
+  hintCardTitle: { color: '#C4882A', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
   hintCardText: { color: '#7A6A62', fontSize: 12, lineHeight: 18 },
   hintCardDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
   wizardCard: { backgroundColor: '#FBF0ED', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#C96A5040' },
@@ -1270,7 +1281,7 @@ const styles = StyleSheet.create({
   wizardBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   wizardBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '800' },
   mealCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12 },
-  mealCardTitle: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 10 },
+  mealCardTitle: { color: '#7A6A62', fontSize: 12, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10 },
   mealButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   mealTypeBtn: { flex: 1, backgroundColor: '#E8E0D8', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
   mealTypeBtnText: { color: '#C96A50', fontSize: 12, fontWeight: '700' },

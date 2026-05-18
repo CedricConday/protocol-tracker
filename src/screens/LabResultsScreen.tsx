@@ -50,7 +50,7 @@ function valueStatus(val: number | null, min: number, max: number): 'ok' | 'low'
 }
 
 function statusColor(s: 'ok' | 'low' | 'high' | 'unknown') {
-  if (s === 'ok') return '#22c55e';
+  if (s === 'ok') return '#C96A50';
   if (s === 'low') return '#3b82f6';
   if (s === 'high') return '#ef4444';
   return '#555555';
@@ -150,7 +150,7 @@ export default function LabResultsScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
       <View style={styles.targetCard}>
         <Text style={styles.targetTitle}>Coimbra Protocol Target Ranges</Text>
@@ -255,43 +255,43 @@ export default function LabResultsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 20, paddingBottom: 48 },
-  targetCard: { backgroundColor: '#1a2a1a', borderRadius: 10, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
-  targetTitle: { color: '#22c55e', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  targetRow: { color: '#888888', fontSize: 13, marginBottom: 3 },
+  targetCard: { backgroundColor: '#1a2a1a', borderRadius: 10, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
+  targetTitle: { color: '#C96A50', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  targetRow: { color: '#7A6A62', fontSize: 13, marginBottom: 3 },
   targetRange: { color: '#cccccc', fontWeight: '600' },
-  addBtn: { backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 20 },
-  addBtnText: { color: '#0d0d0d', fontSize: 15, fontWeight: '700' },
-  form: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 20 },
-  formTitle: { color: '#ffffff', fontSize: 17, fontWeight: '700', marginBottom: 4 },
-  label: { color: '#888888', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  targetHint: { color: '#22c55e', textTransform: 'none', fontWeight: '400' },
-  input: { backgroundColor: '#0d0d0d', borderRadius: 8, padding: 12, color: '#ffffff', fontSize: 14, borderWidth: 1, borderColor: '#2a2a2a' },
+  addBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 20 },
+  addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
+  form: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 20 },
+  formTitle: { color: '#FAF7F4', fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
+  targetHint: { color: '#C96A50', textTransform: 'none', fontWeight: '400' },
+  input: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 12, color: '#FAF7F4', fontSize: 14, borderWidth: 1, borderColor: '#E8E0D8' },
   multiline: { height: 64, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#0d0d0d', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#2a2a2a' },
-  chipActive: { backgroundColor: '#22c55e22', borderColor: '#22c55e' },
-  chipText: { color: '#888888', fontSize: 13 },
-  chipTextActive: { color: '#22c55e', fontWeight: '600' },
+  chip: { backgroundColor: '#FAF7F4', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#E8E0D8' },
+  chipActive: { backgroundColor: '#C96A5022', borderColor: '#C96A50' },
+  chipText: { color: '#7A6A62', fontSize: 13 },
+  chipTextActive: { color: '#C96A50', fontWeight: '600' },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, backgroundColor: '#0d0d0d', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#888888', fontSize: 14, fontWeight: '600' },
-  saveBtn: { flex: 2, backgroundColor: '#22c55e', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  cancelBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
+  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#0d0d0d', fontSize: 14, fontWeight: '700' },
+  saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { color: '#555555', fontSize: 16, fontWeight: '600' },
-  emptySubtext: { color: '#3a3a3a', fontSize: 13, marginTop: 6, textAlign: 'center' },
-  card: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 14, marginBottom: 12 },
-  cardDate: { color: '#ffffff', fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
+  emptySubtext: { color: '#D8CFC8', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  card: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12 },
+  cardDate: { color: '#FAF7F4', fontSize: 15, fontWeight: '700', marginBottom: 10 },
   markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#222222' },
-  markerLabel: { color: '#888888', fontSize: 13 },
+  markerLabel: { color: '#7A6A62', fontSize: 13 },
   markerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   markerValue: { fontSize: 13, fontWeight: '600' },
   markerStatus: { fontSize: 11, fontWeight: '700', minWidth: 36, textAlign: 'right' },
   sulkowitch: { color: '#eab308', fontSize: 12, marginTop: 8 },
-  cardNotes: { color: '#888888', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
-  cardHint: { color: '#2a2a2a', fontSize: 11, marginTop: 8 },
-  disclaimer: { color: '#3a3a3a', fontSize: 11, textAlign: 'center', marginTop: 24 },
+  cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
+  cardHint: { color: '#E8E0D8', fontSize: 11, marginTop: 8 },
+  disclaimer: { color: '#D8CFC8', fontSize: 11, textAlign: 'center', marginTop: 24 },
 });

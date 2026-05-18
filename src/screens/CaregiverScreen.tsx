@@ -89,7 +89,7 @@ export default function CaregiverScreen() {
   };
 
   const caregiverMoodScore = selectedMood ?? 0;
-  const complianceColor = patientCompliance >= 80 ? '#22c55e' : patientCompliance >= 50 ? '#eab308' : '#ef4444';
+  const complianceColor = patientCompliance >= 80 ? '#C96A50' : patientCompliance >= 50 ? '#eab308' : '#ef4444';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -189,38 +189,38 @@ export default function CaregiverScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  sub: { color: '#555555', fontSize: 14, marginBottom: 12 },
+  heading: { color: '#FAF7F4', fontSize: 24, fontWeight: '800', marginBottom: 6 },
+  sub: { color: '#7A6A62', fontSize: 14, marginBottom: 12 },
   sharingBanner: { borderRadius: 10, padding: 12, marginBottom: 20 },
-  sharingOn: { backgroundColor: '#0d1a0d', borderLeftWidth: 3, borderLeftColor: '#22c55e' },
+  sharingOn: { backgroundColor: '#0d1a0d', borderLeftWidth: 3, borderLeftColor: '#C96A50' },
   sharingOff: { backgroundColor: '#1a1a00', borderLeftWidth: 3, borderLeftColor: '#eab308' },
   sharingText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18 },
   nudgeCard: { backgroundColor: '#1a1000', borderRadius: 14, padding: 16, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#eab308' },
   nudgeTitle: { color: '#eab308', fontSize: 14, fontWeight: '800', marginBottom: 6 },
   nudgeText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20, marginBottom: 12 },
   syncBtn: { backgroundColor: '#eab308', borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
-  syncBtnText: { color: '#0d0d0d', fontSize: 13, fontWeight: '800' },
-  patientCard: { backgroundColor: '#1a1a1a', borderRadius: 14, padding: 18, marginBottom: 20 },
-  cardLabel: { color: '#555555', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 14 },
+  syncBtnText: { color: '#FAF7F4', fontSize: 13, fontWeight: '800' },
+  patientCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 18, marginBottom: 20 },
+  cardLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 14 },
   metricsRow: { flexDirection: 'row', gap: 24, marginBottom: 12 },
   metric: { alignItems: 'center' },
-  metricValue: { color: '#ffffff', fontSize: 28, fontWeight: '800' },
-  metricLabel: { color: '#555555', fontSize: 12, fontWeight: '600', marginTop: 4 },
-  patientNote: { color: '#888888', fontSize: 13, lineHeight: 18 },
-  sectionTitle: { color: '#555555', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8, marginTop: 8 },
-  sectionSub: { color: '#444444', fontSize: 12, marginBottom: 12 },
+  metricValue: { color: '#FAF7F4', fontSize: 28, fontWeight: '800' },
+  metricLabel: { color: '#7A6A62', fontSize: 12, fontWeight: '600', marginTop: 4 },
+  patientNote: { color: '#7A6A62', fontSize: 13, lineHeight: 18 },
+  sectionTitle: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8, marginTop: 8 },
+  sectionSub: { color: '#B0A098', fontSize: 12, marginBottom: 12 },
   moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  moodBtn: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#2a2a2a', marginHorizontal: 3 },
-  moodBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
+  moodBtn: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#E8E0D8', marginHorizontal: 3 },
+  moodBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
   moodEmoji: { fontSize: 20 },
-  moodLabel: { color: '#555555', fontSize: 10, marginTop: 4, fontWeight: '600' },
-  moodLabelActive: { color: '#22c55e' },
-  savedText: { color: '#22c55e', fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 12 },
+  moodLabel: { color: '#7A6A62', fontSize: 10, marginTop: 4, fontWeight: '600' },
+  moodLabelActive: { color: '#C96A50' },
+  savedText: { color: '#C96A50', fontSize: 13, fontWeight: '700', textAlign: 'center', marginBottom: 12 },
   burnoutCard: { backgroundColor: '#1a0d00', borderRadius: 12, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#ef4444' },
   burnoutTitle: { color: '#ef4444', fontSize: 13, fontWeight: '800', marginBottom: 6 },
   burnoutText: { color: '#aaaaaa', fontSize: 13, lineHeight: 20 },
-  tipCard: { backgroundColor: '#1a1a1a', borderRadius: 10, padding: 12, marginBottom: 8 },
-  tipText: { color: '#888888', fontSize: 13, lineHeight: 20 },
+  tipCard: { backgroundColor: '#F2EDE8', borderRadius: 10, padding: 12, marginBottom: 8 },
+  tipText: { color: '#7A6A62', fontSize: 13, lineHeight: 20 },
 });

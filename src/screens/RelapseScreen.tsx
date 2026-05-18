@@ -210,7 +210,7 @@ export default function RelapseScreen() {
               onPress={() => setSeverity(s)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.severityText, { color: selected ? '#0d0d0d' : '#555555' }]}>
+              <Text style={[styles.severityText, { color: selected ? '#FAF7F4' : '#7A6A62' }]}>
                 {s}
               </Text>
             </TouchableOpacity>
@@ -335,10 +335,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#B0A098',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
+    color: '#7A6A62',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
     marginTop: 16,
     marginBottom: 8,
     marginLeft: 4,
@@ -348,11 +348,16 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: '#F2EDE8',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#D8CFC8',
+    borderColor: '#E8E0D8',
+    shadowColor: '#2C2420',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   typeRow: {
     flexDirection: 'row',

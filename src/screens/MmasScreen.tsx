@@ -40,7 +40,7 @@ function calcScore(answers: (boolean | null)[], q8: number | null): number {
 }
 
 function interpretScore(score: number): { label: string; color: string; detail: string } {
-  if (score === 8) return { label: 'High Adherence', color: '#22c55e', detail: 'Excellent — you are consistently following your protocol.' };
+  if (score === 8) return { label: 'High Adherence', color: '#C96A50', detail: 'Excellent — you are consistently following your protocol.' };
   if (score >= 6) return { label: 'Medium Adherence', color: '#eab308', detail: 'Some lapses noted. Review what causes missed doses.' };
   return { label: 'Low Adherence', color: '#ef4444', detail: 'Significant gaps in your protocol. Consider discussing with your doctor.' };
 }
@@ -143,34 +143,34 @@ export default function MmasScreen({ onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  heading: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginBottom: 6 },
-  sub: { color: '#555555', fontSize: 13, marginBottom: 24 },
-  questionCard: { backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16, marginBottom: 12 },
-  questionNum: { color: '#22c55e', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
-  questionText: { color: '#ffffff', fontSize: 14, lineHeight: 20, marginBottom: 14 },
+  heading: { color: '#FAF7F4', fontSize: 24, fontWeight: '800', marginBottom: 6 },
+  sub: { color: '#7A6A62', fontSize: 13, marginBottom: 24 },
+  questionCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 12 },
+  questionNum: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 6 },
+  questionText: { color: '#FAF7F4', fontSize: 14, lineHeight: 20, marginBottom: 14 },
   yesNoRow: { flexDirection: 'row', gap: 10 },
-  yesNoBtn: { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: '#2a2a2a', paddingVertical: 10, alignItems: 'center' },
-  yesNoBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
-  yesNoBtnText: { color: '#555555', fontSize: 14, fontWeight: '600' },
-  yesNoBtnTextActive: { color: '#22c55e' },
+  yesNoBtn: { flex: 1, borderRadius: 8, borderWidth: 1, borderColor: '#E8E0D8', paddingVertical: 10, alignItems: 'center' },
+  yesNoBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
+  yesNoBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
+  yesNoBtnTextActive: { color: '#C96A50' },
   optionsCol: { gap: 8 },
-  optionBtn: { borderRadius: 8, borderWidth: 1, borderColor: '#2a2a2a', paddingVertical: 10, paddingHorizontal: 14 },
-  optionBtnActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
-  optionText: { color: '#555555', fontSize: 14 },
-  optionTextActive: { color: '#22c55e', fontWeight: '600' },
-  submitBtn: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 12 },
+  optionBtn: { borderRadius: 8, borderWidth: 1, borderColor: '#E8E0D8', paddingVertical: 10, paddingHorizontal: 14 },
+  optionBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
+  optionText: { color: '#7A6A62', fontSize: 14 },
+  optionTextActive: { color: '#C96A50', fontWeight: '600' },
+  submitBtn: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 12 },
   submitBtnDisabled: { opacity: 0.4 },
-  submitBtnText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
+  submitBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   cancelBtn: { alignItems: 'center', paddingVertical: 12 },
-  cancelBtnText: { color: '#555555', fontSize: 14 },
+  cancelBtnText: { color: '#7A6A62', fontSize: 14 },
   resultCard: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  resultTitle: { color: '#888888', fontSize: 13, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
+  resultTitle: { color: '#7A6A62', fontSize: 13, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
   resultScore: { fontSize: 64, fontWeight: '900', marginBottom: 8 },
   resultLabel: { fontSize: 18, fontWeight: '700', marginBottom: 16 },
   resultDetail: { color: '#aaaaaa', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  resultDisclaimer: { color: '#444444', fontSize: 10, textAlign: 'center', marginBottom: 32, fontStyle: 'italic' },
-  doneBtn: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 },
-  doneBtnText: { color: '#0d0d0d', fontSize: 16, fontWeight: '800' },
+  resultDisclaimer: { color: '#B0A098', fontSize: 10, textAlign: 'center', marginBottom: 32, fontStyle: 'italic' },
+  doneBtn: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 },
+  doneBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
 });

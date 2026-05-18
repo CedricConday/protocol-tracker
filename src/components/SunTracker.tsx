@@ -51,10 +51,17 @@ export default function SunTracker({ sunMinutes, onLog }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#111111',
+    backgroundColor: '#F2EDE8',
     borderRadius: 14,
     padding: 16,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E8E0D8',
+    shadowColor: '#2C2420',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   header: {
     flexDirection: 'row',
@@ -71,33 +78,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   label: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     fontWeight: '600',
   },
   amount: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 16,
     fontWeight: '700',
   },
   amountDone: {
-    color: '#22c55e',
+    color: '#5A8A5A',
   },
   goal: {
-    color: '#444444',
+    color: '#B0A098',
     fontSize: 14,
     fontWeight: '400',
   },
   barBg: {
     height: 8,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#E8E0D8',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
   },
   barFill: {
     height: 8,
-    backgroundColor: '#eab308',
+    backgroundColor: '#C4882A',
     borderRadius: 4,
   },
   buttonRow: {
@@ -106,26 +113,28 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFF8EC',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#eab30844',
+    borderColor: '#C4882A30',
   },
   buttonText: {
-    color: '#eab308',
+    color: '#C4882A',
     fontSize: 15,
     fontWeight: '700',
   },
   goalBanner: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F0F7F0',
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#5A8A5A30',
   },
   goalBannerText: {
-    color: '#22c55e',
+    color: '#5A8A5A',
     fontSize: 14,
     fontWeight: '600',
   },

@@ -62,7 +62,7 @@ export default function FeedbackScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.doneWrap}>
-          <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
+          <Ionicons name="checkmark-circle" size={64} color="#5A8A5A" />
           <Text style={styles.doneTitle}>Thank you!</Text>
           <Text style={styles.doneSub}>Your feedback has been saved and will be reviewed by the team.</Text>
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
@@ -95,7 +95,7 @@ export default function FeedbackScreen() {
           <TextInput
             style={styles.messageInput}
             placeholder="What's on your mind?"
-            placeholderTextColor="#444"
+            placeholderTextColor="#B0A098"
             multiline
             value={message}
             onChangeText={setMessage}
@@ -106,7 +106,7 @@ export default function FeedbackScreen() {
           <TextInput
             style={styles.emailInput}
             placeholder="So we can follow up with you"
-            placeholderTextColor="#444"
+            placeholderTextColor="#B0A098"
             keyboardType="email-address"
             autoCapitalize="none"
             value={email}
@@ -132,32 +132,32 @@ export default function FeedbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d0d' },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
   scroll: { padding: 24, paddingBottom: 60 },
-  sectionLabel: { color: '#555', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
+  sectionLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10, marginTop: 20 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
-  chip: { borderRadius: 20, borderWidth: 1.5, borderColor: '#2a2a2a', paddingVertical: 8, paddingHorizontal: 16 },
-  chipActive: { borderColor: '#22c55e', backgroundColor: '#0d2a1a' },
-  chipText: { color: '#555', fontSize: 14, fontWeight: '700' },
-  chipTextActive: { color: '#22c55e' },
+  chip: { borderRadius: 20, borderWidth: 1.5, borderColor: '#D8CFC8', paddingVertical: 8, paddingHorizontal: 16 },
+  chipActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
+  chipText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
+  chipTextActive: { color: '#C96A50' },
   messageInput: {
-    backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16,
-    color: '#fff', fontSize: 15, minHeight: 140, textAlignVertical: 'top',
+    backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#D8CFC8',
+    color: '#2C2420', fontSize: 15, minHeight: 140, textAlignVertical: 'top',
   },
   emailInput: {
-    backgroundColor: '#1a1a1a', borderRadius: 12, padding: 16,
-    color: '#fff', fontSize: 15, marginTop: 8,
+    backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#D8CFC8',
+    color: '#2C2420', fontSize: 15, marginTop: 8,
   },
-  privacyNote: { color: '#444', fontSize: 12, lineHeight: 18, marginTop: 16 },
+  privacyNote: { color: '#B0A098', fontSize: 12, lineHeight: 18, marginTop: 16 },
   submitBtn: {
-    backgroundColor: '#22c55e', borderRadius: 14, paddingVertical: 16,
+    backgroundColor: '#C96A50', borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', marginTop: 28,
   },
-  submitBtnDisabled: { backgroundColor: '#1a3a1a' },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  submitBtnDisabled: { opacity: 0.4 },
+  submitBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  doneTitle: { color: '#fff', fontSize: 24, fontWeight: '800', marginTop: 20 },
-  doneSub: { color: '#aaa', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
-  doneBtn: { marginTop: 32, backgroundColor: '#22c55e', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
-  doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  doneTitle: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginTop: 20 },
+  doneSub: { color: '#7A6A62', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
+  doneBtn: { marginTop: 32, backgroundColor: '#C96A50', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
+  doneBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '700' },
 });

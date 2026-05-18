@@ -20,17 +20,17 @@ const MONTH_NAMES = [
 ];
 
 function getBoxColor(compliancePct: number, totalDoses: number) {
-  if (totalDoses === 0) return '#2a2a2a';
-  if (compliancePct >= 80) return '#22c55e';
-  if (compliancePct >= 50) return '#eab308';
-  return '#ef4444';
+  if (totalDoses === 0) return '#E8E0D8';
+  if (compliancePct >= 80) return '#5A8A5A';
+  if (compliancePct >= 50) return '#C4882A';
+  return '#C04040';
 }
 
 function getTodayBrighter(compliancePct: number, totalDoses: number) {
-  if (totalDoses === 0) return '#3a3a3a';
-  if (compliancePct >= 80) return '#34d974';
-  if (compliancePct >= 50) return '#f5c842';
-  return '#f76060';
+  if (totalDoses === 0) return '#D8CFC8';
+  if (compliancePct >= 80) return '#6FA06F';
+  if (compliancePct >= 50) return '#D4982A';
+  return '#D05050';
 }
 
 interface DayCell {
@@ -112,13 +112,13 @@ export default function CalendarScreen() {
           .join('');
         
         const html = `
-          <html><body style="background:#0d0d0d;color:#fff;font-family:sans-serif;padding:20px">
-            <h1 style="color:#22c55e">Compliance Calendar</h1>
-            <p style="color:#888;margin-bottom:16px">Last 30 days</p>
+          <html><body style="background:#FAF7F4;color:#2C2420;font-family:sans-serif;padding:20px">
+            <h1 style="color:#C96A50">Compliance Calendar</h1>
+            <p style="color:#7A6A62;margin-bottom:16px">Last 30 days</p>
             <table style="width:100%;border-collapse:collapse;font-size:14px">
               <thead>
-                <tr style="background:#1a1a1a">
-                  <th style="border:1px solid #333;padding:8px;">Date</th>
+                <tr style="background:#F2EDE8">
+                  <th style="border:1px solid #D8CFC8;padding:8px;">Date</th>
                   <th style="border:1px solid #333;padding:8px;">Compliance / Doses</th>
                 </tr>
               </thead>
@@ -139,7 +139,7 @@ export default function CalendarScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
         }
       >
         <View style={styles.headerRow}>
@@ -190,19 +190,19 @@ export default function CalendarScreen() {
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#5A8A5A' }]} />
           <Text style={styles.legendLabel}>≥80%</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#C4882A' }]} />
           <Text style={styles.legendLabel}>50–79%</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#C04040' }]} />
           <Text style={styles.legendLabel}>{'<'}50%</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#2a2a2a', borderWidth: 1, borderColor: '#444' }]} />
+          <View style={[styles.legendDot, { backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' }]} />
           <Text style={styles.legendLabel}>No data</Text>
         </View>
       </View>
@@ -213,7 +213,7 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: '#FAF7F4',
   },
   content: {
     paddingTop: 60,
@@ -221,17 +221,17 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   heading: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 4,
   },
   monthHeader: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 20,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   emptyWrap: {
     alignItems: 'center',
@@ -243,13 +243,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyTitle: {
-    color: '#ffffff',
+    color: '#2C2420',
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 6,
   },
   emptyText: {
-    color: '#888888',
+    color: '#7A6A62',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
@@ -275,10 +275,10 @@ const styles = StyleSheet.create({
   },
   cellToday: {
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: '#C96A50',
   },
   cellText: {
-    color: '#0d0d0d',
+    color: '#FAF7F4',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   legendLabel: {
-    color: '#666666',
+    color: '#7A6A62',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -311,13 +311,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   shareButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#F2EDE8',
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#D8CFC8',
   },
   shareButtonText: {
-    color: '#22c55e',
+    color: '#C96A50',
     fontSize: 14,
     fontWeight: '600',
   },
