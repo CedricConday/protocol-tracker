@@ -247,6 +247,31 @@ export default function GuideScreen() {
           </View>
         ))
       )}
+
+      {/* 2-Year Roadmap */}
+      <Text style={styles.sectionTitle}>Your 2-Year Roadmap</Text>
+      <View style={styles.roadmap}>
+        {[
+          { step: '1', title: 'Month 1–3', body: 'Protocol adjustment phase. Labs every 6 weeks. Titrate D3 dose.' },
+          { step: '2', title: 'Month 3–6', body: 'Stabilisation. Most patients see first symptom improvement.' },
+          { step: '3', title: 'Month 6–12', body: 'Consolidation. Relapse rate typically drops significantly.' },
+          { step: '4', title: 'Year 1–2', body: 'Maintenance. Annual labs. Dose may be reduced if stable.' },
+          { step: '5', title: 'Year 2+', body: 'Long-term remission possible. Continue protocol indefinitely.' },
+        ].map((m) => (
+          <View key={m.step} style={styles.roadmapItem}>
+            <View style={styles.roadmapLeft}>
+              <View style={styles.roadmapCircle}>
+                <Text style={styles.roadmapStep}>{m.step}</Text>
+              </View>
+              <View style={styles.roadmapLine} />
+            </View>
+            <View style={styles.roadmapContent}>
+              <Text style={styles.roadmapTitle}>{m.title}</Text>
+              <Text style={styles.roadmapBody}>{m.body}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -278,6 +303,15 @@ const styles = StyleSheet.create({
   chipTextCaution: { color: '#C4882A' },
   aliases: { color: '#7A6A62', fontSize: 13, marginTop: 4 },
   notes: { color: '#7A6A62', fontSize: 15, marginTop: 2, lineHeight: 22 },
+  roadmap: { marginTop: 8, marginBottom: 24 },
+  roadmapItem: { flexDirection: 'row', marginBottom: 4, minHeight: 80 },
+  roadmapLeft: { alignItems: 'center', width: 32, marginRight: 12 },
+  roadmapCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#22c55e', alignItems: 'center', justifyContent: 'center' },
+  roadmapStep: { color: '#FAF7F4', fontSize: 14, fontWeight: '800' },
+  roadmapLine: { width: 2, flex: 1, backgroundColor: '#22c55e', opacity: 0.3, marginTop: 4 },
+  roadmapContent: { flex: 1, paddingBottom: 16 },
+  roadmapTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  roadmapBody: { color: '#7A6A62', fontSize: 14, lineHeight: 20 },
   supplementName: { color: '#2C2420', fontSize: 16, fontWeight: '700' },
   supplementDose: { color: '#C96A50', fontSize: 13, fontWeight: '600', marginTop: 2 },
   supplementNotes: { color: '#7A6A62', fontSize: 15, marginTop: 4, lineHeight: 22 },
