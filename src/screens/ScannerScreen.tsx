@@ -77,7 +77,7 @@ export default function ScannerScreen() {
       <TextInput
         style={styles.input}
         placeholder="e.g. milk, almonds, olive oil, quinoa"
-        placeholderTextColor="#555555"
+        placeholderTextColor="#B0A098"
         value={input}
         onChangeText={setInput}
         multiline

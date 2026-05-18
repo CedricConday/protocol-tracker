@@ -170,22 +170,22 @@ export default function LabResultsScreen() {
           <Text style={styles.formTitle}>Enter Lab Values</Text>
 
           <Text style={styles.label}>Date</Text>
-          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#555555" />
+          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Vit D 25-OH (ng/mL) <Text style={styles.targetHint}>target 150–280</Text></Text>
-          <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#555555" />
+          <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>PTH (pg/mL) <Text style={styles.targetHint}>target 10–30</Text></Text>
-          <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#555555" />
+          <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Calcium Serum (mg/dL) <Text style={styles.targetHint}>target 8.5–10.2</Text></Text>
-          <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#555555" />
+          <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Calcium Urine (mg/g Cr) <Text style={styles.targetHint}>target &lt;300</Text></Text>
-          <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#555555" />
+          <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Creatinine (mg/dL) <Text style={styles.targetHint}>target 0.5–1.2</Text></Text>
-          <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#555555" />
+          <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Sulkowitch Test (urine calcium turbidity)</Text>
           <View style={styles.chipRow}>
@@ -207,7 +207,7 @@ export default function LabResultsScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Lab name, fasting status, doctor comments..."
-            placeholderTextColor="#555555"
+            placeholderTextColor="#B0A098"
             multiline
             numberOfLines={2}
           />

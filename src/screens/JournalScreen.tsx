@@ -207,7 +207,7 @@ export default function JournalScreen() {
         ref={noteRef}
         style={styles.noteInput}
         placeholder="How are you feeling today?"
-        placeholderTextColor="#555555"
+        placeholderTextColor="#B0A098"
         multiline
         value={note}
         onChangeText={setNote}

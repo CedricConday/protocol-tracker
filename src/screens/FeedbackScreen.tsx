@@ -18,7 +18,7 @@ import { getDb } from '../db/schema';
 const TYPES = ['Bug', 'Suggestion', 'Praise', 'Question'] as const;
 type FeedbackType = typeof TYPES[number];
 
-const N8N_WEBHOOK = 'https://YOUR_N8N_INSTANCE/webhook/coimbra-feedback'; // activate when N8n is live
+const N8N_WEBHOOK = ''; // wire to N8n instance when live
 
 export default function FeedbackScreen() {
   const navigation = useNavigation();

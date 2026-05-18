@@ -68,7 +68,7 @@ export default function DrugCheckerScreen() {
           value={query}
           onChangeText={t => { setQuery(t); setChecked(false); setResults(null); }}
           placeholder="Type medication name..."
-          placeholderTextColor="#555555"
+          placeholderTextColor="#B0A098"
           autoCorrect={false}
           returnKeyType="search"
           onSubmitEditing={handleCheck}

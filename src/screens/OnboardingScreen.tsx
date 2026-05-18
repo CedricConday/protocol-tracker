@@ -190,7 +190,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Alex"
-                placeholderTextColor="#555555"
+                placeholderTextColor="#B0A098"
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -201,7 +201,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   <TextInput
                     style={styles.input}
                     placeholder="The person you're supporting"
-                    placeholderTextColor="#555555"
+                    placeholderTextColor="#B0A098"
                     value={caregiverPatientName}
                     onChangeText={setCaregiverPatientName}
                     autoCapitalize="words"
@@ -218,7 +218,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 70"
-                    placeholderTextColor="#555555"
+                    placeholderTextColor="#B0A098"
                     value={weight}
                     onChangeText={setWeight}
                     keyboardType="numeric"
@@ -227,7 +227,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 5000"
-                    placeholderTextColor="#555555"
+                    placeholderTextColor="#B0A098"
                     value={d3Dose}
                     onChangeText={setD3Dose}
                     keyboardType="numeric"
