@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, Modal } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { getSupplementsLowStock } from '../db/queries';
 import { useSimpleMode } from '../context/SimpleModeContext';
@@ -25,7 +25,7 @@ import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
 import SunTracker from '../components/SunTracker';
 import WaterTracker from '../components/WaterTracker';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult } from '../db/queries';
+import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { ScheduledDose, MedicalEvent } from '../types';
@@ -367,6 +367,8 @@ export default function HomeScreen() {
   const [caregiverPatientName, setCaregiverPatientName] = useState('');
   const [nextMedicalEvent, setNextMedicalEvent] = useState<MedicalEvent | null>(null);
   const [vitDDanger, setVitDDanger] = useState<number | null>(null);
+  const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -525,6 +527,19 @@ export default function HomeScreen() {
       const lab = await getLatestLabResult();
       if (lab && lab.vit_d_ngml != null && lab.vit_d_ngml < 20) {
         setVitDDanger(lab.vit_d_ngml);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const s = await getStreak();
+      setCurrentStreak(s);
+      if (s >= 90 && s % 90 === 0) {
+        const shown = await getMiscFlag('last_90_modal_shown');
+        if (shown !== String(s)) {
+          setMilestoneModalVisible(true);
+        }
       }
     })();
   }, []);
@@ -1002,6 +1017,32 @@ export default function HomeScreen() {
         onTook={handleTook}
         onSkip={handleSkip}
       />
+
+      <Modal
+        visible={milestoneModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMilestoneModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>90-Day Milestone 🏆</Text>
+            <Text style={styles.modalBody}>
+              You've maintained the Coimbra Protocol for {currentStreak} consecutive days. Research shows consistent adherence at this stage significantly reduces relapse risk. Keep going.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={async () => {
+                await setMiscFlag('last_90_modal_shown', String(currentStreak));
+                setMilestoneModalVisible(false);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1017,6 +1058,46 @@ const styles = StyleSheet.create({
   lastEntryDate: { color: '#7A6A62', fontSize: 12 },
   lastEntryNote: { color: '#2C2420', fontSize: 14, lineHeight: 20 },
   lastEntryEmpty: { color: '#B0A098', fontSize: 14, textAlign: 'center' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  modalContent: {
+    backgroundColor: '#FAF7F4',
+    borderRadius: 20,
+    padding: 28,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: '#2C2420',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalBody: {
+    color: '#7A6A62',
+    fontSize: 15,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButton: {
+    backgroundColor: '#22c55e',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+  },
+  modalButtonText: {
+    color: '#FAF7F4',
+    fontSize: 16,
+    fontWeight: '800',
+  },
   quickLinksRow: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 16 },
   quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F2EDE8', borderRadius: 8, paddingVertical: 10 },
   quickLinkText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },

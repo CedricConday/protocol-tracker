@@ -716,6 +716,23 @@ export async function completeMedicalEvent(id: number): Promise<void> {
   await db.runAsync('UPDATE medical_events SET completed = 1 WHERE id = ?', [id]);
 }
 
+// ── Misc Flags ───────────────────────────────────────────────────────────────
+
+export async function getMiscFlag(key: string): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM misc_flags WHERE key = ?', [key]
+  );
+  return row?.value ?? null;
+}
+
+export async function setMiscFlag(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT OR REPLACE INTO misc_flags (key, value) VALUES (?, ?)', [key, value]
+  );
+}
+
 // ── Lab Results ──────────────────────────────────────────────────────────────
 
 export async function getLatestLabResult(): Promise<{ vit_d_ngml: number | null; calcium_serum_mgdl: number | null } | null> {
