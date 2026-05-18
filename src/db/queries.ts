@@ -215,6 +215,18 @@ export async function getWeekSummary(): Promise<{ date: string; compliancePct: n
   return days;
 }
 
+export async function getYearSummary(): Promise<{ date: string; compliancePct: number; totalDoses: number }[]> {
+  const days: { date: string; compliancePct: number; totalDoses: number }[] = [];
+  for (let i = 364; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const summary = await getDaySummary(dateStr);
+    days.push({ date: dateStr, compliancePct: summary.compliancePct, totalDoses: summary.totalDoses });
+  }
+  return days;
+}
+
 export async function getMonthSummary(): Promise<{ date: string; compliancePct: number; totalDoses: number }[]> {
   const days: { date: string; compliancePct: number; totalDoses: number }[] = [];
   for (let i = 29; i >= 0; i--) {

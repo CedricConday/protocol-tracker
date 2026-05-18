@@ -20,11 +20,20 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 function getBoxColor(compliancePct: number, totalDoses: number) {
   if (totalDoses === 0) return '#E8E0D8';
   if (compliancePct >= 80) return '#5A8A5A';
   if (compliancePct >= 50) return '#C4882A';
   return '#C04040';
+}
+
+function getYearColor(compliancePct: number, totalDoses: number) {
+  if (totalDoses === 0) return '#E8E0D8';
+  if (compliancePct >= 80) return '#22c55e';
+  if (compliancePct >= 50) return '#eab308';
+  return '#ef4444';
 }
 
 function getTodayBrighter(compliancePct: number, totalDoses: number) {
@@ -52,6 +61,16 @@ function buildLast30Days(): string[] {
   return days;
 }
 
+function buildLast365Days(): string[] {
+  const days: string[] = [];
+  for (let i = 364; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
 function getCurrentMonthYear(): string {
   const now = new Date();
   return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
@@ -61,9 +80,10 @@ export default function CalendarScreen() {
   const [cells, setCells] = useState<DayCell[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<'30d' | '12m'>('30d');
 
-  const loadMonth = useCallback(async () => {
-    const dateStrs = buildLast30Days();
+  const loadData = useCallback(async (mode: '30d' | '12m') => {
+    const dateStrs = mode === '30d' ? buildLast30Days() : buildLast365Days();
     const todayStr = new Date().toISOString().split('T')[0];
     const results = await Promise.all(
       dateStrs.map(async (dateStr) => {
@@ -82,12 +102,12 @@ export default function CalendarScreen() {
   }, []);
 
   useEffect(() => {
-    loadMonth();
-  }, [loadMonth]);
+    loadData(viewMode);
+  }, [viewMode, loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMonth();
+    await loadData(viewMode);
     setRefreshing(false);
   };
 
@@ -96,9 +116,28 @@ export default function CalendarScreen() {
     rows.push(cells.slice(i, i + COLS));
   }
 
+  // Build year grid data
+  const yearMonthRows: { month: number; days: DayCell[] }[] = (() => {
+    if (cells.length !== 365) return [];
+    const months: { month: number; days: DayCell[] }[] = [];
+    for (let i = 0; i < 12; i++) {
+      const m = new Date();
+      m.setMonth(m.getMonth() - 11 + i);
+      const month = m.getMonth();
+      const year = m.getFullYear();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const monthCells = cells.filter((c) => {
+        const d = new Date(c.date);
+        return d.getMonth() === month && d.getFullYear() === year;
+      });
+      // Pad to fill the row
+      months.push({ month, days: monthCells });
+    }
+    return months;
+  })();
+
     const handleShare = async () => {
       try {
-        // Create an HTML table of the calendar for sharing
         const htmlRows = cells
           .map((c) => {
             const date = new Date(c.date);
@@ -115,7 +154,7 @@ export default function CalendarScreen() {
         const html = `
           <html><body style="background:#FAF7F4;color:#2C2420;font-family:sans-serif;padding:20px">
             <h1 style="color:#C96A50">Compliance Calendar</h1>
-            <p style="color:#7A6A62;margin-bottom:16px">Last 30 days</p>
+            <p style="color:#7A6A62;margin-bottom:16px">Last ${viewMode === '30d' ? '30 days' : '12 months'}</p>
             <table style="width:100%;border-collapse:collapse;font-size:14px">
               <thead>
                 <tr style="background:#F2EDE8">
@@ -150,8 +189,26 @@ export default function CalendarScreen() {
           </TouchableOpacity>
         </View>
 
+      {/* View Toggle */}
+      <View style={styles.toggleRow}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, viewMode === '30d' && styles.toggleBtnActive]}
+          onPress={() => setViewMode('30d')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.toggleBtnText, viewMode === '30d' && styles.toggleBtnTextActive]}>30 Days</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleBtn, viewMode === '12m' && styles.toggleBtnActive]}
+          onPress={() => setViewMode('12m')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.toggleBtnText, viewMode === '12m' && styles.toggleBtnTextActive]}>12 Months</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Month / year header */}
-      <Text style={styles.monthHeader}>{getCurrentMonthYear()}</Text>
+      <Text style={styles.monthHeader}>{viewMode === '30d' ? getCurrentMonthYear() : 'Last 12 Months'}</Text>
 
       {!loaded ? null : cells.length === 0 ? (
         <View style={styles.emptyWrap}>
@@ -161,7 +218,7 @@ export default function CalendarScreen() {
             Start your day from the Home tab to begin tracking your compliance.
           </Text>
         </View>
-      ) : (
+      ) : viewMode === '30d' ? (
         <View style={styles.grid}>
           {rows.map((row, ri) => (
             <View key={ri} style={styles.row}>
@@ -186,27 +243,64 @@ export default function CalendarScreen() {
             </View>
           ))}
         </View>
+      ) : (
+        <View style={styles.yearGrid}>
+          {yearMonthRows.map((m) => (
+            <View key={m.month} style={styles.yearRow}>
+              <Text style={styles.yearMonthLabel}>{MONTH_ABBR[m.month]}</Text>
+              <View style={styles.yearCells}>
+                {m.days.map((d) => (
+                  <View
+                    key={d.date}
+                    style={[styles.yearCell, { backgroundColor: getYearColor(d.compliancePct, d.totalDoses) }]}
+                  />
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
       )}
 
       {/* Legend */}
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#5A8A5A' }]} />
-          <Text style={styles.legendLabel}>≥80%</Text>
+      {viewMode === '12m' ? (
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+            <Text style={styles.legendLabel}>Good</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
+            <Text style={styles.legendLabel}>Fair</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+            <Text style={styles.legendLabel}>Missed</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' }]} />
+            <Text style={styles.legendLabel}>No data</Text>
+          </View>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#C4882A' }]} />
-          <Text style={styles.legendLabel}>50–79%</Text>
+      ) : (
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#5A8A5A' }]} />
+            <Text style={styles.legendLabel}>≥80%</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#C4882A' }]} />
+            <Text style={styles.legendLabel}>50–79%</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#C04040' }]} />
+            <Text style={styles.legendLabel}>{'<'}50%</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' }]} />
+            <Text style={styles.legendLabel}>No data</Text>
+          </View>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#C04040' }]} />
-          <Text style={styles.legendLabel}>{'<'}50%</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' }]} />
-          <Text style={styles.legendLabel}>No data</Text>
-        </View>
-      </View>
+      )}
     </ScrollView>
   );
 }
@@ -306,6 +400,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  toggleBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 10, alignItems: 'center', backgroundColor: '#F2EDE8' },
+  toggleBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
+  toggleBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
+  toggleBtnTextActive: { color: '#C96A50', fontWeight: '700' },
+  yearGrid: { gap: 4, marginBottom: 24 },
+  yearRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  yearMonthLabel: { width: 32, color: '#7A6A62', fontSize: 10, fontWeight: '600', textAlign: 'right' },
+  yearCells: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
+  yearCell: { width: 8, height: 8, borderRadius: 2 },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
