@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   RefreshControl,
@@ -152,7 +153,7 @@ export default function JournalScreen() {
     >
       <View style={styles.headingRow}>
         <Text style={styles.heading}>Journal</Text>
-        <TouchableOpacity style={styles.logEventBtn} onPress={() => navigation.navigate('Relapse')} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.logEventBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Relapse'); }} activeOpacity={0.7}>
           <Text style={styles.logEventBtnText}>+ Log Event</Text>
         </TouchableOpacity>
       </View>
@@ -189,7 +190,7 @@ export default function JournalScreen() {
                 styles.moodButton,
                 isSelected ? styles.moodSelected : styles.moodUnselected,
               ]}
-              onPress={() => handleMoodSelect(m.emoji)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleMoodSelect(m.emoji); }}
               activeOpacity={0.7}
             >
               <Text style={[styles.moodEmoji, isSelected ? styles.moodEmojiSelected : null]}>
@@ -223,7 +224,7 @@ export default function JournalScreen() {
           styles.saveButton,
           (selectedMood === null) ? styles.saveButtonDisabled : null,
         ]}
-        onPress={handleSave}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
         disabled={selectedMood === null}
         activeOpacity={0.8}
       >
@@ -249,7 +250,7 @@ export default function JournalScreen() {
             <TouchableOpacity
               key={entry.id}
               style={styles.entryCard}
-              onPress={() => setExpandedId(isExpanded ? null : entry.id)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpandedId(isExpanded ? null : entry.id); }}
               activeOpacity={0.7}
             >
               <View style={styles.entryTop}>
@@ -288,8 +289,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
-  logEventBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#C04040' },
-  logEventBtnText: { color: '#C04040', fontSize: 13, fontWeight: '600' },
+  logEventBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#C04040' },
+  logEventBtnText: { color: '#C04040', fontSize: 14, fontWeight: '600' },
   dateSubtitle: {
     color: '#7A6A62',
     fontSize: 14,
@@ -312,9 +313,9 @@ const styles = StyleSheet.create({
   },
   moodButton: {
     alignItems: 'center',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     minWidth: 58,
   },
   moodUnselected: {
@@ -343,11 +344,11 @@ const styles = StyleSheet.create({
   noteInput: {
     backgroundColor: '#F2EDE8',
     color: '#2C2420',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     minHeight: 120,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
     textAlignVertical: 'top',
     marginBottom: 8,
     borderWidth: 1,
@@ -361,8 +362,8 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#C96A50',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 10,
+    paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -379,14 +380,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: '#B0A098',
-    fontSize: 14,
+    fontSize: 15,
     textAlign: 'center',
     marginTop: 20,
   },
   entryCard: {
     backgroundColor: '#F2EDE8',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 8,
   },
   entryTop: {
@@ -414,19 +415,19 @@ const styles = StyleSheet.create({
   },
   entryNote: {
     color: '#7A6A62',
-    fontSize: 14,
+    fontSize: 15,
     marginTop: 10,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   semanticSummary: {
     color: '#7A6A62',
-    fontSize: 13,
+    fontSize: 14,
     fontStyle: 'italic',
-    lineHeight: 18,
+    lineHeight: 22,
     marginBottom: 20,
     backgroundColor: '#F2EDE8',
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
   },
   weekRow: {
     flexDirection: 'row',

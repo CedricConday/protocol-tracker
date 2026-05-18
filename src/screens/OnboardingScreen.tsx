@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -164,7 +165,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 <TouchableOpacity
                   key={t.key}
                   style={[styles.typeBtn, patientType === t.key ? styles.typeBtnActive : null]}
-                  onPress={() => setPatientType(t.key)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPatientType(t.key); }}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.typeBtnLabel, patientType === t.key ? styles.typeBtnLabelActive : null]}>{t.label}</Text>
@@ -279,7 +280,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
           {step > 0 ? (
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => setStep(step - 1)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStep(step - 1); }}
               activeOpacity={0.7}
             >
               <Text style={styles.backText}>Back</Text>
@@ -290,7 +291,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
           <TouchableOpacity
             style={[styles.nextButton, !canProceed() ? styles.buttonDisabled : null]}
-            onPress={handleNext}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleNext(); }}
             disabled={!canProceed() || saving}
             activeOpacity={0.8}
           >
@@ -354,9 +355,9 @@ const styles = StyleSheet.create({
   },
   body: {
     color: '#7A6A62',
-    fontSize: 15,
+    fontSize: 16,
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 24,
   },
   form: {
@@ -380,41 +381,41 @@ const styles = StyleSheet.create({
     borderColor: '#E8E0D8',
     marginBottom: 4,
   },
-  qolCard: { backgroundColor: '#0d1a0d', borderRadius: 12, padding: 14, marginTop: 12, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
+  qolCard: { backgroundColor: '#0d1a0d', borderRadius: 14, padding: 16, marginTop: 12, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
   qolStat: { color: '#C96A50', fontSize: 28, fontWeight: '800' },
   qolUnit: { color: '#C96A50', fontSize: 16, fontWeight: '600' },
   qolLabel: { color: '#aaaaaa', fontSize: 13, marginTop: 2 },
   qolSource: { color: '#7A6A62', fontSize: 11, marginTop: 4 },
   hint: {
     color: '#7A6A62',
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 8,
-    lineHeight: 16,
+    lineHeight: 20,
   },
   featureList: {
     width: '100%',
     backgroundColor: '#F2EDE8',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
   },
   featureItem: {
     color: '#7A6A62',
-    fontSize: 14,
+    fontSize: 15,
     lineHeight: 24,
   },
   infoNote: {
     width: '100%',
     backgroundColor: '#1a1a00',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     marginTop: 12,
     borderLeftWidth: 3,
     borderLeftColor: '#eab308',
   },
   infoNoteText: {
     color: '#aaaaaa',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 22,
   },
   footer: {
     flexDirection: 'row',
@@ -439,8 +440,8 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     backgroundColor: '#C96A50',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 10,
+    paddingVertical: 16,
     paddingHorizontal: 32,
     alignItems: 'center',
   },
@@ -452,12 +453,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  caregiverNote: { width: '100%', backgroundColor: '#1a1a00', borderRadius: 10, padding: 12, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
+  caregiverNote: { width: '100%', backgroundColor: '#1a1a00', borderRadius: 14, padding: 14, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
   caregiverNoteText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18 },
   typeRow: { width: '100%', gap: 8, marginTop: 4 },
-  typeBtn: { borderRadius: 10, borderWidth: 1, borderColor: '#E8E0D8', padding: 12, backgroundColor: '#F2EDE8' },
+  typeBtn: { borderRadius: 14, borderWidth: 1, borderColor: '#E8E0D8', padding: 14, backgroundColor: '#F2EDE8' },
   typeBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
-  typeBtnLabel: { color: '#aaaaaa', fontSize: 14, fontWeight: '700' },
+  typeBtnLabel: { color: '#aaaaaa', fontSize: 15, fontWeight: '700' },
   typeBtnLabelActive: { color: '#C96A50' },
-  typeBtnDesc: { color: '#7A6A62', fontSize: 12, marginTop: 2 },
+  typeBtnDesc: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
 });

@@ -21,13 +21,14 @@ import * as Haptics from 'expo-haptics';
 import DoseDetailModal from '../components/DoseDetailModal';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
+import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
 import SunTracker from '../components/SunTracker';
 import WaterTracker from '../components/WaterTracker';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals } from '../db/queries';
+import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
-import type { ScheduledDose } from '../types';
+import type { ScheduledDose, MedicalEvent } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -364,6 +365,8 @@ export default function HomeScreen() {
   const [reportReadyUri, setReportReadyUri] = useState<string | null>(null);
   const [isCaregiver, setIsCaregiver] = useState(false);
   const [caregiverPatientName, setCaregiverPatientName] = useState('');
+  const [nextMedicalEvent, setNextMedicalEvent] = useState<MedicalEvent | null>(null);
+  const [vitDDanger, setVitDDanger] = useState<number | null>(null);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -513,6 +516,19 @@ export default function HomeScreen() {
     })();
   }, []);
 
+  useEffect(() => {
+    getNextMedicalEvent().then(setNextMedicalEvent).catch(() => setNextMedicalEvent(null));
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const lab = await getLatestLabResult();
+      if (lab && lab.vit_d_ngml != null && lab.vit_d_ngml < 20) {
+        setVitDDanger(lab.vit_d_ngml);
+      }
+    })();
+  }, []);
+
    const handleStartDay = async () => {
      setStarting(true);
      try {
@@ -606,7 +622,7 @@ export default function HomeScreen() {
   };
 
   const renderHeader = () => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: isSimple ? 16 : 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: isSimple ? 16 : 12, paddingTop: 12 }}>
       <View style={{ flex: 1 }}>
         <Text style={[styles.greeting, { textAlign: isSimple ? 'center' : 'left' }]}>
           {isCaregiver
@@ -729,6 +745,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : null}
 
+        {vitDDanger !== null ? (
+          <View style={styles.vitDBanner}>
+            <Text style={styles.vitDBannerText}>⚠ Vitamin D critically low ({vitDDanger} ng/mL). Contact your prescriber immediately.</Text>
+          </View>
+        ) : null}
+
         {showFatigueAlert ? (
           <View style={styles.fatigueBanner}>
             <Text style={styles.fatigueBannerText}>⚠ Fatigue pattern detected. Consider contacting your prescriber or resting today.</Text>
@@ -788,6 +810,13 @@ export default function HomeScreen() {
 
         <ProgressHeader t0={t0} doses={doses} patientName={patientName} firstMealTime={firstMealTime} isSimple={isSimple} />
 
+        {nextMedicalEvent && !isSimple ? (
+          <UpcomingAppointmentCard
+            event={nextMedicalEvent}
+            onViewDetails={() => navigation.navigate('Calendar' as never)}
+          />
+        ) : null}
+
         {showFirstEntryWizard ? (
           <View style={styles.wizardCard}>
             <Text style={styles.wizardTitle}>Your First Day Started</Text>
@@ -803,6 +832,7 @@ export default function HomeScreen() {
 
         {!isSimple && <NextDoseCard doses={doses} onPress={setSelectedDose} />}
 
+        <Text style={styles.sectionLabel}>DOSES</Text>
         {doses.length === 0 ? (
           <View style={styles.emptyDoses}>
             <Text style={styles.emptyDosesIcon}>💊</Text>
@@ -822,6 +852,7 @@ export default function HomeScreen() {
             >
               <Text style={styles.relapseButtonText}>Log Event</Text>
             </TouchableOpacity>
+            <Text style={[styles.sectionLabel, { marginTop: 8 }]}>WATER</Text>
             <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
             <View style={styles.exerciseCard}>
               <Text style={styles.exerciseLabel}>Exercise today</Text>
@@ -918,6 +949,7 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
+            <Text style={styles.sectionLabel}>MEALS</Text>
             <View style={styles.mealCard}>
               <Text style={styles.mealCardTitle}>Meals today</Text>
               <View style={styles.mealButtonRow}>
@@ -1084,6 +1116,7 @@ const styles = StyleSheet.create({
   scroll: {
     padding: 20,
     paddingTop: 60,
+    paddingBottom: 48,
   },
   exerciseCard: {
     backgroundColor: '#F2EDE8',
@@ -1113,6 +1146,24 @@ const styles = StyleSheet.create({
     color: '#C96A50',
     fontWeight: '600',
   },
+  vitDBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    marginHorizontal: 0,
+    marginBottom: 10,
+    padding: 12,
+  },
+  vitDBannerText: {
+    flex: 1,
+    color: '#991B1B',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   relapseButton: {
     borderWidth: 1.5,
     borderColor: '#C04040',
@@ -1128,17 +1179,19 @@ const styles = StyleSheet.create({
   reportReadyDismiss: { color: '#B0A098', fontSize: 16, paddingLeft: 12 },
   emptyDoses: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
   emptyDosesIcon: { fontSize: 40, marginBottom: 12 },
-  emptyDosesTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  emptyDosesSub: { color: '#B0A098', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  emptyDosesTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyDosesSub: { color: '#B0A098', fontSize: 14, textAlign: 'center', lineHeight: 22 },
   relapseButtonInline: {
     borderWidth: 1.5,
     borderColor: '#C04040',
     borderRadius: 10,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 24,
     alignItems: 'center',
     marginBottom: 8,
+    marginTop: 4,
   },
+  sectionLabel: { color: '#B0A098', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
   relapseButtonText: {
     color: '#C04040',
     fontSize: 14,
@@ -1269,7 +1322,7 @@ const styles = StyleSheet.create({
   nudgeBannerDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
   insightCard: { backgroundColor: '#FBF0ED', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
   insightLabel: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
-  insightText: { color: '#7A6A62', fontSize: 13, lineHeight: 20 },
+  insightText: { color: '#7A6A62', fontSize: 14, lineHeight: 22 },
   hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
   hintCardInner: { flex: 1 },
   hintCardTitle: { color: '#C4882A', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },

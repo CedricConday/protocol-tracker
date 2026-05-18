@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
@@ -135,7 +136,7 @@ export default function RelapseScreen() {
                   ? { backgroundColor: color, borderColor: color }
                   : { backgroundColor: 'transparent', borderColor: color },
               ]}
-              onPress={() => setEventType(t)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEventType(t); }}
               activeOpacity={0.7}
             >
               <Text
@@ -161,7 +162,7 @@ export default function RelapseScreen() {
                 <TouchableOpacity
                   key={subtype}
                   style={[styles.painSubtypeButton, selected ? styles.painSubtypeSelected : null]}
-                  onPress={() => setPainSubtype(subtype)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPainSubtype(subtype); }}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.painSubtypeText, selected ? styles.painSubtypeTextSelected : null]}>
@@ -207,7 +208,7 @@ export default function RelapseScreen() {
                 { borderColor: color },
                 selected ? { backgroundColor: color } : null,
               ]}
-              onPress={() => setSeverity(s)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeverity(s); }}
               activeOpacity={0.7}
             >
               <Text style={[styles.severityText, { color: selected ? '#FAF7F4' : '#7A6A62' }]}>
@@ -226,7 +227,7 @@ export default function RelapseScreen() {
               <TouchableOpacity
                 key={String(val)}
                 style={[styles.yesNoBtn, lasted24h === val ? styles.yesNoBtnActive : null]}
-                onPress={() => setLasted24h(val)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLasted24h(val); }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.yesNoBtnText, lasted24h === val ? styles.yesNoBtnTextActive : null]}>
@@ -241,7 +242,7 @@ export default function RelapseScreen() {
               <TouchableOpacity
                 key={String(val)}
                 style={[styles.yesNoBtn, hasFever === val ? styles.yesNoBtnActive : null]}
-                onPress={() => setHasFever(val)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setHasFever(val); }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.yesNoBtnText, hasFever === val ? styles.yesNoBtnTextActive : null]}>
@@ -272,7 +273,7 @@ export default function RelapseScreen() {
 
       <TouchableOpacity
         style={[styles.logButton, (eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null) ? styles.logButtonDisabled : null]}
-        onPress={handleLog}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLog().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
         disabled={(eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null)}
         activeOpacity={0.8}
       >
@@ -336,11 +337,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: '#7A6A62',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 24,
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 10,
     marginLeft: 4,
   },
   required: {
@@ -367,11 +368,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 10,
     borderWidth: 1.5,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   typeButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   input: {
@@ -417,8 +418,8 @@ const styles = StyleSheet.create({
   },
   logButton: {
     backgroundColor: '#C96A50',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: 10,
+    paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 24,
@@ -439,8 +440,8 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     backgroundColor: '#F2EDE8',
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#D8CFC8',
@@ -462,7 +463,7 @@ const styles = StyleSheet.create({
   },
   eventDateText: {
     color: '#2C2420',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     flex: 1,
   },
@@ -477,10 +478,10 @@ const styles = StyleSheet.create({
   },
   eventNotes: {
     color: '#7A6A62',
-    fontSize: 13,
+    fontSize: 14,
     fontStyle: 'italic',
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   painSubtypeContainer: {
     gap: 8,
@@ -488,7 +489,7 @@ const styles = StyleSheet.create({
   painSubtypeButton: {
     borderWidth: 1,
     borderColor: '#D8CFC8',
-    borderRadius: 10,
+    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
     backgroundColor: '#F2EDE8',
@@ -513,10 +514,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 10, alignItems: 'center' },
+  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 12, alignItems: 'center' },
   yesNoBtnActive: { borderColor: '#5A8A5A', backgroundColor: '#EFF7EF' },
   yesNoBtnText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
   yesNoBtnTextActive: { color: '#5A8A5A' },
-  feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 10, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
+  feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
   feverWarningText: { color: '#C4882A', fontSize: 12, lineHeight: 18 },
 });

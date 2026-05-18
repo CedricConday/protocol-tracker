@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -162,7 +163,7 @@ export default function LabResultsScreen() {
       </View>
 
       {!showForm ? (
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8}>
           <Text style={styles.addBtnText}>+ Add Lab Result</Text>
         </TouchableOpacity>
       ) : (
@@ -193,7 +194,7 @@ export default function LabResultsScreen() {
               <TouchableOpacity
                 key={s}
                 style={[styles.chip, sulkowitch === s ? styles.chipActive : null]}
-                onPress={() => setSulkowitch(sulkowitch === s ? null : s)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSulkowitch(sulkowitch === s ? null : s); }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.chipText, sulkowitch === s ? styles.chipTextActive : null]}>{s}</Text>
@@ -213,10 +214,10 @@ export default function LabResultsScreen() {
           />
 
           <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowForm(false)} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }} disabled={saving} activeOpacity={0.8}>
               <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
@@ -233,7 +234,7 @@ export default function LabResultsScreen() {
         />
       ) : (
         results.map(r => (
-          <TouchableOpacity key={r.id} style={styles.card} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85}>
+          <TouchableOpacity key={r.id} style={styles.card} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85}>
             <Text style={styles.cardDate}>{formatDate(r.date)}</Text>
             {renderMarker(r.vit_d_ngml, TARGETS.vit_d.min, TARGETS.vit_d.max, TARGETS.vit_d.unit, TARGETS.vit_d.label)}
             {renderMarker(r.pth_pgml, TARGETS.pth.min, TARGETS.pth.max, TARGETS.pth.unit, TARGETS.pth.label)}
@@ -257,17 +258,17 @@ export default function LabResultsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 20, paddingBottom: 48 },
-  targetCard: { backgroundColor: '#1a2a1a', borderRadius: 10, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
+  targetCard: { backgroundColor: '#1a2a1a', borderRadius: 14, padding: 16, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
   targetTitle: { color: '#C96A50', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   targetRow: { color: '#7A6A62', fontSize: 13, marginBottom: 3 },
   targetRange: { color: '#cccccc', fontWeight: '600' },
-  addBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 20 },
+  addBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginBottom: 20 },
   addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
-  form: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 20 },
+  form: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, marginBottom: 24 },
   formTitle: { color: '#FAF7F4', fontSize: 17, fontWeight: '700', marginBottom: 4 },
   label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
   targetHint: { color: '#C96A50', textTransform: 'none', fontWeight: '400' },
-  input: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 12, color: '#FAF7F4', fontSize: 14, borderWidth: 1, borderColor: '#E8E0D8' },
+  input: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 14, color: '#FAF7F4', fontSize: 16, borderWidth: 1, borderColor: '#E8E0D8' },
   multiline: { height: 64, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { backgroundColor: '#FAF7F4', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#E8E0D8' },
@@ -275,20 +276,20 @@ const styles = StyleSheet.create({
   chipText: { color: '#7A6A62', fontSize: 13 },
   chipTextActive: { color: '#C96A50', fontWeight: '600' },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   cancelBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
   emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
   emptySubtext: { color: '#D8CFC8', fontSize: 13, marginTop: 6, textAlign: 'center' },
-  card: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12 },
+  card: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 14 },
   cardDate: { color: '#FAF7F4', fontSize: 15, fontWeight: '700', marginBottom: 10 },
   markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#222222' },
   markerLabel: { color: '#7A6A62', fontSize: 13 },
   markerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  markerValue: { fontSize: 13, fontWeight: '600' },
+  markerValue: { fontSize: 15, fontWeight: '600' },
   markerStatus: { fontSize: 11, fontWeight: '700', minWidth: 36, textAlign: 'right' },
   sulkowitch: { color: '#eab308', fontSize: 12, marginTop: 8 },
   cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 6, fontStyle: 'italic' },

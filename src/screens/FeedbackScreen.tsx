@@ -18,7 +18,7 @@ import { getDb } from '../db/schema';
 const TYPES = ['Bug', 'Suggestion', 'Praise', 'Question'] as const;
 type FeedbackType = typeof TYPES[number];
 
-const N8N_WEBHOOK = ''; // wire to N8n instance when live
+const N8N_WEBHOOK = 'http://138.2.162.173:5678/webhook/feedback';
 
 export default function FeedbackScreen() {
   const navigation = useNavigation();
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   chipText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
   chipTextActive: { color: '#C96A50' },
   messageInput: {
-    backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#D8CFC8',
+    backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#D8CFC8',
     color: '#2C2420', fontSize: 15, minHeight: 140, textAlignVertical: 'top',
   },
   emailInput: {
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   privacyNote: { color: '#B0A098', fontSize: 12, lineHeight: 18, marginTop: 16 },
   submitBtn: {
-    backgroundColor: '#C96A50', borderRadius: 14, paddingVertical: 16,
+    backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16,
     alignItems: 'center', marginTop: 28,
   },
   submitBtnDisabled: { opacity: 0.4 },
@@ -158,6 +158,6 @@ const styles = StyleSheet.create({
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   doneTitle: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginTop: 20 },
   doneSub: { color: '#7A6A62', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
-  doneBtn: { marginTop: 32, backgroundColor: '#C96A50', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40 },
+  doneBtn: { marginTop: 32, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, paddingHorizontal: 40 },
   doneBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '700' },
 });

@@ -1,5 +1,5 @@
 import { getDb } from './schema';
-import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent } from '../types';
+import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 
 export function todayStr(): string {
   return new Date().toISOString().split('T')[0];
@@ -651,4 +651,76 @@ export async function getSupplementForms(): Promise<{ id: string; name: string; 
 export async function updateSupplementForm(supplementId: string, form: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE supplements SET form = ? WHERE id = ?', [form, supplementId]);
+}
+
+// ── Medical Events ─────────────────────────────────────────────────────────────
+
+function rowToMedicalEvent(row: Record<string, unknown>): MedicalEvent {
+  return {
+    id: row.id as number,
+    type: row.type as MedicalEvent['type'],
+    title: row.title as string,
+    scheduled_date: row.scheduled_date as string,
+    scheduled_time: row.scheduled_time as string | undefined,
+    location: row.location as string | undefined,
+    notes: row.notes as string | undefined,
+    reminder_7d: !!(row.reminder_7d as number),
+    reminder_3d: !!(row.reminder_3d as number),
+    reminder_1d: !!(row.reminder_1d as number),
+    reminder_2h: !!(row.reminder_2h as number),
+    completed: !!(row.completed as number),
+    created_at: row.created_at as string,
+  };
+}
+
+export async function getNextMedicalEvent(): Promise<MedicalEvent | null> {
+  const db = await getDb();
+  const today = todayStr();
+  const in60 = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const row = await db.getFirstAsync<Record<string, unknown>>(
+    `SELECT * FROM medical_events
+     WHERE completed = 0 AND scheduled_date >= ? AND scheduled_date <= ?
+     ORDER BY scheduled_date ASC, scheduled_time ASC LIMIT 1`,
+    [today, in60]
+  );
+  return row ? rowToMedicalEvent(row) : null;
+}
+
+export async function getAllMedicalEvents(): Promise<MedicalEvent[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM medical_events WHERE completed = 0 ORDER BY scheduled_date ASC, scheduled_time ASC`
+  );
+  return rows.map(rowToMedicalEvent);
+}
+
+export async function addMedicalEvent(event: Omit<MedicalEvent, 'id' | 'created_at'>): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO medical_events
+       (type, title, scheduled_date, scheduled_time, location, notes,
+        reminder_7d, reminder_3d, reminder_1d, reminder_2h, completed)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      event.type, event.title, event.scheduled_date,
+      event.scheduled_time ?? null, event.location ?? null, event.notes ?? null,
+      event.reminder_7d ? 1 : 0, event.reminder_3d ? 1 : 0,
+      event.reminder_1d ? 1 : 0, event.reminder_2h ? 1 : 0,
+      event.completed ? 1 : 0,
+    ]
+  );
+}
+
+export async function completeMedicalEvent(id: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE medical_events SET completed = 1 WHERE id = ?', [id]);
+}
+
+// ── Lab Results ──────────────────────────────────────────────────────────────
+
+export async function getLatestLabResult(): Promise<{ vit_d_ngml: number | null; calcium_serum_mgdl: number | null } | null> {
+  const db = await getDb();
+  return db.getFirstAsync<{ vit_d_ngml: number | null; calcium_serum_mgdl: number | null }>(
+    'SELECT vit_d_ngml, calcium_serum_mgdl FROM lab_results ORDER BY date DESC LIMIT 1'
+  );
 }
