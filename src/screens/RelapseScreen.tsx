@@ -115,7 +115,7 @@ export default function RelapseScreen() {
           value={eventDate}
           onChangeText={setEventDate}
           placeholder="YYYY-MM-DD"
-          placeholderTextColor="#555555"
+          placeholderTextColor="#B0A098"
           autoCapitalize="none"
         />
         <Text style={styles.datePreview}>{formatDate(eventDate)}</Text>
@@ -183,7 +183,7 @@ export default function RelapseScreen() {
               value={cortisoneDose}
               onChangeText={setCortisoneDose}
               placeholder="e.g. 1000"
-              placeholderTextColor="#555555"
+              placeholderTextColor="#B0A098"
               keyboardType="numeric"
             />
           </View>
@@ -265,7 +265,7 @@ export default function RelapseScreen() {
           value={notes}
           onChangeText={setNotes}
           placeholder={placeholderText}
-          placeholderTextColor="#555555"
+          placeholderTextColor="#B0A098"
           multiline
         />
       </View>

@@ -171,12 +171,12 @@ export default function WorkspaceScreen() {
             )}
           </View>
         ))}
-        {loading && <ActivityIndicator color="#22c55e" style={{ marginVertical: 12 }} />}
+        {loading && <ActivityIndicator color="#C96A50" style={{ marginVertical: 12 }} />}
       </ScrollView>
 
       <View style={styles.inputRow}>
         <TextInput style={styles.input} value={input} onChangeText={setInput}
-          placeholder="Ask about your health data..." placeholderTextColor="#555555"
+          placeholder="Ask about your health data..." placeholderTextColor="#B0A098"
           onSubmitEditing={() => sendMessage(input)} returnKeyType="send" />
         <TouchableOpacity style={[styles.sendBtn, (!input.trim() || loading) ? styles.sendBtnDisabled : null]}
           onPress={() => sendMessage(input)} disabled={!input.trim() || loading} activeOpacity={0.8}>

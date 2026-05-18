@@ -552,7 +552,7 @@ export default function SettingsScreen() {
               <>
                 <View style={styles.rowDivider} />
                 <View style={[styles.navRow, { paddingVertical: 14 }]}>
-                  <Ionicons name="people-outline" size={20} color="#22c55e" style={{ marginRight: 12 }} />
+                  <Ionicons name="people-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.navRowLabel}>Caregiver Notifications</Text>
                     <Text style={styles.navRowSub}>Allow caregiver alerts for missed doses</Text>
@@ -567,7 +567,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Advanced</Text>
           <View style={styles.sectionCard}>
             <View style={[styles.navRow, { paddingVertical: 14 }]}>
-              <Ionicons name="contrast-outline" size={20} color="#22c55e" style={{ marginRight: 12 }} />
+              <Ionicons name="contrast-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
               <Text style={[styles.navRowLabel, { flex: 1 }]}>Simple Mode</Text>
               <Switch value={isSimple} onValueChange={toggleSimple} trackColor={{ false: '#D8CFC8', true: '#C96A50' }} thumbColor={Platform.OS === 'ios' ? '#ffffff' : isSimple ? '#ffffff' : '#f4f3f4'} />
             </View>
