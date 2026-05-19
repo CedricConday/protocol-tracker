@@ -13,6 +13,27 @@ import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { getDaySummary } from '../db/queries';
 
+const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
+  '05-30': {
+    label: 'World MS Day',
+    message: 'May 30 — World MS Day. You are not alone. 2.9 million people live with MS worldwide.',
+  },
+  '03-07': {
+    label: 'MS Awareness Month',
+    message: 'March 7 — Multiple Sclerosis Awareness Month. Raise awareness, share your story.',
+  },
+  '03-31': {
+    label: 'MS Awareness Month End',
+    message: 'March 31 — End of MS Awareness Month. Keep spreading knowledge about MS.',
+  },
+};
+
+function getAwarenessDate(dateStr: string): { label: string; message: string } | null {
+  const d = new Date(dateStr);
+  const key = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return AWARENESS_DATES[key] ?? null;
+}
+
 const COLS = 6;
 
 const MONTH_NAMES = [
@@ -226,8 +247,14 @@ export default function CalendarScreen() {
                 const bgColor = cell.isToday
                   ? getTodayBrighter(cell.compliancePct, cell.totalDoses)
                   : getBoxColor(cell.compliancePct, cell.totalDoses);
+                const awareness = getAwarenessDate(cell.date);
                 return (
-                  <View key={cell.date} style={styles.cellWrapper}>
+                  <TouchableOpacity
+                    key={cell.date}
+                    style={styles.cellWrapper}
+                    onPress={awareness ? () => Alert.alert(`${awareness.label} 🌍`, awareness.message) : undefined}
+                    activeOpacity={awareness ? 0.7 : 1}
+                  >
                     <View
                       style={[
                         styles.cell,
@@ -237,7 +264,8 @@ export default function CalendarScreen() {
                     >
                       <Text style={styles.cellText}>{cell.dayNumber}</Text>
                     </View>
-                  </View>
+                    {awareness && <View style={styles.awarenessDot} />}
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -372,6 +400,14 @@ const styles = StyleSheet.create({
   cellToday: {
     borderWidth: 2,
     borderColor: '#C96A50',
+  },
+  awarenessDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F97316',
+    position: 'absolute',
+    bottom: 4,
   },
   cellText: {
     color: '#FAF7F4',
