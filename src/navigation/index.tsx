@@ -13,6 +13,8 @@ import CalciumLogScreen from '../screens/CalciumLogScreen';
 import CareSurveyScreen from '../screens/CareSurveyScreen';
 import CaregiverScreen from '../screens/CaregiverScreen';
 import DrugCheckerScreen from '../screens/DrugCheckerScreen';
+import FamilySyncScreen from '../screens/FamilySyncScreen';
+import CoachingStyleScreen from '../screens/CoachingStyleScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -202,6 +204,16 @@ function SettingsNavigator() {
         name="TerminalLink"
         component={TerminalLinkScreen}
         options={{ ...SUB_HEADER, title: 'Terminal Link', animation: 'slide_from_bottom' }}
+      />
+      <SettingsNav.Screen
+        name="FamilySync"
+        component={FamilySyncScreen}
+        options={{ ...SUB_HEADER, title: 'Family Access', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="CoachingStyle"
+        component={CoachingStyleScreen}
+        options={{ ...SUB_HEADER, title: 'Coaching Style', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Mmas"
