@@ -363,21 +363,22 @@ export async function getJournalEntry(date: string): Promise<JournalEntry | null
 }
 
 export async function upsertJournalEntry(entry: {
-  date: string; mood: string; note: string;
+  date: string; mood: string; note: string; dietary_note?: string;
   compliance_pct: number; doses_taken: number; doses_total: number;
 }): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO journal_entries (date, mood, note, compliance_pct, doses_taken, doses_total)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO journal_entries (date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(date) DO UPDATE SET
        mood = excluded.mood,
        note = excluded.note,
+       dietary_note = COALESCE(excluded.dietary_note, dietary_note),
        compliance_pct = excluded.compliance_pct,
        doses_taken = excluded.doses_taken,
        doses_total = excluded.doses_total,
        updated_at = datetime('now')`,
-    [entry.date, entry.mood, entry.note, entry.compliance_pct, entry.doses_taken, entry.doses_total]
+    [entry.date, entry.mood, entry.note, entry.dietary_note ?? '', entry.compliance_pct, entry.doses_taken, entry.doses_total]
   );
 }
 

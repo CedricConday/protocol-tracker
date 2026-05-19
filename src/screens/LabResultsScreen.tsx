@@ -107,6 +107,13 @@ export default function LabResultsScreen() {
          VALUES (?,?,?,?,?,?,?,?)`,
         [date, parseNum(vitD), parseNum(pth), parseNum(calciumSerum), parseNum(calciumUrine), parseNum(creatinine), sulkowitch, notes]
       );
+      const calciumVal = parseNum(calciumSerum);
+      if (calciumVal !== null && calciumVal > 10.5) {
+        Alert.alert(
+          'Elevated Calcium Detected',
+          'Elevated calcium detected. Review your dairy and calcium intake over the past 7 days. Log any dietary deviations in your journal.'
+        );
+      }
       setShowForm(false);
       setDate(new Date().toISOString().split('T')[0]);
       setVitD(''); setPth(''); setCalciumSerum(''); setCalciumUrine(''); setCreatinine('');

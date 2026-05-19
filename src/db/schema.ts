@@ -354,6 +354,26 @@ export async function initDb(): Promise<void> {
     console.log('[Database] migration: relapse_events.has_fever already exists');
   }
 
+  try {
+    await database.execAsync(`
+      ALTER TABLE journal_entries ADD COLUMN dietary_note TEXT NOT NULL DEFAULT ''
+    `);
+  } catch (e) {
+    console.log('[Database] migration: dietary_note column already exists');
+  }
+
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS family_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        joined_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+  } catch (e) {
+    console.log('[Database] migration: family_members table already exists');
+  }
+
   // Migrate relapse_events CHECK constraint to include 'pain' type
   try {
     await database.execAsync(`
