@@ -62,7 +62,7 @@ export const scheduleSupplementNotification = async (params: {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: `Time for your ${params.doseAmount} ${params.supplementName}, ${patientName}`,
-        body: params.notes ?? 'Stay on schedule with Coimbra Protocol',
+        body: params.notes ?? 'Stay on schedule with the Protocol',
         sound: true,
         categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },
@@ -123,7 +123,7 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Exercise Time',
-        body: `30 minutes walking — your Coimbra Protocol exercise for today, ${patientName}`,
+        body: `30 minutes walking — your Protocol exercise for today, ${patientName}`,
         sound: true,
         data: { type: 'exercise' },
       },

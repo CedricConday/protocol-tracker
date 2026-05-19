@@ -10,17 +10,17 @@ import {
 
 const QUIZ = [
   {
-    q: 'The Coimbra Protocol uses vitamin D doses that are 10–100× higher than standard RDAs.',
+    q: 'The Protocol uses vitamin D doses that are 10–100× higher than standard RDAs.',
     answer: true,
     explanation: 'Protocol doses range from 40,000–100,000+ IU/day, far exceeding the standard 600–800 IU RDA. This is intentional and supervised.',
   },
   {
     q: 'You can take high-dose vitamin D without drinking extra water.',
     answer: false,
-    explanation: 'High fluid intake (2.5L+/day) is mandatory to prevent hypercalciuria and protect kidney function on the Coimbra Protocol.',
+    explanation: 'High fluid intake (2.5L+/day) is mandatory to prevent hypercalciuria and protect kidney function on the Protocol.',
   },
   {
-    q: 'Magnesium is optional on the Coimbra Protocol.',
+    q: 'Magnesium is optional on the Protocol.',
     answer: false,
     explanation: 'Magnesium is essential — high-dose D3 increases magnesium demand. Deficiency can cause muscle cramps and impair D3 metabolism.',
   },
@@ -30,7 +30,7 @@ const QUIZ = [
     explanation: 'Regular monitoring catches hypercalcemia and renal stress early. PTH should be low-normal; calcium within range.',
   },
   {
-    q: 'Sunlight exposure is discouraged on the Coimbra Protocol.',
+    q: 'Sunlight exposure is discouraged on the Protocol.',
     answer: false,
     explanation: 'Sun exposure is encouraged — it produces a different form of vitamin D and supports overall protocol benefit.',
   },

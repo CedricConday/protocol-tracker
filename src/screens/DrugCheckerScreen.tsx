@@ -59,7 +59,7 @@ export default function DrugCheckerScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={styles.subtitle}>
-        Check any medication for interactions with the Coimbra Protocol (high-dose Vitamin D3).
+        Check any medication for interactions with the Protocol (high-dose Vitamin D3).
       </Text>
 
       <View style={styles.searchRow}>
@@ -130,7 +130,7 @@ export default function DrugCheckerScreen() {
 
       <View style={styles.disclaimerBox}>
         <Text style={styles.disclaimerText}>
-          This is not medical advice. This database covers known Coimbra Protocol contraindications only
+          This is not medical advice. This database covers known Protocol contraindications only
           — it does not replace a full drug interaction check. Always consult your prescribing physician
           before making any medication decision.
         </Text>

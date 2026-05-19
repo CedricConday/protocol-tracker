@@ -113,7 +113,7 @@ export function useHomeScreen(navigation: any) {
   useEffect(() => {
     const INSIGHTS = [
       'Drink 2.5L+ of water daily to protect your kidneys on high-dose D3.',
-      'Avoid dairy to keep dietary calcium low on the Coimbra Protocol.',
+      'Avoid dairy to keep dietary calcium low on the Protocol.',
       'Sun exposure produces D3 sulfate — a form your body uses differently from supplements.',
       'Magnesium helps your body convert D3 to its active form. Don\'t skip it.',
       'Low PTH on your blood test means your D3 is working — this is the target.',

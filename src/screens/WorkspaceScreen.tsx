@@ -113,7 +113,7 @@ export default function WorkspaceScreen() {
     setLoading(true);
 
     try {
-      const systemMsg = { role: 'system', content: `You are a health assistant for the Coimbra Protocol. Use this context:\n\n${context}` };
+      const systemMsg = { role: 'system', content: `You are a health assistant for the Protocol. Use this context:\n\n${context}` };
       const apiMessages = [systemMsg, ...newMessages.map((m) => ({ role: m.role, content: m.text }))];
       const reply = await callLLM(apiMessages, apiKey, provider);
       setMessages((prev) => [...prev, { role: 'assistant', text: reply }]);

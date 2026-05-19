@@ -59,7 +59,7 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
   const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const html = `<html><body style="background:#0d0d0d;padding:24px;font-family:sans-serif">
-    <h1 style="color:#22c55e;font-size:18px">Coimbra Protocol — Weekly Report</h1>
+    <h1 style="color:#22c55e;font-size:18px">the Protocol — Weekly Report</h1>
     <p style="color:#888;font-size:13px">${fmt(weekStart)} — ${fmt(now)}</p>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <tr style="background:#1a1a1a">
@@ -70,7 +70,7 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
       </tr>
       ${rows}
     </table>
-    <p style="color:#555;font-size:11px;margin-top:24px;text-align:center">Generated automatically by Coimbra Protocol App</p>
+    <p style="color:#555;font-size:11px;margin-top:24px;text-align:center">Generated automatically by the Protocol App</p>
   </body></html>`;
 
   const { uri } = await Print.printToFileAsync({ html });
