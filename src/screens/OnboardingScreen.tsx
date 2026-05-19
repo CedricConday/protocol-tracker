@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -145,10 +146,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
         >
           {/* Step 0: Welcome */}
           <View style={styles.page}>
-            <Animated.Text style={[styles.icon, { transform: [{ scale: iconScale }], opacity: iconOpacity }]}>🧬</Animated.Text>
-            <Text style={styles.title}>Welcome to{'  '}Coimbra Protocol</Text>
+            <Animated.View style={[styles.welcomeCircle, { transform: [{ scale: iconScale }], opacity: iconOpacity }]}>
+              <Ionicons name="medical" size={28} color="#22c55e" />
+            </Animated.View>
+            <Text style={styles.title}>Welcome, let's get you set up</Text>
             <Text style={styles.body}>
-              A personal companion for MS patients on Dr. Coimbra's high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.
+              This app is your daily companion for the Coimbra Protocol. We'll keep it simple.
             </Text>
             <View style={styles.qolCard}>
               <Text style={styles.qolStat}>83.6 <Text style={styles.qolUnit}>/ 100</Text></Text>
@@ -187,7 +190,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
             <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
 
             <View style={styles.form}>
-              <Text style={styles.inputLabel}>Your Name</Text>
+              <Text style={styles.inputLabel}>What should we call you?</Text>
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Alex"
@@ -215,7 +218,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 </>
               ) : (
                 <>
-                  <Text style={styles.inputLabel}>Weight (kg)</Text>
+                  <Text style={styles.inputLabel}>What's your weight? (we use this for your D3 dose)</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. 70"
@@ -296,7 +299,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
             activeOpacity={0.8}
           >
             <Text style={styles.nextText}>
-              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : 'Start'}
+              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : "Let's begin →"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -346,8 +349,17 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: 20,
   },
+  welcomeCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#22c55e22',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
   title: {
-    color: '#FAF7F4',
+    color: '#2C2420',
     fontSize: 26,
     fontWeight: '800',
     textAlign: 'center',
@@ -364,7 +376,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputLabel: {
-    color: '#aaaaaa',
+    color: '#7A6A62',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 6,
@@ -375,17 +387,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#FAF7F4',
+    color: '#2C2420',
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#E8E0D8',
     marginBottom: 4,
   },
-  qolCard: { backgroundColor: '#0d1a0d', borderRadius: 14, padding: 16, marginTop: 12, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
-  qolStat: { color: '#C96A50', fontSize: 28, fontWeight: '800' },
-  qolUnit: { color: '#C96A50', fontSize: 16, fontWeight: '600' },
-  qolLabel: { color: '#aaaaaa', fontSize: 13, marginTop: 2 },
-  qolSource: { color: '#7A6A62', fontSize: 11, marginTop: 4 },
+  qolCard: { backgroundColor: '#F0FDF4', borderRadius: 14, padding: 16, marginTop: 12, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
+  qolStat: { color: '#166534', fontSize: 28, fontWeight: '800' },
+  qolUnit: { color: '#166534', fontSize: 16, fontWeight: '600' },
+  qolLabel: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
+  qolSource: { color: '#B0A098', fontSize: 11, marginTop: 4 },
   hint: {
     color: '#7A6A62',
     fontSize: 13,
@@ -394,9 +406,11 @@ const styles = StyleSheet.create({
   },
   featureList: {
     width: '100%',
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#F0EDEA',
   },
   featureItem: {
     color: '#7A6A62',
@@ -405,7 +419,7 @@ const styles = StyleSheet.create({
   },
   infoNote: {
     width: '100%',
-    backgroundColor: '#1a1a00',
+    backgroundColor: '#FFF8EC',
     borderRadius: 14,
     padding: 14,
     marginTop: 12,
@@ -413,7 +427,7 @@ const styles = StyleSheet.create({
     borderLeftColor: '#eab308',
   },
   infoNoteText: {
-    color: '#aaaaaa',
+    color: '#7A6A62',
     fontSize: 15,
     lineHeight: 22,
   },
@@ -424,7 +438,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F2EDE8',
+    borderTopColor: '#D8CFC8',
   },
   backButton: {
     paddingVertical: 12,
@@ -453,12 +467,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  caregiverNote: { width: '100%', backgroundColor: '#1a1a00', borderRadius: 14, padding: 14, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
-  caregiverNoteText: { color: '#aaaaaa', fontSize: 13, lineHeight: 18 },
+  caregiverNote: { width: '100%', backgroundColor: '#FFF8EC', borderRadius: 14, padding: 14, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
+  caregiverNoteText: { color: '#7A6A62', fontSize: 13, lineHeight: 18 },
   typeRow: { width: '100%', gap: 8, marginTop: 4 },
   typeBtn: { borderRadius: 14, borderWidth: 1, borderColor: '#E8E0D8', padding: 14, backgroundColor: '#F2EDE8' },
   typeBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
-  typeBtnLabel: { color: '#aaaaaa', fontSize: 15, fontWeight: '700' },
+  typeBtnLabel: { color: '#7A6A62', fontSize: 15, fontWeight: '700' },
   typeBtnLabelActive: { color: '#C96A50' },
   typeBtnDesc: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
 });
