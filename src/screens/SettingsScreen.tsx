@@ -372,29 +372,13 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <Text style={styles.title}>{t('settings')}</Text>
+          <Text style={styles.title}>Settings</Text>
         </View>
         <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
 
-          {/* ── PRIMARY BUTTONS ─────────────────────────────────────────── */}
-          <View style={styles.primaryBtnRow}>
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); toggleSection(expandedSection === 'profile' ? null : 'profile'); }} activeOpacity={0.85}>
-              <Ionicons name="person-outline" size={20} color="#FAF7F4" style={{ marginBottom: 4 }} />
-              <Text style={styles.primaryBtnText}>Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); toggleSection(expandedSection === 'protocol' ? null : 'protocol'); }} activeOpacity={0.85}>
-              <Ionicons name="flask-outline" size={20} color="#FAF7F4" style={{ marginBottom: 4 }} />
-              <Text style={styles.primaryBtnText}>Supplements</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); toggleSection(expandedSection === 'bedtimeInline' ? null : 'bedtimeInline'); }} activeOpacity={0.85}>
-              <Ionicons name="moon-outline" size={20} color="#FAF7F4" style={{ marginBottom: 4 }} />
-              <Text style={styles.primaryBtnText}>Bedtime</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── ACCOUNT ─────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.sectionCard}>
+          {/* ── SECTION 1: MY PROTOCOL ───────────────────────────────────── */}
+          <Text style={styles.newSectionTitle}>My Protocol</Text>
+          <View style={styles.newSectionCard}>
             <SectionHeader sectionKey="profile" icon="person-outline" label="Profile" sub={name || 'Name, weight, language'} />
             {expandedSection === 'profile' && (
               <View style={styles.expandedContent}>
@@ -412,11 +396,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
             )}
-          </View>
-
-          {/* ── SUPPLEMENTS ─────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Supplements</Text>
-          <View style={styles.sectionCard}>
+            <View style={styles.separator} />
             <SectionHeader sectionKey="protocol" icon="flask-outline" label="Protocol Doses" sub={d3Dose ? `D3: ${d3Dose} IU` : 'Daily D3 dose'} />
             {expandedSection === 'protocol' && (
               <View style={styles.expandedContent}>
@@ -424,9 +404,7 @@ export default function SettingsScreen() {
                 <TextInput style={[styles.input, { marginBottom: 12 }]} placeholder="e.g. 5000" placeholderTextColor="#B0A098" value={d3Dose} onChangeText={setD3Dose} keyboardType="numeric" />
               </View>
             )}
-            <View style={styles.rowDivider} />
-            <NavRow icon="list-outline" label="Manage Supplements" sub="Add, edit, or remove" onPress={() => navigation.navigate('SupplementEditor')} />
-            <View style={styles.rowDivider} />
+            <View style={styles.separator} />
             <SectionHeader sectionKey="stock" icon="cube-outline" label="Supplement Stock" sub="Days on hand per supplement" />
             {expandedSection === 'stock' && (
               <View style={styles.expandedContent}>
@@ -450,18 +428,9 @@ export default function SettingsScreen() {
                 ))}
               </View>
             )}
-          </View>
-
-          {/* ── SCHEDULE ─────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Schedule</Text>
-          <View style={styles.sectionCard}>
-            <SectionHeader sectionKey="bedtimeInline" icon="moon-outline" label="Bedtime Schedule" sub={`Cutoff: ${String(bedtimeHour).padStart(2,'0')}:${String(bedtimeMinute).padStart(2,'0')}`} />
-            {expandedSection === 'bedtimeInline' && (
-              <View style={styles.expandedContent}>
-                <BedtimeWheel />
-              </View>
-            )}
-            <View style={styles.rowDivider} />
+            <View style={styles.separator} />
+            <NavRow icon="list-outline" label="Manage Supplements" sub="Add, edit, or remove" onPress={() => navigation.navigate('SupplementEditor')} />
+            <View style={styles.separator} />
             <ProFeatureGate featureName="Timing Windows">
               <SectionHeader sectionKey="timing" icon="timer-outline" label="Timing Windows" sub="Per-supplement tolerance" />
               {expandedSection === 'timing' && (
@@ -482,61 +451,34 @@ export default function SettingsScreen() {
                 </View>
               )}
             </ProFeatureGate>
-          </View>
-
-          {/* ── HEALTH TRACKING ──────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Health tracking</Text>
-          <View style={styles.sectionCard}>
-            <SectionHeader sectionKey="healthChecks" icon="medical-outline" label="Health Checks" sub="Blood test · Care survey" />
-            {expandedSection === 'healthChecks' && (
+            <View style={styles.separator} />
+            <SectionHeader sectionKey="bedtimeInline" icon="moon-outline" label="Bedtime Schedule" sub={`Cutoff: ${String(bedtimeHour).padStart(2,'0')}:${String(bedtimeMinute).padStart(2,'0')}`} />
+            {expandedSection === 'bedtimeInline' && (
               <View style={styles.expandedContent}>
-                <Text style={styles.inputLabel}>Last Blood Test (YYYY-MM-DD)</Text>
-                <TextInput style={[styles.input, { marginBottom: 12 }]} placeholder="e.g. 2026-03-15" placeholderTextColor="#B0A098" value={bloodTestDate} onChangeText={setBloodTestDate} autoCapitalize="none" />
+                <BedtimeWheel />
               </View>
             )}
-            <View style={styles.rowDivider} />
+          </View>
+
+          {/* ── SECTION 2: TRACKING & HEALTH ─────────────────────────────── */}
+          <Text style={styles.newSectionTitle}>Tracking & Health</Text>
+          <View style={styles.newSectionCard}>
+            <NavRow icon="flask-outline" label="Lab Results" sub="PTH · Vit D · Ca" onPress={() => navigation.navigate('LabResults')} />
+            <View style={styles.separator} />
             <NavRow icon="help-circle-outline" label="Care Survey" sub="ICES-MS validated · Track symptoms" onPress={() => navigation.navigate('Journal', { screen: 'CareSurvey' })} />
-            <View style={styles.rowDivider} />
+            <View style={styles.separator} />
             <NavRow icon="bar-chart-outline" label="MMAS-8 Adherence Check" sub="Monthly · 8-question scale" onPress={() => navigation.navigate('Mmas')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="help-circle-outline" label="Fact or Myth Quiz" sub="Protocol knowledge · 8 questions" onPress={() => navigation.navigate('Quiz')} />
+            <View style={styles.separator} />
+            <NavRow icon="moon-outline" label="Sleep Check-in" sub="Weekly hygiene scorecard" onPress={() => navigation.navigate('Sleep')} />
+            <View style={styles.separator} />
+            <NavRow icon="flame-outline" label="Calcium Reintroduction Log" sub="3-day test window" onPress={() => navigation.navigate('CalciumLog')} />
+            <View style={styles.separator} />
+            <NavRow icon="people-outline" label="Caregiver View" onPress={() => navigation.navigate('Caregiver')} />
           </View>
 
-          {/* ── DOCTOR ───────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Your doctor</Text>
-          <View style={styles.sectionCard}>
-            <SectionHeader sectionKey="doctor" icon="medical-outline" label="Doctor & Clinic" sub={doctorName || 'Not set'} />
-            {expandedSection === 'doctor' && (
-              <View style={styles.expandedContent}>
-                <Text style={styles.inputLabel}>{t('doctorName')}</Text>
-                <TextInput style={styles.input} placeholder="e.g. Dr. Smith" placeholderTextColor="#B0A098" value={doctorName} onChangeText={setDoctorName} />
-                <Text style={styles.inputLabel}>{t('clinic')}</Text>
-                <TextInput style={styles.input} placeholder="e.g. Coimbra Clinic" placeholderTextColor="#B0A098" value={doctorClinic} onChangeText={setDoctorClinic} />
-                <Text style={styles.inputLabel}>{t('email')}</Text>
-                <TextInput style={styles.input} placeholder="e.g. doctor@clinic.com" placeholderTextColor="#B0A098" value={doctorEmail} onChangeText={setDoctorEmail} keyboardType="email-address" />
-                <Text style={styles.inputLabel}>{t('phone')}</Text>
-                <TextInput style={[styles.input, { marginBottom: 12 }]} placeholder="e.g. +1 555 123 4567" placeholderTextColor="#B0A098" value={doctorPhone} onChangeText={setDoctorPhone} keyboardType="phone-pad" />
-              </View>
-            )}
-          </View>
-
-          {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Reminders</Text>
-          <View style={styles.sectionCard}>
-            <SectionHeader sectionKey="nudge" icon="notifications-outline" label="Reminder Focus" sub={nudgeFocus === 'all' ? 'All reminders' : nudgeFocus.charAt(0).toUpperCase() + nudgeFocus.slice(1) + ' only'} />
-            {expandedSection === 'nudge' && (
-              <View style={styles.expandedContent}>
-                <View style={styles.nudgeRow}>
-                  {(['all', 'doses', 'water', 'exercise'] as const).map((opt) => (
-                    <TouchableOpacity key={opt} style={[styles.nudgeBtn, nudgeFocus === opt ? styles.nudgeBtnActive : null]} onPress={async () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNudgeFocus(opt); await AsyncStorage.setItem('nudge_focus', opt); }} activeOpacity={0.7}>
-                      <Text style={[styles.nudgeBtnText, nudgeFocus === opt ? styles.nudgeBtnTextActive : null]}>{opt === 'all' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Text style={[styles.privacyNotice, { marginBottom: 8 }]}>Reminders are local only — no data sent externally.</Text>
-              </View>
-            )}
-            <View style={styles.rowDivider} />
+          {/* ── SECTION 3: REMINDERS ─────────────────────────────────────── */}
+          <Text style={styles.newSectionTitle}>Reminders</Text>
+          <View style={styles.newSectionCard}>
             <SectionHeader sectionKey="notifPrefs" icon="notifications-circle-outline" label="Notification Preferences" sub="Per-topic toggles & quiet hours" />
             {expandedSection === 'notifPrefs' && (
               <View style={styles.expandedContent}>
@@ -581,79 +523,31 @@ export default function SettingsScreen() {
                 <Text style={[styles.privacyNotice, { marginBottom: 8 }]}>No notifications fire during quiet hours.</Text>
               </View>
             )}
-            {patientType !== 'caregiver' && (
-              <>
-                <View style={styles.rowDivider} />
-                <View style={[styles.navRow, { paddingVertical: 14 }]}>
-                  <Ionicons name="people-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.navRowLabel}>Caregiver Notifications</Text>
-                    <Text style={styles.navRowSub}>Allow caregiver alerts for missed doses</Text>
-                  </View>
-                  <Switch value={infoShareApproved} onValueChange={async (v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setInfoShareApproved(v); await AsyncStorage.setItem('info_share_approved', v ? '1' : '0'); }} trackColor={{ false: '#D8CFC8', true: '#C96A50' }} thumbColor="#ffffff" />
-                </View>
-              </>
-            )}
           </View>
 
-          {/* ── ADVANCED ─────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Advanced</Text>
-          <View style={styles.sectionCard}>
-            <View style={[styles.navRow, { paddingVertical: 14 }]}>
-              <Ionicons name="contrast-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
-              <Text style={[styles.navRowLabel, { flex: 1 }]}>Simple Mode</Text>
-              <Switch value={isSimple} onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleSimple(); }} trackColor={{ false: '#D8CFC8', true: '#C96A50' }} thumbColor={Platform.OS === 'ios' ? '#ffffff' : isSimple ? '#ffffff' : '#f4f3f4'} />
-            </View>
-            <View style={styles.rowDivider} />
-            <SectionHeader sectionKey="ai" icon="sparkles-outline" label="AI Workspace" sub={aiProvider} />
-            {expandedSection === 'ai' && (
-              <View style={styles.expandedContent}>
-                <Text style={styles.inputLabel}>Provider</Text>
-                <View style={styles.langRow}>
-                  {['groq', 'openai', 'anthropic'].map((p) => (
-                    <TouchableOpacity key={p} style={[styles.langButton, aiProvider === p ? styles.langActive : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAiProvider(p); }} activeOpacity={0.7}>
-                      <Text style={[styles.langText, aiProvider === p ? styles.langTextActive : null]}>{p === 'groq' ? 'Groq' : p === 'openai' ? 'OpenAI' : 'Anthropic'}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <Text style={styles.inputLabel}>API Key</Text>
-                <TextInput style={[styles.input, { marginBottom: 8 }]} placeholder="Paste your key here" placeholderTextColor="#B0A098" value={aiApiKey} onChangeText={setAiApiKey} secureTextEntry autoCapitalize="none" />
-                <Text style={[styles.privacyNotice, { marginBottom: 8 }]}>Questions and your health summary are sent to your chosen provider. Nothing stored externally.</Text>
-              </View>
-            )}
-            <View style={styles.rowDivider} />
-            <NavRow icon="shield-checkmark-outline" label="Security & Passkeys" onPress={() => navigation.navigate('Security')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="download-outline" label="Export My Data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
-          </View>
-
-          {/* ── MORE ─────────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>More</Text>
-          <View style={styles.sectionCard}>
+          {/* ── SECTION 4: RESOURCES ──────────────────────────────────────── */}
+          <Text style={styles.newSectionTitle}>Resources</Text>
+          <View style={styles.newSectionCard}>
             <NavRow icon="book-outline" label="Protocol Guide" onPress={() => navigation.navigate('Guide')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="moon-outline" label="Sleep Check-in" sub="Weekly hygiene scorecard" onPress={() => navigation.navigate('Sleep')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="flame-outline" label="Calcium Reintroduction Log" sub="3-day test window" onPress={() => navigation.navigate('CalciumLog')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="people-outline" label="Caregiver View" onPress={() => navigation.navigate('Caregiver')} />
-            <View style={styles.rowDivider} />
+            <View style={styles.separator} />
             <NavRow icon="shield-outline" label="Drug Checker" onPress={() => navigation.navigate('DrugChecker')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="terminal" label="Link to Coimbra Terminal" sub="Scan QR on coimbra.app" onPress={() => navigation.navigate('TerminalLink')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="chatbubble-outline" label="Send Feedback" onPress={() => navigation.navigate('Feedback')} />
-            <View style={styles.rowDivider} />
+            <View style={styles.separator} />
+            <NavRow icon="help-circle-outline" label="Fact or Myth Quiz" sub="Protocol knowledge · 8 questions" onPress={() => navigation.navigate('Quiz')} />
+            <View style={styles.separator} />
             <NavRow icon="information-circle-outline" label="About" onPress={() => navigation.navigate('About')} />
+            <View style={styles.separator} />
+            <NavRow icon="chatbubble-outline" label="Send Feedback" onPress={() => navigation.navigate('Feedback')} />
           </View>
 
-          {/* ── SUPPORT ──────────────────────────────────────────────────── */}
-          <Text style={styles.sectionTitle}>Support</Text>
-          <View style={styles.sectionCard}>
-            <NavRow icon="help-buoy-outline" label="FAQ" sub="Frequently asked questions" onPress={() => Alert.alert('FAQ', 'Visit coimbra.app/faq for frequently asked questions.')} />
-            <View style={styles.rowDivider} />
-            <NavRow icon="mail-outline" label="Contact" sub="support@coimbra.app" onPress={() => Alert.alert('Contact', 'Email us at support@coimbra.app')} />
-            <View style={styles.rowDivider} />
+          {/* ── SECTION 5: ACCOUNT & SECURITY ─────────────────────────────── */}
+          <Text style={styles.newSectionTitle}>Account & Security</Text>
+          <View style={styles.newSectionCard}>
+            <NavRow icon="shield-checkmark-outline" label="Security & Passkeys" onPress={() => navigation.navigate('Security')} />
+            <View style={styles.separator} />
+            <NavRow icon="download-outline" label="Export My Data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
+            <View style={styles.separator} />
+            <NavRow icon="terminal" label="Link to Coimbra Terminal" sub="Scan QR on coimbra.app" onPress={() => navigation.navigate('TerminalLink')} />
+            <View style={styles.separator} />
             <View style={[styles.navRow, { paddingVertical: 14 }]}>
               <Ionicons name="information-circle-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
               <View style={{ flex: 1 }}>
@@ -664,7 +558,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── DANGER ZONE ──────────────────────────────────────────────── */}
-          <Text style={[styles.sectionTitle, { color: '#C04040', marginTop: 32 }]}>Danger zone</Text>
+          <Text style={[styles.newSectionTitle, { color: '#C04040', marginTop: 32 }]}>Danger zone</Text>
           <View style={styles.dangerCard}>
             <View style={styles.dangerRow}>
               <View style={{ flex: 1 }}>
@@ -709,14 +603,12 @@ const styles = StyleSheet.create({
   title: { color: '#2C2420', fontSize: 26, fontWeight: '800' },
   form: { flex: 1, paddingHorizontal: 24, paddingBottom: 40 },
   sectionTitle: { color: '#7A6A62', fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginTop: 28, marginBottom: 8, marginLeft: 4 },
-  sectionCard: { backgroundColor: '#F2EDE8', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 4, borderWidth: 1, borderColor: '#E8E0D8', shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  newSectionTitle: { color: '#9A8A82', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 28, marginBottom: 8, marginLeft: 4 },
+  newSectionCard: { backgroundColor: '#FFFFFF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4, shadowColor: '#2C2420', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  separator: { height: 1, backgroundColor: '#F0EDEA', marginLeft: 0 },
   primaryBtnRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 4 },
   primaryBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   primaryBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
-  primaryExpanded: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#D8CFC8' },
-  subMenuRow: { backgroundColor: '#FAF7F4', borderRadius: 10, padding: 14, borderWidth: 1, borderColor: '#D8CFC8', marginBottom: 4 },
-  subMenuRowText: { color: '#2C2420', fontSize: 14, fontWeight: '600' },
-  subMenuRowSub: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
   wheelLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
   timeChip: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' },
   timeChipActive: { backgroundColor: '#FBF0ED', borderColor: '#C96A50' },
@@ -768,7 +660,7 @@ const styles = StyleSheet.create({
   dangerBtnText: { color: '#C04040', fontSize: 13, fontWeight: '700' },
   aboutLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F2EDE8', borderRadius: 12, padding: 16, marginTop: 24 },
   aboutLinkText: { color: '#2C2420', fontSize: 15, fontWeight: '600' },
-  navRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  navRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 14 },
   navRowLabel: { color: '#2C2420', fontSize: 15, fontWeight: '600' },
   navRowSub: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
   expandedContent: { paddingTop: 8, paddingBottom: 4 },
