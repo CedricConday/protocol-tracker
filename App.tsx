@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, View, Text, Linking, StyleSheet } from 'react-native';
+import { AppState, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +11,7 @@ import { FontScaleProvider } from './src/context/FontScaleContext';
 import PermissionPrimingModal from './src/components/PermissionPrimingModal';
 import SplashAnimation from './src/components/SplashAnimation';
 import { navigate } from './src/navigation/navigationRef';
+import { useBiometricGate } from './src/hooks/useBiometricGate';
 
 const PRIMING_KEY = '@coimbra:permission_primed';
 
@@ -19,6 +20,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showPriming, setShowPriming] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const { locked, authenticate } = useBiometricGate();
 
   const completeBoot = useCallback(async () => {
     await registerBackgroundTask();
@@ -101,6 +103,18 @@ export default function App() {
     );
   }
 
+  if (locked) {
+    return (
+      <View style={styles.splash}>
+        <Text style={styles.splashText}>MS Central</Text>
+        <Text style={styles.errorText}>Authenticate to continue</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={authenticate} activeOpacity={0.8}>
+          <Text style={styles.retryBtnText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <FontScaleProvider>
       <StatusBar style="light" />
@@ -128,5 +142,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     padding: 20,
     textAlign: 'center',
+  },
+  retryBtn: {
+    backgroundColor: '#22c55e',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  retryBtnText: {
+    color: '#FAF7F4',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

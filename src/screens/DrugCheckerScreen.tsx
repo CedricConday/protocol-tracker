@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { getDb } from '../db/schema';
+import { getMiscFlag } from '../db/queries';
 
 interface Rule {
   id: number;
@@ -28,6 +29,7 @@ export default function DrugCheckerScreen() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [results, setResults] = useState<CheckResult[] | null>(null);
   const [checked, setChecked] = useState(false);
+  const [strictMode, setStrictMode] = useState(false);
 
   const load = useCallback(async () => {
     const db = await getDb();
@@ -37,7 +39,7 @@ export default function DrugCheckerScreen() {
     setRules(rows);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); getMiscFlag('strict_mode_enabled').then((v) => setStrictMode(v === 'true')); }, [load]);
 
   const handleCheck = () => {
     if (!query.trim()) return;
@@ -58,6 +60,11 @@ export default function DrugCheckerScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {strictMode ? (
+        <View style={styles.strictBanner}>
+          <Text style={styles.strictBannerText}>Strict Mode active — all interactions flagged as high priority</Text>
+        </View>
+      ) : null}
       <Text style={styles.subtitle}>
         Check any medication for interactions with the Protocol (high-dose Vitamin D3).
       </Text>
@@ -143,6 +150,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 20, paddingBottom: 48 },
   subtitle: { color: '#7A6A62', fontSize: 13, lineHeight: 19, marginBottom: 20 },
+  strictBanner: { backgroundColor: '#FFF8EC', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#eab308' },
+  strictBannerText: { color: '#8A5A10', fontSize: 13, fontWeight: '700', textAlign: 'center' },
   searchRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   searchInput: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 10, padding: 14, color: '#FAF7F4', fontSize: 15, borderWidth: 1, borderColor: '#E8E0D8' },
   checkBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingHorizontal: 20, justifyContent: 'center', minHeight: 44 },

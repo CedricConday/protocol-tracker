@@ -64,6 +64,8 @@ export default function SettingsScreen() {
   });
   const [quietStart, setQuietStart] = useState('22:00');
   const [quietEnd, setQuietEnd] = useState('07:00');
+  const [pulseDosing, setPulseDosing] = useState(false);
+  const [strictMode, setStrictMode] = useState(false);
 
   const toggleSection = (key: string | null) => setExpandedSection((prev) => (!key || prev === key ? null : key));
 
@@ -145,6 +147,10 @@ export default function SettingsScreen() {
       if (qs) setQuietStart(qs);
       const qe = await getMiscFlag('notif_quiet_end');
       if (qe) setQuietEnd(qe);
+      const pd = await getMiscFlag('pulse_dosing_enabled');
+      if (pd) setPulseDosing(pd === 'true');
+      const sm = await getMiscFlag('strict_mode_enabled');
+      if (sm) setStrictMode(sm === 'true');
     })();
   }, []);
 
@@ -426,6 +432,34 @@ export default function SettingsScreen() {
                 ))}
               </View>
             )}
+            <View style={styles.separator} />
+            <View style={[styles.navRow, { paddingVertical: 14 }]}>
+              <Ionicons name="repeat-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navRowLabel}>Pulse Dosing Mode</Text>
+                <Text style={styles.navRowSub}>Sunday is a rest day</Text>
+              </View>
+              <Switch
+                value={pulseDosing}
+                onValueChange={async (v) => { setPulseDosing(v); await setMiscFlag('pulse_dosing_enabled', v ? 'true' : 'false'); }}
+                trackColor={{ false: '#D8CFC8', true: '#C96A50' }}
+                thumbColor="#ffffff"
+              />
+            </View>
+            <View style={styles.separator} />
+            <View style={[styles.navRow, { paddingVertical: 14 }]}>
+              <Ionicons name="shield-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navRowLabel}>Strict Mode</Text>
+                <Text style={styles.navRowSub}>All interactions flagged as high priority</Text>
+              </View>
+              <Switch
+                value={strictMode}
+                onValueChange={async (v) => { setStrictMode(v); await setMiscFlag('strict_mode_enabled', v ? 'true' : 'false'); }}
+                trackColor={{ false: '#D8CFC8', true: '#C96A50' }}
+                thumbColor="#ffffff"
+              />
+            </View>
             <View style={styles.separator} />
             <NavRow icon="list-outline" label="Manage Supplements" sub="Add, edit, or remove" onPress={() => navigation.navigate('SupplementEditor')} />
             <View style={styles.separator} />

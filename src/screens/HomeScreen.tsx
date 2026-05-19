@@ -186,6 +186,19 @@ export default function HomeScreen() {
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [dosesExpanded, setDosesExpanded] = useState(false);
 
+  const [strictMode, setStrictMode] = useState(false);
+
+  useEffect(() => {
+    getMiscFlag('strict_mode_enabled').then((v) => setStrictMode(v === 'true'));
+  }, []);
+
+  const energyCredits = doses.reduce((acc, d) => {
+    if (d.status === 'taken') return acc + 1;
+    if (d.status === 'missed') return acc - 1;
+    return acc;
+  }, 10);
+  const clampedCredits = Math.max(0, Math.min(10, energyCredits));
+
   useEffect(() => {
     setDosesExpanded(false);
   }, [doses]);
@@ -406,6 +419,13 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
+        {strictMode ? (
+          <TouchableOpacity style={styles.strictBadge} onPress={() => navigation.navigate('Settings', { screen: 'DrugChecker' })} activeOpacity={0.7}>
+            <View style={styles.strictAmberDot} />
+            <Text style={styles.strictBadgeText}>Strict Mode active — Drug Checker</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <ProgressHeader t0={t0} doses={doses} />
 
         {nextMedicalEvent ? (
@@ -483,9 +503,20 @@ export default function HomeScreen() {
             <Text style={styles.emptyDosesIcon}>💊</Text>
             <Text style={styles.emptyDosesTitle}>No supplements scheduled</Text>
             <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your Coimbra supplements.</Text>
-          </View>
-        )}
+        </View>
+      )}
 
+      <View style={styles.energyCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={styles.energyLabel}>Energy today</Text>
+          <Text style={styles.energyCount}>{clampedCredits}/10</Text>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {Array.from({ length: 10 }, (_, i) => (
+            <View key={i} style={[styles.energyDot, { backgroundColor: i < clampedCredits ? '#22c55e' : '#E8E0D8' }]} />
+          ))}
+        </View>
+      </View>
 
       </ScrollView>
 
@@ -758,6 +789,10 @@ const styles = StyleSheet.create({
   stackLabel: { color: '#C96A50', fontSize: 13, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
   collapseBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4, borderWidth: 1, borderColor: '#D8CFC8' },
   collapseBtnText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
+  energyCard: { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#22c55e30' },
+  energyLabel: { color: '#166534', fontSize: 13, fontWeight: '600' },
+  energyCount: { color: '#166534', fontSize: 13, fontWeight: '700' },
+  energyDot: { width: 20, height: 20, borderRadius: 10, flex: 1 },
   relapseButtonText: {
     color: '#C04040',
     fontSize: 14,
@@ -889,6 +924,9 @@ const styles = StyleSheet.create({
   insightCard: { backgroundColor: '#FBF0ED', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
   insightLabel: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
   insightText: { color: '#7A6A62', fontSize: 14, lineHeight: 22 },
+  strictBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8EC', borderRadius: 8, padding: 10, marginBottom: 10, gap: 8, borderWidth: 1, borderColor: '#eab308' },
+  strictAmberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#eab308' },
+  strictBadgeText: { color: '#8A5A10', fontSize: 13, fontWeight: '600', flex: 1 },
   hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
   hintCardInner: { flex: 1 },
   hintCardTitle: { color: '#C4882A', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
