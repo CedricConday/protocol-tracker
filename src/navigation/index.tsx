@@ -35,8 +35,8 @@ import TerminalLinkScreen from '../screens/TerminalLinkScreen';
 import WorkspaceScreen from '../screens/WorkspaceScreen';
 
 const Tab = createBottomTabNavigator();
+const CalendarTabNav = createNativeStackNavigator();
 const HomeNav = createNativeStackNavigator();
-const ScheduleNav = createNativeStackNavigator();
 const JournalNav = createNativeStackNavigator();
 const SummaryNav = createNativeStackNavigator();
 const SettingsNav = createNativeStackNavigator();
@@ -68,12 +68,17 @@ function HomeNavigator() {
   );
 }
 
-// ─── Schedule Tab ──────────────────────────────────────────────────────────
-function ScheduleNavigator() {
+// ─── Calendar Tab ─────────────────────────────────────────────────────────
+function CalendarTabNavigator() {
   return (
-    <ScheduleNav.Navigator screenOptions={{ headerShown: false }}>
-      <ScheduleNav.Screen name="ScheduleMain" component={ScheduleScreen} />
-      <ScheduleNav.Screen
+    <CalendarTabNav.Navigator screenOptions={{ headerShown: false }}>
+      <CalendarTabNav.Screen name="CalendarMain" component={ScheduleScreen} />
+      <CalendarTabNav.Screen
+        name="CalendarView"
+        component={CalendarScreen}
+        options={{ ...SUB_HEADER, title: 'History', animation: 'slide_from_right' }}
+      />
+      <CalendarTabNav.Screen
         name="Scanner"
         component={ScannerScreen}
         options={{
@@ -83,7 +88,7 @@ function ScheduleNavigator() {
           animation: 'slide_from_bottom',
         }}
       />
-    </ScheduleNav.Navigator>
+    </CalendarTabNav.Navigator>
   );
 }
 
@@ -223,6 +228,7 @@ function SettingsNavigator() {
 function TabNavigator() {
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -247,19 +253,11 @@ function TabNavigator() {
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeNavigator}
+        name="Calendar"
+        component={CalendarTabNavigator}
         options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Schedule"
-        component={ScheduleNavigator}
-        options={{
-          tabBarLabel: 'Schedule',
-          tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
+          tabBarLabel: 'Calendar',
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
         }}
       />
       <Tab.Screen
@@ -270,6 +268,14 @@ function TabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="notebook-outline" size={size} color={color} />
           ),
+        }}
+      />
+      <Tab.Screen
+        name="Home"
+        component={HomeNavigator}
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       />
       <Tab.Screen

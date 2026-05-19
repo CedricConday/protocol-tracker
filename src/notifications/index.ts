@@ -348,7 +348,7 @@ export const setupNotificationHandler = (): void => {
 
     switch (type) {
       case 'supplement':
-        navigate('Schedule');
+        navigate('Calendar');
         break;
       case 'water':
         navigate('Home');
