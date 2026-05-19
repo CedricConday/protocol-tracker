@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getScheduleRules, updateRuleDose } from '../db/queries';
+import { getScheduleRules, updateRuleDose, setMiscFlag } from '../db/queries';
 import { createDefaultProfile } from '../db/seed';
 import * as Notifications from 'expo-notifications';
 
@@ -38,6 +38,11 @@ const STEPS = [
     body: 'Your information stays on your device — nothing is shared without your consent.',
   },
   {
+    title: 'How do you want to use this app?',
+    icon: '🎯',
+    body: 'Choose the mode that fits your style.',
+  },
+  {
     title: 'Almost Ready',
     icon: '🔔',
     body: 'Enable notifications so you never miss a dose. You can change this later in Settings.',
@@ -51,6 +56,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [d3Dose, setD3Dose] = useState('');
   const [patientType, setPatientType] = useState<'new' | 'experienced' | 'caregiver'>('new');
   const [caregiverPatientName, setCaregiverPatientName] = useState('');
+  const [onboardingTrack, setOnboardingTrack] = useState<'simple' | 'full'>('full');
   const [saving, setSaving] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -102,6 +108,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
             await updateRuleDose(d3Rule.id, d3Dose.trim(), 'IU');
           }
         }
+        await setMiscFlag('onboarding_track', onboardingTrack);
         try {
           await Notifications.requestPermissionsAsync();
         } catch {
@@ -121,6 +128,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
       if (isCaregiver) return name.trim().length > 0 && caregiverPatientName.trim().length > 0;
       return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
     }
+    if (step === 2) return onboardingTrack !== null;
     return true;
   };
 
@@ -244,7 +252,37 @@ export default function OnboardingScreen({ onComplete }: Props) {
             </View>
           </ScrollView>
 
-          {/* Step 2: Notifications */}
+          {/* Step 2: Track Selection */}
+          <View style={styles.page}>
+            <Text style={styles.icon}>🎯</Text>
+            <Text style={styles.title}>How do you want to use this app?</Text>
+            <View style={{ width: '100%', gap: 10, marginTop: 12 }}>
+              <TouchableOpacity
+                style={[styles.trackCard, onboardingTrack === 'simple' && styles.trackCardActive]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOnboardingTrack('simple'); }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="sunny-outline" size={24} color={onboardingTrack === 'simple' ? '#C96A50' : '#7A6A62'} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.trackTitle, onboardingTrack === 'simple' && styles.trackTitleActive]}>Daily companion</Text>
+                  <Text style={styles.trackDesc}>Simple daily check-ins. I just want to stay on track.</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.trackCard, onboardingTrack === 'full' && styles.trackCardActive]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOnboardingTrack('full'); }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="flask-outline" size={24} color={onboardingTrack === 'full' ? '#C96A50' : '#7A6A62'} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.trackTitle, onboardingTrack === 'full' && styles.trackTitleActive]}>Full protocol</Text>
+                  <Text style={styles.trackDesc}>I want everything — labs, reports, full tracking.</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Step 3: Notifications */}
           <View style={styles.page}>
             <Text style={styles.icon}>🔔</Text>
             <Text style={styles.title}>Almost Ready</Text>
@@ -337,7 +375,7 @@ const styles = StyleSheet.create({
   slider: {
     flex: 1,
     flexDirection: 'row',
-    width: width * 3,
+    width: width * 4,
   },
   page: {
     width,
@@ -470,6 +508,11 @@ const styles = StyleSheet.create({
   caregiverNote: { width: '100%', backgroundColor: '#FFF8EC', borderRadius: 14, padding: 14, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
   caregiverNoteText: { color: '#7A6A62', fontSize: 13, lineHeight: 18 },
   typeRow: { width: '100%', gap: 8, marginTop: 4 },
+  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#E8E0D8', padding: 16, backgroundColor: '#F2EDE8' },
+  trackCardActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
+  trackTitle: { color: '#7A6A62', fontSize: 15, fontWeight: '700' },
+  trackTitleActive: { color: '#C96A50' },
+  trackDesc: { color: '#B0A098', fontSize: 13, marginTop: 2 },
   typeBtn: { borderRadius: 14, borderWidth: 1, borderColor: '#E8E0D8', padding: 14, backgroundColor: '#F2EDE8' },
   typeBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
   typeBtnLabel: { color: '#7A6A62', fontSize: 15, fontWeight: '700' },
