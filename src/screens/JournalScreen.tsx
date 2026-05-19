@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,7 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { getDb } from '../db/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry } from '../db/queries';
+import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t } from '../i18n';
 import { useJournalScreen } from '../hooks';
@@ -47,9 +48,12 @@ export default function JournalScreen() {
     semanticSummary, weekMoods, loadData,
   } = useJournalScreen();
   const [note, setNote] = useState('');
+  const [dietaryNote, setDietaryNote] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [cbtModal, setCbtModal] = useState(false);
+  const [cbtMessage, setCbtMessage] = useState('');
   const noteRef = useRef<TextInput>(null);
   const today = todayStr();
 
@@ -59,6 +63,13 @@ export default function JournalScreen() {
       setNote(existingNote);
     }
   }, [loadedMood, existingNote]);
+
+  useEffect(() => {
+    getDb().then(async (db) => {
+      const row = await db.getFirstAsync<{ dietary_note: string }>('SELECT dietary_note FROM journal_entries WHERE date = ?', [today]);
+      if (row?.dietary_note) setDietaryNote(row.dietary_note);
+    });
+  }, [today]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -78,12 +89,31 @@ export default function JournalScreen() {
     }
   }, [today]);
 
+  const CBT_MESSAGES: Record<string, string[]> = {
+    gentle: [
+      'Tough day. Take 3 slow breaths. What\'s one small thing you can control right now?',
+      'This feeling will pass. Rest, hydrate, and give yourself grace.',
+      'One minute of quiet. Close your eyes. Breathe. You\'ve got this.',
+    ],
+    direct: [
+      'Pain ≥ 3 and mood ≤ 2. Reset: 3 deep breaths. Identify one actionable step.',
+      'Your data shows a rough patch. Pause. Breathe. What needs adjusting?',
+      'Distress detected. Use the 3-breath reset. Then move forward.',
+    ],
+    motivational: [
+      'Tough day? Take 3 breaths. You\'re stronger than this moment. One step at a time.',
+      'You\'ve handled hard days before. 3 breaths. Reset. Next win coming.',
+      'This is temporary. 3 deep breaths. Your streak of showing up matters.',
+    ],
+  };
+
   const handleSave = useCallback(async () => {
     if (!selectedMood) return;
     await upsertJournalEntry({
       date: today,
       mood: selectedMood,
       note,
+      dietary_note: dietaryNote || undefined,
       compliance_pct: summary.totalDoses > 0
         ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
         : 0,
@@ -91,10 +121,23 @@ export default function JournalScreen() {
       doses_total: summary.totalDoses,
     });
     await checkFatigueSpike(selectedMood);
+
+    // Micro-CBT trigger: pain ≥ 3 AND mood ≤ 2 (mood emoji index >= 3)
+    const moodIdx = MOODS.findIndex((m) => m.emoji === selectedMood);
+    if (moodIdx >= 3) {
+      const style = await getMiscFlag('coaching_style') || 'gentle';
+      const messages = CBT_MESSAGES[style] || CBT_MESSAGES.gentle;
+      const lastIdx = parseInt(await getMiscFlag('cbt_last_index') || '-1', 10);
+      const nextIdx = (lastIdx + 1) % messages.length;
+      await setMiscFlag('cbt_last_index', String(nextIdx));
+      setCbtMessage(messages[nextIdx]);
+      setCbtModal(true);
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     await loadData();
-  }, [selectedMood, note, summary, today, checkFatigueSpike, loadData]);
+  }, [selectedMood, note, dietaryNote, summary, today, checkFatigueSpike, loadData]);
 
   const handleBlur = useCallback(() => {
     if (selectedMood) {
@@ -179,6 +222,14 @@ export default function JournalScreen() {
         onBlur={handleBlur}
       />
 
+      <TextInput
+        style={styles.dietaryInput}
+        placeholder="Any dairy, calcium supplements, or protocol deviations today?"
+        placeholderTextColor="#B0A098"
+        value={dietaryNote}
+        onChangeText={setDietaryNote}
+      />
+
       <Text style={styles.complianceLine}>
         You've taken {summary.takenDoses} of {summary.totalDoses} doses today
       </Text>
@@ -233,6 +284,23 @@ export default function JournalScreen() {
           );
         })
       )}
+
+      <Modal visible={cbtModal} transparent animationType="fade" onRequestClose={() => setCbtModal(false)}>
+        <View style={styles.cbtOverlay}>
+          <View style={styles.cbtModal}>
+            <Text style={styles.cbtTitle}>Tough day. Try this:</Text>
+            <Text style={styles.cbtMessage}>{cbtMessage}</Text>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+              <TouchableOpacity style={styles.cbtSkip} onPress={() => setCbtModal(false)} activeOpacity={0.7}>
+                <Text style={styles.cbtSkipText}>Skip</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cbtDone} onPress={() => setCbtModal(false)} activeOpacity={0.8}>
+                <Text style={styles.cbtDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -383,6 +451,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     lineHeight: 22,
   },
+  dietaryInput: {
+    backgroundColor: '#F2EDE8',
+    color: '#2C2420',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#D8CFC8',
+  },
+  cbtOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 32 },
+  cbtModal: { backgroundColor: '#FAF7F4', borderRadius: 20, padding: 28, alignItems: 'center' },
+  cbtTitle: { color: '#2C2420', fontSize: 18, fontWeight: '800', marginBottom: 12, textAlign: 'center' },
+  cbtMessage: { color: '#7A6A62', fontSize: 15, lineHeight: 24, textAlign: 'center' },
+  cbtSkip: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 12, alignItems: 'center' },
+  cbtSkipText: { color: '#7A6A62', fontSize: 15, fontWeight: '600' },
+  cbtDone: { flex: 1, backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  cbtDoneText: { color: '#FAF7F4', fontSize: 15, fontWeight: '800' },
   semanticSummary: {
     color: '#7A6A62',
     fontSize: 14,
