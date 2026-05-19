@@ -46,7 +46,7 @@ export default function PermissionPrimingModal({ visible, onComplete, onSkip }: 
           <Text style={styles.title}>Stay on Track</Text>
           <Text style={styles.body}>
             Notifications help you remember every dose, track your water, and stay
-            consistent with your Coimbra Protocol.
+            consistent with your Protocol.
           </Text>
           <Text style={styles.body}>
             We'll send you gentle reminders when a dose is due, when it's time to

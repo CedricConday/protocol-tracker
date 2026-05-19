@@ -94,7 +94,7 @@ export default function CaregiverScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.heading}>Caregiver Mode</Text>
-      <Text style={styles.sub}>Supporting someone on the Coimbra Protocol</Text>
+      <Text style={styles.sub}>Supporting someone on the Protocol</Text>
 
       {/* Sharing approval status */}
       <View style={[styles.sharingBanner, sharingApproved ? styles.sharingOn : styles.sharingOff]}>

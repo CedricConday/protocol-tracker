@@ -1,7 +1,7 @@
 import { getDb } from './schema';
 import { AWARENESS_DATES } from './awarenessData';
 
-// Coimbra Protocol standard supplement stack
+// the Protocol standard supplement stack
 // Timing based on standard protocol — your prescriber specific doses to be entered at onboarding
 const SUPPLEMENTS = [
   { id: 'vit_d3', name: 'Vitamin D3', form: 'softgel', category: 'core', notes: 'Anchor supplement. Fat-soluble — must be taken with fatty meal.' },

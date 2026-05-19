@@ -288,7 +288,7 @@ export default function HomeScreen() {
         <Text style={[styles.greeting, { textAlign: 'center' }]}>
           {isCaregiver
             ? (caregiverPatientName ? `Tracking ${caregiverPatientName.split(' ')[0]}` : 'Caregiver View')
-            : (patientName ? `Hello, ${patientName.split(' ')[0]}` : 'Coimbra Protocol')}
+            : (patientName ? `Hello, ${patientName.split(' ')[0]}` : 'the Protocol')}
         </Text>
         {isCaregiver && (
           <Text style={{ fontSize: 12, color: '#B0A098', marginTop: 2, textAlign: 'center' }}>
@@ -507,7 +507,7 @@ export default function HomeScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>90-Day Milestone 🏆</Text>
             <Text style={styles.modalBody}>
-              You've maintained the Coimbra Protocol for {currentStreak} consecutive days. Research shows consistent adherence at this stage significantly reduces relapse risk. Keep going.
+              You've maintained the Protocol for {currentStreak} consecutive days. Research shows consistent adherence at this stage significantly reduces relapse risk. Keep going.
             </Text>
             <TouchableOpacity
               style={styles.modalButton}

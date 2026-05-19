@@ -25,7 +25,7 @@ const CITATIONS = [
     pmid: '17634462',
   },
   {
-    finding: 'Coimbra Protocol patients showed marked reduction in EDSS scores and stabilized disability progression with rigorous dietary adherence.',
+    finding: 'the Protocol patients showed marked reduction in EDSS scores and stabilized disability progression with rigorous dietary adherence.',
     authors: 'Coimbra CG, Junqueira VB',
     journal: 'Arq Neuropsiquiatr',
     year: '2003',
@@ -52,19 +52,19 @@ export default function AboutScreen() {
         </View>
       </View>
 
-      <Text style={styles.appName}>Coimbra Protocol</Text>
+      <Text style={styles.appName}>the Protocol</Text>
       <Text style={styles.version}>v{appVersion}</Text>
 
       <Text style={styles.description}>
-        A personal companion for patients following the Coimbra Protocol.
+        A personal companion for patients following the Protocol.
         Track supplements, monitor compliance, manage events, and stay
         connected with your care plan.
       </Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>What is Coimbra Protocol?</Text>
+        <Text style={styles.sectionTitle}>What is the Protocol?</Text>
         <Text style={styles.sectionBody}>
-          The Coimbra Protocol is a high-dose vitamin D3 supplementation
+          The Protocol is a high-dose vitamin D3 supplementation
           protocol developed by Dr. Cicero Galli Coimbra for the treatment
           of autoimmune diseases. Always consult your physician before making
           changes to your protocol.
@@ -88,7 +88,7 @@ export default function AboutScreen() {
           </TouchableOpacity>
         ))}
         <Text style={styles.citationDisclaimer}>
-          These findings are provided for informational purposes only. This app does not provide medical advice. Consult your Coimbra Protocol physician before making any changes.
+          These findings are provided for informational purposes only. This app does not provide medical advice. Consult your Protocol physician before making any changes.
         </Text>
       </View>
 

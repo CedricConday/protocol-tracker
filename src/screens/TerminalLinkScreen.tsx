@@ -51,13 +51,13 @@ export default function TerminalLinkScreen() {
     try {
       payload = JSON.parse(data);
     } catch {
-      setErrorMsg('Invalid QR code. Open Coimbra Terminal and scan its login QR.');
+      setErrorMsg('Invalid QR code. Open MS Terminal and scan its login QR.');
       setStatus('error');
       return;
     }
 
     if (!payload.sessionId || !payload.timestamp) {
-      setErrorMsg('QR code is not from Coimbra Terminal.');
+      setErrorMsg('QR code is not from MS Terminal.');
       setStatus('error');
       return;
     }
@@ -118,7 +118,7 @@ export default function TerminalLinkScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.heading}>Camera Access Needed</Text>
-        <Text style={styles.subtitle}>Required to scan the Coimbra Terminal QR code.</Text>
+        <Text style={styles.subtitle}>Required to scan the MS Terminal QR code.</Text>
         <TouchableOpacity style={styles.btn} onPress={requestPermission}>
           <Text style={styles.btnText}>Allow Camera</Text>
         </TouchableOpacity>
@@ -133,7 +133,7 @@ export default function TerminalLinkScreen() {
           <Text style={styles.successCheck}>✓</Text>
         </View>
         <Text style={styles.heading}>Terminal Linked</Text>
-        <Text style={styles.subtitle}>Your Coimbra Terminal session is now active.{'\n'}Return to the browser to continue.</Text>
+        <Text style={styles.subtitle}>Your MS Terminal session is now active.{'\n'}Return to the browser to continue.</Text>
         <TouchableOpacity style={[styles.btn, styles.btnOutline]} onPress={reset}>
           <Text style={[styles.btnText, styles.btnTextOutline]}>Scan Again</Text>
         </TouchableOpacity>
@@ -157,7 +157,7 @@ export default function TerminalLinkScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Link to Terminal</Text>
-      <Text style={styles.subtitle}>Point your camera at the QR code on{'\n'}coimbra.app or your local terminal.</Text>
+      <Text style={styles.subtitle}>Point your camera at the QR code on{'\n'}mscentral.app or your local terminal.</Text>
 
       <View style={styles.cameraWrapper}>
         {status === 'scanning' ? (

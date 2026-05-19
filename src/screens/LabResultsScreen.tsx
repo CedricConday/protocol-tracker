@@ -25,7 +25,7 @@ interface LabResult {
   notes: string;
 }
 
-// Coimbra Protocol target ranges
+// the Protocol target ranges
 const TARGETS = {
   vit_d: { min: 150, max: 280, unit: 'ng/mL', label: 'Vit D 25-OH' },
   pth: { min: 10, max: 30, unit: 'pg/mL', label: 'PTH' },
@@ -154,7 +154,7 @@ export default function LabResultsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
       <View style={styles.targetCard}>
-        <Text style={styles.targetTitle}>Coimbra Protocol Target Ranges</Text>
+        <Text style={styles.targetTitle}>the Protocol Target Ranges</Text>
         {Object.entries(TARGETS).map(([, t]) => (
           <Text key={t.label} style={styles.targetRow}>
             {t.label}: <Text style={styles.targetRange}>{t.min}–{t.max} {t.unit}</Text>
@@ -228,7 +228,7 @@ export default function LabResultsScreen() {
         <EmptyState
           icon="🧪"
           title="No lab results yet"
-          subtitle="Add your Vitamin D, PTH, and Calcium readings to track trends against Coimbra Protocol targets."
+          subtitle="Add your Vitamin D, PTH, and Calcium readings to track trends against the Protocol targets."
           actionLabel="Add First Result"
           onAction={() => setShowForm(true)}
         />

@@ -544,7 +544,7 @@ export default function SettingsScreen() {
             <View style={styles.separator} />
             <NavRow icon="download-outline" label="Export My Data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
             <View style={styles.separator} />
-            <NavRow icon="terminal" label="Link to Coimbra Terminal" sub="Scan QR on coimbra.app" onPress={() => navigation.navigate('TerminalLink')} />
+            <NavRow icon="terminal" label="Link to MS Terminal" sub="Scan QR on mscentral.app" onPress={() => navigation.navigate('TerminalLink')} />
             <View style={styles.separator} />
             <View style={[styles.navRow, { paddingVertical: 14 }]}>
               <Ionicons name="information-circle-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />
@@ -579,7 +579,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── VERSION ──────────────────────────────────────────────────── */}
-          <Text style={styles.versionText}>Coimbra Protocol App · v1.0.0 · © 2026</Text>
+          <Text style={styles.versionText}>the Protocol App · v1.0.0 · © 2026</Text>
 
         </ScrollView>
 

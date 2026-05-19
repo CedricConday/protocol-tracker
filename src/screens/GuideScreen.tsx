@@ -162,7 +162,7 @@ export default function GuideScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
       }
     >
-      <Text style={styles.heading}>Coimbra Protocol Guide</Text>
+      <Text style={styles.heading}>the Protocol Guide</Text>
 
       {/* RESEARCH NEWS */}
       <View style={styles.sectionHeader}>

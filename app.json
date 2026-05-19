@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "coimbra-patient",
-    "slug": "coimbra-patient",
+    "name": "MS Central",
+    "slug": "ms-central",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

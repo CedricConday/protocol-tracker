@@ -167,7 +167,7 @@ export default function ScheduleScreen() {
           activeOpacity={0.9}
         >
           <Text style={styles.highDoseBannerText}>
-            ⚠ High-dose D3 detected. Ensure adequate hydration (2.5L/day), low-calcium diet, and regular kidney function monitoring per Coimbra Protocol guidelines.
+            ⚠ High-dose D3 detected. Ensure adequate hydration (2.5L/day), low-calcium diet, and regular kidney function monitoring per the Protocol guidelines.
           </Text>
           <Text style={styles.highDoseBannerDismiss}>Got it</Text>
         </TouchableOpacity>

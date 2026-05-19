@@ -28,7 +28,7 @@ interface Props {
 
 const STEPS = [
   {
-    title: 'Welcome to Coimbra Protocol',
+    title: 'Welcome to the Protocol',
     icon: '🧬',
     body: 'A personal companion for MS patients on Dr. Coimbra\'s high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
   },
@@ -151,11 +151,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
             </Animated.View>
             <Text style={styles.title}>Welcome, let's get you set up</Text>
             <Text style={styles.body}>
-              This app is your daily companion for the Coimbra Protocol. We'll keep it simple.
+              This app is your daily companion for the Protocol. We'll keep it simple.
             </Text>
             <View style={styles.qolCard}>
               <Text style={styles.qolStat}>83.6 <Text style={styles.qolUnit}>/ 100</Text></Text>
-              <Text style={styles.qolLabel}>Physical QoL in Coimbra Protocol patients</Text>
+              <Text style={styles.qolLabel}>Physical QoL in the Protocol patients</Text>
               <Text style={styles.qolSource}>vs 66.9 in controls · doi:10.3390/ctn7020012</Text>
             </View>
             <Text style={styles.inputLabel}>Who is using this app?</Text>
@@ -237,7 +237,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                     keyboardType="numeric"
                   />
                   <Text style={styles.hint}>
-                    Your doctor determines the right dose. Protocol doses typically range from 10,000 to 100,000+ IU/day based on body weight. Low-dose (1,000–5,000 IU) is NOT the Coimbra Protocol.
+                    Your doctor determines the right dose. Protocol doses typically range from 10,000 to 100,000+ IU/day based on body weight. Low-dose (1,000–5,000 IU) is NOT the Protocol.
                   </Text>
                 </>
               )}
