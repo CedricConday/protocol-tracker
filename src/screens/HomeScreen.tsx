@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as StoreReview from 'expo-store-review';
 import {
   Animated,
+  LayoutAnimation,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -369,6 +370,7 @@ export default function HomeScreen() {
   const [vitDDanger, setVitDDanger] = useState<number | null>(null);
   const [milestoneModalVisible, setMilestoneModalVisible] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [dosesExpanded, setDosesExpanded] = useState(false);
 
   const loadDay = useCallback(async () => {
     const anchor = await getAnchor();
@@ -521,6 +523,10 @@ export default function HomeScreen() {
   useEffect(() => {
     getNextMedicalEvent().then(setNextMedicalEvent).catch(() => setNextMedicalEvent(null));
   }, []);
+
+  useEffect(() => {
+    setDosesExpanded(false);
+  }, [doses]);
 
   useEffect(() => {
     (async () => {
@@ -847,16 +853,63 @@ export default function HomeScreen() {
 
         {!isSimple && <NextDoseCard doses={doses} onPress={setSelectedDose} />}
 
-        <Text style={styles.sectionLabel}>DOSES</Text>
-        {doses.length === 0 ? (
+        {doses.length > 0 ? (
+          <>
+            {doses.every((d) => d.status === 'taken') ? (
+              <Text style={styles.allDoneLabel}>All done ✓</Text>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onLongPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setDosesExpanded(true);
+                }}
+                onPress={dosesExpanded ? undefined : () => {
+                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  setDosesExpanded(true);
+                }}
+              >
+                {dosesExpanded ? (
+                  <View>
+                    <Text style={styles.sectionLabel}>DOSES</Text>
+                    {doses.map((dose) => (
+                      <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} isSimple={isSimple} />
+                    ))}
+                    <TouchableOpacity
+                      style={styles.collapseBtn}
+                      onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setDosesExpanded(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.collapseBtnText}>Collapse</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View>
+                    {/* Stacked peek cards */}
+                    <View style={styles.stackPeek}>
+                      {doses.slice(1, 4).map((d, i) => (
+                        <View key={d.id} style={[styles.stackCard, { top: -i * 8 }]} />
+                      ))}
+                    </View>
+                    <Text style={styles.stackLabel}>
+                      {doses.length - 1} more dose{doses.length - 1 !== 1 ? 's' : ''} today — tap to view all
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
+          </>
+        ) : (
           <View style={styles.emptyDoses}>
             <Text style={styles.emptyDosesIcon}>💊</Text>
             <Text style={styles.emptyDosesTitle}>No supplements scheduled</Text>
             <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your Coimbra supplements.</Text>
           </View>
-        ) : doses.map((dose) => (
-          <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} isSimple={isSimple} />
-        ))}
+        )}
 
         {!isSimple && (
           <>
@@ -1262,6 +1315,7 @@ const styles = StyleSheet.create({
   emptyDosesIcon: { fontSize: 40, marginBottom: 12 },
   emptyDosesTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
   emptyDosesSub: { color: '#B0A098', fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  allDoneLabel: { color: '#22c55e', fontSize: 16, fontWeight: '700', textAlign: 'center', marginVertical: 12 },
   relapseButtonInline: {
     borderWidth: 1.5,
     borderColor: '#C04040',
@@ -1273,6 +1327,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   sectionLabel: { color: '#B0A098', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
+  stackPeek: { height: 20, marginBottom: 8, position: 'relative' },
+  stackCard: { position: 'absolute', left: 0, right: 0, height: 8, backgroundColor: '#F0EBE8', borderRadius: 6, shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  stackLabel: { color: '#C96A50', fontSize: 13, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  collapseBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4, borderWidth: 1, borderColor: '#D8CFC8' },
+  collapseBtnText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
   relapseButtonText: {
     color: '#C04040',
     fontSize: 14,
