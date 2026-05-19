@@ -41,7 +41,6 @@ export function useHomeScreen(navigation: any) {
   const [starting, setStarting] = useState(false);
   const [reportReadyUri, setReportReadyUri] = useState<string | null>(null);
   const [nextMedicalEvent, setNextMedicalEvent] = useState<MedicalEvent | null>(null);
-  const [showSimpleModeConsent, setShowSimpleModeConsent] = useState(false);
   const [showMealPrompt, setShowMealPrompt] = useState(false);
   const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
 
@@ -108,12 +107,6 @@ export function useHomeScreen(navigation: any) {
     clearAppBadge().catch(() => {});
     AsyncStorage.getItem('auto_report_ready_uri').then((uri) => {
       if (uri) setReportReadyUri(uri);
-    });
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem('simple_mode_consent_shown').then((v) => {
-      if (!v) setShowSimpleModeConsent(true);
     });
   }, []);
 
@@ -231,7 +224,6 @@ export function useHomeScreen(navigation: any) {
     refreshing, setRefreshing, starting, setStarting,
     reportReadyUri, setReportReadyUri,
     nextMedicalEvent,
-    showSimpleModeConsent, setShowSimpleModeConsent,
     showMealPrompt, setShowMealPrompt,
     showFirstEntryWizard, setShowFirstEntryWizard,
     loadDay,

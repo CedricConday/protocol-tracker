@@ -1,6 +1,5 @@
 import { Alert, Modal } from 'react-native';
 import * as Sharing from 'expo-sharing';
-import { useSimpleMode } from '../context/SimpleModeContext';
 import { useHomeScreen } from '../hooks';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -37,109 +36,33 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-function formatTime12(d: Date): string {
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function relativeTimeLabel(dose: ScheduledDose): string {
-  const now = new Date();
-  const diffMs = dose.scheduledTime.getTime() - now.getTime();
-  const diffMin = Math.round(diffMs / 60_000);
-
-  if (dose.status === 'due' || diffMin <= 0) return 'NOW';
-  if (diffMin <= 60) return `In ${diffMin} min`;
-  return formatTime12(dose.scheduledTime);
-}
-
 // ─── Progress Header Card ────────────────────────────────────────────────────
 
 interface ProgressHeaderProps {
   t0: Date | null;
   doses: ScheduledDose[];
   patientName?: string;
-  firstMealTime?: string | null;
-  isSimple?: boolean;
 }
 
-function ProgressHeader({ t0, doses, patientName, firstMealTime, isSimple }: ProgressHeaderProps) {
+function ProgressHeader({ t0, doses }: ProgressHeaderProps) {
   const total  = doses.length;
   const taken  = doses.filter(d => d.status === 'taken').length;
-  const pct    = total > 0 ? taken / total : 0;
   const today  = formatDate(new Date());
-  const startedStr = t0 ? `Started ${formatTime12(t0)}` : null;
   const allDone = total > 0 && taken === total;
-  const fillAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(fillAnim, {
-      toValue: pct,
-      duration: 600,
-      useNativeDriver: false,
-    }).start();
-  }, [pct, fillAnim]);
-
-  if (isSimple) {
-    return (
-       <View style={[headerStyles.card, { paddingBottom: 10 }]}>
-         <Text style={headerStyles.dateText}>{today}</Text>
-         <View style={{ height: 12 }} />
-         {allDone ? (
-           <Text style={[headerStyles.celebrationText, { fontSize: 18 }]}>All doses done! ✓</Text>
-         ) : (
-           <View style={headerStyles.summaryRow}>
-             <Text style={headerStyles.summaryCount}>{taken}</Text>
-             <Text style={headerStyles.summaryOf}> of {total} doses</Text>
-           </View>
-         )}
-       </View>
-    );
-  }
 
   return (
-    <View style={headerStyles.card}>
-      {/* Top row */}
-      <View style={headerStyles.topRow}>
-        <Text style={headerStyles.dateText}>{today}</Text>
-        <View style={headerStyles.topRight}>
-          {startedStr && <Text style={headerStyles.startedText}>{startedStr}</Text>}
-          {firstMealTime && <Text style={headerStyles.mealText}>Meal: {firstMealTime}</Text>}
-        </View>
-      </View>
-
-      {/* Tick marks */}
-      <View style={headerStyles.tickRow}>
-        <Text style={headerStyles.tick}>0</Text>
-        <Text style={headerStyles.tick}>{total}</Text>
-      </View>
-
-      {/* Progress bar — animated fill */}
-      <View style={headerStyles.trackOuter}>
-        <Animated.View
-          style={[
-            headerStyles.trackFill,
-            { width: fillAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) },
-          ]}
-        />
-      </View>
-
-      {/* Summary */}
-      {allDone ? (
-        <View style={headerStyles.celebrationRow}>
-          <Text style={headerStyles.celebrationIcon}>✓</Text>
-          <Text style={headerStyles.celebrationText}>
-            All doses done, {patientName ? patientName.split(' ')[0] : ''}!{'  '}Well done.
-          </Text>
-        </View>
-      ) : total > 0 ? (
-        <View style={headerStyles.summaryRow}>
-          <Text style={headerStyles.summaryCount}>{taken}</Text>
-          <Text style={headerStyles.summaryOf}> of {total} doses</Text>
-          <Text style={headerStyles.summaryLabel}> today</Text>
-        </View>
-      ) : (
-        <Text style={headerStyles.readyText}>Start when you're ready</Text>
-      )}
-    </View>
+     <View style={[headerStyles.card, { paddingBottom: 10 }]}>
+       <Text style={headerStyles.dateText}>{today}</Text>
+       <View style={{ height: 12 }} />
+       {allDone ? (
+         <Text style={[headerStyles.celebrationText, { fontSize: 18 }]}>All doses done! ✓</Text>
+       ) : (
+         <View style={headerStyles.summaryRow}>
+           <Text style={headerStyles.summaryCount}>{taken}</Text>
+           <Text style={headerStyles.summaryOf}> of {total} doses</Text>
+         </View>
+       )}
+     </View>
   );
 }
 
@@ -238,105 +161,12 @@ const headerStyles = StyleSheet.create({
   },
 });
 
-// ─── Next Dose Spotlight Card ────────────────────────────────────────────────
 
-interface NextDoseCardProps {
-  doses: ScheduledDose[];
-  onPress: (dose: ScheduledDose) => void;
-}
-
-function NextDoseCard({ doses, onPress }: NextDoseCardProps) {
-  const next = doses.find(d => d.status === 'due' || d.status === 'upcoming');
-  if (!next) return null;
-
-  const label = relativeTimeLabel(next);
-  const isDue = next.status === 'due' || label === 'NOW';
-
-  return (
-    <TouchableOpacity
-      style={nextStyles.card}
-      onPress={() => onPress(next)}
-      activeOpacity={0.8}
-    >
-      <View style={nextStyles.left}>
-        <Text style={nextStyles.nextLabel}>NEXT</Text>
-        <Text style={nextStyles.name} numberOfLines={1}>{next.supplementName}</Text>
-        <Text style={nextStyles.meta}>
-          {next.doseAmount}{next.form ? ` · ${next.form}` : ''}
-        </Text>
-        {next.withFood && (
-          <Text style={nextStyles.foodTag}>with food</Text>
-        )}
-      </View>
-      <View style={nextStyles.right}>
-        <Text style={[nextStyles.countdown, isDue && nextStyles.countdownDue]}>
-          {label}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const nextStyles = StyleSheet.create({
-  card: {
-    backgroundColor: '#F2EDE8',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#2C2420',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  left: {
-    flex: 1,
-    marginRight: 12,
-  },
-  nextLabel: {
-    color: '#B0A098',
-    fontSize: 10,
-    letterSpacing: 1,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-  },
-  name: {
-    color: '#2C2420',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  meta: {
-    color: '#7A6A62',
-    fontSize: 14,
-    marginTop: 2,
-  },
-  foodTag: {
-    color: '#C4882A',
-    fontSize: 11,
-    marginTop: 4,
-  },
-  right: {
-    alignItems: 'flex-end',
-  },
-  countdown: {
-    color: '#2C2420',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  countdownDue: {
-    color: '#C96A50',
-    fontSize: 18,
-  },
-});
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
-  const { isSimple, toggleSimple } = useSimpleMode();
   const {
     t0, setT0, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
@@ -349,7 +179,6 @@ export default function HomeScreen() {
     todayMood, setTodayMood, todayNotePreview, latestJournal,
     refreshing, setRefreshing, starting, setStarting,
     reportReadyUri, setReportReadyUri, nextMedicalEvent,
-    showSimpleModeConsent, setShowSimpleModeConsent,
     showMealPrompt, setShowMealPrompt, showFirstEntryWizard, setShowFirstEntryWizard,
     loadDay,
   } = useHomeScreen(navigation);
@@ -454,24 +283,19 @@ export default function HomeScreen() {
   };
 
   const renderHeader = () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: isSimple ? 16 : 12, paddingTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingTop: 12 }}>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.greeting, { textAlign: isSimple ? 'center' : 'left' }]}>
+        <Text style={[styles.greeting, { textAlign: 'center' }]}>
           {isCaregiver
             ? (caregiverPatientName ? `Tracking ${caregiverPatientName.split(' ')[0]}` : 'Caregiver View')
             : (patientName ? `Hello, ${patientName.split(' ')[0]}` : 'Coimbra Protocol')}
         </Text>
         {isCaregiver && (
-          <Text style={{ fontSize: 12, color: '#B0A098', marginTop: 2, textAlign: isSimple ? 'center' : 'left' }}>
+          <Text style={{ fontSize: 12, color: '#B0A098', marginTop: 2, textAlign: 'center' }}>
             Caregiver · {patientName || 'Your account'}
           </Text>
         )}
       </View>
-      {!isSimple && !isCaregiver && (
-        <TouchableOpacity onPress={toggleSimple} style={{ padding: 8 }}>
-          <MaterialCommunityIcons name="circle-slice-8" size={24} color="#C96A50" />
-        </TouchableOpacity>
-      )}
       {isCaregiver && (
         <TouchableOpacity
           style={{ backgroundColor: '#C96A50', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
@@ -492,57 +316,9 @@ export default function HomeScreen() {
         <View style={styles.centered}>
           {renderHeader()}
           <Text style={styles.subtitle}>
-            {isSimple
-              ? "Ready for today's doses?"
-              : "Tap when you take your first supplement.\nEverything else falls into place from there."}
+            {"Ready for today's doses?"}
           </Text>
           <StartDayButton onPress={handleStartDay} loading={starting} />
-          
-          {!isSimple && (
-            <>
-              <TouchableOpacity
-                style={styles.relapseButton}
-                onPress={() => navigation.navigate('Journal', { screen: 'Relapse' })}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.relapseButtonText}>Log a symptom</Text>
-              </TouchableOpacity>
-              {waterMl > 0 && (
-                <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
-              )}
-              <View style={styles.exerciseCard}>
-                <Text style={styles.exerciseLabel}>Exercise today</Text>
-                {exerciseMinutes >= 30 ? (
-                  <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
-                ) : (
-                  <>
-                    <View style={styles.exercisePillRow}>
-                      {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
-                        <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
-                          <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <View style={styles.exercisePillRow}>
-                      {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
-                        <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
-                          <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    <View style={styles.exerciseMinRow}>
-                      {[15, 30, 60].map((min) => (
-                        <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
-                          <Text style={styles.exerciseMinButtonText}>+{min}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </>
-                )}
-              </View>
-              <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
-            </>
-          )}
         </View>
       </SafeAreaView>
     );
@@ -614,16 +390,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {showSimpleModeConsent ? (
-          <View style={styles.consentBanner}>
-            <Text style={styles.consentBannerTitle}>Simple Mode Active</Text>
-            <Text style={styles.consentBannerText}>Advanced charts, trends, and protocol details are hidden. All data is still recorded. Tap below to acknowledge.</Text>
-            <TouchableOpacity style={styles.consentBannerBtn} onPress={async () => { await AsyncStorage.setItem('simple_mode_consent_shown', 'true'); setShowSimpleModeConsent(false); }} activeOpacity={0.8}>
-              <Text style={styles.consentBannerBtnText}>Got it</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
         {showEngagementNudge ? (
           <View style={styles.nudgeBanner}>
             <Text style={styles.nudgeBannerText}>Welcome back. It looks like you may have missed some doses. Your protocol works best with daily consistency.</Text>
@@ -640,9 +406,9 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <ProgressHeader t0={t0} doses={doses} patientName={patientName} firstMealTime={firstMealTime} isSimple={isSimple} />
+        <ProgressHeader t0={t0} doses={doses} />
 
-        {nextMedicalEvent && !isSimple ? (
+        {nextMedicalEvent ? (
           <UpcomingAppointmentCard
             event={nextMedicalEvent}
             onViewDetails={() => navigation.navigate('Calendar' as never)}
@@ -661,8 +427,6 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         ) : null}
-
-        {!isSimple && <NextDoseCard doses={doses} onPress={setSelectedDose} />}
 
         {doses.length > 0 ? (
           <>
@@ -685,7 +449,7 @@ export default function HomeScreen() {
                   <View>
                     <Text style={styles.sectionLabel}>DOSES</Text>
                     {doses.map((dose) => (
-                      <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} isSimple={isSimple} />
+                      <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} />
                     ))}
                     <TouchableOpacity
                       style={styles.collapseBtn}
@@ -722,156 +486,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {!isSimple && (
-          <>
-            <TouchableOpacity
-              style={styles.relapseButtonInline}
-              onPress={() => navigation.navigate('Journal', { screen: 'Relapse' })}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.relapseButtonText}>Log Event</Text>
-            </TouchableOpacity>
-            <Text style={[styles.sectionLabel, { marginTop: 8 }]}>WATER</Text>
-            <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
-            <View style={styles.exerciseCard}>
-              <Text style={styles.exerciseLabel}>Exercise today</Text>
-              {exerciseMinutes >= 30 ? (
-                <Text style={styles.exerciseDone}>{exerciseType} {exerciseIntensity} — {exerciseMinutes} min ✓</Text>
-              ) : (
-                <>
-                  <View style={styles.exercisePillRow}>
-                    {[['Walk', 'walk'], ['Run', 'run'], ['Swim', 'swim'], ['Bike', 'bike']].map(([label, val]) => (
-                      <TouchableOpacity key={val} style={[styles.exercisePill, exerciseType === val ? styles.exercisePillActive : null]} onPress={() => setExerciseType(val)} activeOpacity={0.7}>
-                        <Text style={[styles.exercisePillText, exerciseType === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={styles.exercisePillRow}>
-                    {[['Light', 'light'], ['Moderate', 'moderate'], ['Intense', 'intense']].map(([label, val]) => (
-                      <TouchableOpacity key={val} style={[styles.exerciseIntensityPill, exerciseIntensity === val ? styles.exerciseIntensityActive : null]} onPress={() => setExerciseIntensity(val)} activeOpacity={0.7}>
-                        <Text style={[styles.exercisePillText, exerciseIntensity === val ? styles.exercisePillTextActive : null]}>{label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <View style={styles.exerciseMinRow}>
-                    {[15, 30, 60].map((min) => (
-                      <TouchableOpacity key={min} style={styles.exerciseMinButton} onPress={() => handleLogExercise(min, exerciseType, exerciseIntensity)} activeOpacity={0.8}>
-                        <Text style={styles.exerciseMinButtonText}>+{min}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
-            </View>
-            <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
-            
-            {showMealPrompt && !firstMealTime && (
-              <View style={styles.mealPromptCard}>
-                <Text style={styles.mealPromptTitle}>When did you have your first meal?</Text>
-                <TouchableOpacity style={styles.mealPromptButton} onPress={handleLogMeal} activeOpacity={0.8}>
-                  <Text style={styles.mealPromptButtonText}>Now</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            
-            <TouchableOpacity style={styles.journalSummaryCard} onPress={() => navigation.navigate('Journal')} activeOpacity={0.7}>
-              <View style={styles.journalSummaryHeader}>
-                <Text style={styles.journalSummaryEmoji}>{todayMood ?? '—'}</Text>
-                <Text style={styles.journalSummaryTitle}>Journal</Text>
-              </View>
-              {todayMood ? (
-                <Text style={styles.journalSummaryPreview} numberOfLines={1}>{todayNotePreview || 'Tap to write more'}</Text>
-              ) : (
-                <Text style={styles.journalSummaryPrompt}>How are you feeling today?</Text>
-              )}
-            </TouchableOpacity>
 
-            {latestJournal !== undefined ? (
-              <TouchableOpacity style={styles.lastEntryCard} onPress={() => navigation.navigate('Journal')} activeOpacity={0.7}>
-                {latestJournal ? (
-                  <>
-                    <View style={styles.lastEntryTop}>
-                      <Text style={styles.lastEntryEmoji}>{latestJournal.mood}</Text>
-                      <Text style={styles.lastEntryDate}>{latestJournal.date}</Text>
-                    </View>
-                    <Text style={styles.lastEntryNote} numberOfLines={2}>
-                      {latestJournal.note.slice(0, 80)}{latestJournal.note.length > 80 ? '...' : ''}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={styles.lastEntryEmpty}>No journal entries yet. Tap to write your first.</Text>
-                )}
-              </TouchableOpacity>
-            ) : null}
-
-            {showD3MealHint ? (
-              <View style={styles.hintCard}>
-                <View style={styles.hintCardInner}>
-                  <Text style={styles.hintCardTitle}>D3 with meals</Text>
-                  <Text style={styles.hintCardText}>Vitamin D3 is fat-soluble. Take it with your largest meal of the day for best absorption — ideally breakfast or lunch.</Text>
-                </View>
-                <TouchableOpacity onPress={async () => { await AsyncStorage.setItem('d3_meal_hint_dismissed', 'true'); setShowD3MealHint(false); }}>
-                  <Text style={styles.hintCardDismiss}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {showMagnesiumHint ? (
-              <View style={styles.hintCard}>
-                <View style={styles.hintCardInner}>
-                  <Text style={styles.hintCardTitle}>Magnesium balance</Text>
-                  <Text style={styles.hintCardText}>High-dose D3 depletes magnesium. Ensure you're taking magnesium glycinate or malate at a separate time from calcium-rich foods.</Text>
-                </View>
-                <TouchableOpacity onPress={async () => { const week = new Date().toISOString().slice(0, 7); await AsyncStorage.setItem(`mag_hint_${week}`, 'true'); setShowMagnesiumHint(false); }}>
-                  <Text style={styles.hintCardDismiss}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            <Text style={styles.sectionLabel}>MEALS</Text>
-            <View style={styles.mealCard}>
-              <Text style={styles.mealCardTitle}>Meals today</Text>
-              <View style={styles.mealButtonRow}>
-                {(['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const).map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={styles.mealTypeBtn}
-                    activeOpacity={0.7}
-                    onPress={async () => {
-                      const today = new Date().toISOString().split('T')[0];
-                      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                      await logMeal(today, type, time);
-                      const meals = await getTodayMeals(today);
-                      setTodayMeals(meals);
-                    }}
-                  >
-                    <Text style={styles.mealTypeBtnText}>{type}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {todayMeals.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mealChipScroll}>
-                  {todayMeals.map((m) => (
-                    <View key={m.id} style={styles.mealChip}>
-                      <Text style={styles.mealChipText}>{m.meal_type} {m.time}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              ) : null}
-            </View>
-
-            <View style={styles.quickLinksRow}>
-              <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Calendar')} activeOpacity={0.7}>
-                <Ionicons name="calendar-outline" size={16} color="#888888" />
-                <Text style={styles.quickLinkText}>History</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickLink} onPress={() => navigation.navigate('Awareness')} activeOpacity={0.7}>
-                <Ionicons name="heart-outline" size={16} color="#888888" />
-                <Text style={styles.quickLinkText}>Awareness</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
       </ScrollView>
 
       <DoseDetailModal
