@@ -571,7 +571,13 @@ export default function SettingsScreen() {
             <NavRow icon="chatbubble-outline" label="Send Feedback" onPress={() => navigation.navigate('Feedback')} />
           </View>
 
-          {/* ── SECTION 5: ACCOUNT & SECURITY ─────────────────────────────── */}
+          {/* ── SECTION 5: APP ────────────────────────────────────────── */}
+          <Text style={styles.newSectionTitle}>App</Text>
+          <View style={styles.newSectionCard}>
+            <NavRow icon="chatbubble-ellipses-outline" label="Coaching Style" sub="Gentle · Direct · Motivational" onPress={() => navigation.navigate('CoachingStyle')} />
+          </View>
+
+          {/* ── SECTION 6: ACCOUNT & SECURITY ─────────────────────────────── */}
           <Text style={styles.newSectionTitle}>Account & Security</Text>
           <View style={styles.newSectionCard}>
             <NavRow icon="shield-checkmark-outline" label="Security & Passkeys" onPress={() => navigation.navigate('Security')} />
@@ -579,6 +585,8 @@ export default function SettingsScreen() {
             <NavRow icon="download-outline" label="Export My Data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
             <View style={styles.separator} />
             <NavRow icon="terminal" label="Link to MS Terminal" sub="Scan QR on mscentral.app" onPress={() => navigation.navigate('TerminalLink')} />
+            <View style={styles.separator} />
+            <NavRow icon="people-outline" label="Family Access" sub="Share code, manage connections" onPress={() => navigation.navigate('FamilySync')} />
             <View style={styles.separator} />
             <View style={[styles.navRow, { paddingVertical: 14 }]}>
               <Ionicons name="information-circle-outline" size={20} color="#C96A50" style={{ marginRight: 12 }} />

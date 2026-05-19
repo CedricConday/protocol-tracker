@@ -231,6 +231,44 @@ export default function LabResultsScreen() {
         </View>
       )}
 
+      {/* Trend Chart */}
+      {results.length >= 2 ? (
+        <View style={styles.trendSection}>
+          <Text style={styles.trendTitle}>Trends (last {Math.min(6, results.length)})</Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {(['vit_d_ngml', 'calcium_serum_mgdl', 'pth_pgml'] as const).map((field) => {
+              const data = results.slice(0, 6).reverse();
+              const values = data.map((r) => r[field]).filter((v): v is number => v !== null);
+              if (values.length < 2) return null;
+              const max = Math.max(...values);
+              const min = Math.min(...values);
+              const range = max - min || 1;
+              const label = field === 'vit_d_ngml' ? 'Vit D' : field === 'calcium_serum_mgdl' ? 'Ca' : 'PTH';
+              return (
+                <View key={field} style={styles.trendChart}>
+                  <Text style={styles.trendChartLabel}>{label}</Text>
+                  <View style={styles.miniChart}>
+                    {values.map((v, i) => {
+                      const h = ((v - min) / range) * 50;
+                      const isUp = i > 0 && v >= values[i - 1];
+                      return (
+                        <View key={i} style={{ alignItems: 'center', flex: 1 }}>
+                          <View style={[styles.miniBar, { height: Math.max(4, h), backgroundColor: i === values.length - 1 ? '#22c55e' : '#22c55e88' }]} />
+                          <Text style={styles.miniValue}>{v}</Text>
+                          <Text style={styles.miniDate}>{data[i].date.slice(5)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : results.length > 0 ? (
+        <Text style={styles.trendHint}>Add more results to see trends</Text>
+      ) : null}
+
       {results.length === 0 && !showForm ? (
         <EmptyState
           icon="🧪"
@@ -302,4 +340,13 @@ const styles = StyleSheet.create({
   cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
   cardHint: { color: '#E8E0D8', fontSize: 11, marginTop: 8 },
   disclaimer: { color: '#D8CFC8', fontSize: 11, textAlign: 'center', marginTop: 24 },
+  trendSection: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 20 },
+  trendTitle: { color: '#2C2420', fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  trendChart: { flex: 1, alignItems: 'center' },
+  trendChartLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '700', marginBottom: 8 },
+  miniChart: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 2 },
+  miniBar: { width: '100%', borderRadius: 2, minWidth: 6 },
+  miniValue: { color: '#7A6A62', fontSize: 8, marginTop: 2 },
+  miniDate: { color: '#B0A098', fontSize: 7 },
+  trendHint: { color: '#B0A098', fontSize: 13, textAlign: 'center', marginBottom: 16 },
 });
