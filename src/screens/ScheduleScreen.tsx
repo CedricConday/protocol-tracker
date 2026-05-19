@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DoseDetailModal from '../components/DoseDetailModal';
 import { confirmDose, getDoseLogs, getDaySummary, getScheduleRules, skipDose } from '../db/queries';
 import { useSimpleMode } from '../context/SimpleModeContext';
+import { useScheduleScreen } from '../hooks';
 import { formatDoseTime } from '../engine/scheduler';
 import type { DoseLog, DoseStatus, ScheduledDose } from '../types';
 import EmptyState from '../components/EmptyState';
@@ -110,53 +111,13 @@ function isoWeek(date: Date): string {
 
 export default function ScheduleScreen() {
   const navigation = useNavigation<any>();
-  const [doses, setDoses] = useState<ScheduledDose[]>([]);
-  const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [showHighDoseAlert, setShowHighDoseAlert] = useState(false);
-  const [activeView, setActiveView] = useState<'today' | 'history'>('today');
-  const [calCells, setCalCells] = useState<DayCell[]>([]);
-  const [calLoaded, setCalLoaded] = useState(false);
+  const {
+    doses, refreshing, setRefreshing, loaded, showHighDoseAlert, setShowHighDoseAlert,
+    calCells, calLoaded, loadSchedule, loadCalendar,
+  } = useScheduleScreen();
   const { isSimple } = useSimpleMode();
-
-  const loadCalendar = useCallback(async () => {
-    const dateStrs = buildLast30Days();
-    const todayStr = new Date().toISOString().split('T')[0];
-    const results = await Promise.all(
-      dateStrs.map(async (dateStr) => {
-        const summary = await getDaySummary(dateStr);
-        return { date: dateStr, dayNumber: new Date(dateStr + 'T12:00:00').getDate(), compliancePct: summary.compliancePct, totalDoses: summary.totalDoses, isToday: dateStr === todayStr };
-      }),
-    );
-    setCalCells(results);
-    setCalLoaded(true);
-  }, []);
-
-  const loadSchedule = useCallback(async () => {
-    const logs = await getDoseLogs();
-    setDoses(logs.map(logToScheduledDose));
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const rules = await getScheduleRules();
-      const d3 = rules.find((r) => r.supplement_id === 'vit_d3');
-      if (!d3) return;
-      const amount = parseFloat(d3.dose_amount);
-      if (isNaN(amount) || amount <= 40000) return;
-      const thisWeek = isoWeek(new Date());
-      const seen = await AsyncStorage.getItem('high_dose_alert_week');
-      if (seen !== thisWeek) setShowHighDoseAlert(true);
-    })();
-  }, []);
-
-  useEffect(() => {
-    loadSchedule();
-    const interval = setInterval(loadSchedule, 60_000);
-    return () => clearInterval(interval);
-  }, [loadSchedule]);
+  const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
+  const [activeView, setActiveView] = useState<'today' | 'history'>('today');
 
   useEffect(() => {
     if (activeView === 'history') loadCalendar();

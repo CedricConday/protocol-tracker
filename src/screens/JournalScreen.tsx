@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t } from '../i18n';
+import { useJournalScreen } from '../hooks';
 import EmptyState from '../components/EmptyState';
 
 const MOODS = [
@@ -41,58 +42,23 @@ function complianceBadgeColor(pct: number): string {
 
 export default function JournalScreen() {
   const navigation = useNavigation<any>();
+  const {
+    refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
+    semanticSummary, weekMoods, loadData,
+  } = useJournalScreen();
   const [note, setNote] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [summary, setSummary] = useState({ takenDoses: 0, totalDoses: 0 });
-  const [pastEntries, setPastEntries] = useState<JournalEntry[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [loadedMood, setLoadedMood] = useState<string | null>(null);
-  const [semanticSummary, setSemanticSummary] = useState('');
-  const [weekMoods, setWeekMoods] = useState<{ day: string; emoji: string | null; compliancePct: number }[]>([]);
   const noteRef = useRef<TextInput>(null);
   const today = todayStr();
 
-  const loadData = useCallback(async () => {
-    const daySummary = await getDaySummary(today);
-    setSummary({ takenDoses: daySummary.takenDoses, totalDoses: daySummary.totalDoses });
-
-    const existing = await getJournalEntry(today);
-    if (existing) {
-      setSelectedMood(existing.mood);
-      setNote(existing.note);
-      setLoadedMood(existing.mood);
-    }
-
-    const all = await getRecentJournalEntries(7);
-    setPastEntries(all.filter((e) => e.date !== today));
-
-    const summary = await getSemanticJournalSummary();
-    setSemanticSummary(summary);
-
-    // Build week mood data (last 7 days)
-    const weekDays: { day: string; emoji: string | null; compliancePct: number }[] = [];
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const todayIdx = ((new Date().getDay() + 6) % 7);
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const entry = all.find((e) => e.date === dateStr);
-      const summary = await getDaySummary(dateStr);
-      weekDays.push({
-        day: dayNames[(todayIdx - i + 7) % 7],
-        emoji: entry?.mood ?? null,
-        compliancePct: summary.compliancePct,
-      });
-    }
-    setWeekMoods(weekDays);
-  }, [today]);
-
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (loadedMood !== null) {
+      setSelectedMood(loadedMood);
+      setNote(existingNote);
+    }
+  }, [loadedMood, existingNote]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -126,11 +92,9 @@ export default function JournalScreen() {
     });
     await checkFatigueSpike(selectedMood);
     setSaved(true);
-    setLoadedMood(selectedMood);
     setTimeout(() => setSaved(false), 2000);
-    const all = await getRecentJournalEntries(7);
-    setPastEntries(all.filter((e) => e.date !== today));
-  }, [selectedMood, note, summary, today, checkFatigueSpike]);
+    await loadData();
+  }, [selectedMood, note, summary, today, checkFatigueSpike, loadData]);
 
   const handleBlur = useCallback(() => {
     if (selectedMood) {
