@@ -25,7 +25,6 @@ import {
   getSupplementForms, updateSupplementForm, getMiscFlag, setMiscFlag,
 } from '../db/queries';
 import { getDb } from '../db/schema';
-import { useSimpleMode } from '../context/SimpleModeContext';
 import ProFeatureGate from '../components/ProFeatureGate';
 import { t, setLanguage, getLanguage } from '../i18n';
 
@@ -69,7 +68,6 @@ export default function SettingsScreen() {
   const toggleSection = (key: string | null) => setExpandedSection((prev) => (!key || prev === key ? null : key));
 
   const navigation = useNavigation<any>();
-  const { isSimple, toggleSimple } = useSimpleMode();
   const resetToOnboarding = useAppReset();
 
   useEffect(() => {

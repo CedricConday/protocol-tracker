@@ -12,10 +12,9 @@ const statusBorderColors: Record<string, string> = {
 interface Props {
   dose: ScheduledDose;
   onPress?: (dose: ScheduledDose) => void;
-  isSimple?: boolean;
 }
 
-export default function DoseRow({ dose, onPress, isSimple }: Props) {
+export default function DoseRow({ dose, onPress }: Props) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const confirmScale = useRef(new Animated.Value(1)).current;
   const prevStatus = useRef(dose.status);
@@ -74,7 +73,7 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
   const borderColor = statusBorderColors[dose.status] ?? '#3b82f6';
 
   const inner = (
-    <Animated.View style={[styles.card, { backgroundColor: cardBg }, isSimple && { paddingVertical: 22 }, { transform: [{ scale: confirmScale }] }]}>
+    <Animated.View style={[styles.card, { backgroundColor: cardBg }, { paddingVertical: 22 }, { transform: [{ scale: confirmScale }] }]}>
       {/* Animated left accent border */}
       <Animated.View
         style={[styles.accentBorder, { backgroundColor: borderColor, opacity: pulseAnim }]}
@@ -116,7 +115,7 @@ export default function DoseRow({ dose, onPress, isSimple }: Props) {
       <TouchableOpacity
         onPress={() => onPress(dose)}
         activeOpacity={0.75}
-        style={isSimple ? { marginVertical: 4 } : null}
+        style={{ marginVertical: 4 }}
         accessibilityLabel={a11yLabel}
         accessibilityRole="button"
         accessibilityState={{ disabled: dose.status === 'taken' }}

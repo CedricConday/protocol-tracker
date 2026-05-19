@@ -12,11 +12,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DoseDetailModal from '../components/DoseDetailModal';
-import { confirmDose, getDoseLogs, getDaySummary, getScheduleRules, skipDose } from '../db/queries';
-import { useSimpleMode } from '../context/SimpleModeContext';
+import { confirmDose, skipDose } from '../db/queries';
 import { useScheduleScreen } from '../hooks';
-import { formatDoseTime } from '../engine/scheduler';
-import type { DoseLog, DoseStatus, ScheduledDose } from '../types';
+import type { ScheduledDose } from '../types';
 import EmptyState from '../components/EmptyState';
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -39,67 +37,6 @@ function getCellColor(pct: number, total: number) {
   return '#C04040';
 }
 
-const statusColors: Record<string, string> = {
-  upcoming: '#4A7A9B',
-  due: '#C96A50',
-  taken: '#5A8A5A',
-  missed: '#C04040',
-};
-
-const statusLabels: Record<string, string> = {
-  upcoming: 'Upcoming',
-  due: 'Due now',
-  taken: 'Done',
-  missed: 'Missed',
-};
-
-function logToScheduledDose(
-  log: DoseLog & {
-    supplement_name: string;
-    supplement_form: string;
-    dose_amount: string;
-    with_food: number;
-    tolerance_window: number;
-    skip_reason: string | null;
-  },
-): ScheduledDose {
-  const scheduledTime = new Date(log.scheduled_time);
-  const toleranceMs = log.tolerance_window * 60 * 1000;
-
-  let status = log.status as DoseStatus;
-  if (status === 'upcoming') {
-    const minsUntil = (log.scheduled_time - Date.now()) / 60000;
-    if (minsUntil <= 10 && minsUntil > -log.tolerance_window) {
-      status = 'due';
-    }
-  }
-
-  return {
-    id: log.id,
-    supplement_id: log.supplement_id,
-    supplementName: log.supplement_name,
-    form: log.supplement_form,
-    scheduledTime,
-    earliestTime: new Date(log.scheduled_time - toleranceMs),
-    latestTime: new Date(log.scheduled_time + toleranceMs),
-    status,
-    toleranceMinutes: log.tolerance_window,
-    doseAmount: log.dose_amount,
-    withFood: log.with_food === 1,
-    logId: log.id,
-    skipReason: log.skip_reason ?? undefined,
-  };
-}
-
-function formatTime12hr(date: Date): string {
-  let hours = date.getHours();
-  const mins = date.getMinutes();
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  const minStr = mins.toString().padStart(2, '0');
-  return `${hours}:${minStr}\n${ampm}`;
-}
 
 function isoWeek(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -115,7 +52,6 @@ export default function ScheduleScreen() {
     doses, refreshing, setRefreshing, loaded, showHighDoseAlert, setShowHighDoseAlert,
     calCells, calLoaded, loadSchedule, loadCalendar,
   } = useScheduleScreen();
-  const { isSimple } = useSimpleMode();
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [activeView, setActiveView] = useState<'today' | 'history'>('today');
 
@@ -240,72 +176,30 @@ export default function ScheduleScreen() {
       <FlatList
         data={doses}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item, index }) => {
-          const timeStr = formatTime12hr(item.scheduledTime);
-          const isPast = item.status === 'taken' || item.status === 'missed';
-          const isDue = item.status === 'due';
-          const dotColor = statusColors[item.status];
-          const dotLabel = statusLabels[item.status] ?? item.status;
-          const isFirst = index === 0;
-          const isLast = index === doses.length - 1;
-
+        renderItem={({ item }) => {
           return (
             <TouchableOpacity
               style={styles.row}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedDose(item); }}
               activeOpacity={0.7}
             >
-              {/* Left: time column */}
-              {!isSimple && <View style={styles.timeCol}>
-                <Text
-                  style={[
-                    styles.timeText,
-                    isPast ? styles.timeTextDimmed : null,
-                    isDue ? styles.timeTextDue : null,
-                  ]}
-                >
-                  {timeStr}
-                </Text>
-              </View>}
-
-              {/* Timeline track: vertical line + dot + accessible label */}
-              {!isSimple && <View style={styles.trackCol}>
-                <View style={[styles.lineSegment, isFirst ? styles.lineSegmentInvisible : null]} />
-                <View
-                  style={[styles.dot, { backgroundColor: dotColor }]}
-                  accessibilityLabel={dotLabel}
-                  accessibilityRole="image"
-                />
-                <View style={[styles.lineSegment, isLast ? styles.lineSegmentInvisible : null]} />
-              </View>}
-
-              {/* Right: supplement info */}
               <View style={styles.info}>
                 <Text style={styles.name}>{item.supplementName}</Text>
-                {!isSimple && <Text style={styles.doseAmount}>{item.doseAmount}</Text>}
-                {!isSimple && item.withFood && (
-                  <Text style={styles.foodTag}>with food</Text>
-                )}
-                {!isSimple && (
-                  <Text style={[styles.statusLabel, { color: dotColor }]}>{dotLabel}</Text>
-                )}
                 {item.status === 'missed' && item.logId && (
                   <Text style={styles.skipReasonText}>{item.skipReason ?? 'Skipped'}</Text>
                 )}
 
-                {isSimple && (
-                  <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
-                    {item.status === 'taken' ? (
-                      <Text style={{ color: '#5A8A5A', fontWeight: '700' }}>Taken</Text>
-                    ) : item.status === 'missed' ? (
-                      <Text style={{ color: '#C04040', fontWeight: '700' }}>Missed</Text>
-                    ) : (
-                      <View style={{ backgroundColor: item.status === 'due' ? '#C96A50' : '#F2EDE8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#C96A50' }}>
-                        <Text style={{ color: item.status === 'due' ? '#FAF7F4' : '#C96A50', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
+                <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
+                  {item.status === 'taken' ? (
+                    <Text style={{ color: '#5A8A5A', fontWeight: '700' }}>Taken</Text>
+                  ) : item.status === 'missed' ? (
+                    <Text style={{ color: '#C04040', fontWeight: '700' }}>Missed</Text>
+                  ) : (
+                    <View style={{ backgroundColor: item.status === 'due' ? '#C96A50' : '#F2EDE8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#C96A50' }}>
+                      <Text style={{ color: item.status === 'due' ? '#FAF7F4' : '#C96A50', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
             </TouchableOpacity>
           );

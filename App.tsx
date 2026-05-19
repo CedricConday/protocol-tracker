@@ -8,7 +8,6 @@ import { initDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
 import { loadPatientName, setupNotificationHandler, registerBackgroundTask } from './src/notifications';
 import { FontScaleProvider } from './src/context/FontScaleContext';
-import { SimpleModeProvider } from './src/context/SimpleModeContext';
 import PermissionPrimingModal from './src/components/PermissionPrimingModal';
 import SplashAnimation from './src/components/SplashAnimation';
 import { navigate } from './src/navigation/navigationRef';
@@ -104,11 +103,9 @@ export default function App() {
 
   return (
     <FontScaleProvider>
-      <SimpleModeProvider>
-        <StatusBar style="light" />
-        <Navigation />
-        {showSplash && <SplashAnimation onFinish={() => setShowSplash(false)} />}
-      </SimpleModeProvider>
+      <StatusBar style="light" />
+      <Navigation />
+      {showSplash && <SplashAnimation onFinish={() => setShowSplash(false)} />}
     </FontScaleProvider>
   );
 }
