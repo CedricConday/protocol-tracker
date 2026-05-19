@@ -10,6 +10,7 @@ import { loadPatientName, setupNotificationHandler, registerBackgroundTask } fro
 import { FontScaleProvider } from './src/context/FontScaleContext';
 import { SimpleModeProvider } from './src/context/SimpleModeContext';
 import PermissionPrimingModal from './src/components/PermissionPrimingModal';
+import SplashAnimation from './src/components/SplashAnimation';
 import { navigate } from './src/navigation/navigationRef';
 
 const PRIMING_KEY = '@coimbra:permission_primed';
@@ -18,6 +19,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPriming, setShowPriming] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   const completeBoot = useCallback(async () => {
     await registerBackgroundTask();
@@ -105,6 +107,7 @@ export default function App() {
       <SimpleModeProvider>
         <StatusBar style="light" />
         <Navigation />
+        {showSplash && <SplashAnimation onFinish={() => setShowSplash(false)} />}
       </SimpleModeProvider>
     </FontScaleProvider>
   );

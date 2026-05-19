@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { saveCalciumLog, getCalciumLogs } from '../db/queries';
+import { saveCalciumLog } from '../db/queries';
 
 export default function CalciumLogScreen() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
