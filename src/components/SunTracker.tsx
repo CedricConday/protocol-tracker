@@ -1,3 +1,4 @@
+import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const GOAL_MIN = 30;
@@ -7,7 +8,7 @@ interface Props {
   onLog: (minutes: number) => void;
 }
 
-export default function SunTracker({ sunMinutes, onLog }: Props) {
+const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) {
   const goalReached = sunMinutes >= GOAL_MIN;
   const pct = Math.min(sunMinutes / GOAL_MIN, 1);
 
@@ -47,7 +48,9 @@ export default function SunTracker({ sunMinutes, onLog }: Props) {
       )}
     </View>
   );
-}
+});
+
+export default SunTracker;
 
 const styles = StyleSheet.create({
   container: {

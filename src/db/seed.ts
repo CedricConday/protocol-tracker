@@ -51,9 +51,6 @@ const CONFLICTS = [
 export async function seedDb(): Promise<void> {
   const db = await getDb();
 
-  // Ensure doctor_profile singleton row exists
-  await db.runAsync('INSERT OR IGNORE INTO doctor_profile (id) VALUES (1)');
-
   // Ensure blood_test_reminders singleton row exists
   await db.runAsync('INSERT OR IGNORE INTO blood_test_reminders (id, interval_days) VALUES (1, 90)');
 

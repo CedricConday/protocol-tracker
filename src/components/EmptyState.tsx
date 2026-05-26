@@ -1,4 +1,7 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Pressable from './Pressable';
+import { C, space, radius, text as T } from '../theme';
 
 interface Props {
   icon: string;
@@ -8,38 +11,38 @@ interface Props {
   onAction?: () => void;
 }
 
-export default function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Props) {
+function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>{icon}</Text>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
       {actionLabel && onAction ? (
-        <TouchableOpacity style={styles.btn} onPress={onAction} activeOpacity={0.8}>
+        <Pressable style={styles.btn} onPress={onAction}>
           <Text style={styles.btnText}>{actionLabel}</Text>
-        </TouchableOpacity>
+        </Pressable>
       ) : null}
     </View>
   );
 }
 
+export default memo(EmptyState);
+
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 32,
+    paddingVertical: space.xxl,
+    paddingHorizontal: space.xl,
   },
-  icon: { fontSize: 44, marginBottom: 16 },
-  title: { color: '#2C2420', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  subtitle: { color: '#7A6A62', fontSize: 14, lineHeight: 20, textAlign: 'center', marginBottom: 24 },
+  icon:     { fontSize: 48, marginBottom: space.md },
+  title:    { ...T.subheading, color: C.text, textAlign: 'center', marginBottom: space.sm },
+  subtitle: { ...T.body, color: C.textSub, textAlign: 'center', marginBottom: space.lg },
   btn: {
-    backgroundColor: '#FBF0ED',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderWidth: 1,
-    borderColor: '#C96A5044',
+    backgroundColor: C.primaryBg,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: space.xl,
   },
-  btnText: { color: '#C96A50', fontSize: 14, fontWeight: '700' },
+  btnText: { ...T.body, color: C.primary, fontWeight: '700' },
 });

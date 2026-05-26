@@ -109,6 +109,16 @@ export async function initDb(): Promise<void> {
       source TEXT NOT NULL DEFAULT 'coimbra_standard'
     );
 
+    CREATE TABLE IF NOT EXISTS doctor_profile (
+      id INTEGER PRIMARY KEY NOT NULL DEFAULT 1,
+      name TEXT NOT NULL DEFAULT '',
+      clinic TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      protocol_variant TEXT NOT NULL DEFAULT 'standard',
+      notes TEXT NOT NULL DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS awareness_dates (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -254,8 +264,6 @@ export async function initDb(): Promise<void> {
     );
 
     CREATE INDEX IF NOT EXISTS idx_dose_logs_date ON dose_logs(date);
-    CREATE INDEX IF NOT EXISTS idx_dose_logs_supplement_date ON dose_logs(supplement_id, date);
-    CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);
     CREATE INDEX IF NOT EXISTS idx_daily_anchors_date ON daily_anchors(date);
     CREATE INDEX IF NOT EXISTS idx_exercise_logs_date ON exercise_logs(date);
     CREATE TABLE IF NOT EXISTS calcium_logs (
@@ -443,6 +451,4 @@ export async function initDb(): Promise<void> {
        'If cholestyramine is required, take Vitamin D3 at least 4 hours before or after the dose.');
     `);
   }
-}
-
 }

@@ -362,9 +362,6 @@ export const setupNotificationHandler = (): void => {
       case 'morning':
         navigate('Home');
         break;
-      case 'awareness':
-        navigate('Awareness');
-        break;
       case 'events':
         navigate('Events');
         break;

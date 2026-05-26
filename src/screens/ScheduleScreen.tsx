@@ -150,9 +150,6 @@ export default function ScheduleScreen() {
     <View style={styles.container}>
       <View style={styles.headingRow}>
         <Text style={styles.heading}>Today's Schedule</Text>
-        <TouchableOpacity style={styles.scanBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Scanner'); }} activeOpacity={0.7}>
-          <Text style={styles.scanBtnText}>Scan Ingredient</Text>
-        </TouchableOpacity>
       </View>
       {renderToggle()}
 

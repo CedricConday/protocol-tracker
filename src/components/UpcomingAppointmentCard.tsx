@@ -35,7 +35,7 @@ function awayLabel(days: number): string {
   return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} away`;
 }
 
-export default function UpcomingAppointmentCard({ event, onViewDetails }: Props) {
+const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ event, onViewDetails }: Props) {
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -147,7 +147,9 @@ export default function UpcomingAppointmentCard({ event, onViewDetails }: Props)
       </Animated.View>
     </TouchableOpacity>
   );
-}
+});
+
+export default UpcomingAppointmentCard;
 
 const styles = StyleSheet.create({
   card: {
