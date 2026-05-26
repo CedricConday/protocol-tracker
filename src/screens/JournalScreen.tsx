@@ -160,7 +160,7 @@ export default function JournalScreen() {
     >
       <View style={styles.headingRow}>
         <Text style={styles.heading}>Journal</Text>
-        <TouchableOpacity style={styles.logEventBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Relapse'); }} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.logEventBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Relapse'); }} activeOpacity={0.7} accessibilityLabel="Log a relapse or medical event" accessibilityRole="button">
           <Text style={styles.logEventBtnText}>+ Log Event</Text>
         </TouchableOpacity>
       </View>
@@ -199,6 +199,8 @@ export default function JournalScreen() {
               ]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleMoodSelect(m.emoji); }}
               activeOpacity={0.7}
+              accessibilityLabel={`Select mood ${m.label}`}
+              accessibilityRole="button"
             >
               <Text style={[styles.moodEmoji, isSelected ? styles.moodEmojiSelected : null]}>
                 {m.emoji}
@@ -242,6 +244,8 @@ export default function JournalScreen() {
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
         disabled={selectedMood === null}
         activeOpacity={0.8}
+        accessibilityLabel={saved ? 'Journal entry saved' : 'Save journal entry'}
+        accessibilityRole="button"
       >
         <Text style={[
           styles.saveButtonText,
@@ -267,6 +271,8 @@ export default function JournalScreen() {
               style={styles.entryCard}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpandedId(isExpanded ? null : entry.id); }}
               activeOpacity={0.7}
+              accessibilityLabel={isExpanded ? `Collapse entry from ${entry.date}` : `Expand entry from ${entry.date}`}
+              accessibilityRole="button"
             >
               <View style={styles.entryTop}>
                 <Text style={styles.entryMood}>{entry.mood}</Text>
@@ -291,10 +297,10 @@ export default function JournalScreen() {
             <Text style={styles.cbtTitle}>Tough day. Try this:</Text>
             <Text style={styles.cbtMessage}>{cbtMessage}</Text>
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-              <TouchableOpacity style={styles.cbtSkip} onPress={() => setCbtModal(false)} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.cbtSkip} onPress={() => setCbtModal(false)} activeOpacity={0.7} accessibilityLabel="Skip CBT suggestion" accessibilityRole="button">
                 <Text style={styles.cbtSkipText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.cbtDone} onPress={() => setCbtModal(false)} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.cbtDone} onPress={() => setCbtModal(false)} activeOpacity={0.8} accessibilityLabel="Dismiss CBT suggestion" accessibilityRole="button">
                 <Text style={styles.cbtDoneText}>Done</Text>
               </TouchableOpacity>
             </View>

@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getScheduleRules, updateRuleDose, setMiscFlag } from '../db/queries';
 import { createDefaultProfile } from '../db/seed';
 import * as Notifications from 'expo-notifications';
+import { DISEASE_PROFILES } from '../data/diseaseProfiles';
 
 const { width } = Dimensions.get('window');
 
@@ -26,11 +27,16 @@ interface Props {
   onComplete: () => void;
 }
 
+const CONDITION_ICONS: Record<string, string> = {
+  ms: '🧠', lupus: '🦋', psoriasis: '🔴', vitiligo: '⬜',
+  ra: '🦴', hashimoto: '🦋', crohn: '🫁', t1d: '🩸',
+};
+
 const STEPS = [
   {
     title: 'Welcome to the Protocol',
     icon: '🧬',
-    body: 'A personal companion for MS patients on Dr. Coimbra\'s high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
+    body: 'A personal companion on Dr. Coimbra\'s high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
   },
   {
     title: 'Set Up Your Profile',
@@ -41,6 +47,11 @@ const STEPS = [
     title: 'How do you want to use this app?',
     icon: '🎯',
     body: 'Choose the mode that fits your style.',
+  },
+  {
+    title: 'Your Condition',
+    icon: '🏥',
+    body: 'Select your condition so the app can show the most relevant lab markers and protocol information.',
   },
   {
     title: 'Almost Ready',
@@ -58,6 +69,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [caregiverPatientName, setCaregiverPatientName] = useState('');
   const [onboardingTrack, setOnboardingTrack] = useState<'simple' | 'full'>('full');
   const [saving, setSaving] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const iconScale = useRef(new Animated.Value(0.5)).current;
@@ -109,6 +121,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
           }
         }
         await setMiscFlag('onboarding_track', onboardingTrack);
+        if (selectedProfile) {
+          await setMiscFlag('disease_profile', selectedProfile);
+        }
         try {
           await Notifications.requestPermissionsAsync();
         } catch {
@@ -129,6 +144,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
       return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
     }
     if (step === 2) return onboardingTrack !== null;
+    if (step === 3) return selectedProfile !== null;
     return true;
   };
 
@@ -178,6 +194,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   style={[styles.typeBtn, patientType === t.key ? styles.typeBtnActive : null]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPatientType(t.key); }}
                   activeOpacity={0.7}
+                  accessibilityLabel={`Select patient type: ${t.label}`}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.typeBtnLabel, patientType === t.key ? styles.typeBtnLabelActive : null]}>{t.label}</Text>
                   <Text style={styles.typeBtnDesc}>{t.desc}</Text>
@@ -261,8 +279,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 style={[styles.trackCard, onboardingTrack === 'simple' && styles.trackCardActive]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOnboardingTrack('simple'); }}
                 activeOpacity={0.7}
+                accessibilityLabel="Select daily companion track"
+                accessibilityRole="button"
               >
-                <Ionicons name="sunny-outline" size={24} color={onboardingTrack === 'simple' ? '#C96A50' : '#7A6A62'} />
+                <Ionicons name="sunny-outline" size={24} color={onboardingTrack === 'simple' ? '#C96A50' : '#7A6A62'} accessible={false} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.trackTitle, onboardingTrack === 'simple' && styles.trackTitleActive]}>Daily companion</Text>
                   <Text style={styles.trackDesc}>Simple daily check-ins. I just want to stay on track.</Text>
@@ -272,8 +292,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 style={[styles.trackCard, onboardingTrack === 'full' && styles.trackCardActive]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOnboardingTrack('full'); }}
                 activeOpacity={0.7}
+                accessibilityLabel="Select full protocol track"
+                accessibilityRole="button"
               >
-                <Ionicons name="flask-outline" size={24} color={onboardingTrack === 'full' ? '#C96A50' : '#7A6A62'} />
+                <Ionicons name="flask-outline" size={24} color={onboardingTrack === 'full' ? '#C96A50' : '#7A6A62'} accessible={false} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.trackTitle, onboardingTrack === 'full' && styles.trackTitleActive]}>Full protocol</Text>
                   <Text style={styles.trackDesc}>I want everything — labs, reports, full tracking.</Text>
@@ -282,7 +304,36 @@ export default function OnboardingScreen({ onComplete }: Props) {
             </View>
           </View>
 
-          {/* Step 3: Notifications */}
+          {/* Step 3: Condition (disease profile) */}
+          <ScrollView
+            style={{ width }}
+            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 40 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.icon}>🏥</Text>
+            <Text style={styles.title}>Your Condition</Text>
+            <Text style={styles.body}>Select your condition so the app can show the most relevant lab markers and protocol information.</Text>
+            <View style={{ width: '100%', gap: 8, marginTop: 12 }}>
+              {DISEASE_PROFILES.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.trackCard, selectedProfile === p.id && styles.trackCardActive]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedProfile(p.id); }}
+                  activeOpacity={0.7}
+                  accessibilityLabel={`Select condition: ${p.name}`}
+                  accessibilityRole="button"
+                >
+                  <Text style={{ fontSize: 24 }}>{CONDITION_ICONS[p.id] || '🏥'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.trackTitle, selectedProfile === p.id && styles.trackTitleActive]}>{p.name}</Text>
+                    <Text style={styles.trackDesc}>{p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Step 4: Notifications / Done */}
           <View style={styles.page}>
             <Text style={styles.icon}>🔔</Text>
             <Text style={styles.title}>Almost Ready</Text>
@@ -314,6 +365,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               </>
             )}
           </View>
+
         </Animated.View>
 
         {/* Bottom buttons */}
@@ -323,6 +375,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
               style={styles.backButton}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStep(step - 1); }}
               activeOpacity={0.7}
+              accessibilityLabel="Go back to previous step"
+              accessibilityRole="button"
             >
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
@@ -335,6 +389,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleNext(); }}
             disabled={!canProceed() || saving}
             activeOpacity={0.8}
+            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Next step' : "Let's begin"}
+            accessibilityRole="button"
           >
             <Text style={styles.nextText}>
               {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : "Let's begin →"}
@@ -375,7 +431,7 @@ const styles = StyleSheet.create({
   slider: {
     flex: 1,
     flexDirection: 'row',
-    width: width * 4,
+    width: width * 5,
   },
   page: {
     width,

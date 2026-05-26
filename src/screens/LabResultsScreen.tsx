@@ -11,7 +11,10 @@ import {
   View,
 } from 'react-native';
 import { getDb } from '../db/schema';
+import { enqueueAction } from '../db/actionQueue';
 import EmptyState from '../components/EmptyState';
+import { DISEASE_PROFILES, getProfileById, type DiseaseProfile } from '../data/diseaseProfiles';
+import { getMiscFlag } from '../db/queries';
 
 interface LabResult {
   id: number;
@@ -21,6 +24,7 @@ interface LabResult {
   calcium_serum_mgdl: number | null;
   calcium_urine_mg_g_cr: number | null;
   creatinine_mgdl: number | null;
+  nfl_pgl: number | null;
   sulkowitch: string | null;
   notes: string;
 }
@@ -32,6 +36,7 @@ const TARGETS = {
   calcium_serum: { min: 8.5, max: 10.2, unit: 'mg/dL', label: 'Calcium (serum)' },
   calcium_urine: { min: 0, max: 300, unit: 'mg/g Cr', label: 'Calcium (urine)' },
   creatinine: { min: 0.5, max: 1.2, unit: 'mg/dL', label: 'Creatinine' },
+  nfl: { min: 0, max: 10, unit: 'pg/mL', label: 'NfL (serum)' },
 };
 
 const SULKOWITCH = ['None', 'Slight', 'Moderate', 'Heavy'];
@@ -64,6 +69,13 @@ function statusLabel(s: 'ok' | 'low' | 'high' | 'unknown') {
   return '—';
 }
 
+const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: string; unit: string; min: number; max: number }> = {
+  VitD: { stateKey: 'vitD', dbCol: 'vit_d_ngml', label: 'Vit D 25-OH', unit: 'ng/mL', min: 150, max: 280 },
+  PTH: { stateKey: 'pth', dbCol: 'pth_pgml', label: 'PTH', unit: 'pg/mL', min: 10, max: 30 },
+  Calcium: { stateKey: 'calciumSerum', dbCol: 'calcium_serum_mgdl', label: 'Calcium (serum)', unit: 'mg/dL', min: 8.5, max: 10.2 },
+  Creatinine: { stateKey: 'creatinine', dbCol: 'creatinine_mgdl', label: 'Creatinine', unit: 'mg/dL', min: 0.5, max: 1.2 },
+};
+
 export default function LabResultsScreen() {
   const [results, setResults] = useState<LabResult[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -76,8 +88,10 @@ export default function LabResultsScreen() {
   const [calciumSerum, setCalciumSerum] = useState('');
   const [calciumUrine, setCalciumUrine] = useState('');
   const [creatinine, setCreatinine] = useState('');
+  const [nfl, setNfl] = useState('');
   const [sulkowitch, setSulkowitch] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [profile, setProfile] = useState<DiseaseProfile | null>(null);
 
   const load = useCallback(async () => {
     const db = await getDb();
@@ -85,6 +99,10 @@ export default function LabResultsScreen() {
       'SELECT * FROM lab_results ORDER BY date DESC'
     );
     setResults(rows);
+    const profileId = await getMiscFlag('disease_profile');
+    if (profileId) {
+      setProfile(getProfileById(profileId) || null);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -103,20 +121,27 @@ export default function LabResultsScreen() {
     try {
       const db = await getDb();
       await db.runAsync(
-        `INSERT INTO lab_results (date, vit_d_ngml, pth_pgml, calcium_serum_mgdl, calcium_urine_mg_g_cr, creatinine_mgdl, sulkowitch, notes)
-         VALUES (?,?,?,?,?,?,?,?)`,
-        [date, parseNum(vitD), parseNum(pth), parseNum(calciumSerum), parseNum(calciumUrine), parseNum(creatinine), sulkowitch, notes]
+        `INSERT INTO lab_results (date, vit_d_ngml, pth_pgml, calcium_serum_mgdl, calcium_urine_mg_g_cr, creatinine_mgdl, nfl_pgl, sulkowitch, notes)
+         VALUES (?,?,?,?,?,?,?,?,?)`,
+        [date, parseNum(vitD), parseNum(pth), parseNum(calciumSerum), parseNum(calciumUrine), parseNum(creatinine), parseNum(nfl), sulkowitch, notes]
       );
-      const calciumVal = parseNum(calciumSerum);
-      if (calciumVal !== null && calciumVal > 10.5) {
-        Alert.alert(
-          'Elevated Calcium Detected',
-          'Elevated calcium detected. Review your dairy and calcium intake over the past 7 days. Log any dietary deviations in your journal.'
-        );
-      }
+      await enqueueAction('lab_result_saved', { date, vit_d_ngml: vitD, calcium_serum_mgdl: calciumSerum, pth_pgml: pth });
+      const checkThreshold = async (label: string, val: number | null, min: number, max: number, unit: string) => {
+        if (val === null) return;
+        if (val < min || val > max) {
+          await enqueueAction('lab_out_of_range', {
+            parameter: label, value: val, threshold_min: min, threshold_max: max,
+          });
+        }
+      };
+      await checkThreshold('Vit D 25-OH', parseNum(vitD), 150, 280, 'ng/mL');
+      await checkThreshold('PTH', parseNum(pth), 10, 30, 'pg/mL');
+      await checkThreshold('Calcium (serum)', parseNum(calciumSerum), 8.5, 10.2, 'mg/dL');
+      await checkThreshold('Calcium (urine)', parseNum(calciumUrine), 0, 300, 'mg/g Cr');
+      await checkThreshold('Creatinine', parseNum(creatinine), 0.5, 1.2, 'mg/dL');
       setShowForm(false);
       setDate(new Date().toISOString().split('T')[0]);
-      setVitD(''); setPth(''); setCalciumSerum(''); setCalciumUrine(''); setCreatinine('');
+      setVitD(''); setPth(''); setCalciumSerum(''); setCalciumUrine(''); setCreatinine(''); setNfl('');
       setSulkowitch(null); setNotes('');
       await load();
     } finally {
@@ -161,8 +186,8 @@ export default function LabResultsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
       <View style={styles.targetCard}>
-        <Text style={styles.targetTitle}>the Protocol Target Ranges</Text>
-        {Object.entries(TARGETS).map(([, t]) => (
+        <Text style={styles.targetTitle}>{profile ? `${profile.name} Target Ranges` : 'the Protocol Target Ranges'}</Text>
+        {Object.entries(TARGETS).filter(([key]) => !profile || profile.keyMarkers.includes(key === 'vit_d' ? 'VitD' : key === 'pth' ? 'PTH' : key === 'calcium_serum' ? 'Calcium' : key === 'creatinine' ? 'Creatinine' : key)).map(([, t]) => (
           <Text key={t.label} style={styles.targetRow}>
             {t.label}: <Text style={styles.targetRange}>{t.min}–{t.max} {t.unit}</Text>
           </Text>
@@ -170,7 +195,7 @@ export default function LabResultsScreen() {
       </View>
 
       {!showForm ? (
-        <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8} accessibilityLabel="Add lab result" accessibilityRole="button">
           <Text style={styles.addBtnText}>+ Add Lab Result</Text>
         </TouchableOpacity>
       ) : (
@@ -180,20 +205,43 @@ export default function LabResultsScreen() {
           <Text style={styles.label}>Date</Text>
           <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B0A098" />
 
-          <Text style={styles.label}>Vit D 25-OH (ng/mL) <Text style={styles.targetHint}>target 150–280</Text></Text>
-          <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#B0A098" />
+          {(!profile || profile.keyMarkers.includes('VitD')) && (
+            <>
+              <Text style={styles.label}>Vit D 25-OH (ng/mL) <Text style={styles.targetHint}>target 150–280</Text></Text>
+              <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#B0A098" />
+            </>
+          )}
 
-          <Text style={styles.label}>PTH (pg/mL) <Text style={styles.targetHint}>target 10–30</Text></Text>
-          <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#B0A098" />
+          {(!profile || profile.keyMarkers.includes('PTH')) && (
+            <>
+              <Text style={styles.label}>PTH (pg/mL) <Text style={styles.targetHint}>target 10–30</Text></Text>
+              <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#B0A098" />
+            </>
+          )}
 
-          <Text style={styles.label}>Calcium Serum (mg/dL) <Text style={styles.targetHint}>target 8.5–10.2</Text></Text>
-          <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#B0A098" />
+          {(!profile || profile.keyMarkers.includes('Calcium')) && (
+            <>
+              <Text style={styles.label}>Calcium Serum (mg/dL) <Text style={styles.targetHint}>target 8.5–10.2</Text></Text>
+              <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#B0A098" />
+            </>
+          )}
 
-          <Text style={styles.label}>Calcium Urine (mg/g Cr) <Text style={styles.targetHint}>target &lt;300</Text></Text>
-          <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#B0A098" />
+          {(!profile || profile.keyMarkers.includes('Calcium')) && (
+            <>
+              <Text style={styles.label}>Calcium Urine (mg/g Cr) <Text style={styles.targetHint}>target &lt;300</Text></Text>
+              <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#B0A098" />
+            </>
+          )}
 
-          <Text style={styles.label}>Creatinine (mg/dL) <Text style={styles.targetHint}>target 0.5–1.2</Text></Text>
-          <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#B0A098" />
+          {(!profile || profile.keyMarkers.includes('Creatinine')) && (
+            <>
+              <Text style={styles.label}>Creatinine (mg/dL) <Text style={styles.targetHint}>target 0.5–1.2</Text></Text>
+              <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#B0A098" />
+            </>
+          )}
+
+          <Text style={styles.label}>NfL — Neurofilament Light Chain (pg/mL) <Text style={styles.targetHint}>optional · normal &lt;10</Text></Text>
+          <TextInput style={styles.input} value={nfl} onChangeText={setNfl} keyboardType="decimal-pad" placeholder="e.g. 7.4" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Sulkowitch Test (urine calcium turbidity)</Text>
           <View style={styles.chipRow}>
@@ -203,6 +251,8 @@ export default function LabResultsScreen() {
                 style={[styles.chip, sulkowitch === s ? styles.chipActive : null]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSulkowitch(sulkowitch === s ? null : s); }}
                 activeOpacity={0.7}
+                accessibilityLabel={`Sulkowitch: ${s}`}
+                accessibilityRole="button"
               >
                 <Text style={[styles.chipText, sulkowitch === s ? styles.chipTextActive : null]}>{s}</Text>
               </TouchableOpacity>
@@ -221,10 +271,10 @@ export default function LabResultsScreen() {
           />
 
           <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7} accessibilityLabel="Cancel" accessibilityRole="button">
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }} disabled={saving} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }} disabled={saving} activeOpacity={0.8} accessibilityLabel={saving ? 'Saving lab result' : 'Save lab result'} accessibilityRole="button">
               <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
@@ -235,15 +285,15 @@ export default function LabResultsScreen() {
       {results.length >= 2 ? (
         <View style={styles.trendSection}>
           <Text style={styles.trendTitle}>Trends (last {Math.min(6, results.length)})</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {(['vit_d_ngml', 'calcium_serum_mgdl', 'pth_pgml'] as const).map((field) => {
+          <View style={{ flexDirection: 'row', gap: 8 }} accessible={true} accessibilityLabel="Lab result trend charts for Vitamin D, Calcium, PTH, and Urinary Calcium">
+            {(['vit_d_ngml', 'calcium_serum_mgdl', 'pth_pgml', 'calcium_urine_mg_g_cr'] as const).map((field) => {
               const data = results.slice(0, 6).reverse();
               const values = data.map((r) => r[field]).filter((v): v is number => v !== null);
               if (values.length < 2) return null;
               const max = Math.max(...values);
               const min = Math.min(...values);
               const range = max - min || 1;
-              const label = field === 'vit_d_ngml' ? 'Vit D' : field === 'calcium_serum_mgdl' ? 'Ca' : 'PTH';
+              const label = field === 'vit_d_ngml' ? 'Vit D' : field === 'calcium_serum_mgdl' ? 'Ca' : field === 'pth_pgml' ? 'PTH' : 'Ca-U';
               return (
                 <View key={field} style={styles.trendChart}>
                   <Text style={styles.trendChartLabel}>{label}</Text>
@@ -279,13 +329,14 @@ export default function LabResultsScreen() {
         />
       ) : (
         results.map(r => (
-          <TouchableOpacity key={r.id} style={styles.card} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85}>
+          <TouchableOpacity key={r.id} style={styles.card} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85} accessibilityLabel={`Lab result from ${formatDate(r.date)}`} accessibilityRole="button">
             <Text style={styles.cardDate}>{formatDate(r.date)}</Text>
-            {renderMarker(r.vit_d_ngml, TARGETS.vit_d.min, TARGETS.vit_d.max, TARGETS.vit_d.unit, TARGETS.vit_d.label)}
-            {renderMarker(r.pth_pgml, TARGETS.pth.min, TARGETS.pth.max, TARGETS.pth.unit, TARGETS.pth.label)}
-            {renderMarker(r.calcium_serum_mgdl, TARGETS.calcium_serum.min, TARGETS.calcium_serum.max, TARGETS.calcium_serum.unit, TARGETS.calcium_serum.label)}
-            {renderMarker(r.calcium_urine_mg_g_cr, TARGETS.calcium_urine.min, TARGETS.calcium_urine.max, TARGETS.calcium_urine.unit, TARGETS.calcium_urine.label)}
-            {renderMarker(r.creatinine_mgdl, TARGETS.creatinine.min, TARGETS.creatinine.max, TARGETS.creatinine.unit, TARGETS.creatinine.label)}
+            {(!profile || profile.keyMarkers.includes('VitD')) && renderMarker(r.vit_d_ngml, TARGETS.vit_d.min, TARGETS.vit_d.max, TARGETS.vit_d.unit, TARGETS.vit_d.label)}
+            {(!profile || profile.keyMarkers.includes('PTH')) && renderMarker(r.pth_pgml, TARGETS.pth.min, TARGETS.pth.max, TARGETS.pth.unit, TARGETS.pth.label)}
+            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_serum_mgdl, TARGETS.calcium_serum.min, TARGETS.calcium_serum.max, TARGETS.calcium_serum.unit, TARGETS.calcium_serum.label)}
+            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_urine_mg_g_cr, TARGETS.calcium_urine.min, TARGETS.calcium_urine.max, TARGETS.calcium_urine.unit, TARGETS.calcium_urine.label)}
+            {(!profile || profile.keyMarkers.includes('Creatinine')) && renderMarker(r.creatinine_mgdl, TARGETS.creatinine.min, TARGETS.creatinine.max, TARGETS.creatinine.unit, TARGETS.creatinine.label)}
+            {r.nfl_pgl !== null && r.nfl_pgl !== undefined && renderMarker(r.nfl_pgl, TARGETS.nfl.min, TARGETS.nfl.max, TARGETS.nfl.unit, TARGETS.nfl.label)}
             {r.sulkowitch ? (
               <Text style={styles.sulkowitch}>Sulkowitch: {r.sulkowitch}</Text>
             ) : null}

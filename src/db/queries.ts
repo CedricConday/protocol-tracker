@@ -1,4 +1,5 @@
 import { getDb } from './schema';
+import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 
 export function todayStr(): string {
@@ -134,7 +135,7 @@ export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog &
 
 export async function confirmDose(logId: number): Promise<void> {
   const db = await getDb();
-  const log = await db.getFirstAsync<{ supplement_id: string }>('SELECT supplement_id FROM dose_logs WHERE id = ?', [logId]);
+  const log = await db.getFirstAsync<{ supplement_id: string; date: string }>('SELECT supplement_id, date FROM dose_logs WHERE id = ?', [logId]);
   await db.runAsync(
     "UPDATE dose_logs SET status = 'taken', logged_time = ? WHERE id = ?",
     [Date.now(), logId]
@@ -142,25 +143,28 @@ export async function confirmDose(logId: number): Promise<void> {
   if (log?.supplement_id) {
     await decrementQuantity(log.supplement_id);
   }
+  if (log) await enqueueAction('dose_confirmed', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
 }
 
 export async function skipDose(logId: number): Promise<void> {
   const db = await getDb();
-  const log = await db.getFirstAsync<{supplement_id: string}>("SELECT supplement_id FROM dose_logs WHERE id = ?", [logId]);
+  const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
   await db.runAsync(
     "UPDATE dose_logs SET status = 'missed', logged_time = ? WHERE id = ?",
     [Date.now(), logId]
   );
   if (log?.supplement_id) await decrementQuantity(log.supplement_id);
+  if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
 }
 
 export async function skipDoseWithReason(logId: number, reason: string): Promise<void> {
   const db = await getDb();
-  const log = await db.getFirstAsync<{supplement_id: string}>("SELECT supplement_id FROM dose_logs WHERE id = ?", [logId]);
+  const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
   await db.runAsync(
     "UPDATE dose_logs SET status = 'missed', logged_time = ?, skip_reason = ? WHERE id = ?",
     [Date.now(), reason, logId]
   );
+  if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString(), reason });
 }
 
 export async function markOverdueDoses(date: string = todayStr()): Promise<void> {
@@ -339,6 +343,7 @@ export async function logExercise(durationMinutes: number = 30, type: string = '
     'INSERT INTO exercise_logs (date, duration_minutes, type, intensity, logged_at) VALUES (?, ?, ?, ?, ?)',
     [date, durationMinutes, type, intensity, Date.now()]
   );
+  await enqueueAction('exercise_logged', { minutes: durationMinutes, type, date });
 }
 
 export async function getTodayExercise(date: string = todayStr()): Promise<{ totalMinutes: number; logged: boolean; type: string; intensity: string }> {
@@ -444,15 +449,6 @@ export async function getRelapseEvents(limit?: number): Promise<RelapseEvent[]> 
     'SELECT * FROM relapse_events ORDER BY date DESC LIMIT COALESCE(?, 50)',
     [limit ?? null]
   );
-}
-
-// ── Doctor Profile ────────────────────────────────────────────────────────
-export interface DoctorProfile {
-  id: number;
-  name: string | null;
-  clinic: string | null;
-  email: string | null;
-  phone: string | null;
 }
 
 // ── Sun Exposure ─────────────────────────────────────────────────────────────
@@ -591,24 +587,6 @@ export async function deleteSupplement(supplementId: string): Promise<void> {
   await db.runAsync('DELETE FROM schedule_rules WHERE supplement_id = ?', [supplementId]);
   await db.runAsync('DELETE FROM supplements WHERE id = ?', [supplementId]);
 }
-
-// ── Doctor Profile ────────────────────────────────────────────────────────
-export async function getDoctor(): Promise<DoctorProfile | null> {
-  const db = await getDb();
-  return db.getFirstAsync<DoctorProfile>('SELECT * FROM doctor_profile WHERE id = 1');
-}
-
-export async function updateDoctor(data: { name: string; clinic: string; email: string; phone: string }): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(
-    'INSERT INTO doctor_profile (id, name, clinic, email, phone) VALUES (1, ?, ?, ?, ?) ' +
-    'ON CONFLICT(id) DO UPDATE SET name = excluded.name, clinic = excluded.clinic, ' +
-    'email = excluded.email, phone = excluded.phone',
-    [data.name, data.clinic, data.email, data.phone]
-  );
-}
-
-
 
 // ── Protocol Adherence Score ──────────────────────────────────────────────────
 export async function getWeightedAdherenceScore(days: number = 14): Promise<number> {
@@ -790,3 +768,62 @@ export async function getLatestLabResult(): Promise<{ vit_d_ngml: number | null;
     'SELECT vit_d_ngml, calcium_serum_mgdl FROM lab_results ORDER BY date DESC LIMIT 1'
   );
 }
+
+// ── Data Export ─────────────────────────────────────────────────────────────
+export async function exportAllData(): Promise<Record<string, any>> {
+  const db = await getDb();
+  
+  const tables = [
+    'user_profile',
+    'supplements', 
+    'schedule_rules',
+    'supplement_conflicts',
+    'daily_anchors',
+    'dose_logs',
+    'water_logs',
+    'exercise_logs',
+    'dietary_restrictions',
+    'awareness_dates',
+    'journal_entries',
+    'relapse_events',
+    'mri_scans',
+    'lab_results',
+    'contraindication_rules',
+    'patient_medications',
+    'sun_log',
+    'blood_test_reminders',
+    'meal_log',
+    'care_surveys',
+    'news_cache',
+    'feedback',
+    'medical_events',
+    'calcium_logs',
+    'sleep_checkins',
+    'action_queue',
+    'misc_flags',
+    'family_members'
+  ];
+  
+  const result: Record<string, any> = {};
+  
+  for (const table of tables) {
+    try {
+      const rows = await db.getAllAsync(`SELECT * FROM ${table}`);
+      result[table] = rows;
+    } catch (error) {
+      console.warn(`Could not export table ${table}:`, error);
+      result[table] = [];
+    }
+  }
+  
+  return result;
+}
+
+export async function exportDataToJson(): Promise<string> {
+  const data = await exportAllData();
+  return JSON.stringify(data, null, 2);
+}
+
+// ── Protocol Recommendations ──────────────────────────────────────────────
+
+

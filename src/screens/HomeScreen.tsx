@@ -24,6 +24,8 @@ import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
 import SunTracker from '../components/SunTracker';
 import WaterTracker from '../components/WaterTracker';
+import SkeletonCard from '../components/SkeletonCard';
+import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
 import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
@@ -185,6 +187,19 @@ export default function HomeScreen() {
 
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [dosesExpanded, setDosesExpanded] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  useEffect(() => {
+    if (t0 !== null || doses.length > 0 || !initialLoading) {
+      const timer = setTimeout(() => setInitialLoading(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [t0, doses, initialLoading]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoading(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const [strictMode, setStrictMode] = useState(false);
 
@@ -276,6 +291,10 @@ export default function HomeScreen() {
       await loadDay();
     };
 
+  const handleDosePress = useCallback((dose: ScheduledDose) => {
+    setSelectedDose(dose);
+  }, []);
+
   const handleSkip = async (dose: ScheduledDose, reason?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (dose.logId) {
@@ -314,6 +333,8 @@ export default function HomeScreen() {
           style={{ backgroundColor: '#C96A50', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
           onPress={() => navigation.navigate('Settings', { screen: 'Caregiver' })}
           activeOpacity={0.8}
+          accessibilityLabel="Caregiver dashboard"
+          accessibilityRole="button"
         >
           <Text style={{ color: '#FAF7F4', fontSize: 12, fontWeight: '700' }}>Dashboard</Text>
         </TouchableOpacity>
@@ -324,14 +345,43 @@ export default function HomeScreen() {
   // ── Pre-day view ───────────────────────────────────────────────────────────
 
   if (!t0) {
+    if (starting) {
+      return (
+        <SafeAreaView style={styles.container}>
+          <View style={styles.scroll}>
+            {renderHeader()}
+            <SkeletonCard height={100} />
+            <SkeletonCard height={80} />
+            <SkeletonCard height={80} />
+            <SkeletonCard height={60} />
+          </View>
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
           {renderHeader()}
+          <WeatherCard />
           <Text style={styles.subtitle}>
             {"Ready for today's doses?"}
           </Text>
           <StartDayButton onPress={handleStartDay} loading={starting} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.scroll}>
+          {renderHeader()}
+          <SkeletonCard height={80} />
+          <SkeletonCard height={120} />
+          <SkeletonCard height={60} />
+          <SkeletonCard height={80} />
+          <SkeletonCard height={80} />
         </View>
       </SafeAreaView>
     );
@@ -348,6 +398,7 @@ export default function HomeScreen() {
         }
       >
         {renderHeader()}
+        <WeatherCard />
 
         {reportReadyUri ? (
           <TouchableOpacity
@@ -358,9 +409,11 @@ export default function HomeScreen() {
               setReportReadyUri(null);
             }}
             activeOpacity={0.8}
+            accessibilityLabel="Share weekly report"
+            accessibilityRole="button"
           >
             <Text style={styles.reportReadyText}>📄 Weekly report ready — tap to share</Text>
-            <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Dismiss report notification" accessibilityRole="button">
               <Text style={styles.reportReadyDismiss}>✕</Text>
             </TouchableOpacity>
           </TouchableOpacity>
@@ -368,14 +421,14 @@ export default function HomeScreen() {
 
         {vitDDanger !== null ? (
           <View style={styles.vitDBanner}>
-            <Text style={styles.vitDBannerText}>⚠ Vitamin D critically low ({vitDDanger} ng/mL). Contact your prescriber immediately.</Text>
+            <Text style={styles.vitDBannerText} accessibilityLiveRegion="polite">⚠ Vitamin D critically low ({vitDDanger} ng/mL). Contact your prescriber immediately.</Text>
           </View>
         ) : null}
 
         {showFatigueAlert ? (
           <View style={styles.fatigueBanner}>
-            <Text style={styles.fatigueBannerText}>⚠ Fatigue pattern detected. Consider contacting your prescriber or resting today.</Text>
-            <TouchableOpacity onPress={() => setShowFatigueAlert(false)}>
+            <Text style={styles.fatigueBannerText} accessibilityLiveRegion="polite">⚠ Fatigue pattern detected. Consider contacting your prescriber or resting today.</Text>
+            <TouchableOpacity onPress={() => setShowFatigueAlert(false)} accessibilityLabel="Dismiss fatigue alert" accessibilityRole="button">
               <Text style={styles.fatigueBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -388,16 +441,16 @@ export default function HomeScreen() {
               const week = new Date().toISOString().slice(0, 7);
               await AsyncStorage.setItem(`dismissed_reorder_${s.id}_${week}`, 'true');
               setLowStockSupps((prev) => prev.filter((x) => x.id !== s.id));
-            }}>
+            }} accessibilityLabel="Dismiss reorder reminder" accessibilityRole="button">
               <Text style={styles.reorderBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
         ))}
 
         {showSurveyPrompt ? (
-          <TouchableOpacity style={styles.surveyPrompt} onPress={() => { setShowSurveyPrompt(false); navigation.navigate('Journal', { screen: 'CareSurvey' }); }} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.surveyPrompt} onPress={() => { setShowSurveyPrompt(false); navigation.navigate('Journal', { screen: 'CareSurvey' }); }} activeOpacity={0.85} accessibilityLabel="Take care survey" accessibilityRole="button">
             <Text style={styles.surveyPromptText}>Quarterly check-in: How coordinated is your MS care? · Tap to take survey</Text>
-            <TouchableOpacity onPress={() => setShowSurveyPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={() => setShowSurveyPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Dismiss survey prompt" accessibilityRole="button">
               <Text style={styles.surveyPromptDismiss}>✕</Text>
             </TouchableOpacity>
           </TouchableOpacity>
@@ -406,7 +459,7 @@ export default function HomeScreen() {
         {showEngagementNudge ? (
           <View style={styles.nudgeBanner}>
             <Text style={styles.nudgeBannerText}>Welcome back. It looks like you may have missed some doses. Your protocol works best with daily consistency.</Text>
-            <TouchableOpacity onPress={() => setShowEngagementNudge(false)}>
+            <TouchableOpacity onPress={() => setShowEngagementNudge(false)} accessibilityLabel="Dismiss engagement nudge" accessibilityRole="button">
               <Text style={styles.nudgeBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -420,7 +473,7 @@ export default function HomeScreen() {
         ) : null}
 
         {strictMode ? (
-          <TouchableOpacity style={styles.strictBadge} onPress={() => navigation.navigate('Settings', { screen: 'DrugChecker' })} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.strictBadge} onPress={() => navigation.navigate('Settings', { screen: 'DrugChecker' })} activeOpacity={0.7} accessibilityLabel="Strict mode active, open drug checker" accessibilityRole="button">
             <View style={styles.strictAmberDot} />
             <Text style={styles.strictBadgeText}>Strict Mode active — Drug Checker</Text>
           </TouchableOpacity>
@@ -442,7 +495,7 @@ export default function HomeScreen() {
             <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
             <Text style={styles.wizardStep}>3 — Drink 2.5L+ of water today. Track it with the Water tracker below.</Text>
             <Text style={styles.wizardStep}>4 — Log your sun exposure and exercise each day to support the protocol.</Text>
-            <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel="Dismiss wizard, start using the app" accessibilityRole="button">
               <Text style={styles.wizardBtnText}>Got it, let's start</Text>
             </TouchableOpacity>
           </View>
@@ -464,12 +517,14 @@ export default function HomeScreen() {
                   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                   setDosesExpanded(true);
                 }}
+                accessibilityLabel={dosesExpanded ? "Collapse dose list" : "Expand to see all doses"}
+                accessibilityRole="button"
               >
                 {dosesExpanded ? (
                   <View>
                     <Text style={styles.sectionLabel}>DOSES</Text>
                     {doses.map((dose) => (
-                      <DoseRow key={dose.id} dose={dose} onPress={() => setSelectedDose(dose)} />
+                      <DoseRow key={dose.id} dose={dose} onPress={() => handleDosePress(dose)} />
                     ))}
                     <TouchableOpacity
                       style={styles.collapseBtn}
@@ -478,6 +533,8 @@ export default function HomeScreen() {
                         setDosesExpanded(false);
                       }}
                       activeOpacity={0.7}
+                      accessibilityLabel="Collapse dose list"
+                      accessibilityRole="button"
                     >
                       <Text style={styles.collapseBtnText}>Collapse</Text>
                     </TouchableOpacity>
@@ -533,6 +590,7 @@ export default function HomeScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setMilestoneModalVisible(false)}
+        accessibilityViewIsModal={true}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -547,6 +605,8 @@ export default function HomeScreen() {
                 setMilestoneModalVisible(false);
               }}
               activeOpacity={0.8}
+              accessibilityLabel="Dismiss milestone notification"
+              accessibilityRole="button"
             >
               <Text style={styles.modalButtonText}>Continue</Text>
             </TouchableOpacity>

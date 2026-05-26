@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const GOAL_ML = 2500;
@@ -10,7 +10,7 @@ interface Props {
   onAdd: () => void;
 }
 
-export default function WaterTracker({ waterMl, onAdd }: Props) {
+const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props) {
   const goalReached = waterMl >= GOAL_ML;
   const fullSegments = Math.floor(waterMl / SEGMENT_ML);
   const partialRatio = (waterMl % SEGMENT_ML) / SEGMENT_ML;
@@ -91,7 +91,9 @@ export default function WaterTracker({ waterMl, onAdd }: Props) {
       )}
     </View>
   );
-}
+});
+
+export default WaterTracker;
 
 const styles = StyleSheet.create({
   container: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#E8E0D8', shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },

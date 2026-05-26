@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScheduledDose } from '../types';
 
@@ -14,7 +14,7 @@ interface Props {
   onPress?: (dose: ScheduledDose) => void;
 }
 
-export default function DoseRow({ dose, onPress }: Props) {
+const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const confirmScale = useRef(new Animated.Value(1)).current;
   const prevStatus = useRef(dose.status);
@@ -126,7 +126,9 @@ export default function DoseRow({ dose, onPress }: Props) {
   }
 
   return inner;
-}
+});
+
+export default DoseRow;
 
 const styles = StyleSheet.create({
   card: {

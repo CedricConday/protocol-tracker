@@ -12,6 +12,7 @@ import {
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { getDaySummary } from '../db/queries';
+import SkeletonCard from '../components/SkeletonCard';
 
 const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
   '05-30': {
@@ -205,7 +206,7 @@ export default function CalendarScreen() {
       >
         <View style={styles.headerRow}>
           <Text style={styles.heading}>History</Text>
-          <TouchableOpacity style={styles.shareButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleShare(); }} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.shareButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleShare(); }} activeOpacity={0.8} accessibilityLabel="Share calendar" accessibilityRole="button">
             <Text style={styles.shareButtonText}>Share</Text>
           </TouchableOpacity>
         </View>
@@ -216,6 +217,8 @@ export default function CalendarScreen() {
           style={[styles.toggleBtn, viewMode === '30d' && styles.toggleBtnActive]}
           onPress={() => setViewMode('30d')}
           activeOpacity={0.7}
+          accessibilityLabel="Show last 30 days"
+          accessibilityRole="button"
         >
           <Text style={[styles.toggleBtnText, viewMode === '30d' && styles.toggleBtnTextActive]}>30 Days</Text>
         </TouchableOpacity>
@@ -223,6 +226,8 @@ export default function CalendarScreen() {
           style={[styles.toggleBtn, viewMode === '12m' && styles.toggleBtnActive]}
           onPress={() => setViewMode('12m')}
           activeOpacity={0.7}
+          accessibilityLabel="Show last 12 months"
+          accessibilityRole="button"
         >
           <Text style={[styles.toggleBtnText, viewMode === '12m' && styles.toggleBtnTextActive]}>12 Months</Text>
         </TouchableOpacity>
@@ -231,7 +236,19 @@ export default function CalendarScreen() {
       {/* Month / year header */}
       <Text style={styles.monthHeader}>{viewMode === '30d' ? getCurrentMonthYear() : 'Last 12 Months'}</Text>
 
-      {!loaded ? null : cells.length === 0 ? (
+      {!loaded ? (
+        <View style={styles.grid}>
+          {Array.from({ length: 5 }).map((_, ri) => (
+            <View key={ri} style={styles.row}>
+              {Array.from({ length: 6 }).map((_, ci) => (
+                <View key={ci} style={styles.cellWrapper}>
+                  <SkeletonCard height={48} borderRadius={10} />
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : cells.length === 0 ? (
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyIcon}>📊</Text>
           <Text style={styles.emptyTitle}>No History Yet</Text>
@@ -254,6 +271,8 @@ export default function CalendarScreen() {
                     style={styles.cellWrapper}
                     onPress={awareness ? () => Alert.alert(`${awareness.label} 🌍`, awareness.message) : undefined}
                     activeOpacity={awareness ? 0.7 : 1}
+                    accessibilityLabel={`${cell.date}, ${cell.compliancePct} percent compliance, ${cell.totalDoses} doses${cell.isToday ? ', today' : ''}${awareness ? `, ${awareness.label}` : ''}`}
+                    accessibilityRole={awareness ? "button" : "image"}
                   >
                     <View
                       style={[

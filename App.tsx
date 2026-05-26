@@ -4,14 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import Navigation from './src/navigation';
-import { initDb } from './src/db/schema';
+import { initDb, getDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
+import { runMigrations } from './src/db/migrations';
 import { loadPatientName, setupNotificationHandler, registerBackgroundTask } from './src/notifications';
+import { syncAll } from './src/api/syncClient';
 import { FontScaleProvider } from './src/context/FontScaleContext';
 import PermissionPrimingModal from './src/components/PermissionPrimingModal';
 import SplashAnimation from './src/components/SplashAnimation';
 import { navigate } from './src/navigation/navigationRef';
 import { useBiometricGate } from './src/hooks/useBiometricGate';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 const PRIMING_KEY = '@coimbra:permission_primed';
 
@@ -30,6 +33,8 @@ export default function App() {
   useEffect(() => {
     async function boot() {
       try {
+        const db = await getDb();
+        await runMigrations(db);
         await initDb();
         await seedDb();
         setupNotificationHandler();
@@ -48,15 +53,18 @@ export default function App() {
     boot();
   }, [completeBoot]);
 
-  // Clear badge when app comes to foreground
+  // Clear badge + sync when app comes to foreground
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         Notifications.setBadgeCountAsync(0).catch(() => {});
+        syncAll().catch(() => {});
       }
     });
     // Clear on first mount too
     Notifications.setBadgeCountAsync(0).catch(() => {});
+    // Initial sync
+    syncAll().catch(() => {});
     return () => sub.remove();
   }, []);
 
@@ -116,11 +124,13 @@ export default function App() {
   }
 
   return (
-    <FontScaleProvider>
-      <StatusBar style="light" />
-      <Navigation />
-      {showSplash && <SplashAnimation onFinish={() => setShowSplash(false)} />}
-    </FontScaleProvider>
+    <ErrorBoundary>
+      <FontScaleProvider>
+        <StatusBar style="light" />
+        <Navigation />
+        {showSplash && <SplashAnimation onFinish={() => setShowSplash(false)} />}
+      </FontScaleProvider>
+    </ErrorBoundary>
   );
 }
 

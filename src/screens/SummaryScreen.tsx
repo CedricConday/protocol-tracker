@@ -5,9 +5,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSummaryScreen } from '../hooks';
+import { getMiscFlag } from '../db/queries';
+import SkeletonCard from '../components/SkeletonCard';
+import { getProfileById } from '../data/diseaseProfiles';
 
 function getComplianceColor(compliancePct: number) {
   if (compliancePct >= 80) return '#22c55e';
@@ -16,15 +21,33 @@ function getComplianceColor(compliancePct: number) {
 }
 
 export default function SummaryScreen() {
+  const navigation = useNavigation<any>();
   const {
-    summary, weekData, refreshing, setRefreshing,
-    loadData,
+    summary, weekData, refreshing, setRefreshing, streak, adherenceScore,
+    moodWeek, waterWeek, patientName, loadData,
   } = useSummaryScreen();
+
+  const [loading, setLoading] = useState(true);
 
   const barContainerWidth = useRef(0);
   const barAnim = useRef(new Animated.Value(0)).current;
   const countAnim = useRef(new Animated.Value(0)).current;
   const [displayPct, setDisplayPct] = useState(0);
+  const [onboardingTrack, setOnboardingTrack] = useState<string | null>(null);
+  const [doctorMode, setDoctorMode] = useState(false);
+  const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
+
+  const isSimple = onboardingTrack === 'simple';
+
+  useEffect(() => {
+    getMiscFlag('onboarding_track').then(setOnboardingTrack);
+    getMiscFlag('disease_profile').then((id) => {
+      if (id) {
+        const p = getProfileById(id);
+        if (p) setProfileBlurb(p.patientDescription);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const id = countAnim.addListener(({ value }) => setDisplayPct(Math.round(value)));
@@ -47,6 +70,10 @@ export default function SummaryScreen() {
   }, [barAnim, countAnim]);
 
   useEffect(() => {
+    if (summary !== null) setLoading(false);
+  }, [summary]);
+
+  useEffect(() => {
     animateToCompliance(summary?.compliancePct ?? 0);
   }, [summary, animateToCompliance]);
 
@@ -61,6 +88,28 @@ export default function SummaryScreen() {
   const compliancePct = summary?.compliancePct ?? 0;
   const ringColor = getComplianceColor(compliancePct);
 
+  const MAX_WATER = 2000;
+  const weekLabels = waterWeek.map(w => w.day);
+
+  const highestMood = Math.max(...moodWeek.filter(m => m.score !== null).map(m => m.score!), 1);
+  const highestWater = Math.max(...waterWeek.map(w => w.ml), 1);
+
+  if (loading) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <SkeletonCard height={40} width={180} />
+        <View style={{ height: 16 }} />
+        <SkeletonCard height={100} />
+        <View style={{ height: 12 }} />
+        <SkeletonCard height={80} />
+        <View style={{ height: 12 }} />
+        <SkeletonCard height={180} />
+        <View style={{ height: 24 }} />
+        <SkeletonCard height={60} />
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -73,16 +122,28 @@ export default function SummaryScreen() {
       <View style={styles.statRow}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{taken}/{total}</Text>
-          <Text style={styles.statLabel}>Doses Taken</Text>
+          <Text style={styles.statLabel}>Doses Today</Text>
         </View>
-
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{streak}</Text>
+          <Text style={styles.statLabel}>Day Streak</Text>
+        </View>
       </View>
+
+      {/* Adherence Score */}
+      {adherenceScore > 0 && (
+        <View style={styles.scoreCard}>
+          <Text style={styles.scoreValue}>{adherenceScore.toFixed(1)}/8</Text>
+          <Text style={styles.scoreLabel}>Weighted Adherence</Text>
+          <Text style={styles.scoreSub}>14-day weighted score based on completeness and timing</Text>
+        </View>
+      )}
 
       {/* Compliance Ring Card */}
       <View style={styles.complianceCard}>
         <Text style={styles.cardDayLabel}>Today</Text>
         <View style={styles.ringContainer}>
-          <View style={[styles.ringOuter, { borderColor: '#2a2a2a' }]}>
+          <View style={[styles.ringOuter, { borderColor: '#D8CFC8' }]}>
             <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
             <View style={styles.ringCenter}>
               <Text style={[styles.ringNumber, { color: ringColor }]}>{displayPct}</Text>
@@ -102,6 +163,95 @@ export default function SummaryScreen() {
         </View>
       </View>
 
+      {profileBlurb && (
+        <View style={styles.profileBlurbCard}>
+          <Text style={styles.profileBlurbText}>{profileBlurb}</Text>
+        </View>
+      )}
+
+      {/* Mood Chart */}
+      <Text style={styles.chartSectionTitle}>MOOD (7 DAYS)</Text>
+      <View style={styles.barChartRow}>
+        {moodWeek.map((m, i) => (
+          <View key={m.day} style={styles.barCol}>
+            <View style={[styles.moodBar, { height: m.score ? (m.score / highestMood) * 70 : 0, backgroundColor: m.score ? '#22c55e' : '#E8E0D8' }]} />
+            <Text style={styles.barDayLabel}>{m.day}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Water Chart */}
+      <Text style={styles.chartSectionTitle}>WATER (7 DAYS)</Text>
+      <View style={styles.waterChartRow}>
+        {waterWeek.map((w, i) => (
+          <View key={w.day} style={styles.waterCol}>
+            <Text style={styles.waterMlLabel}>{w.ml > 0 ? `${Math.round(w.ml / 100) * 100}` : ''}</Text>
+            <View style={styles.waterBarTrack}>
+              <View style={[styles.waterBarFill, { height: Math.min(100, (w.ml / MAX_WATER) * 100), backgroundColor: w.ml >= MAX_WATER * 0.8 ? '#22c55e' : '#eab308' }]} />
+              <View style={[styles.waterBarRemain, { flex: 1 }]} />
+            </View>
+            <Text style={styles.waterDayLabel}>{w.day}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Weekly boxes */}
+      <Text style={styles.chartSectionTitle}>THIS WEEK</Text>
+      <View style={styles.weekRow}>
+        {weekData.map((d, i) => {
+          const color = d.compliancePct >= 80 ? '#22c55e' : d.compliancePct >= 50 ? '#eab308' : d.totalDoses > 0 ? '#ef4444' : '#E8E0D8';
+          return (
+            <View key={i} style={styles.weekCol}>
+              <View style={[styles.weekBox, { backgroundColor: color }]} />
+              <Text style={styles.weekDay}>{new Date(d.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short' })}</Text>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Share Button */}
+      <TouchableOpacity style={styles.shareBtn} activeOpacity={0.8} accessibilityLabel="Share your progress" accessibilityRole="button">
+        <Text style={styles.shareBtnText}>Share Your Progress</Text>
+      </TouchableOpacity>
+
+      {/* Doctor Consult toggle — hidden for simple track */}
+      {!isSimple && (
+        <>
+          <TouchableOpacity
+            style={[styles.doctorModeToggle, doctorMode && styles.doctorModeToggleActive]}
+            onPress={() => setDoctorMode(!doctorMode)}
+            activeOpacity={0.7}
+            accessibilityLabel={doctorMode ? 'Disable doctor consult view' : 'Enable doctor consult view'}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.doctorModeToggleText, doctorMode && styles.doctorModeToggleTextActive]}>
+              {doctorMode ? '✓ Doctor Consult View Active' : 'Doctor Consult View'}
+            </Text>
+          </TouchableOpacity>
+          {doctorMode && (
+            <View style={styles.doctorConsole}>
+              <Text style={styles.doctorConsoleTitle}>DOCTOR CONSULT VIEW</Text>
+              <View style={styles.doctorMetricRow}>
+                <View style={styles.doctorMetric}>
+                  <Text style={styles.doctorMetricValue}>{adherenceScore.toFixed(1)}</Text>
+                  <Text style={styles.doctorMetricLabel}>Adherence</Text>
+                </View>
+                <View style={styles.doctorMetric}>
+                  <Text style={styles.doctorMetricValue}>{streak}</Text>
+                  <Text style={styles.doctorMetricLabel}>Streak</Text>
+                </View>
+                <View style={styles.doctorMetric}>
+                  <Text style={styles.doctorMetricValue}>{summary?.takenDoses ?? 0}/{summary?.totalDoses ?? 0}</Text>
+                  <Text style={styles.doctorMetricLabel}>Today</Text>
+                </View>
+              </View>
+              <TouchableOpacity style={styles.doctorBtn} activeOpacity={0.7} accessibilityLabel="Share summary with doctor" accessibilityRole="button">
+                <Text style={styles.doctorBtnText}>Share Summary with Doctor</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </>
+      )}
 
     </ScrollView>
   );
@@ -183,4 +333,6 @@ const styles = StyleSheet.create({
   doctorMetricLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '600', marginTop: 4 },
   doctorBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#4A7A9B' },
   doctorBtnText: { color: '#4A7A9B', fontSize: 14, fontWeight: '700' },
+  profileBlurbCard: { backgroundColor: '#FBF0ED', borderRadius: 14, padding: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
+  profileBlurbText: { color: '#7A6A62', fontSize: 13, lineHeight: 20 },
 });
