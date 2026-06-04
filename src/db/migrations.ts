@@ -321,9 +321,78 @@ const migrations: Migration[] = [
   {
     version: 8,
     up: async (db) => {
-      await db.execAsync(`
-        ALTER TABLE lab_results ADD COLUMN nfl_pgl REAL;
-      `);
+      // Idempotent: only ALTER if the column is absent — re-running after a
+      // partial migration would otherwise throw "duplicate column" and stall
+      // the entire chain.
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(lab_results)`);
+      if (!cols.some((c) => c.name === 'nfl_pgl')) {
+        await db.execAsync(`ALTER TABLE lab_results ADD COLUMN nfl_pgl REAL;`);
+      }
+    },
+  },
+  {
+    version: 9,
+    up: async (db) => {
+      // dietary_note historically lived ONLY inside initDb's version-0 block,
+      // so any device already past version 0 never received the column — every
+      // journal save (which INSERTs dietary_note) then threw and silently
+      // failed. Add it here for all installs. Idempotent: skip if present so a
+      // device that DID get it via initDb doesn't error and stall the chain.
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(journal_entries)`);
+      if (!cols.some((c) => c.name === 'dietary_note')) {
+        await db.execAsync(`ALTER TABLE journal_entries ADD COLUMN dietary_note TEXT NOT NULL DEFAULT ''`);
+      }
+    },
+  },
+  {
+    version: 10,
+    up: async (db) => {
+      // schema.ts's try/catch ALTER for first_meal_time targeted the wrong
+      // table name ("day_anchors" instead of "daily_anchors") and therefore
+      // silently no-oped on every existing device. Add the column here so
+      // upgraded installs are guaranteed to have it.
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(daily_anchors)`);
+      if (!cols.some((c) => c.name === 'first_meal_time')) {
+        await db.execAsync(`ALTER TABLE daily_anchors ADD COLUMN first_meal_time TEXT DEFAULT NULL`);
+      }
+    },
+  },
+  {
+    version: 11,
+    up: async (db) => {
+      // schema.ts's boot-time try/catch ALTERs are not guaranteed to run after
+      // the migration chain on upgraded devices (the version-0 path is skipped).
+      // Re-add every column that schema.ts adds via try/catch but that is NOT
+      // already covered by an earlier migration (v8 covers nfl_pgl; v9 covers
+      // dietary_note; v10 covers first_meal_time — all others land here).
+      const suppCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(supplements)`);
+      if (!suppCols.some((c) => c.name === 'quantity_on_hand')) {
+        await db.execAsync(`ALTER TABLE supplements ADD COLUMN quantity_on_hand INTEGER`);
+      }
+      if (!suppCols.some((c) => c.name === 'stock_days')) {
+        await db.execAsync(`ALTER TABLE supplements ADD COLUMN stock_days INTEGER DEFAULT NULL`);
+      }
+
+      const doseLogCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(dose_logs)`);
+      if (!doseLogCols.some((c) => c.name === 'skip_reason')) {
+        await db.execAsync(`ALTER TABLE dose_logs ADD COLUMN skip_reason TEXT`);
+      }
+
+      const exerciseCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(exercise_logs)`);
+      if (!exerciseCols.some((c) => c.name === 'intensity')) {
+        await db.execAsync(`ALTER TABLE exercise_logs ADD COLUMN intensity TEXT DEFAULT 'moderate'`);
+      }
+
+      const relapseCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(relapse_events)`);
+      if (!relapseCols.some((c) => c.name === 'pain_type')) {
+        await db.execAsync(`ALTER TABLE relapse_events ADD COLUMN pain_type TEXT`);
+      }
+      if (!relapseCols.some((c) => c.name === 'lasted_24h')) {
+        await db.execAsync(`ALTER TABLE relapse_events ADD COLUMN lasted_24h INTEGER`);
+      }
+      if (!relapseCols.some((c) => c.name === 'has_fever')) {
+        await db.execAsync(`ALTER TABLE relapse_events ADD COLUMN has_fever INTEGER`);
+      }
     },
   },
 ];

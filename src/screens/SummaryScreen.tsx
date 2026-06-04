@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
@@ -28,6 +28,8 @@ export default function SummaryScreen() {
   } = useSummaryScreen();
 
   const [loading, setLoading] = useState(true);
+
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   const barContainerWidth = useRef(0);
   const barAnim = useRef(new Animated.Value(0)).current;

@@ -5,6 +5,7 @@ import {
   getProfile, getTodayExercise, getTodaySunLog, getFirstMealTime,
   getJournalEntry, getLatestJournalEntry, getTodayMeals,
   getNextMedicalEvent, getLatestLabResult, getSupplementsLowStock,
+  todayStr,
 } from '../db/queries';
 import { getTodaySchedule } from '../engine/scheduler';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
@@ -57,12 +58,12 @@ export function useHomeScreen(navigation: any) {
     setSunMinutes(sun?.minutes ?? 0);
     const mealTime = await getFirstMealTime();
     setFirstMealTimeState(mealTime);
-    const journal = await getJournalEntry(new Date().toISOString().split('T')[0]);
+    const journal = await getJournalEntry(todayStr());
     setTodayMood(journal?.mood ?? null);
     setTodayNotePreview(journal?.note?.slice(0, 60) ?? '');
     const latest = await getLatestJournalEntry();
     setLatestJournal(latest ? { mood: latest.mood, note: latest.note, date: latest.date } : null);
-    const meals = await getTodayMeals(new Date().toISOString().split('T')[0]);
+    const meals = await getTodayMeals(todayStr());
     setTodayMeals(meals);
     const pt = await AsyncStorage.getItem('patient_type');
     const caregiverName = await AsyncStorage.getItem('caregiver_patient_name');
@@ -89,7 +90,7 @@ export function useHomeScreen(navigation: any) {
 
   useEffect(() => {
     AsyncStorage.getItem('fatigue_alert_shown').then((date) => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayStr();
       setShowFatigueAlert(date === today);
     });
   }, []);
@@ -156,7 +157,7 @@ export function useHomeScreen(navigation: any) {
         AsyncStorage.getItem('last_active_date'),
         AsyncStorage.getItem('install_date'),
       ]);
-      const now = new Date().toISOString().split('T')[0];
+      const now = todayStr();
       if (!installDate) await AsyncStorage.setItem('install_date', now);
       const appAge = Math.floor((Date.now() - new Date(installDate ?? now).getTime()) / 86_400_000);
       if (appAge < 8 && last) {

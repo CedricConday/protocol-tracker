@@ -21,7 +21,7 @@ TaskManager.defineTask(CHECK_DOSES, async () => {
       FROM dose_logs dl
       JOIN schedule_rules sr ON dl.rule_id = sr.id
       JOIN supplements s ON sr.supplement_id = s.id
-      WHERE dl.date = date('now') AND dl.status = 'pending'
+      WHERE dl.date = date('now') AND dl.status = 'upcoming'
     `);
 
     for (const log of doseLogs) {
@@ -30,7 +30,7 @@ TaskManager.defineTask(CHECK_DOSES, async () => {
       const deadline = new Date(scheduledTime.getTime() + (toleranceWindow * 60 * 1000));
       
       // Check if past deadline and still pending
-      if (now >= deadline && log.status === 'pending') {
+      if (now >= deadline && log.status === 'upcoming') {
         // Check if we've already alerted for this dose to avoid duplicates
         const existingLog = await db.getFirstAsync<{ missed_alerted: number }>(`
           SELECT missed_alerted FROM dose_logs WHERE id = ?

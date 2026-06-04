@@ -1,6 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,7 +13,7 @@ import {
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getDaySummary } from '../db/queries';
+import { getDaySummary, getDayDetail, type DayDetail } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
 
 const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
@@ -30,7 +32,7 @@ const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
 };
 
 function getAwarenessDate(dateStr: string): { label: string; message: string } | null {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + 'T00:00:00');
   const key = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return AWARENESS_DATES[key] ?? null;
 }
@@ -98,11 +100,34 @@ function getCurrentMonthYear(): string {
   return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function formatFullDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${WEEKDAYS[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function fmtTime(ts: number | null): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+const DOSE_STATUS_COLOR: Record<string, string> = {
+  taken: '#5A8A5A', missed: '#C04040', due: '#C4882A', upcoming: '#7A6A62',
+};
+
+const EVENT_LABEL: Record<string, string> = {
+  relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',
+};
+
 export default function CalendarScreen() {
   const [cells, setCells] = useState<DayCell[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<'30d' | '12m'>('30d');
+  const [detailDate, setDetailDate] = useState<string | null>(null);
+  const [detail, setDetail] = useState<DayDetail | null>(null);
 
   const loadData = useCallback(async (mode: '30d' | '12m') => {
     const dateStrs = mode === '30d' ? buildLast30Days() : buildLast365Days();
@@ -123,6 +148,8 @@ export default function CalendarScreen() {
     setLoaded(true);
   }, []);
 
+  useFocusEffect(useCallback(() => { loadData(viewMode); }, [loadData, viewMode]));
+
   useEffect(() => {
     loadData(viewMode);
   }, [viewMode, loadData]);
@@ -132,6 +159,31 @@ export default function CalendarScreen() {
     await loadData(viewMode);
     setRefreshing(false);
   };
+
+  const openDay = useCallback(async (date: string) => {
+    setDetailDate(date);
+    setDetail(null);
+    try {
+      setDetail(await getDayDetail(date));
+    } catch {
+      setDetail(null);
+    }
+  }, []);
+
+  const closeDay = useCallback(() => {
+    setDetailDate(null);
+    setDetail(null);
+  }, []);
+
+  const stepDay = useCallback((delta: number) => {
+    if (!detailDate) return;
+    const d = new Date(detailDate + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    const next = d.toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    if (next > today) return;
+    openDay(next);
+  }, [detailDate, openDay]);
 
   const rows: DayCell[][] = [];
   for (let i = 0; i < cells.length; i += COLS) {
@@ -269,10 +321,10 @@ export default function CalendarScreen() {
                   <TouchableOpacity
                     key={cell.date}
                     style={styles.cellWrapper}
-                    onPress={awareness ? () => Alert.alert(`${awareness.label} 🌍`, awareness.message) : undefined}
-                    activeOpacity={awareness ? 0.7 : 1}
-                    accessibilityLabel={`${cell.date}, ${cell.compliancePct} percent compliance, ${cell.totalDoses} doses${cell.isToday ? ', today' : ''}${awareness ? `, ${awareness.label}` : ''}`}
-                    accessibilityRole={awareness ? "button" : "image"}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDay(cell.date); }}
+                    activeOpacity={0.7}
+                    accessibilityLabel={`${cell.date}, ${cell.compliancePct} percent compliance, ${cell.totalDoses} doses${cell.isToday ? ', today' : ''}${awareness ? `, ${awareness.label}` : ''}. Tap for details.`}
+                    accessibilityRole="button"
                   >
                     <View
                       style={[
@@ -348,6 +400,74 @@ export default function CalendarScreen() {
           </View>
         </View>
       )}
+
+      <Modal visible={detailDate !== null} animationType="slide" transparent onRequestClose={closeDay}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.detailHeader}>
+              <TouchableOpacity onPress={() => stepDay(-1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Previous day" accessibilityRole="button">
+                <Text style={styles.detailArrow}>‹</Text>
+              </TouchableOpacity>
+              <Text style={styles.detailDate}>{detailDate ? formatFullDate(detailDate) : ''}</Text>
+              <TouchableOpacity onPress={() => stepDay(1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Next day" accessibilityRole="button">
+                <Text style={styles.detailArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.detailBody} contentContainerStyle={{ paddingBottom: 12 }}>
+              {!detail ? (
+                <Text style={styles.detailMuted}>Loading…</Text>
+              ) : (
+                <>
+                  <Text style={styles.detailSection}>💊 Pills</Text>
+                  {detail.totalDoses === 0 ? (
+                    <Text style={styles.detailMuted}>No doses scheduled.</Text>
+                  ) : (
+                    <>
+                      <Text style={styles.detailSummary}>{detail.takenDoses}/{detail.totalDoses} taken · {detail.compliancePct}%</Text>
+                      {detail.doses.map((d, i) => (
+                        <View key={i} style={styles.detailRow}>
+                          <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#7A6A62' }]} />
+                          <Text style={styles.detailRowText}>{d.name}</Text>
+                          <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.logged_time ? fmtTime(d.logged_time) : d.status}</Text>
+                        </View>
+                      ))}
+                    </>
+                  )}
+
+                  <Text style={styles.detailSection}>📓 Journal</Text>
+                  {detail.journal ? (
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailMood}>{detail.journal.mood}</Text>
+                      <Text style={styles.detailRowText}>{detail.journal.note || 'No note'}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.detailMuted}>No journal entry.</Text>
+                  )}
+
+                  <Text style={styles.detailSection}>📌 Events</Text>
+                  {detail.events.length === 0 ? (
+                    <Text style={styles.detailMuted}>No events logged.</Text>
+                  ) : (
+                    detail.events.map((e) => (
+                      <View key={e.id} style={styles.detailEvent}>
+                        <Text style={styles.detailEventTitle}>
+                          {EVENT_LABEL[e.type] ?? e.type}{e.severity ? ` · severity ${e.severity}` : ''}{e.cortisone_dose_mg ? ` · ${e.cortisone_dose_mg}mg` : ''}
+                        </Text>
+                        {!!e.notes && <Text style={styles.detailRowText}>{e.notes}</Text>}
+                      </View>
+                    ))
+                  )}
+                </>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity style={styles.detailClose} onPress={closeDay} accessibilityLabel="Close" accessibilityRole="button">
+              <Text style={styles.detailCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -483,5 +603,104 @@ const styles = StyleSheet.create({
     color: '#C96A50',
     fontSize: 15,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#FAF7F4',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    maxHeight: '80%',
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  detailArrow: {
+    color: '#C96A50',
+    fontSize: 30,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+  },
+  detailDate: {
+    color: '#2C2420',
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  detailBody: {
+    marginBottom: 12,
+  },
+  detailSection: {
+    color: '#2C2420',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  detailSummary: {
+    color: '#7A6A62',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    gap: 8,
+  },
+  detailDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  detailRowText: {
+    color: '#2C2420',
+    fontSize: 14,
+    flex: 1,
+  },
+  detailRowMeta: {
+    color: '#7A6A62',
+    fontSize: 12,
+  },
+  detailMood: {
+    fontSize: 20,
+  },
+  detailMuted: {
+    color: '#B0A098',
+    fontSize: 13,
+    fontStyle: 'italic',
+    paddingVertical: 2,
+  },
+  detailEvent: {
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#EFE9E3',
+  },
+  detailEventTitle: {
+    color: '#2C2420',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  detailClose: {
+    backgroundColor: '#C96A50',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  detailCloseText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

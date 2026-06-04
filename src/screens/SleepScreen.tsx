@@ -19,7 +19,7 @@ const QUESTIONS = [
 ];
 
 export default function SleepScreen() {
-  const [answers, setAnswers] = useState<boolean[]>([false, false, false, false, false]);
+  const [answers, setAnswers] = useState<(boolean | null)[]>([null, null, null, null, null]);
   const [lastCheckin, setLastCheckin] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function SleepScreen() {
     });
   }, []);
 
-  const score = answers.filter((a) => a).length;
+  const score = answers.filter((a) => a === true).length;
 
   const getScoreFeedback = (): { text: string; color: string } => {
     if (score <= 2) return { text: 'Poor sleep worsens MS fatigue. Prioritise sleep hygiene this week.', color: '#ef4444' };
@@ -65,7 +65,7 @@ export default function SleepScreen() {
             <Text style={styles.questionText}>{q}</Text>
             <View style={styles.toggleRow}>
               <TouchableOpacity
-                style={[styles.toggleBtn, answers[i] && styles.toggleBtnActive]}
+                style={[styles.toggleBtn, answers[i] === true && styles.toggleBtnActive]}
                 onPress={() => {
                   const next = [...answers];
                   next[i] = true;
@@ -73,10 +73,10 @@ export default function SleepScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.toggleBtnText, answers[i] && styles.toggleBtnTextActive]}>Yes</Text>
+                <Text style={[styles.toggleBtnText, answers[i] === true && styles.toggleBtnTextActive]}>Yes</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.toggleBtn, !answers[i] && styles.toggleBtnActive]}
+                style={[styles.toggleBtn, answers[i] === false && styles.toggleBtnActive]}
                 onPress={() => {
                   const next = [...answers];
                   next[i] = false;
@@ -84,7 +84,7 @@ export default function SleepScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.toggleBtnText, !answers[i] && styles.toggleBtnTextActive]}>No</Text>
+                <Text style={[styles.toggleBtnText, answers[i] === false && styles.toggleBtnTextActive]}>No</Text>
               </TouchableOpacity>
             </View>
           </View>

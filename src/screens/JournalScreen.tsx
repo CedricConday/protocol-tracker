@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Modal,
   RefreshControl,
   ScrollView,
@@ -10,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getDb } from '../db/schema';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
@@ -57,6 +58,8 @@ export default function JournalScreen() {
   const noteRef = useRef<TextInput>(null);
   const today = todayStr();
 
+  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
   useEffect(() => {
     if (loadedMood !== null) {
       setSelectedMood(loadedMood);
@@ -68,7 +71,7 @@ export default function JournalScreen() {
     getDb().then(async (db) => {
       const row = await db.getFirstAsync<{ dietary_note: string }>('SELECT dietary_note FROM journal_entries WHERE date = ?', [today]);
       if (row?.dietary_note) setDietaryNote(row.dietary_note);
-    });
+    }).catch((e) => console.warn('[Journal] dietary_note read skipped:', e));
   }, [today]);
 
   const onRefresh = async () => {
@@ -241,7 +244,7 @@ export default function JournalScreen() {
           styles.saveButton,
           (selectedMood === null) ? styles.saveButtonDisabled : null,
         ]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }}
         disabled={selectedMood === null}
         activeOpacity={0.8}
         accessibilityLabel={saved ? 'Journal entry saved' : 'Save journal entry'}

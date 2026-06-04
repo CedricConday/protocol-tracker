@@ -325,7 +325,7 @@ export async function initDb(): Promise<void> {
 
   try {
     await database.execAsync(`
-      ALTER TABLE day_anchors ADD COLUMN first_meal_time TEXT DEFAULT NULL
+      ALTER TABLE daily_anchors ADD COLUMN first_meal_time TEXT DEFAULT NULL
     `);
   } catch (e) {
     console.log('[Database] migration: first_meal_time column already exists');
@@ -383,29 +383,35 @@ export async function initDb(): Promise<void> {
     console.log('[Database] migration: family_members table already exists');
   }
 
-  // Migrate relapse_events CHECK constraint to include 'pain' type
+  // Migrate relapse_events CHECK constraint to include 'pain' type.
+  // Wrapped in withTransactionAsync so CREATE / INSERT / DROP / RENAME are
+  // atomic — a crash between DROP and RENAME previously destroyed the table.
   try {
-    await database.execAsync(`
-      CREATE TABLE IF NOT EXISTS relapse_events_v2 (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('relapse','cortisone','symptom','pain')),
-        cortisone_dose_mg INTEGER,
-        notes TEXT NOT NULL DEFAULT '',
-        severity INTEGER CHECK(severity BETWEEN 1 AND 5),
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        pain_type TEXT,
-        lasted_24h INTEGER,
-        has_fever INTEGER
-      );
-      INSERT OR IGNORE INTO relapse_events_v2
-        SELECT id, date, type, cortisone_dose_mg, notes, severity, created_at,
-               pain_type, lasted_24h, has_fever
-        FROM relapse_events
-        WHERE type IN ('relapse','cortisone','symptom','pain');
-      DROP TABLE relapse_events;
-      ALTER TABLE relapse_events_v2 RENAME TO relapse_events;
-    `);
+    await database.withTransactionAsync(async () => {
+      await database.execAsync(`
+        CREATE TABLE IF NOT EXISTS relapse_events_v2 (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          type TEXT NOT NULL CHECK(type IN ('relapse','cortisone','symptom','pain')),
+          cortisone_dose_mg INTEGER,
+          notes TEXT NOT NULL DEFAULT '',
+          severity INTEGER CHECK(severity BETWEEN 1 AND 5),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          pain_type TEXT,
+          lasted_24h INTEGER,
+          has_fever INTEGER
+        )
+      `);
+      await database.execAsync(`
+        INSERT OR IGNORE INTO relapse_events_v2
+          SELECT id, date, type, cortisone_dose_mg, notes, severity, created_at,
+                 pain_type, lasted_24h, has_fever
+          FROM relapse_events
+          WHERE type IN ('relapse','cortisone','symptom','pain')
+      `);
+      await database.execAsync(`DROP TABLE relapse_events`);
+      await database.execAsync(`ALTER TABLE relapse_events_v2 RENAME TO relapse_events`);
+    });
   } catch (e) {
     console.log('[Database] migration: relapse_events constraint already updated');
   }
