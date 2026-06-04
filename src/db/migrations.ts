@@ -361,6 +361,11 @@ async function logMigrationError(db: SQLite.SQLiteDatabase, message: string): Pr
 }
 
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+  // Bootstrap misc_flags before any migration runs — setSchemaVersion writes
+  // to it after each migration, so on a fresh DB v1 would otherwise fail to
+  // record its success (the table is otherwise only created in v6).
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS misc_flags (key TEXT PRIMARY KEY, value TEXT);`);
+
   const currentVersion = await getSchemaVersion(db);
   const pending = migrations
     .filter((m) => m.version > currentVersion)

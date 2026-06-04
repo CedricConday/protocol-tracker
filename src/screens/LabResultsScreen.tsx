@@ -346,7 +346,7 @@ export default function LabResultsScreen() {
         ))
       )}
 
-      <Text style={styles.disclaimer}>Not medical advice. Discuss all results with your Coimbra practitioner.</Text>
+      <Text style={styles.disclaimer}>Not medical advice. Discuss all results with your prescribing practitioner.</Text>
     </ScrollView>
   );
 }

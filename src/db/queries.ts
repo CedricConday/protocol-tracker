@@ -13,9 +13,19 @@ export async function getProfile(): Promise<UserProfile | null> {
   return db.getFirstAsync<UserProfile>('SELECT * FROM user_profile WHERE id = 1');
 }
 
+// Whitelisted columns for updateProfile — defensive against runtime callers
+// that bypass the TypeScript Partial<UserProfile> constraint. setClauses below
+// interpolates these keys directly into SQL, so the whitelist is the safety
+// barrier; values are always parameterized.
+const UPDATE_PROFILE_ALLOWED = new Set<keyof UserProfile>([
+  'name', 'weight_kg', 'start_date', 'timezone', 'bedtime_hour', 'bedtime_minute',
+]);
+
 export async function updateProfile(fields: Partial<UserProfile>): Promise<void> {
   const db = await getDb();
-  const entries = Object.entries(fields).filter(([k]) => k !== 'id');
+  const entries = Object.entries(fields).filter(
+    ([k]) => UPDATE_PROFILE_ALLOWED.has(k as keyof UserProfile)
+  );
   if (!entries.length) return;
   const setClauses = entries.map(([k]) => `${k} = ?`).join(', ');
   const values = entries.map(([, v]) => v);

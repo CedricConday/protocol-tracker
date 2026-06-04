@@ -559,7 +559,7 @@ export default function HomeScreen() {
           <View style={styles.emptyDoses}>
             <Text style={styles.emptyDosesIcon}>💊</Text>
             <Text style={styles.emptyDosesTitle}>No supplements scheduled</Text>
-            <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your Coimbra supplements.</Text>
+            <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your protocol supplements.</Text>
         </View>
       )}
 
