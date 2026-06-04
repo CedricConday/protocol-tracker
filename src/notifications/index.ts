@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
-import { COIMBRA_CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
+import { CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
 import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
@@ -21,7 +21,7 @@ export async function loadPatientName(): Promise<void> {
 
 export const requestPermissions = async (): Promise<boolean> => {
   if (!Device.isDevice) {
-    console.warn('[Coimbra Notifications] Must use physical device for push notifications');
+    console.warn('[Protocol Tracker Notifications] Must use physical device for push notifications');
     return false;
   }
 
@@ -36,7 +36,7 @@ export const requestPermissions = async (): Promise<boolean> => {
   const enabled = finalStatus === 'granted';
 
   if (enabled) {
-    console.log('[Coimbra Notifications] Permissions granted');
+    console.log('[Protocol Tracker Notifications] Permissions granted');
   }
 
   return enabled;
@@ -74,10 +74,10 @@ export const scheduleSupplementNotification = async (params: {
       },
     });
 
-    console.log(`[Coimbra Notifications] Scheduled supplement notification ${identifier} for ${params.scheduledTime.toISOString()}`);
+    console.log(`[Protocol Tracker Notifications] Scheduled supplement notification ${identifier} for ${params.scheduledTime.toISOString()}`);
     return identifier;
   } catch (error) {
-    console.error('[Coimbra Notifications] Error scheduling supplement notification:', error);
+    console.error('[Protocol Tracker Notifications] Error scheduling supplement notification:', error);
     throw error;
   }
 };
@@ -110,9 +110,9 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
     }
 
     await Promise.all(notifications);
-    console.log(`[Coimbra Notifications] Scheduled ${notifications.length} water reminders`);
+    console.log(`[Protocol Tracker Notifications] Scheduled ${notifications.length} water reminders`);
   } catch (error) {
-    console.error('[Coimbra Notifications] Error scheduling water reminders:', error);
+    console.error('[Protocol Tracker Notifications] Error scheduling water reminders:', error);
     throw error;
   }
 };
@@ -133,9 +133,9 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
       },
     });
 
-    console.log(`[Coimbra Notifications] Scheduled exercise reminder ${identifier} for ${exerciseTime.toISOString()}`);
+    console.log(`[Protocol Tracker Notifications] Scheduled exercise reminder ${identifier} for ${exerciseTime.toISOString()}`);
   } catch (error) {
-    console.error('[Coimbra Notifications] Error scheduling exercise reminder:', error);
+    console.error('[Protocol Tracker Notifications] Error scheduling exercise reminder:', error);
     throw error;
   }
 };
@@ -149,7 +149,7 @@ export const scheduleMorningReminder = async (): Promise<void> => {
     const avgTime = await getAverageStartTime();
     let body = avgTime
       ? `${patientName}, you usually start around ${avgTime}. Ready?`
-      : `${patientName}, time to start your Coimbra day`;
+      : `${patientName}, time to start your protocol day`;
 
     const lowStock = await getLowStockSupplements();
     if (lowStock.length > 0) {
@@ -171,9 +171,9 @@ export const scheduleMorningReminder = async (): Promise<void> => {
       },
     });
 
-    console.log(`[Coimbra Notifications] Scheduled morning reminder ${identifier}`);
+    console.log(`[Protocol Tracker Notifications] Scheduled morning reminder ${identifier}`);
   } catch (error) {
-    console.error('[Coimbra Notifications] Error scheduling morning reminder:', error);
+    console.error('[Protocol Tracker Notifications] Error scheduling morning reminder:', error);
     throw error;
   }
 };
@@ -194,10 +194,10 @@ export const scheduleMissedDoseAlert = async (supplementName: string, scheduledT
       },
     });
 
-    console.log(`[Coimbra Notifications] Scheduled missed dose alert ${identifier} for ${supplementName}`);
+    console.log(`[Protocol Tracker Notifications] Scheduled missed dose alert ${identifier} for ${supplementName}`);
     return identifier;
   } catch (error) {
-    console.error('[Coimbra Notifications] Error scheduling missed dose alert:', error);
+    console.error('[Protocol Tracker Notifications] Error scheduling missed dose alert:', error);
     throw error;
   }
 };
@@ -217,9 +217,9 @@ export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
         date: summaryTime,
       },
     });
-    console.log(`[Coimbra Notifications] Scheduled end-of-day summary for ${summaryTime.toISOString()}`);
+    console.log(`[Protocol Tracker Notifications] Scheduled end-of-day summary for ${summaryTime.toISOString()}`);
   } catch (error) {
-    console.error('[Coimbra Notifications] Error scheduling end-of-day summary:', error);
+    console.error('[Protocol Tracker Notifications] Error scheduling end-of-day summary:', error);
     throw error;
   }
 };
@@ -227,9 +227,9 @@ export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
 export const cancelAllNotifications = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[Coimbra Notifications] All pending notifications cancelled');
+    console.log('[Protocol Tracker Notifications] All pending notifications cancelled');
   } catch (error) {
-    console.error('[Coimbra Notifications] Error cancelling notifications:', error);
+    console.error('[Protocol Tracker Notifications] Error cancelling notifications:', error);
     throw error;
   }
 };
@@ -241,9 +241,9 @@ export const cancelSupplementNotifications = async (): Promise<void> => {
       .filter(n => n.content.data?.type === 'supplement')
       .map(n => n.identifier);
     await Promise.all(supplementIds.map(id => Notifications.cancelScheduledNotificationAsync(id)));
-    console.log('[Coimbra Notifications] Cancelled supplement notifications:', supplementIds.length);
+    console.log('[Protocol Tracker Notifications] Cancelled supplement notifications:', supplementIds.length);
   } catch (error) {
-    console.error('[Coimbra Notifications] Error cancelling supplement notifications:', error);
+    console.error('[Protocol Tracker Notifications] Error cancelling supplement notifications:', error);
     throw error;
   }
 };
@@ -251,9 +251,9 @@ export const cancelSupplementNotifications = async (): Promise<void> => {
 export const cancelNotification = async (id: string): Promise<void> => {
   try {
     await Notifications.cancelScheduledNotificationAsync(id);
-    console.log(`[Coimbra Notifications] Cancelled notification ${id}`);
+    console.log(`[Protocol Tracker Notifications] Cancelled notification ${id}`);
   } catch (error) {
-    console.error('[Coimbra Notifications] Error cancelling notification:', error);
+    console.error('[Protocol Tracker Notifications] Error cancelling notification:', error);
     throw error;
   }
 };
@@ -271,7 +271,7 @@ export const confirmDoseFromNotification = async (doseId: number): Promise<void>
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
     });
   } catch (e) {
-    console.error('[Coimbra Notifications] Error confirming dose:', e);
+    console.error('[Protocol Tracker Notifications] Error confirming dose:', e);
   }
 };
 
@@ -283,7 +283,7 @@ export const skipDoseFromNotification = async (doseId: number): Promise<void> =>
       [doseId]
     );
   } catch (e) {
-    console.error('[Coimbra Notifications] Error skipping dose:', e);
+    console.error('[Protocol Tracker Notifications] Error skipping dose:', e);
   }
 };
 
@@ -323,7 +323,7 @@ export const setupNotificationHandler = (): void => {
           return;
         }
       } catch (error) {
-        console.error('[Coimbra Notifications] Error checking water progress:', error);
+        console.error('[Protocol Tracker Notifications] Error checking water progress:', error);
       }
     }
 
@@ -372,23 +372,33 @@ export const setupNotificationHandler = (): void => {
 export const setupAndroidChannels = (): void => {
   if (Platform.OS !== 'android') return;
 
+  // PRIVATE lockscreen visibility hides notification content when the device
+  // is locked — supplement names + patient name are not displayed until the
+  // user unlocks. iOS users should set Show Previews → When Unlocked in iOS
+  // Settings → Notifications → Protocol Tracker for the equivalent effect.
+  const PRIVATE = Notifications.AndroidNotificationVisibility.PRIVATE;
+
   Notifications.setNotificationChannelAsync('supplements', {
     name: 'Supplements',
     importance: Notifications.AndroidImportance.HIGH,
+    lockscreenVisibility: PRIVATE,
   }).catch(() => {});
 
   Notifications.setNotificationChannelAsync('water', {
     name: 'Water Reminders',
     importance: Notifications.AndroidImportance.DEFAULT,
+    lockscreenVisibility: PRIVATE,
   }).catch(() => {});
 
   Notifications.setNotificationChannelAsync('exercise', {
     name: 'Exercise',
     importance: Notifications.AndroidImportance.DEFAULT,
+    lockscreenVisibility: PRIVATE,
   }).catch(() => {});
 
   Notifications.setNotificationChannelAsync('general', {
     name: 'General',
     importance: Notifications.AndroidImportance.LOW,
+    lockscreenVisibility: PRIVATE,
   }).catch(() => {});
 };

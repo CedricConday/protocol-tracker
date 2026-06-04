@@ -419,7 +419,7 @@ export async function initDb(): Promise<void> {
       INSERT INTO contraindication_rules (drug_name, drug_aliases, severity, message, safe_alternative) VALUES
       ('Lithium Carbonate', 'lithium carbonate,lithiumcarbonat', 'danger',
        'Lithium Carbonate is contraindicated with high-dose D3. It causes dangerous calcium dysregulation. Discuss with your doctor immediately.',
-       'Lithium Orotate is prescribed by some Coimbra doctors and is considered safe — confirm the exact form with your prescriber.'),
+       'Lithium Orotate is prescribed by some practitioners on this protocol and is considered safe — confirm the exact form with your prescriber.'),
       ('Thiazide Diuretics', 'hydrochlorothiazide,HCTZ,chlorthalidone,indapamide,bendroflumethiazide', 'danger',
        'Thiazide diuretics increase kidney calcium reabsorption. Combined with high-dose D3 this significantly raises hypercalcemia risk.',
        'Discuss alternative diuretics with your doctor. Loop diuretics (furosemide) have a different calcium profile.'),

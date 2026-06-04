@@ -23,7 +23,7 @@ export default function SplashAnimation({ onFinish }: { onFinish: () => void }) 
         <Ionicons name="medical" size={36} color="#22c55e" />
       </Animated.View>
       <Animated.Text style={[styles.appName, { opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }]}>
-        MS Central
+        Protocol Tracker
       </Animated.Text>
       <Animated.Text style={[styles.tagline, { opacity: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }]}>
         Your protocol. Your pace.

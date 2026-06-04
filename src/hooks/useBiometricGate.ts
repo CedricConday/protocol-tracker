@@ -15,7 +15,7 @@ export function useBiometricGate() {
       return;
     }
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock MS Central',
+      promptMessage: 'Unlock Protocol Tracker',
       fallbackLabel: 'Try Again',
     });
     if (result.success) {

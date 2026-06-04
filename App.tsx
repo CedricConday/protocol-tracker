@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { AppState, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,6 @@ import { syncAll } from './src/api/syncClient';
 import { FontScaleProvider } from './src/context/FontScaleContext';
 import PermissionPrimingModal from './src/components/PermissionPrimingModal';
 import SplashAnimation from './src/components/SplashAnimation';
-import { navigate } from './src/navigation/navigationRef';
 import { useBiometricGate } from './src/hooks/useBiometricGate';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 
@@ -68,16 +67,6 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
-  useEffect(() => {
-    const handler = Linking.addEventListener('url', (event) => {
-      const url = event.url;
-      if (url === 'coimbra://start-day') {
-        navigate('Home');
-      }
-    });
-    return () => handler.remove();
-  }, []);
-
   const handlePrimingComplete = async () => {
     await AsyncStorage.setItem(PRIMING_KEY, 'true');
     setShowPriming(false);
@@ -101,7 +90,7 @@ export default function App() {
   if (!ready) {
     return (
       <View style={styles.splash}>
-        <Text style={styles.splashText}>Coimbra</Text>
+        <Text style={styles.splashText}>Protocol Tracker</Text>
         <PermissionPrimingModal
           visible={showPriming}
           onComplete={handlePrimingComplete}
@@ -114,7 +103,7 @@ export default function App() {
   if (locked) {
     return (
       <View style={styles.splash}>
-        <Text style={styles.splashText}>MS Central</Text>
+        <Text style={styles.splashText}>Protocol Tracker</Text>
         <Text style={styles.errorText}>Authenticate to continue</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={authenticate} activeOpacity={0.8}>
           <Text style={styles.retryBtnText}>Try Again</Text>

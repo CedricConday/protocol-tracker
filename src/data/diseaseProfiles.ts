@@ -18,7 +18,7 @@ export const DISEASE_PROFILES: DiseaseProfile[] = [
     defaultFluid_L: 2.5,
     keyMarkers: ['VitD', 'Calcium', 'PTH', 'Creatinine'],
     patientDescription:
-      'Multiple Sclerosis is an autoimmune disease affecting the central nervous system. The Coimbra Protocol uses high-dose Vitamin D3 alongside strict dietary calcium restriction and high fluid intake to modulate immune function and slow disease progression.',
+      'Multiple Sclerosis is an autoimmune disease affecting the central nervous system. This protocol uses high-dose Vitamin D3 alongside strict dietary calcium restriction and high fluid intake to modulate immune function and slow disease progression.',
     doctorNotes:
       'Start at 40,000 IU and titrate based on PTH suppression. Target PTH < 30 pg/mL.',
   },
@@ -32,7 +32,7 @@ export const DISEASE_PROFILES: DiseaseProfile[] = [
     patientDescription:
       'Systemic Lupus Erythematosus (SLE) is a chronic autoimmune disease that can affect multiple organ systems including skin, joints, kidneys, and the nervous system. High-dose Vitamin D3 aims to rebalance immune dysregulation at the root of lupus activity.',
     doctorNotes:
-      'Monitor ANA and anti-dsDNA antibody titers alongside standard Coimbra Protocol labs.',
+      'Monitor ANA and anti-dsDNA antibody titers alongside standard protocol labs.',
   },
   {
     id: 'psoriasis',

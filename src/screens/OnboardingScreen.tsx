@@ -36,7 +36,7 @@ const STEPS = [
   {
     title: 'Welcome to the Protocol',
     icon: '🧬',
-    body: 'A personal companion on Dr. Coimbra\'s high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
+    body: 'A personal companion for tracking a high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
   },
   {
     title: 'Set Up Your Profile',
@@ -177,11 +177,6 @@ export default function OnboardingScreen({ onComplete }: Props) {
             <Text style={styles.body}>
               This app is your daily companion for the Protocol. We'll keep it simple.
             </Text>
-            <View style={styles.qolCard}>
-              <Text style={styles.qolStat}>83.6 <Text style={styles.qolUnit}>/ 100</Text></Text>
-              <Text style={styles.qolLabel}>Physical QoL in the Protocol patients</Text>
-              <Text style={styles.qolSource}>vs 66.9 in controls · doi:10.3390/ctn7020012</Text>
-            </View>
             <Text style={styles.inputLabel}>Who is using this app?</Text>
             <View style={styles.typeRow}>
               {([
@@ -487,11 +482,6 @@ const styles = StyleSheet.create({
     borderColor: '#E8E0D8',
     marginBottom: 4,
   },
-  qolCard: { backgroundColor: '#F0FDF4', borderRadius: 14, padding: 16, marginTop: 12, marginBottom: 4, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
-  qolStat: { color: '#166534', fontSize: 28, fontWeight: '800' },
-  qolUnit: { color: '#166534', fontSize: 16, fontWeight: '600' },
-  qolLabel: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
-  qolSource: { color: '#B0A098', fontSize: 11, marginTop: 4 },
   hint: {
     color: '#7A6A62',
     fontSize: 13,

@@ -3,13 +3,13 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import { getDb } from '../db/schema';
 import { scheduleMissedDoseAlert } from './index';
 
-export const COIMBRA_CHECK_DOSES = 'COIMBRA_CHECK_DOSES';
+export const CHECK_DOSES = 'CHECK_DOSES';
 
-TaskManager.defineTask(COIMBRA_CHECK_DOSES, async () => {
+TaskManager.defineTask(CHECK_DOSES, async () => {
   try {
     const now = new Date();
     const nowISO = now.toISOString();
-    console.log(`[Coimbra Background Task] Checking doses at ${nowISO}`);
+    console.log(`[Protocol Tracker Background Task] Checking doses at ${nowISO}`);
 
     const db = await getDb();
     
@@ -45,15 +45,15 @@ TaskManager.defineTask(COIMBRA_CHECK_DOSES, async () => {
             UPDATE dose_logs SET missed_alerted = 1 WHERE id = ?
           `, [log.id]);
           
-          console.log(`[Coimbra Background Task] Scheduled missed dose alert for ${log.supplement_name}`);
+          console.log(`[Protocol Tracker Background Task] Scheduled missed dose alert for ${log.supplement_name}`);
         }
       }
     }
 
-    console.log('[Coimbra Background Task] Dose check completed');
+    console.log('[Protocol Tracker Background Task] Dose check completed');
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
-    console.error('[Coimbra Background Task] Error:', error);
+    console.error('[Protocol Tracker Background Task] Error:', error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -61,20 +61,20 @@ TaskManager.defineTask(COIMBRA_CHECK_DOSES, async () => {
 export const registerBackgroundTask = async (): Promise<void> => {
   try {
     const status = await BackgroundFetch.getStatusAsync();
-    console.log('[Coimbra Background Task] Status:', status);
+    console.log('[Protocol Tracker Background Task] Status:', status);
 
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(COIMBRA_CHECK_DOSES);
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(CHECK_DOSES);
 
     if (!isRegistered) {
-      await BackgroundFetch.registerTaskAsync(COIMBRA_CHECK_DOSES, {
+      await BackgroundFetch.registerTaskAsync(CHECK_DOSES, {
         minimumInterval: 15 * 60,
         stopOnTerminate: false,
         startOnBoot: true,
       });
-      console.log('[Coimbra] Background task registered successfully');
+      console.log('[Protocol Tracker] Background task registered successfully');
     }
   } catch (error) {
     // Background fetch requires UIBackgroundModes in Info.plist — not available in Expo Go
-    console.warn('[Coimbra Background Task] Registration skipped (Expo Go):', error);
+    console.warn('[Protocol Tracker Background Task] Registration skipped (Expo Go):', error);
   }
 };
