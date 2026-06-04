@@ -16,7 +16,7 @@ import {
   View,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import DoseDetailModal from '../components/DoseDetailModal';
 import DoseRow from '../components/DoseRow';
@@ -189,6 +189,8 @@ export default function HomeScreen() {
   const [dosesExpanded, setDosesExpanded] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
+  useFocusEffect(useCallback(() => { loadDay(); }, [loadDay]));
+
   useEffect(() => {
     if (t0 !== null || doses.length > 0 || !initialLoading) {
       const timer = setTimeout(() => setInitialLoading(false), 300);
@@ -276,19 +278,24 @@ export default function HomeScreen() {
 
     const handleTook = async (dose: ScheduledDose) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (dose.logId) {
-        await confirmDose(dose.logId);
-        
-        const reviewPrompted = await AsyncStorage.getItem('review_prompted');
-        const streak = await getStreak();
-        const todayCompliance = await getDaySummary();
-        if (!reviewPrompted && streak >= 7 && todayCompliance.compliancePct === 100) {
-          StoreReview.requestReview();
-          await AsyncStorage.setItem('review_prompted', 'true');
+      try {
+        if (dose.logId) {
+          await confirmDose(dose.logId);
+
+          const reviewPrompted = await AsyncStorage.getItem('review_prompted');
+          const streak = await getStreak();
+          const todayCompliance = await getDaySummary();
+          if (!reviewPrompted && streak >= 7 && todayCompliance.compliancePct === 100) {
+            StoreReview.requestReview();
+            await AsyncStorage.setItem('review_prompted', 'true');
+          }
         }
+        await loadDay();
+      } catch {
+        Alert.alert('Error', 'Could not log dose. Please try again.');
+      } finally {
+        setSelectedDose(null);
       }
-      setSelectedDose(null);
-      await loadDay();
     };
 
   const handleDosePress = useCallback((dose: ScheduledDose) => {
@@ -297,15 +304,20 @@ export default function HomeScreen() {
 
   const handleSkip = async (dose: ScheduledDose, reason?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (dose.logId) {
-      if (reason) {
-        await skipDoseWithReason(dose.logId, reason);
-      } else {
-        await skipDose(dose.logId);
+    try {
+      if (dose.logId) {
+        if (reason) {
+          await skipDoseWithReason(dose.logId, reason);
+        } else {
+          await skipDose(dose.logId);
+        }
       }
+      await loadDay();
+    } catch {
+      Alert.alert('Error', 'Could not log dose. Please try again.');
+    } finally {
+      setSelectedDose(null);
     }
-    setSelectedDose(null);
-    await loadDay();
   };
 
   const onRefresh = async () => {

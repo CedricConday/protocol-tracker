@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
   RefreshControl,
   ScrollView,
@@ -9,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DoseDetailModal from '../components/DoseDetailModal';
 import { confirmDose, skipDose } from '../db/queries';
@@ -55,24 +56,36 @@ export default function ScheduleScreen() {
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [activeView, setActiveView] = useState<'today' | 'history'>('today');
 
+  useFocusEffect(useCallback(() => { loadSchedule(); }, [loadSchedule]));
+
   useEffect(() => {
     if (activeView === 'history') loadCalendar();
   }, [activeView, loadCalendar]);
 
   const handleTook = async (dose: ScheduledDose) => {
-    if (dose.logId) {
-      await confirmDose(dose.logId);
+    try {
+      if (dose.logId) {
+        await confirmDose(dose.logId);
+      }
+      await loadSchedule();
+    } catch {
+      Alert.alert('Error', 'Could not log dose. Please try again.');
+    } finally {
+      setSelectedDose(null);
     }
-    setSelectedDose(null);
-    await loadSchedule();
   };
 
   const handleSkip = async (dose: ScheduledDose) => {
-    if (dose.logId) {
-      await skipDose(dose.logId);
+    try {
+      if (dose.logId) {
+        await skipDose(dose.logId);
+      }
+      await loadSchedule();
+    } catch {
+      Alert.alert('Error', 'Could not log dose. Please try again.');
+    } finally {
+      setSelectedDose(null);
     }
-    setSelectedDose(null);
-    await loadSchedule();
   };
 
   const onRefresh = async () => {

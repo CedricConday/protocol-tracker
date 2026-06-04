@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -273,7 +274,7 @@ export default function RelapseScreen() {
 
       <TouchableOpacity
         style={[styles.logButton, (eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null) ? styles.logButtonDisabled : null]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLog().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLog().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }}
         disabled={(eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null)}
         activeOpacity={0.8}
       >

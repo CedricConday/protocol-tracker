@@ -3,7 +3,13 @@ import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 
 export function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
+  // Use local calendar date so users in UTC+1/+2 (Europe/Berlin) get the
+  // correct day in the early-morning hours instead of the UTC date.
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 // ── User Profile ─────────────────────────────────────────────────────────────
@@ -214,6 +220,45 @@ export async function getDaySummary(date: string = todayStr()): Promise<DaySumma
     compliancePct,
     waterMl: anchor?.water_ml ?? 0,
     t0: anchor?.t0_timestamp ? new Date(anchor.t0_timestamp) : null,
+  };
+}
+
+export interface DayDetail {
+  date: string;
+  doses: { name: string; status: string; scheduled_time: number; logged_time: number | null }[];
+  takenDoses: number;
+  totalDoses: number;
+  missedDoses: number;
+  compliancePct: number;
+  journal: JournalEntry | null;
+  events: RelapseEvent[];
+}
+
+// Aggregates everything logged on a single day — pills, journal, and events —
+// for the History day-detail view.
+export async function getDayDetail(date: string): Promise<DayDetail> {
+  const summary = await getDaySummary(date);
+  const doseLogs = await getDoseLogs(date);
+  const journal = await getJournalEntry(date);
+  const db = await getDb();
+  const events = await db.getAllAsync<RelapseEvent>(
+    'SELECT * FROM relapse_events WHERE date = ? ORDER BY created_at DESC',
+    [date]
+  );
+  return {
+    date,
+    doses: doseLogs.map((d) => ({
+      name: d.supplement_name,
+      status: d.status,
+      scheduled_time: d.scheduled_time,
+      logged_time: d.logged_time,
+    })),
+    takenDoses: summary.takenDoses,
+    totalDoses: summary.totalDoses,
+    missedDoses: summary.missedDoses,
+    compliancePct: summary.compliancePct,
+    journal,
+    events,
   };
 }
 

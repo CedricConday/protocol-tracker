@@ -1,4 +1,4 @@
-import { getProfile, getMiscFlag } from '../db/queries';
+import { getProfile, getMiscFlag, todayStr } from '../db/queries';
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
 import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
@@ -78,7 +78,7 @@ export async function getTodaySchedule(): Promise<ScheduledDose[]> {
     return [];
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   await markOverdueDoses(today);
 
   const logs = await getDoseLogs(today);

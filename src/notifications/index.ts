@@ -261,9 +261,9 @@ export const cancelNotification = async (id: string): Promise<void> => {
 export const confirmDoseFromNotification = async (doseId: number): Promise<void> => {
   try {
     const db = await getDb();
-    const now = new Date().toISOString();
+    const now = Date.now();
     await db.runAsync(
-      "UPDATE dose_logs SET status = 'taken', taken_time = ? WHERE id = ?",
+      "UPDATE dose_logs SET status = 'taken', logged_time = ? WHERE id = ?",
       [now, doseId]
     );
     await Notifications.scheduleNotificationAsync({
