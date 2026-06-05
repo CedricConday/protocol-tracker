@@ -2,14 +2,17 @@ import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 
-export function todayStr(): string {
-  // Use local calendar date so users in UTC+1/+2 (Europe/Berlin) get the
-  // correct day in the early-morning hours instead of the UTC date.
-  const d = new Date();
+export function localDateStr(d: Date): string {
+  // Local calendar date (YYYY-MM-DD). Used everywhere data is keyed by day so
+  // writes (todayStr) and the History grid agree in UTC+1/+2 (Europe/Berlin).
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+export function todayStr(): string {
+  return localDateStr(new Date());
 }
 
 // ── User Profile ─────────────────────────────────────────────────────────────
