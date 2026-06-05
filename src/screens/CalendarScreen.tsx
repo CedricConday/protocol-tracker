@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getDaySummary, getDayDetail, type DayDetail } from '../db/queries';
+import { getDaySummary, getDayDetail, localDateStr, todayStr, type DayDetail } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
 
 const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
@@ -80,7 +80,7 @@ function buildLast30Days(): string[] {
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   return days;
 }
@@ -90,7 +90,7 @@ function buildLast365Days(): string[] {
   for (let i = 364; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   return days;
 }
@@ -131,16 +131,16 @@ export default function CalendarScreen() {
 
   const loadData = useCallback(async (mode: '30d' | '12m') => {
     const dateStrs = mode === '30d' ? buildLast30Days() : buildLast365Days();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     const results = await Promise.all(
       dateStrs.map(async (dateStr) => {
         const summary = await getDaySummary(dateStr);
         return {
           date: dateStr,
-          dayNumber: new Date(dateStr).getDate(),
+          dayNumber: new Date(dateStr + 'T00:00:00').getDate(),
           compliancePct: summary.compliancePct,
           totalDoses: summary.totalDoses,
-          isToday: dateStr === todayStr,
+          isToday: dateStr === today,
         };
       }),
     );
@@ -179,8 +179,8 @@ export default function CalendarScreen() {
     if (!detailDate) return;
     const d = new Date(detailDate + 'T00:00:00');
     d.setDate(d.getDate() + delta);
-    const next = d.toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
+    const next = localDateStr(d);
+    const today = todayStr();
     if (next > today) return;
     openDay(next);
   }, [detailDate, openDay]);
