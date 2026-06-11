@@ -9,12 +9,6 @@ import type { ScheduledDose, DoseStatus } from '../types';
  * All dose times calculate forward from this anchor.
  */
 export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> {
-  // Pulse dosing — Sunday is rest day
-  const pulseDosing = await getMiscFlag('pulse_dosing_enabled');
-  if (pulseDosing === 'true' && new Date().getDay() === 0) {
-    return [];
-  }
-
   // Bedtime gate check
   const profile = await getProfile();
   if (profile) {
@@ -73,11 +67,6 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
  * Load today's schedule with live status calculation.
  */
 export async function getTodaySchedule(): Promise<ScheduledDose[]> {
-  const pulseDosing = await getMiscFlag('pulse_dosing_enabled');
-  if (pulseDosing === 'true' && new Date().getDay() === 0) {
-    return [];
-  }
-
   const today = todayStr();
   await markOverdueDoses(today);
 

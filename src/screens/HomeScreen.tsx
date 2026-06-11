@@ -459,15 +459,6 @@ export default function HomeScreen() {
           </View>
         ))}
 
-        {showSurveyPrompt ? (
-          <TouchableOpacity style={styles.surveyPrompt} onPress={() => { setShowSurveyPrompt(false); navigation.navigate('Journal', { screen: 'CareSurvey' }); }} activeOpacity={0.85} accessibilityLabel="Take care survey" accessibilityRole="button">
-            <Text style={styles.surveyPromptText}>Quarterly check-in: How coordinated is your MS care? · Tap to take survey</Text>
-            <TouchableOpacity onPress={() => setShowSurveyPrompt(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Dismiss survey prompt" accessibilityRole="button">
-              <Text style={styles.surveyPromptDismiss}>✕</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        ) : null}
-
         {showEngagementNudge ? (
           <View style={styles.nudgeBanner}>
             <Text style={styles.nudgeBannerText}>Welcome back. It looks like you may have missed some doses. Your protocol works best with daily consistency.</Text>
@@ -482,13 +473,6 @@ export default function HomeScreen() {
             <Text style={styles.insightLabel}>Protocol tip</Text>
             <Text style={styles.insightText}>{insightText}</Text>
           </View>
-        ) : null}
-
-        {strictMode ? (
-          <TouchableOpacity style={styles.strictBadge} onPress={() => navigation.navigate('Settings', { screen: 'DrugChecker' })} activeOpacity={0.7} accessibilityLabel="Strict mode active, open drug checker" accessibilityRole="button">
-            <View style={styles.strictAmberDot} />
-            <Text style={styles.strictBadgeText}>Strict Mode active — Drug Checker</Text>
-          </TouchableOpacity>
         ) : null}
 
         <ProgressHeader t0={t0} doses={doses} />
@@ -574,18 +558,6 @@ export default function HomeScreen() {
             <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your protocol supplements.</Text>
         </View>
       )}
-
-      <View style={styles.energyCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={styles.energyLabel}>Energy today</Text>
-          <Text style={styles.energyCount}>{clampedCredits}/10</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
-          {Array.from({ length: 10 }, (_, i) => (
-            <View key={i} style={[styles.energyDot, { backgroundColor: i < clampedCredits ? '#22c55e' : '#E8E0D8' }]} />
-          ))}
-        </View>
-      </View>
 
       </ScrollView>
 

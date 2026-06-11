@@ -64,9 +64,8 @@ export default function AboutScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>What is the Protocol?</Text>
         <Text style={styles.sectionBody}>
-          The Protocol is a high-dose vitamin D3 supplementation
-          protocol developed by Dr. Cicero Galli Coimbra for the treatment
-          of autoimmune diseases. Always consult your physician before making
+          The Protocol is a high-dose vitamin D3 supplementation therapy
+          for autoimmune diseases. Always consult your physician before making
           changes to your protocol.
         </Text>
       </View>

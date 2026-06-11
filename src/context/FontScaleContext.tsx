@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const FONT_SCALE_KEY = '@coimbra:font_scale';
+const FONT_SCALE_KEY = '@pt:font_scale';
 
 type FontScaleContextType = {
   fontScale: number;

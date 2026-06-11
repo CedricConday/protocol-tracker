@@ -407,71 +407,6 @@ export default function SettingsScreen() {
             </Expand>
           </Group>
 
-          {/* ── Behaviour ─────────────────────────────────────────────────── */}
-          <Group label="Behaviour">
-            <View style={styles.row}>
-              <View style={styles.iconPill}><Ionicons name="repeat-outline" size={17} color={C.primary} /></View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Pulse dosing</Text>
-                <Text style={styles.rowSub}>Sunday is a rest day</Text>
-              </View>
-              {pulseDosing && <View style={styles.dotInline} />}
-              <Switch
-                value={pulseDosing}
-                onValueChange={async (v) => { hSelect(); setPulseDosing(v); await setMiscFlag('pulse_dosing_enabled', v ? 'true' : 'false'); }}
-                trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
-                accessibilityLabel="Toggle pulse dosing"
-              />
-            </View>
-            <View style={styles.row}>
-              <View style={styles.iconPill}><Ionicons name="shield-outline" size={17} color={C.primary} /></View>
-              <View style={styles.rowContent}>
-                <Text style={styles.rowLabel}>Strict mode</Text>
-                <Text style={styles.rowSub}>Flag every interaction</Text>
-              </View>
-              {strictMode && <View style={styles.dotInline} />}
-              <Switch
-                value={strictMode}
-                onValueChange={async (v) => { hSelect(); setStrictMode(v); await setMiscFlag('strict_mode_enabled', v ? 'true' : 'false'); }}
-                trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
-                accessibilityLabel="Toggle strict mode"
-              />
-            </View>
-            <Row icon="cube-outline" label="Supplement stock" sub="Days on hand" onPress={() => toggleSection('stock')} last />
-            <Expand k="stock">
-              {supplements.map((s) => (
-                <View key={s.id} style={{ marginBottom: space.md }}>
-                  <Text style={styles.toleranceName}>{s.name}</Text>
-                  <TextInput
-                    style={[styles.input, { marginTop: 4 }]}
-                    placeholder="Days (e.g. 30)"
-                    placeholderTextColor={C.textMuted}
-                    value={getStockValue(s.id)}
-                    onChangeText={(val) => setStockChanges((prev) => { const m = new Map(prev); m.set(s.id, val); return m; })}
-                    keyboardType="numeric"
-                  />
-                </View>
-              ))}
-              {suppForms.map((s) => (
-                <View key={s.id} style={styles.formRowWrap}>
-                  <Text style={styles.stockName}>{s.name}</Text>
-                  <View style={styles.formRow}>
-                    {(['capsule', 'tablet', 'powder', 'liquid'] as const).map((f) => (
-                      <Pressable
-                        key={f}
-                        style={[styles.formBtn, s.form === f && styles.formBtnActive]}
-                        onPress={async () => { await updateSupplementForm(s.id, f); setSuppForms((prev) => prev.map((x) => x.id === s.id ? { ...x, form: f } : x)); }}
-                        accessibilityLabel={`${s.name} ${f}`} accessibilityRole="button"
-                      >
-                        <Text style={[styles.formBtnText, s.form === f && styles.formBtnTextActive]}>{f[0].toUpperCase()}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </Expand>
-          </Group>
-
           {/* ── Health ────────────────────────────────────────────────────── */}
           <Group label="Health">
             <Row icon="flask-outline"    label="Lab results"        sub="PTH · Vitamin D · Calcium" onPress={() => navigation.navigate('LabResults')} />
@@ -507,8 +442,7 @@ export default function SettingsScreen() {
               </View>
             </Expand>
             <Row icon="download-outline"            label="Export my data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
-            <Row icon="information-circle-outline"  label="About"          onPress={() => navigation.navigate('About')} />
-            <Row icon="key-outline"                 label="Passkeys"       sub="Coming soon" dim last />
+            <Row icon="information-circle-outline"  label="About"          onPress={() => navigation.navigate('About')} last />
           </Group>
 
           {/* ── Danger ────────────────────────────────────────────────────── */}
