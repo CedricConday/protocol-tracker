@@ -4,7 +4,7 @@
 
 Protocol Tracker is a React Native / Expo app for tracking supplement schedules, dose compliance, lab results, MRI scan history, symptoms, and recovery progress on a high-dose Vitamin D3 therapy protocol. Built for autoimmune-disease patients (multiple sclerosis, lupus, psoriasis, vitiligo, rheumatoid arthritis, Hashimoto's, Crohn's, type 1 diabetes) who follow strict daily protocols requiring precise timing, dose stacking discipline, and long-horizon tracking.
 
-> **Origin**: built to help a partner walk the *Coimbra Protocol* — a high-dose Vitamin D3 therapy for autoimmune conditions developed by Dr. Cicero Galli Coimbra. The app generalizes to any patient following a structured supplementation protocol with timing windows, contraindication tracking, and lab-driven titration.
+> **Origin**: built to help a partner manage a high-dose Vitamin D3 therapy for autoimmune disease. Generalizes to any patient following a structured supplementation protocol with timing windows, contraindication tracking, and lab-driven titration.
 
 ---
 

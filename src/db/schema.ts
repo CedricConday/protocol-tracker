@@ -38,7 +38,7 @@ export async function initDb(): Promise<void> {
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
       form TEXT NOT NULL DEFAULT '',
-      category TEXT NOT NULL DEFAULT 'coimbra_standard',
+      category TEXT NOT NULL DEFAULT 'protocol_standard',
       notes TEXT NOT NULL DEFAULT ''
     );
 
@@ -106,7 +106,7 @@ export async function initDb(): Promise<void> {
       aliases TEXT NOT NULL DEFAULT '',
       severity TEXT NOT NULL DEFAULT 'forbidden',
       notes TEXT NOT NULL DEFAULT '',
-      source TEXT NOT NULL DEFAULT 'coimbra_standard'
+      source TEXT NOT NULL DEFAULT 'protocol_standard'
     );
 
     CREATE TABLE IF NOT EXISTS awareness_dates (

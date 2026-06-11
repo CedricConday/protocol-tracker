@@ -23,7 +23,7 @@ const migrations: Migration[] = [
           id TEXT PRIMARY KEY NOT NULL,
           name TEXT NOT NULL,
           form TEXT NOT NULL DEFAULT '',
-          category TEXT NOT NULL DEFAULT 'coimbra_standard',
+          category TEXT NOT NULL DEFAULT 'protocol_standard',
           notes TEXT NOT NULL DEFAULT ''
         );
 
@@ -91,7 +91,7 @@ const migrations: Migration[] = [
           aliases TEXT NOT NULL DEFAULT '',
           severity TEXT NOT NULL DEFAULT 'forbidden',
           notes TEXT NOT NULL DEFAULT '',
-          source TEXT NOT NULL DEFAULT 'coimbra_standard'
+          source TEXT NOT NULL DEFAULT 'protocol_standard'
         );
 
         CREATE TABLE IF NOT EXISTS awareness_dates (
@@ -393,6 +393,30 @@ const migrations: Migration[] = [
       if (!relapseCols.some((c) => c.name === 'has_fever')) {
         await db.execAsync(`ALTER TABLE relapse_events ADD COLUMN has_fever INTEGER`);
       }
+    },
+  },
+  {
+    version: 12,
+    up: async (db) => {
+      // Wipe-and-reseed the patient's actual stack (the prescriber 05.03.2026 + the specialist
+      // 02.06.2026). Old generic seed replaced by the 18-item stack the patient
+      // is actually on. seedDb() reseeds on next boot because the supplements
+      // row gate empties out here.
+      await db.execAsync(`
+        DELETE FROM dose_logs;
+        DELETE FROM schedule_rules;
+        DELETE FROM supplement_conflicts;
+        DELETE FROM supplements;
+      `);
+    },
+  },
+  {
+    version: 13,
+    up: async (db) => {
+      await db.execAsync(`
+        UPDATE supplements SET category = 'protocol_standard' WHERE category = 'coimbra_standard';
+        UPDATE dietary_restrictions SET source = 'protocol_standard' WHERE source = 'coimbra_standard';
+      `);
     },
   },
 ];

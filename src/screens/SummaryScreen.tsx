@@ -165,12 +165,6 @@ export default function SummaryScreen() {
         </View>
       </View>
 
-      {profileBlurb && (
-        <View style={styles.profileBlurbCard}>
-          <Text style={styles.profileBlurbText}>{profileBlurb}</Text>
-        </View>
-      )}
-
       {/* Mood Chart */}
       <Text style={styles.chartSectionTitle}>MOOD (7 DAYS)</Text>
       <View style={styles.barChartRow}>
@@ -197,63 +191,10 @@ export default function SummaryScreen() {
         ))}
       </View>
 
-      {/* Weekly boxes */}
-      <Text style={styles.chartSectionTitle}>THIS WEEK</Text>
-      <View style={styles.weekRow}>
-        {weekData.map((d, i) => {
-          const color = d.compliancePct >= 80 ? '#22c55e' : d.compliancePct >= 50 ? '#eab308' : d.totalDoses > 0 ? '#ef4444' : '#E8E0D8';
-          return (
-            <View key={i} style={styles.weekCol}>
-              <View style={[styles.weekBox, { backgroundColor: color }]} />
-              <Text style={styles.weekDay}>{new Date(d.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short' })}</Text>
-            </View>
-          );
-        })}
-      </View>
-
       {/* Share Button */}
       <TouchableOpacity style={styles.shareBtn} activeOpacity={0.8} accessibilityLabel="Share your progress" accessibilityRole="button">
         <Text style={styles.shareBtnText}>Share Your Progress</Text>
       </TouchableOpacity>
-
-      {/* Doctor Consult toggle — hidden for simple track */}
-      {!isSimple && (
-        <>
-          <TouchableOpacity
-            style={[styles.doctorModeToggle, doctorMode && styles.doctorModeToggleActive]}
-            onPress={() => setDoctorMode(!doctorMode)}
-            activeOpacity={0.7}
-            accessibilityLabel={doctorMode ? 'Disable doctor consult view' : 'Enable doctor consult view'}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.doctorModeToggleText, doctorMode && styles.doctorModeToggleTextActive]}>
-              {doctorMode ? '✓ Doctor Consult View Active' : 'Doctor Consult View'}
-            </Text>
-          </TouchableOpacity>
-          {doctorMode && (
-            <View style={styles.doctorConsole}>
-              <Text style={styles.doctorConsoleTitle}>DOCTOR CONSULT VIEW</Text>
-              <View style={styles.doctorMetricRow}>
-                <View style={styles.doctorMetric}>
-                  <Text style={styles.doctorMetricValue}>{adherenceScore.toFixed(1)}</Text>
-                  <Text style={styles.doctorMetricLabel}>Adherence</Text>
-                </View>
-                <View style={styles.doctorMetric}>
-                  <Text style={styles.doctorMetricValue}>{streak}</Text>
-                  <Text style={styles.doctorMetricLabel}>Streak</Text>
-                </View>
-                <View style={styles.doctorMetric}>
-                  <Text style={styles.doctorMetricValue}>{summary?.takenDoses ?? 0}/{summary?.totalDoses ?? 0}</Text>
-                  <Text style={styles.doctorMetricLabel}>Today</Text>
-                </View>
-              </View>
-              <TouchableOpacity style={styles.doctorBtn} activeOpacity={0.7} accessibilityLabel="Share summary with doctor" accessibilityRole="button">
-                <Text style={styles.doctorBtnText}>Share Summary with Doctor</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
-      )}
 
     </ScrollView>
   );
@@ -281,27 +222,27 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#D8CFC8' },
   statValue: { color: '#2C2420', fontSize: 28, fontWeight: '800' },
   statLabel: { color: '#7A6A62', fontSize: 13, marginTop: 4, lineHeight: 20 },
-  complianceCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#D8CFC8' },
-  cardDayLabel: { color: '#7A6A62', fontSize: 12, fontWeight: '600', alignSelf: 'flex-start', marginBottom: 12 },
-  ringContainer: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginVertical: 10 },
-  ringOuter: { width: 120, height: 120, borderRadius: 60, borderWidth: 8, justifyContent: 'center', alignItems: 'center' },
-  ringInnerAccent: { position: 'absolute', width: 120, height: 120, borderRadius: 60, borderWidth: 8, borderLeftColor: 'transparent', borderBottomColor: 'transparent' },
+  complianceCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
+  cardDayLabel: { color: '#7A6A62', fontSize: 12, fontWeight: '600', alignSelf: 'flex-start', marginBottom: 4 },
+  ringContainer: { width: 84, height: 84, justifyContent: 'center', alignItems: 'center', marginVertical: 4 },
+  ringOuter: { width: 84, height: 84, borderRadius: 42, borderWidth: 6, justifyContent: 'center', alignItems: 'center' },
+  ringInnerAccent: { position: 'absolute', width: 84, height: 84, borderRadius: 42, borderWidth: 6, borderLeftColor: 'transparent', borderBottomColor: 'transparent' },
   ringCenter: { alignItems: 'center' },
-  ringNumber: { fontSize: 32, fontWeight: '800' },
+  ringNumber: { fontSize: 24, fontWeight: '800' },
   ringPercent: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  complianceLabel: { color: '#2C2420', fontSize: 16, fontWeight: '600', marginTop: 12 },
-  barBg: { width: '100%', height: 8, minHeight: 8, backgroundColor: '#E8E0D8', borderRadius: 4, marginTop: 16 },
+  complianceLabel: { color: '#2C2420', fontSize: 14, fontWeight: '600', marginTop: 6 },
+  barBg: { width: '100%', height: 8, minHeight: 8, backgroundColor: '#E8E0D8', borderRadius: 4, marginTop: 10 },
   barFill: { height: 8, borderRadius: 4 },
-  scoreCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
-  scoreValue: { color: '#2C2420', fontSize: 28, fontWeight: '800' },
-  scoreLabel: { color: '#7A6A62', fontSize: 15, fontWeight: '600', marginTop: 2 },
-  scoreSub: { color: '#B0A098', fontSize: 13, marginTop: 4, lineHeight: 20 },
+  scoreCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#D8CFC8' },
+  scoreValue: { color: '#2C2420', fontSize: 22, fontWeight: '800' },
+  scoreLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginTop: 2 },
+  scoreSub: { color: '#B0A098', fontSize: 12, marginTop: 3, lineHeight: 16 },
   streakCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#E8E0D8' },
   streakValue: { color: '#2C2420', fontSize: 28, fontWeight: '800' },
   streakLabel: { color: '#7A6A62', fontSize: 15, fontWeight: '600', marginTop: 2 },
   streakNoData: { color: '#B0A098' },
   sectionTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 14, marginTop: 28, letterSpacing: 0.1 },
-  waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, marginBottom: 32 },
+  waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, marginBottom: 16 },
   waterCol: { alignItems: 'center', width: 36 },
   waterMlLabel: { color: '#B0A098', fontSize: 9, fontWeight: '600', marginBottom: 4 },
   waterBarTrack: { width: 12, height: 100, backgroundColor: '#E8E0D8', borderRadius: 6, overflow: 'hidden' },

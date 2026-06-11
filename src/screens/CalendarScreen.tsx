@@ -165,7 +165,7 @@ export default function CalendarScreen() {
     setDetail(null);
     try {
       setDetail(await getDayDetail(date));
-    } catch {
+    } catch (e) {
       setDetail(null);
     }
   }, []);
