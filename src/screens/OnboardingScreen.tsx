@@ -321,7 +321,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   <Text style={{ fontSize: 24 }}>{CONDITION_ICONS[p.id] || '🏥'}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.trackTitle, selectedProfile === p.id && styles.trackTitleActive]}>{p.name}</Text>
-                    <Text style={styles.trackDesc}>{p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}</Text>
+                    {!!p.patientDescription && (
+                      <Text style={styles.trackDesc}>{p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}</Text>
+                    )}
                   </View>
                 </TouchableOpacity>
               ))}
