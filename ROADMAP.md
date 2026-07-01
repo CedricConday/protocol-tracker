@@ -2,6 +2,26 @@
 
 Active backlog and exploration items.
 
+## Deferred — pulled out to ship as a pure tracker (2026-07-01)
+
+The app ships as a **pure tracker**: the user enters everything; the app gives
+no medical advice, information, interpretation, or recommendations. The
+following were removed for launch and are parked here as future ideas (some
+would need medical/regulatory review before returning). Original code is under
+`src/_sidelined/` and in git history.
+
+- **Pre-loaded protocols** — per-disease Vitamin D3 doses, doctor notes, protocol descriptions. (Users build their own.)
+- **Drug contraindication / interaction warnings** — Lithium/thiazide/calcium/NSAID safety messages, supplement spacing warnings.
+- **Food-pairing guidance** — take-with / avoid / absorption tips.
+- **Lab target ranges + value interpretation** — target cards, "target X–Y" hints, ↓Low/↑High/✓ judgments, out-of-range alerts.
+- **"Protocol tip" insights** + D3-with-meal / magnesium hints.
+- **Lab-value alerts** — "Vitamin D critically low → contact your doctor".
+- **MRI "12-month overdue" nudge** and **AI report-photo auto-fill**.
+- **Micro-CBT coping module** and fatigue-spike detection.
+- **Health "awareness day" messages.**
+- **Protocol Guide screen** (educational content / news).
+- **Dietary "forbidden foods" list.**
+
 ## Under consideration
 
 ### Journal feature — LLM-backed structuring

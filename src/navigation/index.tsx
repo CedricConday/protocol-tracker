@@ -10,7 +10,6 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import CalciumLogScreen from '../screens/CalciumLogScreen';
-import GuideScreen from '../screens/GuideScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LabResultsScreen from '../screens/LabResultsScreen';
 import MriScreen from '../screens/MriScreen';
@@ -119,11 +118,6 @@ function SettingsNavigator() {
         name="About"
         component={AboutScreen}
         options={{ ...SUB_HEADER, title: 'About', animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
-        name="Guide"
-        component={GuideScreen}
-        options={{ ...SUB_HEADER, title: 'Protocol Guide', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Sleep"

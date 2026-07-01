@@ -48,11 +48,10 @@ function formatDate(d: string) {
   return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
 }
 
-function valueStatus(val: number | null, min: number, max: number): 'ok' | 'low' | 'high' | 'unknown' {
-  if (val === null) return 'unknown';
-  if (val < min) return 'low';
-  if (val > max) return 'high';
-  return 'ok';
+function valueStatus(_val: number | null, _min: number, _max: number): 'ok' | 'low' | 'high' | 'unknown' {
+  // Pure-tracker build: the app does not judge logged values as low / high /
+  // in-range. Values are shown exactly as the user entered them.
+  return 'unknown';
 }
 
 function statusColor(s: 'ok' | 'low' | 'high' | 'unknown') {
@@ -66,7 +65,7 @@ function statusLabel(s: 'ok' | 'low' | 'high' | 'unknown') {
   if (s === 'ok') return '✓';
   if (s === 'low') return '↓ Low';
   if (s === 'high') return '↑ High';
-  return '—';
+  return '';
 }
 
 const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: string; unit: string; min: number; max: number }> = {
@@ -126,19 +125,7 @@ export default function LabResultsScreen() {
         [date, parseNum(vitD), parseNum(pth), parseNum(calciumSerum), parseNum(calciumUrine), parseNum(creatinine), parseNum(nfl), sulkowitch, notes]
       );
       await enqueueAction('lab_result_saved', { date, vit_d_ngml: vitD, calcium_serum_mgdl: calciumSerum, pth_pgml: pth });
-      const checkThreshold = async (label: string, val: number | null, min: number, max: number, unit: string) => {
-        if (val === null) return;
-        if (val < min || val > max) {
-          await enqueueAction('lab_out_of_range', {
-            parameter: label, value: val, threshold_min: min, threshold_max: max,
-          });
-        }
-      };
-      await checkThreshold('Vit D 25-OH', parseNum(vitD), 150, 280, 'ng/mL');
-      await checkThreshold('PTH', parseNum(pth), 10, 30, 'pg/mL');
-      await checkThreshold('Calcium (serum)', parseNum(calciumSerum), 8.5, 10.2, 'mg/dL');
-      await checkThreshold('Calcium (urine)', parseNum(calciumUrine), 0, 300, 'mg/g Cr');
-      await checkThreshold('Creatinine', parseNum(creatinine), 0.5, 1.2, 'mg/dL');
+      // Pure-tracker build: no "out of range" evaluation/alerting on lab values.
       setShowForm(false);
       setDate(new Date().toISOString().split('T')[0]);
       setVitD(''); setPth(''); setCalciumSerum(''); setCalciumUrine(''); setCreatinine(''); setNfl('');
@@ -185,14 +172,9 @@ export default function LabResultsScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
-      <View style={styles.targetCard}>
-        <Text style={styles.targetTitle}>{profile ? `${profile.name} Target Ranges` : 'the Protocol Target Ranges'}</Text>
-        {Object.entries(TARGETS).filter(([key]) => !profile || profile.keyMarkers.includes(key === 'vit_d' ? 'VitD' : key === 'pth' ? 'PTH' : key === 'calcium_serum' ? 'Calcium' : key === 'creatinine' ? 'Creatinine' : key)).map(([, t]) => (
-          <Text key={t.label} style={styles.targetRow}>
-            {t.label}: <Text style={styles.targetRange}>{t.min}–{t.max} {t.unit}</Text>
-          </Text>
-        ))}
-      </View>
+      {/* Pure-tracker build: the "Protocol Target Ranges" card was removed — the
+          app does not tell users what values to aim for. Users log their own
+          numbers and see their own history below. */}
 
       {!showForm ? (
         <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8} accessibilityLabel="Add lab result" accessibilityRole="button">
@@ -207,40 +189,40 @@ export default function LabResultsScreen() {
 
           {(!profile || profile.keyMarkers.includes('VitD')) && (
             <>
-              <Text style={styles.label}>Vit D 25-OH (ng/mL) <Text style={styles.targetHint}>target 150–280</Text></Text>
+              <Text style={styles.label}>Vit D 25-OH (ng/mL)</Text>
               <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#B0A098" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('PTH')) && (
             <>
-              <Text style={styles.label}>PTH (pg/mL) <Text style={styles.targetHint}>target 10–30</Text></Text>
+              <Text style={styles.label}>PTH (pg/mL)</Text>
               <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#B0A098" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Calcium')) && (
             <>
-              <Text style={styles.label}>Calcium Serum (mg/dL) <Text style={styles.targetHint}>target 8.5–10.2</Text></Text>
+              <Text style={styles.label}>Calcium Serum (mg/dL)</Text>
               <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#B0A098" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Calcium')) && (
             <>
-              <Text style={styles.label}>Calcium Urine (mg/g Cr) <Text style={styles.targetHint}>target &lt;300</Text></Text>
+              <Text style={styles.label}>Calcium Urine (mg/g Cr)</Text>
               <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#B0A098" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Creatinine')) && (
             <>
-              <Text style={styles.label}>Creatinine (mg/dL) <Text style={styles.targetHint}>target 0.5–1.2</Text></Text>
+              <Text style={styles.label}>Creatinine (mg/dL)</Text>
               <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#B0A098" />
             </>
           )}
 
-          <Text style={styles.label}>NfL — Neurofilament Light Chain (pg/mL) <Text style={styles.targetHint}>optional · normal &lt;10</Text></Text>
+          <Text style={styles.label}>NfL — Neurofilament Light Chain (pg/mL)</Text>
           <TextInput style={styles.input} value={nfl} onChangeText={setNfl} keyboardType="decimal-pad" placeholder="e.g. 7.4" placeholderTextColor="#B0A098" />
 
           <Text style={styles.label}>Sulkowitch Test (urine calcium turbidity)</Text>

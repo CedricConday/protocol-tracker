@@ -433,13 +433,13 @@ export default function HomeScreen() {
 
         {vitDDanger !== null ? (
           <View style={styles.vitDBanner}>
-            <Text style={styles.vitDBannerText} accessibilityLiveRegion="polite">⚠ Vitamin D critically low ({vitDDanger} ng/mL). Contact your prescriber immediately.</Text>
+            <Text style={styles.vitDBannerText} accessibilityLiveRegion="polite">Latest logged Vitamin D: {vitDDanger} ng/mL.</Text>
           </View>
         ) : null}
 
         {showFatigueAlert ? (
           <View style={styles.fatigueBanner}>
-            <Text style={styles.fatigueBannerText} accessibilityLiveRegion="polite">⚠ Fatigue pattern detected. Consider contacting your prescriber or resting today.</Text>
+            <Text style={styles.fatigueBannerText} accessibilityLiveRegion="polite">You have logged some lower-mood days recently.</Text>
             <TouchableOpacity onPress={() => setShowFatigueAlert(false)} accessibilityLabel="Dismiss fatigue alert" accessibilityRole="button">
               <Text style={styles.fatigueBannerDismiss}>✕</Text>
             </TouchableOpacity>
@@ -461,7 +461,7 @@ export default function HomeScreen() {
 
         {showEngagementNudge ? (
           <View style={styles.nudgeBanner}>
-            <Text style={styles.nudgeBannerText}>Welcome back. It looks like you may have missed some doses. Your protocol works best with daily consistency.</Text>
+            <Text style={styles.nudgeBannerText}>Welcome back. It looks like you have some unlogged days.</Text>
             <TouchableOpacity onPress={() => setShowEngagementNudge(false)} accessibilityLabel="Dismiss engagement nudge" accessibilityRole="button">
               <Text style={styles.nudgeBannerDismiss}>✕</Text>
             </TouchableOpacity>
@@ -489,8 +489,8 @@ export default function HomeScreen() {
             <Text style={styles.wizardTitle}>Your First Day Started</Text>
             <Text style={styles.wizardStep}>1 — Your T=0 anchor is now set. All supplements are scheduled from this moment.</Text>
             <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
-            <Text style={styles.wizardStep}>3 — Drink 2.5L+ of water today. Track it with the Water tracker below.</Text>
-            <Text style={styles.wizardStep}>4 — Log your sun exposure and exercise each day to support the protocol.</Text>
+            <Text style={styles.wizardStep}>3 — Track your water intake with the Water tracker below.</Text>
+            <Text style={styles.wizardStep}>4 — Log your sun exposure and exercise whenever you like.</Text>
             <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel="Dismiss wizard, start using the app" accessibilityRole="button">
               <Text style={styles.wizardBtnText}>Got it, let's start</Text>
             </TouchableOpacity>

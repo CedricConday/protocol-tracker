@@ -49,11 +49,6 @@ export default function CalciumLogScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.heading}>Calcium Reintroduction Test</Text>
 
-        <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>
-            Only begin this test with your prescriber's approval. Do not attempt without guidance.
-          </Text>
-        </View>
 
         <Text style={styles.inputLabel}>Test start date</Text>
         <TextInput

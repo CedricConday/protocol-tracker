@@ -416,39 +416,8 @@ export async function initDb(): Promise<void> {
     console.log('[Database] migration: relapse_events constraint already updated');
   }
 
-  // Seed contraindication rules (idempotent — only if table is empty)
-  const existingRules = await database.getFirstAsync<{ c: number }>(
-    'SELECT COUNT(*) as c FROM contraindication_rules'
-  );
-  if (!existingRules || existingRules.c === 0) {
-    await database.execAsync(`
-      INSERT INTO contraindication_rules (drug_name, drug_aliases, severity, message, safe_alternative) VALUES
-      ('Lithium Carbonate', 'lithium carbonate,lithiumcarbonat', 'danger',
-       'Lithium Carbonate is contraindicated with high-dose D3. It causes dangerous calcium dysregulation. Discuss with your doctor immediately.',
-       'Lithium Orotate is prescribed by some practitioners on this protocol and is considered safe — confirm the exact form with your prescriber.'),
-      ('Thiazide Diuretics', 'hydrochlorothiazide,HCTZ,chlorthalidone,indapamide,bendroflumethiazide', 'danger',
-       'Thiazide diuretics increase kidney calcium reabsorption. Combined with high-dose D3 this significantly raises hypercalcemia risk.',
-       'Discuss alternative diuretics with your doctor. Loop diuretics (furosemide) have a different calcium profile.'),
-      ('Calcium Supplements', 'calcium carbonate,calcium citrate,calciumcarbonat,kalzium', 'danger',
-       'Supplemental calcium is incompatible with the Protocol. The protocol relies on strict dietary calcium restriction — supplementation defeats this.',
-       'Get calcium from diet only. Your target is <400mg dietary calcium per day on the standard protocol.'),
-      ('Cortisone', 'prednisone,prednisolone,methylprednisolone,dexamethasone,hydrocortisone,kortison', 'warning',
-       'Corticosteroids reduce Vitamin D efficacy and transiently alter calcium handling. Log any cortisone pulse in Events. Do not stop either medication without doctor approval.',
-       'Continue both. Flag the combination to your neurologist for monitoring.'),
-      ('Hormonal Contraceptives', 'birth control pill,pille,estrogen,ethinylestradiol,levonorgestrel', 'warning',
-       'Some hormonal contraceptives affect Vitamin D metabolism and serum calcium levels. Monitor your blood results more frequently.',
-       'Discuss with your gynecologist. Non-hormonal contraception avoids this interaction.'),
-      ('Ibuprofen', 'ibuprofen,nurofen,advil,ibu,ibuprofeno', 'warning',
-       'NSAIDs including ibuprofen impair kidney function. The Protocol depends on healthy kidney calcium excretion. Occasional use is lower risk; chronic use is a concern.',
-       'Paracetamol/acetaminophen for pain relief has no interaction with the protocol.'),
-      ('Naproxen', 'naproxen,aleve,naproxeno', 'warning',
-       'NSAIDs including naproxen impair kidney function needed for safe calcium excretion on high-dose D3.',
-       'Paracetamol/acetaminophen for pain relief has no interaction with the protocol.'),
-      ('Cholestyramine', 'cholestyramine,colestyramin,questran', 'warning',
-       'Cholestyramine binds fat-soluble vitamins in the gut including Vitamin D3, significantly reducing absorption.',
-       'If cholestyramine is required, take Vitamin D3 at least 4 hours before or after the dose.');
-    `);
-  }
+  // Contraindication drug-safety seeding removed — pure-tracker build gives no
+  // advice. Table stays empty so no warnings fire. Original list in git history.
 }
 
 }

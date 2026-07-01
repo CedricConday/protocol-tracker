@@ -398,10 +398,8 @@ const migrations: Migration[] = [
   {
     version: 12,
     up: async (db) => {
-      // Wipe-and-reseed the patient's actual stack (the prescriber 05.03.2026 + the specialist
-      // 02.06.2026). Old generic seed replaced by the 18-item stack the patient
-      // is actually on. seedDb() reseeds on next boot because the supplements
-      // row gate empties out here.
+      // Clears any previously-seeded protocol so the app starts from an empty
+      // protocol the user builds themselves (seedDb no longer seeds content).
       await db.execAsync(`
         DELETE FROM dose_logs;
         DELETE FROM schedule_rules;
