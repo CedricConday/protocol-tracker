@@ -53,8 +53,6 @@ export default function JournalScreen() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [cbtModal, setCbtModal] = useState(false);
-  const [cbtMessage, setCbtMessage] = useState('');
   const noteRef = useRef<TextInput>(null);
   const today = todayStr();
 
@@ -80,35 +78,6 @@ export default function JournalScreen() {
     setRefreshing(false);
   };
 
-  const checkFatigueSpike = useCallback(async (currentMood: string) => {
-    const currentIdx = MOODS.findIndex((m) => m.label === currentMood || m.emoji === currentMood);
-    if (currentIdx < 0) return;
-    const recent = await getRecentJournalEntries(4);
-    const threeDaysAgo = recent.find((e) => e.date !== today);
-    if (!threeDaysAgo) return;
-    const oldIdx = MOODS.findIndex((m) => m.label === threeDaysAgo.mood || m.emoji === threeDaysAgo.mood);
-    if (oldIdx >= 0 && currentIdx - oldIdx >= 2) {
-      await AsyncStorage.setItem('fatigue_alert_shown', today);
-    }
-  }, [today]);
-
-  const CBT_MESSAGES: Record<string, string[]> = {
-    gentle: [
-      'Tough day. Take 3 slow breaths. What\'s one small thing you can control right now?',
-      'This feeling will pass. Rest, hydrate, and give yourself grace.',
-      'One minute of quiet. Close your eyes. Breathe. You\'ve got this.',
-    ],
-    direct: [
-      'Pain ≥ 3 and mood ≤ 2. Reset: 3 deep breaths. Identify one actionable step.',
-      'Your data shows a rough patch. Pause. Breathe. What needs adjusting?',
-      'Distress detected. Use the 3-breath reset. Then move forward.',
-    ],
-    motivational: [
-      'Tough day? Take 3 breaths. You\'re stronger than this moment. One step at a time.',
-      'You\'ve handled hard days before. 3 breaths. Reset. Next win coming.',
-      'This is temporary. 3 deep breaths. Your streak of showing up matters.',
-    ],
-  };
 
   const handleSave = useCallback(async () => {
     if (!selectedMood) return;
@@ -123,24 +92,12 @@ export default function JournalScreen() {
       doses_taken: summary.takenDoses,
       doses_total: summary.totalDoses,
     });
-    await checkFatigueSpike(selectedMood);
-
-    // Micro-CBT trigger: pain ≥ 3 AND mood ≤ 2 (mood emoji index >= 3)
-    const moodIdx = MOODS.findIndex((m) => m.emoji === selectedMood);
-    if (moodIdx >= 3) {
-      const style = await getMiscFlag('coaching_style') || 'gentle';
-      const messages = CBT_MESSAGES[style] || CBT_MESSAGES.gentle;
-      const lastIdx = parseInt(await getMiscFlag('cbt_last_index') || '-1', 10);
-      const nextIdx = (lastIdx + 1) % messages.length;
-      await setMiscFlag('cbt_last_index', String(nextIdx));
-      setCbtMessage(messages[nextIdx]);
-      setCbtModal(true);
-    }
-
+    // Pure-tracker build: fatigue-spike detection and the micro-CBT coping
+    // module were removed (see ROADMAP). Journaling stays; the app just saves.
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     await loadData();
-  }, [selectedMood, note, dietaryNote, summary, today, checkFatigueSpike, loadData]);
+  }, [selectedMood, note, dietaryNote, summary, today, loadData]);
 
   const handleBlur = useCallback(() => {
     if (selectedMood) {
@@ -294,22 +251,6 @@ export default function JournalScreen() {
         })
       )}
 
-      <Modal visible={cbtModal} transparent animationType="fade" onRequestClose={() => setCbtModal(false)}>
-        <View style={styles.cbtOverlay}>
-          <View style={styles.cbtModal}>
-            <Text style={styles.cbtTitle}>Tough day. Try this:</Text>
-            <Text style={styles.cbtMessage}>{cbtMessage}</Text>
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
-              <TouchableOpacity style={styles.cbtSkip} onPress={() => setCbtModal(false)} activeOpacity={0.7} accessibilityLabel="Skip CBT suggestion" accessibilityRole="button">
-                <Text style={styles.cbtSkipText}>Skip</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cbtDone} onPress={() => setCbtModal(false)} activeOpacity={0.8} accessibilityLabel="Dismiss CBT suggestion" accessibilityRole="button">
-                <Text style={styles.cbtDoneText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }

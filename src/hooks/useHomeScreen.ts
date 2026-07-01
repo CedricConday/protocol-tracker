@@ -111,37 +111,9 @@ export function useHomeScreen(navigation: any) {
     });
   }, []);
 
-  useEffect(() => {
-    const INSIGHTS = [
-      'Drink 2.5L+ of water daily to protect your kidneys on high-dose D3.',
-      'Avoid dairy to keep dietary calcium low on the Protocol.',
-      'Sun exposure produces D3 sulfate — a form your body uses differently from supplements.',
-      'Magnesium helps your body convert D3 to its active form. Don\'t skip it.',
-      'Low PTH on your blood test means your D3 is working — this is the target.',
-      'Exercise supports neuroprotection and bone density. Even a short walk counts.',
-      'Omega-3 reduces neuroinflammation. Take it with your largest meal of the day.',
-      'Consistent dosing time reduces variability in blood levels. Set a routine.',
-      'Track your mood — it correlates with protocol adherence in clinical studies.',
-      'Vitamin K2 (MK-7) directs calcium to bones, not arteries. Essential with high D3.',
-      'Resveratrol supports immune modulation. Take it away from other supplements.',
-      'Boron improves magnesium absorption. Small amounts make a difference.',
-    ];
-    const idx = Math.floor(Date.now() / 86_400_000) % INSIGHTS.length;
-    setInsightText(INSIGHTS[idx]);
-  }, []);
-
-  useEffect(() => {
-    const week = new Date().toISOString().slice(0, 7);
-    AsyncStorage.getItem(`mag_hint_${week}`).then((v) => {
-      if (!v) setShowMagnesiumHint(true);
-    });
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem('d3_meal_hint_dismissed').then((v) => {
-      if (!v) setShowD3MealHint(true);
-    });
-  }, []);
+  // Pure-tracker build: app-authored "Protocol tip" insights and the
+  // magnesium / D3-with-meal hints were medical advice — removed. insightText
+  // stays '' and the hint flags stay false, so their UI guards render nothing.
 
   useEffect(() => {
     if (t0) {
@@ -185,14 +157,9 @@ export function useHomeScreen(navigation: any) {
     getNextMedicalEvent().then(setNextMedicalEvent).catch(() => setNextMedicalEvent(null));
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      const lab = await getLatestLabResult();
-      if (lab && lab.vit_d_ngml != null && lab.vit_d_ngml < 20) {
-        setVitDDanger(lab.vit_d_ngml);
-      }
-    })();
-  }, []);
+  // Pure-tracker build: interpreting a lab value (D3 "critically low" → contact
+  // your doctor) is medical advice — removed. vitDDanger stays null so the
+  // banner never renders.
 
   useEffect(() => {
     (async () => {

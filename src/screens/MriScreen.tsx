@@ -81,11 +81,9 @@ export default function MriScreen() {
       'SELECT * FROM mri_scans ORDER BY date DESC'
     );
     setScans(rows);
-    if (rows.length > 0) {
-      setOverdueAlert(daysSince(rows[0].date) > 365);
-    } else {
-      setOverdueAlert(false);
-    }
+    // Pure-tracker build: the app doesn't judge whether a scan is "overdue" or
+    // advise scheduling one. The alert is left off.
+    setOverdueAlert(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -263,13 +261,10 @@ export default function MriScreen() {
 
       {!showForm ? (
         <View style={styles.addBtnRow}>
+          {/* Pure-tracker build: the AI report-photo auto-fill was removed (see
+              ROADMAP). Users log scan details manually. */}
           <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
             <Text style={styles.addBtnText}>+ Log MRI Scan</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.cameraBtn} onPress={handleCameraCapture} disabled={scanning} activeOpacity={0.8}>
-            {scanning
-              ? <ActivityIndicator size="small" color="#FAF7F4" />
-              : <Ionicons name="camera-outline" size={20} color="#FAF7F4" />}
           </TouchableOpacity>
         </View>
       ) : (
@@ -385,7 +380,7 @@ export default function MriScreen() {
         <EmptyState
           icon="🧠"
           title="No MRI scans yet"
-          subtitle="Log each scan date to track lesion activity and get a 12-month overdue alert."
+          subtitle="Log each scan date and what you record from your report."
           actionLabel="Log First Scan"
           onAction={() => setShowForm(true)}
         />
