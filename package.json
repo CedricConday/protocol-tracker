@@ -6,15 +6,19 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "storybook": "storybook dev -p 6007",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.4.1",
     "@react-navigation/bottom-tabs": "^7.16.1",
     "@react-navigation/native": "^7.2.4",
     "@react-navigation/native-stack": "^7.15.1",
+    "drizzle-orm": "^0.45.2",
     "expo": "~54.0.35",
     "expo-background-fetch": "~14.0.9",
     "expo-camera": "~17.0.10",
@@ -35,14 +39,21 @@
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-safe-area-context": "~5.6.0",
-    "react-native-screens": "~4.16.0"
+    "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.0",
+    "@storybook/react-native-web-vite": "^10.4.6",
     "@types/react": "~19.1.0",
+    "@vitejs/plugin-react": "^6.0.3",
     "babel-preset-expo": "~54.0.10",
+    "drizzle-kit": "^0.31.10",
+    "react-dom": "^19.1.0",
     "sharp": "^0.34.5",
-    "typescript": "~5.9.2"
+    "storybook": "^10.4.6",
+    "typescript": "~5.9.2",
+    "vite": "^8.1.2"
   },
   "private": true
 }
