@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
-import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
+import { getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
 
@@ -89,8 +89,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
 
     let currentTime = new Date(t0);
     while (currentTime <= endTime) {
-      const progress = await getWaterProgress();
-      const body = `${patientName}, 500ml now — you're at ${progress.waterMl}ml of ${progress.goalMl}ml`;
+      const body = `${patientName}, 500ml now — stay hydrated`;
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
@@ -317,11 +316,14 @@ export const setupNotificationHandler = (): void => {
 
     if (notificationType === 'water') {
       try {
-        const anchor = await getAnchor(todayStr());
-        if ((anchor?.water_ml ?? 0) >= 2500) {
+        const live = await getWaterProgress();
+        if (live.waterMl >= live.goalMl) {
           await cancelNotification(notification.request.identifier);
           return;
         }
+        const liveBody = `${patientName}, 500ml now — you're at ${live.waterMl}ml of ${live.goalMl}ml`;
+        Alert.alert('Water Reminder', liveBody);
+        return;
       } catch (error) {
         console.error('[Protocol Tracker Notifications] Error checking water progress:', error);
       }
