@@ -12,7 +12,6 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
-import { getProfileById } from '../data/diseaseProfiles';
 
 function getComplianceColor(compliancePct: number) {
   if (compliancePct >= 80) return '#22c55e';
@@ -36,19 +35,10 @@ export default function SummaryScreen() {
   const countAnim = useRef(new Animated.Value(0)).current;
   const [displayPct, setDisplayPct] = useState(0);
   const [onboardingTrack, setOnboardingTrack] = useState<string | null>(null);
-  const [doctorMode, setDoctorMode] = useState(false);
-  const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
-
   const isSimple = onboardingTrack === 'simple';
 
   useEffect(() => {
     getMiscFlag('onboarding_track').then(setOnboardingTrack);
-    getMiscFlag('disease_profile').then((id) => {
-      if (id) {
-        const p = getProfileById(id);
-        if (p) setProfileBlurb(p.patientDescription);
-      }
-    });
   }, []);
 
   useEffect(() => {
@@ -264,18 +254,5 @@ const styles = StyleSheet.create({
   badgeLabelEarned: { color: '#2C2420' },
   badgeLabelLocked: { color: '#9CA3AF' },
   badgeCaption: { color: '#B0A098', fontSize: 10, textAlign: 'center' },
-  doctorModeToggle: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 16, borderWidth: 1, borderColor: '#7A9ABF' },
-  doctorModeToggleActive: { backgroundColor: '#EAF0F6' },
-  doctorModeToggleText: { color: '#4A7A9B', fontSize: 14, fontWeight: '700' },
-  doctorModeToggleTextActive: { color: '#2A5A7B' },
-  doctorConsole: { backgroundColor: '#EAF0F6', borderRadius: 16, padding: 20, marginTop: 12, borderWidth: 1, borderColor: '#7A9ABF30' },
-  doctorConsoleTitle: { color: '#4A7A9B', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 16 },
-  doctorMetricRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
-  doctorMetric: { alignItems: 'center' },
-  doctorMetricValue: { color: '#2C2420', fontSize: 24, fontWeight: '800' },
-  doctorMetricLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '600', marginTop: 4 },
-  doctorBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#4A7A9B' },
-  doctorBtnText: { color: '#4A7A9B', fontSize: 14, fontWeight: '700' },
-  profileBlurbCard: { backgroundColor: '#FBF0ED', borderRadius: 14, padding: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
-  profileBlurbText: { color: '#7A6A62', fontSize: 13, lineHeight: 20 },
+
 });
