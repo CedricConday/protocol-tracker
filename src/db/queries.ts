@@ -801,6 +801,13 @@ export async function getLastSleepCheckin(): Promise<{ date: string; score: numb
   );
 }
 
+export async function getSleepCheckins(): Promise<{ date: string; score: number; answers: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync<{ date: string; score: number; answers: string }>(
+    'SELECT date, score, answers FROM sleep_checkins ORDER BY date DESC'
+  );
+}
+
 // ── Misc Flags ───────────────────────────────────────────────────────────────
 
 export async function getMiscFlag(key: string): Promise<string | null> {

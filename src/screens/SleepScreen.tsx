@@ -8,7 +8,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import { saveSleepCheckin, getLastSleepCheckin } from '../db/queries';
+import { saveSleepCheckin, getLastSleepCheckin, getSleepCheckins } from '../db/queries';
 
 const QUESTIONS = [
   'Did you go to bed before midnight most nights this week?',
@@ -21,11 +21,13 @@ const QUESTIONS = [
 export default function SleepScreen() {
   const [answers, setAnswers] = useState<(boolean | null)[]>([null, null, null, null, null]);
   const [lastCheckin, setLastCheckin] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ date: string; score: number; answers: string }[]>([]);
 
   useEffect(() => {
     getLastSleepCheckin().then((row) => {
       if (row) setLastCheckin(row.date);
     });
+    getSleepCheckins().then(setHistory);
   }, []);
 
   const score = answers.filter((a) => a === true).length;
@@ -42,6 +44,7 @@ export default function SleepScreen() {
     const date = new Date().toISOString().split('T')[0];
     await saveSleepCheckin(date, score, JSON.stringify(answers));
     setLastCheckin(date);
+    getSleepCheckins().then(setHistory);
     Alert.alert('Saved', 'Your sleep check-in has been recorded.');
   };
 
@@ -104,6 +107,31 @@ export default function SleepScreen() {
         >
           <Text style={styles.submitBtnText}>{alreadyDone ? 'Already checked in today' : 'Submit Check-in'}</Text>
         </TouchableOpacity>
+
+        {history.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={styles.historyHeading}>Past Check-ins</Text>
+            {history.map((entry) => {
+              const parsed: boolean[] = JSON.parse(entry.answers);
+              return (
+                <View key={entry.date} style={styles.historyCard}>
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.historyDate}>{entry.date}</Text>
+                    <Text style={styles.historyScore}>Score: {entry.score}/5</Text>
+                  </View>
+                  {QUESTIONS.map((q, i) => (
+                    <View key={i} style={styles.historyRow}>
+                      <Text style={styles.historyQ}>{q}</Text>
+                      <Text style={[styles.historyA, { color: parsed[i] ? '#22c55e' : '#ef4444' }]}>
+                        {parsed[i] ? 'Yes' : 'No'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -130,4 +158,13 @@ const styles = StyleSheet.create({
   submitBtn: { backgroundColor: '#22c55e', borderRadius: 12, paddingVertical: 16, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
+  historySection: { marginTop: 32 },
+  historyHeading: { color: '#2C2420', fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  historyCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12 },
+  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  historyDate: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
+  historyScore: { color: '#2C2420', fontSize: 14, fontWeight: '700' },
+  historyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  historyQ: { color: '#2C2420', fontSize: 13, flex: 1, marginRight: 8 },
+  historyA: { fontSize: 13, fontWeight: '700', width: 40, textAlign: 'right' },
 });
