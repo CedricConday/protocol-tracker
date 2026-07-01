@@ -106,8 +106,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
   heading: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginBottom: 16 },
-  warningBanner: { backgroundColor: '#FEF2F2', borderRadius: 10, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#ef4444' },
-  warningText: { color: '#991B1B', fontSize: 13, fontWeight: '600', lineHeight: 20 },
   inputLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginBottom: 6 },
   dateInput: { backgroundColor: '#F2EDE8', borderRadius: 10, padding: 14, color: '#2C2420', fontSize: 16, marginBottom: 20 },
   dayCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12 },
