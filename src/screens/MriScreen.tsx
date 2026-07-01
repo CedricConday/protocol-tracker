@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,8 +10,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
 
@@ -73,7 +70,6 @@ export default function MriScreen() {
   const [assessment, setAssessment] = useState('Stable');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     const db = await getDb();
@@ -129,115 +125,6 @@ export default function MriScreen() {
 
   const assessmentColor = (a: string) =>
     a === 'stable' ? '#5A8A5A' : a === 'improved' ? '#4A7A9B' : '#C04040';
-
-  const handleCameraCapture = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to capture MRI reports.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true });
-    if (result.canceled || !result.assets[0]?.base64) return;
-
-    const b64 = result.assets[0].base64;
-    const [provider, apiKey] = await Promise.all([
-      AsyncStorage.getItem('ai_provider'),
-      AsyncStorage.getItem('ai_api_key'),
-    ]);
-
-    if (!apiKey) {
-      Alert.alert(
-        'AI key required',
-        'Go to Settings → Advanced → AI Workspace and add your API key to enable auto-fill.',
-      );
-      return;
-    }
-
-    setScanning(true);
-    try {
-      const extracted = await callVisionApi(provider ?? 'groq', apiKey, b64);
-      if (extracted) {
-        if (extracted.date) setDate(extracted.date);
-        if (extracted.facility) setFacility(extracted.facility);
-        if (extracted.scan_type && SCAN_TYPES.includes(extracted.scan_type)) setScanType(extracted.scan_type);
-        if (extracted.new_lesions) setNewLesions(extracted.new_lesions);
-        if (extracted.enhancing_lesions != null) setEnhancing(extracted.enhancing_lesions);
-        if (extracted.assessment && ASSESSMENTS.map(a => a.toLowerCase()).includes(extracted.assessment.toLowerCase())) {
-          setAssessment(extracted.assessment.charAt(0).toUpperCase() + extracted.assessment.slice(1).toLowerCase());
-        }
-        setShowForm(true);
-      } else {
-        Alert.alert('Could not parse', 'The image could not be read automatically. Fill in the fields manually.');
-        setShowForm(true);
-      }
-    } catch {
-      Alert.alert('Scan failed', 'Could not connect to AI service. Fill in manually.');
-      setShowForm(true);
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  async function callVisionApi(
-    provider: string,
-    apiKey: string,
-    base64: string,
-  ): Promise<{ date?: string; facility?: string; scan_type?: string; new_lesions?: string; enhancing_lesions?: boolean; assessment?: string } | null> {
-    const PROMPT = `Extract from this MRI report image. Return ONLY valid JSON with these keys (omit any you cannot find): date (YYYY-MM-DD), facility (string), scan_type (one of: "Brain", "Spine", "Brain + Spine"), new_lesions (string, e.g. "none" or "2"), enhancing_lesions (boolean), assessment (one of: "stable", "improved", "progressed").`;
-
-    let responseText: string;
-
-    if (provider === 'anthropic') {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 256,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-              { type: 'text', text: PROMPT },
-            ],
-          }],
-        }),
-      });
-      const json = await res.json();
-      responseText = json.content?.[0]?.text ?? '';
-    } else {
-      // OpenAI-compatible (openai or groq)
-      const baseUrl = provider === 'groq'
-        ? 'https://api.groq.com/openai/v1/chat/completions'
-        : 'https://api.openai.com/v1/chat/completions';
-      const model = provider === 'groq' ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'gpt-4o-mini';
-      const res = await fetch(baseUrl, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          max_tokens: 256,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
-              { type: 'text', text: PROMPT },
-            ],
-          }],
-        }),
-      });
-      const json = await res.json();
-      responseText = json.choices?.[0]?.message?.content ?? '';
-    }
-
-    const match = responseText.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try { return JSON.parse(match[0]); } catch { return null; }
-  }
 
   return (
     <ScrollView
@@ -431,7 +318,6 @@ const styles = StyleSheet.create({
   addBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   addBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
   addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
-  cameraBtn: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#C96A50', alignItems: 'center', justifyContent: 'center' },
   form: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#D8CFC8' },
   formTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 16 },
   label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
@@ -448,9 +334,6 @@ const styles = StyleSheet.create({
   saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
-  emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
-  emptySubtext: { color: '#B0A098', fontSize: 13, marginTop: 6, textAlign: 'center' },
   card: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
   cardDate: { color: '#2C2420', fontSize: 15, fontWeight: '700' },
