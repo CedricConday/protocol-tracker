@@ -312,7 +312,7 @@ export async function getStreak(date: string = todayStr()): Promise<number> {
   const db = await getDb();
   const todayDate = new Date(date + 'T00:00:00');
   const startDate = new Date(todayDate);
-  startDate.setDate(startDate.getDate() - 60);
+  startDate.setDate(startDate.getDate() - 120);
   const start = startDate.toISOString().split('T')[0];
 
   const rows = await db.getAllAsync<{ date: string; total: number; taken: number }>(
