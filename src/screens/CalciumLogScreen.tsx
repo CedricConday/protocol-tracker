@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Alert,
   SafeAreaView,
@@ -9,10 +9,27 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { saveCalciumLog } from '../db/queries';
+import { getCalciumLogs, saveCalciumLog } from '../db/queries';
+
+function groupBy<T>(arr: T[], key: keyof T): [string, T[]][] {
+  const map: Record<string, T[]> = {};
+  for (const item of arr) {
+    const k = String(item[key]);
+    if (!map[k]) map[k] = [];
+    map[k].push(item);
+  }
+  return Object.entries(map);
+}
 
 export default function CalciumLogScreen() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+
+  type CalciumEntry = { test_start_date: string; day: number; calcium_mg: number; notes: string };
+  const [history, setHistory] = useState<CalciumEntry[]>([]);
+
+  useEffect(() => {
+    getCalciumLogs().then(setHistory);
+  }, []);
   const [day1Mg, setDay1Mg] = useState(200);
   const [day1Notes, setDay1Notes] = useState('');
   const [day2Mg, setDay2Mg] = useState(200);
@@ -42,6 +59,7 @@ export default function CalciumLogScreen() {
       });
     }
     Alert.alert('Saved', 'Calcium reintroduction test logged.');
+    getCalciumLogs().then(setHistory);
   };
 
   return (
@@ -97,6 +115,24 @@ export default function CalciumLogScreen() {
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
           <Text style={styles.submitBtnText}>Submit Test Log</Text>
         </TouchableOpacity>
+
+        {history.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={styles.historyHeading}>Past Tests</Text>
+            {groupBy(history, 'test_start_date').map(([date, entries]) => (
+              <View key={date} style={styles.historyCard}>
+                <Text style={styles.historyDate}>{date}</Text>
+                {entries.map((e) => (
+                  <View key={e.day} style={styles.historyRow}>
+                    <Text style={styles.historyDay}>Day {e.day}</Text>
+                    <Text style={styles.historyMg}>{e.calcium_mg} mg</Text>
+                    {e.notes ? <Text style={styles.historyNotes}>{e.notes}</Text> : null}
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -118,4 +154,12 @@ const styles = StyleSheet.create({
   notesInput: { backgroundColor: '#FAF7F4', borderRadius: 10, padding: 12, color: '#2C2420', fontSize: 14, minHeight: 60, borderWidth: 1, borderColor: '#D8CFC8' },
   submitBtn: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
   submitBtnText: { color: '#FAF7F4', fontSize: 16, fontWeight: '800' },
+  historySection: { marginTop: 32 },
+  historyHeading: { color: '#2C2420', fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  historyCard: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12 },
+  historyDate: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  historyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  historyDay: { color: '#2C2420', fontSize: 14, fontWeight: '600', width: 60 },
+  historyMg: { color: '#C96A50', fontSize: 14, fontWeight: '700' },
+  historyNotes: { color: '#7A6A62', fontSize: 13, flex: 1 },
 });
