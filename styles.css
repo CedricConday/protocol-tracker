@@ -55,3 +55,20 @@ button.mini { padding: 6px 10px; font-size: 12px; }
 .toast.show { opacity: 1; }
 .toast.err { background: #2a0a0a; color: #ffe2e2; border-color: var(--red); }
 .locknote { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+[hidden] { display: none !important; }
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* ---------- Lock screen ---------- */
+.lock {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  padding: 24px calc(24px + env(safe-area-inset-right)) 24px calc(24px + env(safe-area-inset-left));
+  background: radial-gradient(1200px 600px at 50% -10%, #12324a, var(--bg));
+}
+.lockbox { width: 100%; max-width: 360px; text-align: center; }
+.lock-logo { font-size: 48px; line-height: 1; margin-bottom: 8px; }
+.lockbox h1 { margin: 0 0 6px; font-size: 22px; }
+.lock-sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+.lock input { text-align: center; margin-bottom: 10px; }
+.lock button { width: 100%; margin-top: 4px; }
+.lock-msg { color: var(--red); font-size: 13px; min-height: 18px; margin: 10px 0 0; }
+.lock-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 16px 0 0; }
+.lock-note strong { color: var(--amber); }

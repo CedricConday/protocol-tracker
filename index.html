@@ -14,9 +14,26 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div id="lock" class="lock" hidden>
+    <div class="lockbox">
+      <div class="lock-logo">🩺</div>
+      <h1>Protocol Tracker</h1>
+      <p id="lock-sub" class="lock-sub"></p>
+      <input id="lock-pass" type="password" placeholder="Passphrase" autocomplete="current-password" />
+      <input id="lock-pass2" type="password" placeholder="Confirm passphrase" autocomplete="new-password" hidden />
+      <button id="lock-btn"></button>
+      <p id="lock-msg" class="lock-msg"></p>
+      <p id="lock-note" class="lock-note" hidden>🔒 Your records are encrypted on this device with this passphrase. There is <strong>no way to recover it</strong> if you forget it — so keep an encrypted backup.</p>
+    </div>
+  </div>
+
+  <div id="app" hidden>
   <header>
     <div class="wrap" style="padding:0">
-      <h1>🩺 Protocol Tracker</h1>
+      <div class="head-row">
+        <h1>🩺 Protocol Tracker</h1>
+        <button id="lock-now" class="ghost mini">🔒 Lock</button>
+      </div>
       <div class="badge">Local-first · <span class="locknote">🔒 data stays on this device</span> · <span id="count"></span></div>
     </div>
   </header>
@@ -62,6 +79,7 @@
       <p class="hint">Encryption: PBKDF2-SHA256 (200k) → AES-GCM-256, all in your browser.</p>
     </section>
   </main>
+  </div><!-- /#app -->
 
   <div id="toast" class="toast"></div>
   <script src="./app.js"></script>
