@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Protocol Tracker</title>
+  <meta name="description" content="Local-first clinical protocol tracker. Your data stays on this device." />
+  <meta name="theme-color" content="#0d9488" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Protocols" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <div class="wrap" style="padding:0">
+      <h1>🩺 Protocol Tracker</h1>
+      <div class="badge">Local-first · <span class="locknote">🔒 data stays on this device</span> · <span id="count"></span></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h2>Add / edit record</h2>
+      <div class="row">
+        <div><label for="f-patient">Patient / subject</label><input id="f-patient" placeholder="e.g. Case 014 or initials" /></div>
+        <div><label for="f-status">Status</label>
+          <select id="f-status">
+            <option value="active">active</option>
+            <option value="paused">paused</option>
+            <option value="done">done</option>
+          </select>
+        </div>
+      </div>
+      <label for="f-protocol">Protocol</label>
+      <input id="f-protocol" placeholder="e.g. Coimbra protocol — week 3" />
+      <label for="f-notes">Notes</label>
+      <textarea id="f-notes" placeholder="Observations, doses, next review…"></textarea>
+      <div class="actions">
+        <button id="save-btn">Add record</button>
+        <button id="cancel-btn" class="ghost" style="display:none">Cancel</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Records</h2>
+      <div id="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Encrypted backup</h2>
+      <p class="hint">Your data never touches a server. Back up to an encrypted file you control, and restore it on any device with the passphrase.</p>
+      <label for="f-pass">Passphrase (6+ chars — you'll need it to restore)</label>
+      <input id="f-pass" type="password" placeholder="passphrase" autocomplete="new-password" />
+      <div class="actions">
+        <button id="export-btn">Export encrypted backup</button>
+        <label class="ghost" for="restore-input" style="display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-weight:600;cursor:pointer">Restore from backup</label>
+        <input id="restore-input" type="file" accept=".ptbackup,application/json" style="display:none" />
+      </div>
+      <p class="hint">Encryption: PBKDF2-SHA256 (200k) → AES-GCM-256, all in your browser.</p>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
