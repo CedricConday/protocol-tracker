@@ -162,6 +162,19 @@
 
       <section class="card">
         <div class="dash-head">
+          <h2 style="margin:0">💧 Water</h2>
+          <span id="water-total" class="water-total"></span>
+        </div>
+        <div id="water-bar"><div id="water-fill"></div></div>
+        <div class="water-btns">
+          <button id="water-250" class="ghost">+250 ml</button>
+          <button id="water-500" class="ghost">+500 ml</button>
+          <button id="water-undo" class="linkbtn" type="button">undo</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="dash-head">
           <h2 style="margin:0">How you feel</h2>
           <button id="symptom-add" class="ghost mini">＋ Log</button>
         </div>
@@ -184,6 +197,29 @@
           </div>
         </div>
         <div id="symptom-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="dash-head">
+          <h2 style="margin:0">🍽️ Meals</h2>
+          <button id="meal-add" class="ghost mini">＋ Log</button>
+        </div>
+        <div id="meal-editor" hidden>
+          <label>Meal</label>
+          <div id="meal-kind" class="chips">
+            <button type="button" class="chip on" data-kind="Breakfast">Breakfast</button>
+            <button type="button" class="chip" data-kind="Lunch">Lunch</button>
+            <button type="button" class="chip" data-kind="Dinner">Dinner</button>
+            <button type="button" class="chip" data-kind="Snack">Snack</button>
+          </div>
+          <label for="meal-note">What / notes <span class="opt">(optional)</span></label>
+          <input id="meal-note" placeholder="e.g. oatmeal — no dairy" autocomplete="off" />
+          <div class="actions">
+            <button id="meal-save">Save</button>
+            <button id="meal-cancel" class="ghost">Cancel</button>
+          </div>
+        </div>
+        <div id="meal-list"></div>
       </section>
 
       <details class="card safety">

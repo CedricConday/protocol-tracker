@@ -155,6 +155,16 @@ button.big { width: 100%; padding: 15px; font-size: 16px; border-radius: 12px; }
 .preview-slot .ps-head { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-d); font-weight: 700; margin-bottom: 2px; }
 .preview-item { color: var(--muted); font-size: 13px; padding: 2px 0; }
 
+/* ---------- Water ---------- */
+.water-total { font-size: 13px; font-weight: 600; color: var(--muted); }
+#water-bar { height: 10px; background: var(--panel2); border-radius: 999px; overflow: hidden; margin: 4px 0 12px; }
+#water-fill { height: 100%; width: 0; background: linear-gradient(90deg, #6FB6E8, #9AD0F0); transition: width .25s; }
+.water-btns { display: flex; gap: 10px; align-items: center; }
+.water-btns .ghost { flex: 1; }
+
+/* ---------- Meals ---------- */
+.meal-kind { font-weight: 700; color: var(--accent-d); min-width: 72px; }
+
 /* ---------- Symptoms ---------- */
 .btn-group { display: flex; gap: 6px; }
 input[type="range"] { accent-color: var(--accent); padding: 0; }

@@ -413,15 +413,49 @@ async function renderSymptomsToday() {
     : '<div class="empty" style="padding:12px 0">Nothing logged today.</div>';
 }
 
+/* ---------- Water ---------- */
+const WATER_TARGET = 2500; // ml — protocol minimum 2.5 L/day
+const getWater = async (date) => (await db.all()).filter((r) => r.type === 'water' && (!date || r.date === date));
+async function addWater(ml) { await db.put({ id: uid(), type: 'water', date: todayKey(), ts: new Date().toISOString(), ml }); await renderWater(); toast(`+${ml} ml 💧`); }
+async function undoWater() {
+  const list = (await getWater(todayKey())).sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+  if (!list[0]) { toast('Nothing to undo.', true); return; }
+  await db.del(list[0].id); await renderWater(); toast('Undone.');
+}
+async function renderWater() {
+  const total = (await getWater(todayKey())).reduce((s, r) => s + (r.ml || 0), 0);
+  $('#water-total').textContent = `${(total / 1000).toFixed(2)} / ${(WATER_TARGET / 1000).toFixed(1)} L`;
+  $('#water-fill').style.width = `${Math.min(100, Math.round((total / WATER_TARGET) * 100))}%`;
+}
+
+/* ---------- Meals ---------- */
+const getMeals = async (date) => (await db.all()).filter((r) => r.type === 'meal' && (!date || r.date === date));
+function setMealKind(k) { $$('#meal-kind .chip').forEach((b) => b.classList.toggle('on', b.dataset.kind === k)); }
+function selectedMealKind() { const b = $('#meal-kind .chip.on'); return b ? b.dataset.kind : 'Meal'; }
+function openMealEditor() { $('#meal-note').value = ''; setMealKind('Breakfast'); $('#meal-editor').hidden = false; $('#meal-add').hidden = true; }
+function closeMealEditor() { $('#meal-editor').hidden = true; $('#meal-add').hidden = false; }
+async function saveMeal() {
+  await db.put({ id: uid(), type: 'meal', date: todayKey(), ts: new Date().toISOString(), kind: selectedMealKind(), note: $('#meal-note').value.trim() });
+  closeMealEditor(); await renderMeals(); toast('Logged.');
+}
+async function renderMeals() {
+  const list = (await getMeals(todayKey())).sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
+  $('#meal-list').innerHTML = list.length
+    ? list.map((m) => `<div class="sym-row"><span class="meal-kind">${esc(m.kind)}</span><span class="sym-main">${m.note ? esc(m.note) : '<span class="opt">—</span>'}</span><button class="danger" data-mealdel="${m.id}">✕</button></div>`).join('')
+    : '<div class="empty" style="padding:12px 0">No meals logged today.</div>';
+}
+
 /* ---------- History / calendar ---------- */
 async function showHistory() { showScreen('history'); await renderHistory(); }
 async function renderHistory() {
   const rows = await db.all();
   const byDate = {};
-  const day = (d) => (byDate[d] = byDate[d] || { date: d, taken: 0, planned: 0, started: false, symptoms: [] });
+  const day = (d) => (byDate[d] = byDate[d] || { date: d, taken: 0, planned: 0, started: false, symptoms: [], water: 0, meals: 0 });
   rows.forEach((r) => {
     if (r.type === 'log') { const g = day(r.date); g.taken = Object.keys(r.taken || {}).length; g.planned = r.planned || 0; g.started = !!r.t0; }
     else if (r.type === 'symptom') { day(r.date).symptoms.push(r); }
+    else if (r.type === 'water') { day(r.date).water += (r.ml || 0); }
+    else if (r.type === 'meal') { day(r.date).meals += 1; }
   });
   const days = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
   const fmtDay = (d) => { try { return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); } catch { return d; } };
@@ -432,7 +466,11 @@ async function renderHistory() {
         const syms = g.symptoms.length
           ? `<div class="hd-syms">${g.symptoms.slice(0, 6).map((s) => `<span class="sym-chip ${sevClass(s.severity)}">${esc(s.label)} ${s.severity}</span>`).join('')}</div>`
           : '';
-        return `<div class="hist-day"><div class="hd-top"><span class="hd-date">${fmtDay(g.date)}</span>${adh}</div>${syms}</div>`;
+        const stats = [];
+        if (g.water) stats.push(`💧 ${(g.water / 1000).toFixed(1)} L`);
+        if (g.meals) stats.push(`🍽️ ${g.meals}`);
+        const statsHtml = stats.length ? `<div class="hd-stats">${stats.join(' · ')}</div>` : '';
+        return `<div class="hist-day"><div class="hd-top"><span class="hd-date">${fmtDay(g.date)}</span>${adh}</div>${statsHtml}${syms}</div>`;
       }).join('')
     : '<div class="empty">No history yet. Start a day and log how you feel — it builds up here.</div>';
 }
@@ -485,7 +523,10 @@ async function renderDashboard() {
 
   renderSafety();
   closeSymptomEditor();
+  closeMealEditor();
   await renderSymptomsToday();
+  await renderWater();
+  await renderMeals();
 
   if (!items.length) {
     startBox.hidden = true; progWrap.hidden = true; resetBtn.hidden = true;
@@ -656,13 +697,26 @@ function wire() {
   $('#sym-save').addEventListener('click', saveSymptom);
   $('#sym-sev').addEventListener('input', (e) => { $('#sym-sev-val').textContent = e.target.value; });
   $('#symptom-list').addEventListener('click', async (e) => { const id = e.target.getAttribute('data-symdel'); if (id) { await db.del(id); await renderSymptomsToday(); toast('Removed.'); } });
+  // water
+  $('#water-250').addEventListener('click', () => addWater(250));
+  $('#water-500').addEventListener('click', () => addWater(500));
+  $('#water-undo').addEventListener('click', undoWater);
+  // meals
+  $('#meal-add').addEventListener('click', openMealEditor);
+  $('#meal-cancel').addEventListener('click', closeMealEditor);
+  $('#meal-save').addEventListener('click', saveMeal);
+  $('#meal-kind').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) setMealKind(b.dataset.kind); });
+  $('#meal-list').addEventListener('click', async (e) => { const id = e.target.getAttribute('data-mealdel'); if (id) { await db.del(id); await renderMeals(); toast('Removed.'); } });
   $('#go-edit-supps').addEventListener('click', showSuppsScreen);
   $('#go-edit-profile').addEventListener('click', showProfileScreen);
   $('#export-btn').addEventListener('click', exportBackup);
   $('#restore-input').addEventListener('change', (e) => { if (e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ''; });
 }
 
+let booted = false;
 async function boot() {
+  if (booted) return; // guard against a double DOMContentLoaded double-wiring listeners
+  booted = true;
   wire();
   await loadContent();
   showScreen('home');
