@@ -610,6 +610,11 @@ async function boot() {
 }
 
 if ('serviceWorker' in navigator) {
+  // When a new SW takes control (new deploy), reload once so the fresh app applies.
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swReloaded) return; swReloaded = true; window.location.reload();
+  });
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 document.addEventListener('DOMContentLoaded', boot);
