@@ -44,3 +44,4 @@ yarn-error.*
 /android
 content/coimbra-source/   # the patient CP source docs — copyrighted, do NOT publish until cleared
 test/node_modules/
+HANDOFF.md
