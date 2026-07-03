@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Protocol Tracker</title>
   <meta name="description" content="Your personal Coimbra Protocol companion. Your data stays on this device." />
-  <meta name="theme-color" content="#0d9488" />
+  <meta name="theme-color" content="#F4F0E6" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Protocol" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -96,6 +96,7 @@
         <h2 id="supp-editor-title">Add a supplement</h2>
         <label for="supp-pick">Supplement</label>
         <select id="supp-pick"></select>
+        <input id="supp-custom-name" placeholder="Supplement name" hidden style="margin-top:8px" />
         <div id="supp-role" class="rolehint"></div>
         <div class="row">
           <div style="flex:2">

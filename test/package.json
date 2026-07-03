@@ -1,0 +1,8 @@
+{
+  "name": "protocol-tracker-test",
+  "private": true,
+  "type": "module",
+  "description": "Headless e2e harness — drives the whole flow in jsdom with real WebCrypto + fake-indexeddb.",
+  "scripts": { "test": "node harness.mjs" },
+  "devDependencies": { "jsdom": "^24", "fake-indexeddb": "^6" }
+}

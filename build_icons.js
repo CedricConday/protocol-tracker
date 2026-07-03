@@ -18,7 +18,7 @@ function chunk(type, data) {
   return Buffer.concat([len, t, data, crc]);
 }
 function png(size) {
-  const bg = [13, 148, 136, 255];   // teal-600
+  const bg = [217, 119, 87, 255];   // coral #D97757
   const fg = [255, 255, 255, 255];  // white cross
   const raw = Buffer.alloc(size * (size * 4 + 1));
   const arm = Math.round(size * 0.18);   // cross thickness / 2

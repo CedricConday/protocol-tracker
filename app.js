@@ -103,7 +103,14 @@ async function migrateEncryptExisting() {
   for (const row of rows) if (!row.enc) await db.put(row); // db.put re-writes encrypted
 }
 const db = {
-  all: async () => Promise.all((await rawAll()).map(decRow)),
+  // Locked → no key → no accessible data. Re-check AFTER the async read too: the Lock
+  // button can null the key mid-read, and decRow reads the (now null) key synchronously.
+  all: async () => {
+    if (!sessionKey) return [];
+    const rows = await rawAll();
+    if (!sessionKey) return [];
+    return Promise.all(rows.map(decRow));
+  },
   // Encrypt BEFORE opening the tx — awaiting crypto inside a live IDB tx
   // deactivates it (auto-commit), throwing TransactionInactiveError.
   put: async (rec) => { const row = await encRecord(rec); return rawTx(STORE, 'readwrite', (s) => s.put(row)); },
@@ -225,22 +232,22 @@ function populateCatalogPicker() {
     .map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('') +
     `<option value="__custom">Other (not listed)…</option>`;
 }
+const GENERIC_FORMS = ['Capsule', 'Tablet', 'Softgel', 'Drops', 'Liquid', 'Powder', 'Spray', 'Other'];
 function onPickChange() {
   const id = $('#supp-pick').value;
   const s = catalogById(id);
   const formSel = $('#supp-form');
   const doseList = $('#supp-dose-list');
-  if (id === '__custom' || !s) {
-    $('#supp-role').textContent = 'Add your own — set a form, dose and timing.';
-    formSel.innerHTML = `<option value="">(type below)</option>`;
-    formSel.insertAdjacentHTML('beforeend', '');
+  const custom = (id === '__custom' || !s);
+  $('#supp-custom-name').hidden = !custom;
+  if (custom) {
+    $('#supp-role').textContent = 'Your own — set a form, dose and when you take it.';
+    formSel.innerHTML = GENERIC_FORMS.map((f) => `<option value="${f}">${f}</option>`).join('');
     $('#supp-unit').textContent = '';
     $('#supp-doseunit').value = '';
     doseList.innerHTML = '';
     setDaypartChips([]);
     $('#supp-hint').innerHTML = '';
-    // let form be free text via a prompt-like fallback: reuse form select's editability
-    formSel.innerHTML = `<option value="Capsule">Capsule</option><option value="Tablet">Tablet</option><option value="Drops">Drops</option><option value="Powder">Powder</option><option value="Liquid">Liquid</option><option value="Other">Other</option>`;
     return;
   }
   $('#supp-role').textContent = s.role || '';
@@ -248,7 +255,6 @@ function onPickChange() {
   $('#supp-unit').textContent = s.unit ? `(${s.unit})` : '';
   $('#supp-doseunit').value = s.unit || '';
   doseList.innerHTML = (s.commonDoses || []).map((d) => `<option value="${d}">`).join('');
-  // default day-parts from timing
   const t = timingFor(s.timingKey);
   setDaypartChips(t.defaultDayParts || []);
   renderTimingHint(s);
@@ -268,6 +274,7 @@ function setDaypartChips(active) {
   const set = new Set(active || []);
   wrap.innerHTML = dayParts().map((d) =>
     `<button type="button" class="chip${set.has(d.key) ? ' on' : ''}" data-dp="${esc(d.key)}">${esc(d.label)}</button>`).join('');
+  wrap.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => b.classList.toggle('on')));
 }
 function selectedDayparts() { return $$('#supp-dayparts .chip.on').map((b) => b.dataset.dp); }
 
@@ -277,8 +284,10 @@ function openSuppEditor(rec) {
   $('#supp-save').textContent = rec ? 'Save' : 'Add to my list';
   populateCatalogPicker();
   if (rec) {
-    $('#supp-pick').value = catalogById(rec.suppId) ? rec.suppId : '__custom';
+    const isCat = !!catalogById(rec.suppId);
+    $('#supp-pick').value = isCat ? rec.suppId : '__custom';
     onPickChange();
+    if (!isCat) $('#supp-custom-name').value = rec.name || '';
     if (rec.form) $('#supp-form').value = rec.form;
     $('#supp-dose').value = rec.dose != null ? rec.dose : '';
     $('#supp-doseunit').value = rec.unit || '';
@@ -301,7 +310,9 @@ function closeSuppEditor() {
 async function saveSupp() {
   const pickId = $('#supp-pick').value;
   const cat = catalogById(pickId);
-  const name = cat ? cat.name : ($('#supp-form') && $('#supp-pick').selectedOptions[0].text) || 'Supplement';
+  let name;
+  if (cat) { name = cat.name; }
+  else { name = $('#supp-custom-name').value.trim(); if (!name) { toast('Give your supplement a name.', true); $('#supp-custom-name').focus(); return; } }
   const form = $('#supp-form').value || '';
   const doseRaw = $('#supp-dose').value.trim();
   const dayPartsSel = selectedDayparts();
@@ -361,6 +372,13 @@ function greeting() {
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
 }
+function currentDayPartKey() {
+  const h = new Date().getHours();
+  const bands = [['on-waking', 5], ['breakfast', 8], ['mid-morning', 10], ['lunch', 12], ['afternoon', 14], ['evening', 18], ['bedtime', 21]];
+  let key = 'bedtime';
+  if (h >= 5) for (const [k, start] of bands) if (h >= start) key = k;
+  return dayParts().some((d) => d.key === key) ? key : null;
+}
 async function showDashboard() {
   showScreen('dashboard');
   await renderDashboard();
@@ -393,12 +411,14 @@ async function renderDashboard() {
   });
 
   const plan = $('#day-plan');
+  const cur = currentDayPartKey();
+  const banner = (total && done === total) ? '<div class="alldone">✅ All done for today — beautifully done. 💛</div>' : '';
   if (!total) {
     plan.innerHTML = '<div class="empty">No supplements yet. Add some under ⚙️ Manage.</div>';
   } else {
-    plan.innerHTML = groups.map((g) => `
-      <div class="slot">
-        <div class="slot-head">${esc(dayPartLabel(g.dp))}</div>
+    plan.innerHTML = banner + groups.map((g) => `
+      <div class="slot${g.dp === cur ? ' now' : ''}">
+        <div class="slot-head">${esc(dayPartLabel(g.dp))}${g.dp === cur ? ' <span class="nowtag">now</span>' : ''}</div>
         ${g.items.map((it) => {
           const t = timingFor(it.s.timingKey);
           const dose = [it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' ');
@@ -525,7 +545,6 @@ function wire() {
   $('#supp-cancel').addEventListener('click', closeSuppEditor);
   $('#supp-save').addEventListener('click', saveSupp);
   $('#supp-pick').addEventListener('change', onPickChange);
-  $('#supp-dayparts').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) b.classList.toggle('on'); });
   $('#supp-list').addEventListener('click', async (e) => {
     const del = e.target.getAttribute('data-del');
     const edit = e.target.getAttribute('data-edit');
