@@ -145,17 +145,22 @@
     <main class="wrap">
       <section class="card">
         <div class="dash-head">
-          <h2 style="margin:0">Start your day</h2>
-          <button id="dash-reset" class="linkbtn" type="button" title="Uncheck everything for a fresh day">↺ Reset day</button>
+          <h2 style="margin:0" id="plan-title">Your day</h2>
+          <button id="dash-reset" class="linkbtn" type="button" title="Start the day over" hidden>↺ Reset day</button>
         </div>
-        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="day-start" hidden>
+          <button id="day-start-btn" class="big">▶ Start my day</button>
+          <p class="hint" id="day-start-sub"></p>
+          <div id="day-preview"></div>
+        </div>
+        <div id="progress-wrap" hidden><div id="progress-bar"><div id="progress-fill"></div></div></div>
         <div id="day-plan"></div>
       </section>
 
-      <section class="card safety">
-        <h2>Protocol reminders</h2>
-        <div id="safety-list"></div>
-      </section>
+      <details class="card safety">
+        <summary>Protocol reminders</summary>
+        <div id="safety-list" style="margin-top:12px"></div>
+      </details>
 
       <details class="card">
         <summary>⚙️ Manage</summary>

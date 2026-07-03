@@ -146,6 +146,14 @@ button.big { width: 100%; padding: 15px; font-size: 16px; border-radius: 12px; }
   background: #EAF2E5; border: 1px solid #CBDFC2; color: #3F6B37; text-align: center;
   padding: 14px; border-radius: 12px; margin-bottom: 16px; font-weight: 600;
 }
+.slot-time { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 600; font-size: 12px; }
+.dose.due { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* Start-my-day (T0) */
+#day-start-btn { margin-bottom: 6px; }
+#day-preview { margin-top: 14px; }
+.preview-slot { margin-bottom: 10px; }
+.preview-slot .ps-head { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-d); font-weight: 700; margin-bottom: 2px; }
+.preview-item { color: var(--muted); font-size: 13px; padding: 2px 0; }
 
 /* ---------- Safety reminders ---------- */
 .safety .safety-row { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--line); }

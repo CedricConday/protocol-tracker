@@ -1,5 +1,5 @@
 // Offline app-shell cache. Bump CACHE to ship an update.
-const CACHE = 'protocol-tracker-v4';
+const CACHE = 'protocol-tracker-v5';
 const SHELL = [
   './',
   './index.html',

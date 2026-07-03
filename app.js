@@ -150,6 +150,9 @@ const dayParts = () => (TIMING.dayParts || []);
 const dayPartIndex = (key) => { const i = dayParts().findIndex((d) => d.key === key); return i < 0 ? 99 : i; };
 const dayPartLabel = (key) => (dayParts().find((d) => d.key === key) || {}).label || key;
 const timingFor = (timingKey) => (TIMING.timing || {})[timingKey] || {};
+// Relative offsets from T0 (minutes) — the day flows from when the user taps "Start my day".
+const DAYPART_OFFSET = { 'on-waking': 0, 'breakfast': 45, 'mid-morning': 150, 'lunch': 300, 'afternoon': 480, 'evening': 720, 'bedtime': 900 };
+const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
 /* ---------- UI helpers ---------- */
 const $ = (sel) => document.querySelector(sel);
@@ -171,7 +174,7 @@ async function getProfile() { return (await db.all()).find((r) => r.type === 'pr
 async function getSupps() { return (await db.all()).filter((r) => r.type === 'supp'); }
 async function getTodayLog() {
   const d = todayKey();
-  return (await db.all()).find((r) => r.type === 'log' && r.date === d) || { id: 'log-' + d, type: 'log', date: d, taken: {} };
+  return (await db.all()).find((r) => r.type === 'log' && r.date === d) || { id: 'log-' + d, type: 'log', date: d, t0: null, taken: {} };
 }
 const saveTodayLog = (log) => db.put(log);
 
@@ -315,6 +318,7 @@ async function saveSupp() {
   else { name = $('#supp-custom-name').value.trim(); if (!name) { toast('Give your supplement a name.', true); $('#supp-custom-name').focus(); return; } }
   const form = $('#supp-form').value || '';
   const doseRaw = $('#supp-dose').value.trim();
+  if (doseRaw === '') { toast('Enter a dose.', true); $('#supp-dose').focus(); return; }
   const dayPartsSel = selectedDayparts();
   if (!dayPartsSel.length) { toast('When do you take it? Tap at least one time.', true); return; }
   const existing = suppEditingId ? (await getSupps()).find((r) => r.id === suppEditingId) : null;
@@ -372,16 +376,52 @@ function greeting() {
   if (h < 18) return 'Good afternoon';
   return 'Good evening';
 }
-function currentDayPartKey() {
-  const h = new Date().getHours();
-  const bands = [['on-waking', 5], ['breakfast', 8], ['mid-morning', 10], ['lunch', 12], ['afternoon', 14], ['evening', 18], ['bedtime', 21]];
-  let key = 'bedtime';
-  if (h >= 5) for (const [k, start] of bands) if (h >= start) key = k;
-  return dayParts().some((d) => d.key === key) ? key : null;
-}
 async function showDashboard() {
   showScreen('dashboard');
   await renderDashboard();
+}
+async function startMyDay() {
+  const log = await getTodayLog();
+  log.t0 = Date.now();
+  await saveTodayLog(log);
+  await renderDashboard();
+  toast('Day started — follow your schedule. 🌿');
+}
+function orderedItems(supps) {
+  const items = [];
+  supps.forEach((s) => (s.dayParts || []).forEach((dp) => items.push({ s, dp, key: `${s.id}::${dp}`, off: DAYPART_OFFSET[dp] ?? 999 })));
+  items.sort((a, b) => a.off - b.off || (a.s.name || '').localeCompare(b.s.name || ''));
+  return items;
+}
+function groupByDayPart(items) {
+  const groups = [];
+  items.forEach((it) => { let g = groups.find((x) => x.dp === it.dp); if (!g) { g = { dp: it.dp, at: it.at, items: [] }; groups.push(g); } g.items.push(it); });
+  return groups;
+}
+function doseHtml(it, taken, isDue) {
+  const t = timingFor(it.s.timingKey);
+  const dose = [it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' ');
+  const tags = [];
+  if (t.withFood === true) tags.push('🍽️ with food');
+  if (t.withFood === false) tags.push('⛔ away from food');
+  if (t.water) tags.push('💧 ' + esc(t.water));
+  const isTaken = !!taken[it.key];
+  const due = isDue && !isTaken;
+  return `<label class="dose${isTaken ? ' taken' : ''}${due ? ' due' : ''}" data-key="${esc(it.key)}">
+    <input type="checkbox" class="take"${isTaken ? ' checked' : ''} />
+    <span class="dose-body">
+      <span class="dose-name">${esc(it.s.name)}${it.s.form ? ` <span class="supp-form">${esc(it.s.form)}</span>` : ''}${dose ? ` — ${esc(dose)}` : ''}${due ? ' <span class="nowtag">now</span>' : ''}</span>
+      ${tags.length ? `<span class="dose-tags">${tags.map((x) => `<span class="tchip">${x}</span>`).join('')}</span>` : ''}
+    </span>
+  </label>`;
+}
+function renderSafety() {
+  const sev = { critical: '🔴', high: '🟠', medium: '🟡' };
+  $('#safety-list').innerHTML = (TIMING.protocolRules || [])
+    .map((r) => `<div class="safety-row"><span>${sev[r.severity] || '•'}</span><span>${esc(r.text)}</span></div>`).join('');
+  const disc = (CATALOG.meta && CATALOG.meta.disclaimer) || '';
+  const attr = (CATALOG.meta && CATALOG.meta.attribution) || '';
+  $('#disclaimer').innerHTML = `${esc(disc)}<br><span class="attr">${esc(attr)}</span>`;
 }
 async function renderDashboard() {
   const p = await getProfile();
@@ -391,61 +431,51 @@ async function renderDashboard() {
   const supps = await getSupps();
   const log = await getTodayLog();
   const taken = log.taken || {};
+  const items = orderedItems(supps);
+  const startBox = $('#day-start'), planEl = $('#day-plan'), progWrap = $('#progress-wrap'), resetBtn = $('#dash-reset');
 
-  // Build (supp, dayPart) items, grouped by dayPart in chronological order.
-  const items = [];
-  supps.forEach((s) => (s.dayParts || []).forEach((dp) => items.push({ s, dp, key: `${s.id}::${dp}` })));
-  items.sort((a, b) => dayPartIndex(a.dp) - dayPartIndex(b.dp) || a.s.name.localeCompare(b.s.name));
+  renderSafety();
+
+  if (!items.length) {
+    startBox.hidden = true; progWrap.hidden = true; resetBtn.hidden = true;
+    $('#plan-title').textContent = 'Your day';
+    planEl.innerHTML = '<div class="empty">No supplements yet. Add some under ⚙️ Manage below.</div>';
+    return;
+  }
+
+  if (!log.t0) {
+    // Pre-start: the day begins when they tap the button (T0). Everything flows from there.
+    $('#plan-title').textContent = 'Ready when you are';
+    startBox.hidden = false; progWrap.hidden = true; resetBtn.hidden = true;
+    planEl.innerHTML = '';
+    const n = items.length;
+    $('#day-start-sub').textContent = `${n} dose${n > 1 ? 's' : ''} across your day. Tap to begin — your schedule flows from now.`;
+    $('#day-preview').innerHTML = groupByDayPart(items).map((g) =>
+      `<div class="preview-slot"><div class="ps-head">${esc(dayPartLabel(g.dp))}</div>${g.items.map((it) =>
+        `<div class="preview-item">${esc(it.s.name)}${it.s.dose != null && it.s.dose !== '' ? ` · ${esc([it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' '))}` : ''}</div>`).join('')}</div>`).join('');
+    return;
+  }
+
+  // Started: live schedule anchored to T0 (each dose target = T0 + its day-part offset).
+  $('#plan-title').textContent = 'Your day';
+  startBox.hidden = true; progWrap.hidden = false; resetBtn.hidden = false;
 
   const total = items.length;
   const done = items.filter((it) => taken[it.key]).length;
-  $('#dash-progress').textContent = total ? `${done}/${total} taken` : 'no supplements yet';
-  $('#progress-fill').style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+  $('#dash-progress').textContent = `${done}/${total} taken`;
+  $('#progress-fill').style.width = `${Math.round((done / total) * 100)}%`;
 
-  // group
-  const groups = [];
-  items.forEach((it) => {
-    let g = groups.find((x) => x.dp === it.dp);
-    if (!g) { g = { dp: it.dp, items: [] }; groups.push(g); }
-    g.items.push(it);
-  });
+  const now = Date.now();
+  const timed = items.map((it) => ({ ...it, at: log.t0 + it.off * 60000 }));
+  const due = timed.filter((it) => !taken[it.key] && it.at <= now + 15 * 60000);
+  const dueKey = due.length ? due[due.length - 1].key : null;
 
-  const plan = $('#day-plan');
-  const cur = currentDayPartKey();
-  const banner = (total && done === total) ? '<div class="alldone">✅ All done for today — beautifully done. 💛</div>' : '';
-  if (!total) {
-    plan.innerHTML = '<div class="empty">No supplements yet. Add some under ⚙️ Manage.</div>';
-  } else {
-    plan.innerHTML = banner + groups.map((g) => `
-      <div class="slot${g.dp === cur ? ' now' : ''}">
-        <div class="slot-head">${esc(dayPartLabel(g.dp))}${g.dp === cur ? ' <span class="nowtag">now</span>' : ''}</div>
-        ${g.items.map((it) => {
-          const t = timingFor(it.s.timingKey);
-          const dose = [it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' ');
-          const tags = [];
-          if (t.withFood === true) tags.push('🍽️ with food');
-          if (t.withFood === false) tags.push('⛔ away from food');
-          if (t.water) tags.push('💧 ' + esc(t.water));
-          const checked = taken[it.key] ? ' checked' : '';
-          return `<label class="dose${checked ? ' taken' : ''}" data-key="${esc(it.key)}">
-            <input type="checkbox" class="take"${checked} />
-            <span class="dose-body">
-              <span class="dose-name">${esc(it.s.name)}${it.s.form ? ` <span class="supp-form">${esc(it.s.form)}</span>` : ''}${dose ? ` — ${esc(dose)}` : ''}</span>
-              ${tags.length ? `<span class="dose-tags">${tags.map((x) => `<span class="tchip">${x}</span>`).join('')}</span>` : ''}
-            </span>
-          </label>`;
-        }).join('')}
-      </div>`).join('');
-  }
-
-  // safety reminders
-  const sev = { critical: '🔴', high: '🟠', medium: '🟡' };
-  $('#safety-list').innerHTML = (TIMING.protocolRules || [])
-    .map((r) => `<div class="safety-row"><span>${sev[r.severity] || '•'}</span><span>${esc(r.text)}</span></div>`).join('');
-
-  const disc = (CATALOG.meta && CATALOG.meta.disclaimer) || '';
-  const attr = (CATALOG.meta && CATALOG.meta.attribution) || '';
-  $('#disclaimer').innerHTML = `${esc(disc)}<br><span class="attr">${esc(attr)}</span>`;
+  const banner = (done === total) ? '<div class="alldone">✅ All done for today — beautifully done. 💛</div>' : '';
+  planEl.innerHTML = banner + groupByDayPart(timed).map((g) => `
+    <div class="slot">
+      <div class="slot-head">${esc(dayPartLabel(g.dp))} <span class="slot-time">${fmtTime(g.at)}</span></div>
+      ${g.items.map((it) => doseHtml(it, taken, it.key === dueKey)).join('')}
+    </div>`).join('');
 }
 
 /* ---------- Backup / restore (UI) ---------- */
@@ -554,8 +584,9 @@ function wire() {
   $('#supps-done').addEventListener('click', showDashboard);
   // dashboard
   $('#dash-lock').addEventListener('click', lockNow);
+  $('#day-start-btn').addEventListener('click', startMyDay);
   $('#dash-reset').addEventListener('click', async () => {
-    const log = await getTodayLog(); log.taken = {}; await saveTodayLog(log); await renderDashboard(); toast('Fresh day.');
+    const log = await getTodayLog(); log.taken = {}; log.t0 = null; await saveTodayLog(log); await renderDashboard(); toast('Fresh day.');
   });
   $('#day-plan').addEventListener('change', async (e) => {
     const label = e.target.closest('.dose'); if (!label) return;
