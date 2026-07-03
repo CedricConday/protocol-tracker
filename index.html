@@ -259,11 +259,29 @@
           <h1>📅 History</h1>
           <button id="hist-back" class="ghost mini">← Back</button>
         </div>
-        <div class="badge">Adherence &amp; symptoms over time</div>
+        <div class="badge">Tap any day for the full log</div>
       </div>
     </header>
     <main class="wrap">
-      <div id="hist-list"></div>
+      <div id="hist-cal-view">
+        <div class="cal-nav">
+          <button id="cal-prev" class="ghost mini" title="Previous month">‹</button>
+          <span id="cal-month"></span>
+          <button id="cal-next" class="ghost mini" title="Next month">›</button>
+        </div>
+        <div class="cal-dow"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+        <div id="cal-grid"></div>
+        <div class="cal-legend">
+          <span><i class="lg d-full"></i>all doses</span>
+          <span><i class="lg d-part"></i>partial</span>
+          <span><i class="lg sym"></i>symptom</span>
+        </div>
+      </div>
+      <div id="hist-day-view" hidden>
+        <button id="day-back" class="ghost mini">‹ Calendar</button>
+        <h2 id="day-title"></h2>
+        <div id="day-detail"></div>
+      </div>
     </main>
   </div>
 

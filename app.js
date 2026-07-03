@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v9'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v10'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
@@ -448,33 +448,82 @@ async function renderMeals() {
 }
 
 /* ---------- History / calendar ---------- */
-async function showHistory() { showScreen('history'); await renderHistory(); }
-async function renderHistory() {
+let calYear, calMonth; // current month shown in the calendar
+async function showHistory() {
+  const now = new Date(); calYear = now.getFullYear(); calMonth = now.getMonth();
+  $('#hist-day-view').hidden = true; $('#hist-cal-view').hidden = false;
+  showScreen('history');
+  await renderCalendar();
+}
+async function dayMap() {
   const rows = await db.all();
-  const byDate = {};
-  const day = (d) => (byDate[d] = byDate[d] || { date: d, taken: 0, planned: 0, started: false, symptoms: [], water: 0, meals: 0 });
+  const m = {};
+  const g = (d) => (m[d] = m[d] || { date: d, log: null, water: [], meals: [], symptoms: [] });
   rows.forEach((r) => {
-    if (r.type === 'log') { const g = day(r.date); g.taken = Object.keys(r.taken || {}).length; g.planned = r.planned || 0; g.started = !!r.t0; }
-    else if (r.type === 'symptom') { day(r.date).symptoms.push(r); }
-    else if (r.type === 'water') { day(r.date).water += (r.ml || 0); }
-    else if (r.type === 'meal') { day(r.date).meals += 1; }
+    if (r.type === 'log') g(r.date).log = r;
+    else if (r.type === 'water') g(r.date).water.push(r);
+    else if (r.type === 'meal') g(r.date).meals.push(r);
+    else if (r.type === 'symptom') g(r.date).symptoms.push(r);
   });
-  const days = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
-  const fmtDay = (d) => { try { return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); } catch { return d; } };
-  $('#hist-list').innerHTML = days.length
-    ? days.map((g) => {
-        const pct = g.planned ? Math.round((g.taken / g.planned) * 100) : 0;
-        const adh = g.started ? `<span class="hd-adh"><span class="ring" style="--pct:${pct}"></span>${g.taken}/${g.planned || '·'}</span>` : '<span class="hd-adh muted">not started</span>';
-        const syms = g.symptoms.length
-          ? `<div class="hd-syms">${g.symptoms.slice(0, 6).map((s) => `<span class="sym-chip ${sevClass(s.severity)}">${esc(s.label)} ${s.severity}</span>`).join('')}</div>`
-          : '';
-        const stats = [];
-        if (g.water) stats.push(`💧 ${(g.water / 1000).toFixed(1)} L`);
-        if (g.meals) stats.push(`🍽️ ${g.meals}`);
-        const statsHtml = stats.length ? `<div class="hd-stats">${stats.join(' · ')}</div>` : '';
-        return `<div class="hist-day"><div class="hd-top"><span class="hd-date">${fmtDay(g.date)}</span>${adh}</div>${statsHtml}${syms}</div>`;
-      }).join('')
-    : '<div class="empty">No history yet. Start a day and log how you feel — it builds up here.</div>';
+  return m;
+}
+const ymd = (y, mo, d) => `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+async function renderCalendar() {
+  const m = await dayMap();
+  $('#cal-month').textContent = new Date(calYear, calMonth, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const firstW = (new Date(calYear, calMonth, 1).getDay() + 6) % 7; // Monday-first offset
+  const nDays = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = todayKey();
+  let cells = '';
+  for (let i = 0; i < firstW; i++) cells += '<div class="cal-cell empty"></div>';
+  for (let d = 1; d <= nDays; d++) {
+    const ds = ymd(calYear, calMonth, d);
+    const e = m[ds];
+    let cls = 'cal-cell', dots = '';
+    if (e) {
+      const started = !!(e.log && e.log.t0);
+      const taken = e.log ? Object.keys(e.log.taken || {}).length : 0;
+      const planned = e.log ? (e.log.planned || 0) : 0;
+      if (started && planned && taken >= planned) cls += ' d-full';
+      else if (taken > 0) cls += ' d-part';
+      else if (started) cls += ' d-started';
+      if (e.symptoms.length) dots += '<i class="cdot sym"></i>';
+      if (e.water.length) dots += '<i class="cdot wat"></i>';
+      if (e.meals.length) dots += '<i class="cdot meal"></i>';
+    }
+    if (ds === today) cls += ' today';
+    cells += `<button class="${cls}" data-date="${ds}"><span class="cnum">${d}</span><span class="cdots">${dots}</span></button>`;
+  }
+  $('#cal-grid').innerHTML = cells;
+}
+function calShift(delta) {
+  calMonth += delta;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  else if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+async function showDay(ds) {
+  const m = await dayMap();
+  const e = m[ds] || { log: null, water: [], meals: [], symptoms: [] };
+  const t = (ts) => { try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
+  $('#day-title').textContent = new Date(ds + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const doses = (e.log && e.log.t0)
+    ? `<div class="dd-line">${Object.keys(e.log.taken || {}).length} of ${e.log.planned || '·'} taken</div>`
+    : '<div class="dd-line muted">Day not started</div>';
+  const wtotal = e.water.reduce((s, r) => s + (r.ml || 0), 0);
+  const water = `<div class="dd-line">${(wtotal / 1000).toFixed(2)} L${e.water.length ? ` <span class="muted">(${e.water.length} log${e.water.length > 1 ? 's' : ''})</span>` : ''}</div>`;
+  const meals = e.meals.length
+    ? e.meals.slice().sort((a, b) => (a.ts || '').localeCompare(b.ts || '')).map((mm) => `<div class="dd-item"><span class="dd-when">${t(mm.ts)}</span><span class="dd-body"><b>${esc(mm.kind)}</b>${mm.note ? ` — ${esc(mm.note)}` : ''}</span></div>`).join('')
+    : '<div class="dd-line muted">None logged</div>';
+  const syms = e.symptoms.length
+    ? e.symptoms.slice().sort((a, b) => (a.ts || '').localeCompare(b.ts || '')).map((s) => `<div class="dd-item"><span class="dd-when">${t(s.ts)}</span><span class="dd-body"><span class="sev-dot ${sevClass(s.severity)}"></span><b>${esc(s.label)}</b> ${s.severity}/10${s.note ? ` — ${esc(s.note)}` : ''}</span></div>`).join('')
+    : '<div class="dd-line muted">None logged</div>';
+  $('#day-detail').innerHTML =
+    `<div class="dd-sec"><div class="dd-h">💊 Doses</div>${doses}</div>` +
+    `<div class="dd-sec"><div class="dd-h">💧 Water</div>${water}</div>` +
+    `<div class="dd-sec"><div class="dd-h">🍽️ Meals</div>${meals}</div>` +
+    `<div class="dd-sec"><div class="dd-h">🩹 Symptoms</div>${syms}</div>`;
+  $('#hist-cal-view').hidden = true; $('#hist-day-view').hidden = false;
 }
 function orderedItems(supps) {
   const items = [];
@@ -694,6 +743,10 @@ function wire() {
   // history + symptoms
   $('#dash-history').addEventListener('click', showHistory);
   $('#hist-back').addEventListener('click', showDashboard);
+  $('#cal-prev').addEventListener('click', () => calShift(-1));
+  $('#cal-next').addEventListener('click', () => calShift(1));
+  $('#cal-grid').addEventListener('click', (e) => { const b = e.target.closest('.cal-cell'); if (b && b.dataset.date) showDay(b.dataset.date); });
+  $('#day-back').addEventListener('click', () => { $('#hist-day-view').hidden = true; $('#hist-cal-view').hidden = false; });
   $('#symptom-add').addEventListener('click', openSymptomEditor);
   $('#sym-cancel').addEventListener('click', closeSymptomEditor);
   $('#sym-save').addEventListener('click', saveSymptom);

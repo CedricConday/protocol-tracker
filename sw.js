@@ -1,6 +1,6 @@
 // App-shell cache. NETWORK-FIRST for the shell so new deploys land on next open;
 // falls back to cache when offline. Bump CACHE to force a clean sweep.
-const CACHE = 'protocol-tracker-v9';
+const CACHE = 'protocol-tracker-v10';
 const SHELL = [
   './',
   './index.html',
