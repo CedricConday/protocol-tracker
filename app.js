@@ -1,5 +1,7 @@
 'use strict';
 
+const APP_VERSION = 'v9'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
 const STORE = 'records';
@@ -718,6 +720,7 @@ async function boot() {
   if (booted) return; // guard against a double DOMContentLoaded double-wiring listeners
   booted = true;
   wire();
+  const av = $('#app-version'); if (av) av.textContent = APP_VERSION;
   await loadContent();
   showScreen('home');
 }
