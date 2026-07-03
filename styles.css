@@ -155,6 +155,32 @@ button.big { width: 100%; padding: 15px; font-size: 16px; border-radius: 12px; }
 .preview-slot .ps-head { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-d); font-weight: 700; margin-bottom: 2px; }
 .preview-item { color: var(--muted); font-size: 13px; padding: 2px 0; }
 
+/* ---------- Symptoms ---------- */
+.btn-group { display: flex; gap: 6px; }
+input[type="range"] { accent-color: var(--accent); padding: 0; }
+.sym-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.sym-row:first-child { border-top: none; }
+.sev-dot { width: 10px; height: 10px; border-radius: 999px; flex: none; }
+.sev-lo { background: var(--green); } .sev-mid { background: var(--amber); } .sev-hi { background: var(--red); }
+.sym-main { flex: 1; min-width: 0; }
+.sym-label { font-weight: 600; }
+.sym-sev { color: var(--muted); font-size: 12px; }
+.sym-note { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+/* ---------- History / calendar ---------- */
+.hist-day { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+.hd-top { display: flex; align-items: center; justify-content: space-between; }
+.hd-date { font-weight: 700; }
+.hd-adh { display: inline-flex; align-items: center; font-weight: 600; font-size: 13px; }
+.hd-adh.muted { color: var(--muted); font-weight: 500; }
+.ring { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 7px;
+  background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--line) 0); }
+.hd-syms { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.sym-chip { font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); font-weight: 500; }
+.sym-chip.sev-lo { background: #EAF2E5; border-color: #CBDFC2; }
+.sym-chip.sev-mid { background: #FBF0DC; border-color: #F0DCB4; }
+.sym-chip.sev-hi { background: #FBE4E0; border-color: #F0C5BC; }
+
 /* ---------- Safety reminders ---------- */
 .safety .safety-row { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--line); }
 .safety .safety-row:first-child { border-top: none; }

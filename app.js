@@ -179,7 +179,7 @@ async function getTodayLog() {
 const saveTodayLog = (log) => db.put(log);
 
 /* ---------- Screen router ---------- */
-const SCREENS = ['home', 'onboard-profile', 'onboard-supps', 'dashboard'];
+const SCREENS = ['home', 'onboard-profile', 'onboard-supps', 'dashboard', 'history'];
 function showScreen(name) {
   SCREENS.forEach((s) => { const el = document.getElementById(s); if (el) el.hidden = (s !== name); });
   $('#lock').hidden = true;
@@ -383,9 +383,58 @@ async function showDashboard() {
 async function startMyDay() {
   const log = await getTodayLog();
   log.t0 = Date.now();
+  log.planned = orderedItems(await getSupps()).length; // denominator for adherence history
   await saveTodayLog(log);
   await renderDashboard();
   toast('Day started — follow your schedule. 🌿');
+}
+
+/* ---------- Symptoms ---------- */
+const getSymptoms = async (date) => (await db.all()).filter((r) => r.type === 'symptom' && (!date || r.date === date));
+async function saveSymptom() {
+  const label = $('#sym-label').value.trim();
+  if (!label) { toast('What are you feeling?', true); $('#sym-label').focus(); return; }
+  await db.put({ id: uid(), type: 'symptom', date: todayKey(), ts: new Date().toISOString(), label, severity: Number($('#sym-sev').value), note: $('#sym-note').value.trim() });
+  closeSymptomEditor();
+  await renderDashboard();
+  toast('Logged.');
+}
+function openSymptomEditor() {
+  $('#sym-label').value = ''; $('#sym-sev').value = 5; $('#sym-sev-val').textContent = '5'; $('#sym-note').value = '';
+  $('#symptom-editor').hidden = false; $('#symptom-add').hidden = true;
+  setTimeout(() => $('#sym-label').focus(), 30);
+}
+function closeSymptomEditor() { $('#symptom-editor').hidden = true; $('#symptom-add').hidden = false; }
+function sevClass(s) { return s >= 7 ? 'sev-hi' : s >= 4 ? 'sev-mid' : 'sev-lo'; }
+async function renderSymptomsToday() {
+  const list = (await getSymptoms(todayKey())).sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+  $('#symptom-list').innerHTML = list.length
+    ? list.map((s) => `<div class="sym-row"><span class="sev-dot ${sevClass(s.severity)}"></span><span class="sym-main"><span class="sym-label">${esc(s.label)}</span> <span class="sym-sev">${s.severity}/10</span>${s.note ? `<span class="sym-note">${esc(s.note)}</span>` : ''}</span><button class="danger" data-symdel="${s.id}">✕</button></div>`).join('')
+    : '<div class="empty" style="padding:12px 0">Nothing logged today.</div>';
+}
+
+/* ---------- History / calendar ---------- */
+async function showHistory() { showScreen('history'); await renderHistory(); }
+async function renderHistory() {
+  const rows = await db.all();
+  const byDate = {};
+  const day = (d) => (byDate[d] = byDate[d] || { date: d, taken: 0, planned: 0, started: false, symptoms: [] });
+  rows.forEach((r) => {
+    if (r.type === 'log') { const g = day(r.date); g.taken = Object.keys(r.taken || {}).length; g.planned = r.planned || 0; g.started = !!r.t0; }
+    else if (r.type === 'symptom') { day(r.date).symptoms.push(r); }
+  });
+  const days = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 60);
+  const fmtDay = (d) => { try { return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); } catch { return d; } };
+  $('#hist-list').innerHTML = days.length
+    ? days.map((g) => {
+        const pct = g.planned ? Math.round((g.taken / g.planned) * 100) : 0;
+        const adh = g.started ? `<span class="hd-adh"><span class="ring" style="--pct:${pct}"></span>${g.taken}/${g.planned || '·'}</span>` : '<span class="hd-adh muted">not started</span>';
+        const syms = g.symptoms.length
+          ? `<div class="hd-syms">${g.symptoms.slice(0, 6).map((s) => `<span class="sym-chip ${sevClass(s.severity)}">${esc(s.label)} ${s.severity}</span>`).join('')}</div>`
+          : '';
+        return `<div class="hist-day"><div class="hd-top"><span class="hd-date">${fmtDay(g.date)}</span>${adh}</div>${syms}</div>`;
+      }).join('')
+    : '<div class="empty">No history yet. Start a day and log how you feel — it builds up here.</div>';
 }
 function orderedItems(supps) {
   const items = [];
@@ -435,6 +484,8 @@ async function renderDashboard() {
   const startBox = $('#day-start'), planEl = $('#day-plan'), progWrap = $('#progress-wrap'), resetBtn = $('#dash-reset');
 
   renderSafety();
+  closeSymptomEditor();
+  await renderSymptomsToday();
 
   if (!items.length) {
     startBox.hidden = true; progWrap.hidden = true; resetBtn.hidden = true;
@@ -597,6 +648,14 @@ function wire() {
     await saveTodayLog(log);
     await renderDashboard();
   });
+  // history + symptoms
+  $('#dash-history').addEventListener('click', showHistory);
+  $('#hist-back').addEventListener('click', showDashboard);
+  $('#symptom-add').addEventListener('click', openSymptomEditor);
+  $('#sym-cancel').addEventListener('click', closeSymptomEditor);
+  $('#sym-save').addEventListener('click', saveSymptom);
+  $('#sym-sev').addEventListener('input', (e) => { $('#sym-sev-val').textContent = e.target.value; });
+  $('#symptom-list').addEventListener('click', async (e) => { const id = e.target.getAttribute('data-symdel'); if (id) { await db.del(id); await renderSymptomsToday(); toast('Removed.'); } });
   $('#go-edit-supps').addEventListener('click', showSuppsScreen);
   $('#go-edit-profile').addEventListener('click', showProfileScreen);
   $('#export-btn').addEventListener('click', exportBackup);

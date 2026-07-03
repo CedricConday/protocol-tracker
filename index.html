@@ -137,7 +137,10 @@
       <div class="wrap" style="padding:0">
         <div class="head-row">
           <h1>🩺 <span id="dash-greet">Today</span></h1>
-          <button id="dash-lock" class="ghost mini">🔒 Lock</button>
+          <div class="btn-group">
+            <button id="dash-history" class="ghost mini" title="History">📅</button>
+            <button id="dash-lock" class="ghost mini">🔒 Lock</button>
+          </div>
         </div>
         <div class="badge"><span id="dash-date"></span> · <span id="dash-progress"></span></div>
       </div>
@@ -155,6 +158,32 @@
         </div>
         <div id="progress-wrap" hidden><div id="progress-bar"><div id="progress-fill"></div></div></div>
         <div id="day-plan"></div>
+      </section>
+
+      <section class="card">
+        <div class="dash-head">
+          <h2 style="margin:0">How you feel</h2>
+          <button id="symptom-add" class="ghost mini">＋ Log</button>
+        </div>
+        <div id="symptom-editor" hidden>
+          <label for="sym-label">Symptom</label>
+          <input id="sym-label" list="sym-suggest" placeholder="e.g. Fatigue, Tingling, Pain" autocomplete="off" />
+          <datalist id="sym-suggest">
+            <option value="Fatigue"></option><option value="Numbness / tingling"></option><option value="Pain"></option>
+            <option value="Spasticity"></option><option value="Muscle weakness"></option><option value="Balance / coordination"></option>
+            <option value="Vision"></option><option value="Brain fog"></option><option value="Bladder"></option>
+            <option value="Dizziness"></option><option value="Mood"></option><option value="Heat sensitivity"></option>
+          </datalist>
+          <label for="sym-sev">Severity: <span id="sym-sev-val">5</span>/10</label>
+          <input id="sym-sev" type="range" min="1" max="10" value="5" />
+          <label for="sym-note">Note <span class="opt">(optional)</span></label>
+          <input id="sym-note" placeholder="anything worth remembering" autocomplete="off" />
+          <div class="actions">
+            <button id="sym-save">Save</button>
+            <button id="sym-cancel" class="ghost">Cancel</button>
+          </div>
+        </div>
+        <div id="symptom-list"></div>
       </section>
 
       <details class="card safety">
@@ -182,6 +211,22 @@
       </details>
 
       <p class="disclaimer" id="disclaimer"></p>
+    </main>
+  </div>
+
+  <!-- ============ HISTORY / CALENDAR ============ -->
+  <div id="history" class="screen" hidden>
+    <header>
+      <div class="wrap" style="padding:0">
+        <div class="head-row">
+          <h1>📅 History</h1>
+          <button id="hist-back" class="ghost mini">← Back</button>
+        </div>
+        <div class="badge">Adherence &amp; symptoms over time</div>
+      </div>
+    </header>
+    <main class="wrap">
+      <div id="hist-list"></div>
     </main>
   </div>
 
