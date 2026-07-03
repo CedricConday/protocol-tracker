@@ -160,6 +160,7 @@ const sourceRef = (kind) => ((TIMING.meta && TIMING.meta.sourceRefs) || {})[kind
 // A timing entry may name its own `source`; otherwise fall back to the timing-section default.
 const sourceForTiming = (t) => sourceById((t && t.source) || sourceRef('timing'));
 const sourceForRules = () => sourceById(sourceRef('protocolRules'));
+const sourceForDoses = () => sourceById(sourceRef('doses'));
 const sourceShort = (src) => (src ? (src.shortTitle || src.title || '') : '');
 // Relative offsets from T0 (minutes) — the day flows from when the user taps "Start my day".
 const DAYPART_OFFSET = { 'on-waking': 0, 'breakfast': 45, 'mid-morning': 150, 'lunch': 300, 'afternoon': 480, 'evening': 720, 'bedtime': 900 };
@@ -275,15 +276,22 @@ function onPickChange() {
 }
 function renderTimingHint(s) {
   const t = timingFor(s.timingKey);
-  if (!t || (!t.notes && t.withFood == null)) { $('#supp-hint').innerHTML = ''; return; }
   const bits = [];
   if (t.withFood === true) bits.push('🍽️ with food');
   if (t.withFood === false) bits.push('⛔🍽️ away from food' + (t.spacing ? ` (${esc(t.spacing)})` : ''));
   if (t.water) bits.push('💧 ' + esc(t.water));
   const chips = bits.map((b) => `<span class="tchip">${b}</span>`).join('');
-  const src = sourceForTiming(t);
-  const cite = src ? `<p class="src">Source: ${esc(sourceShort(src))} — see 📖 Sources &amp; references</p>` : '';
-  $('#supp-hint').innerHTML = `${chips}${t.notes ? `<p class="hint">${esc(t.notes)}</p>` : ''}${cite}`;
+  const timingNote = t.notes ? `<p class="hint">${esc(t.notes)}</p>` : '';
+  // Catalog dose-safety notes (e.g. the Vitamin D >10,000 IU/day caution) — surfaced so
+  // the user sees the warning while choosing a dose, attributed to the dosing source.
+  const doseNote = (s && s.notes) ? `<p class="hint caution">⚠️ ${esc(s.notes)}</p>` : '';
+  const cites = [];
+  const tsrc = sourceForTiming(t); if (timingNote && tsrc) cites.push(sourceShort(tsrc));
+  const dsrc = sourceForDoses(); if (doseNote && dsrc) cites.push(sourceShort(dsrc));
+  const uniq = Array.from(new Set(cites.filter(Boolean)));
+  const cite = uniq.length ? `<p class="src">Source: ${esc(uniq.join(' · '))} — see 📖 Sources &amp; references</p>` : '';
+  const html = `${chips}${timingNote}${doseNote}${cite}`;
+  $('#supp-hint').innerHTML = html.trim() ? html : '';
 }
 function setDaypartChips(active) {
   const wrap = $('#supp-dayparts');

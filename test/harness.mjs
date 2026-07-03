@@ -71,6 +71,8 @@ try {
   ok('forms populated', $('#supp-form').options.length >= 1);
   ok('dayparts prefilled from timing', $$('#supp-dayparts .chip.on').length >= 1);
   ok('timing hint cites a source', await waitFor(() => /Source:/.test($('#supp-hint').textContent)));
+  ok('dose-safety note surfaced (Vit D >10,000 IU)', /10,000/.test($('#supp-hint').textContent));
+  ok('dose-safety note styled as caution', !!$('#supp-hint .caution'));
   $('#supp-dose').value = '40000';
   click('#supp-save');
   ok('supp 1 added', await waitFor(() => rows() === 1));
