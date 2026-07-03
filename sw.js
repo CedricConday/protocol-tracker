@@ -1,11 +1,13 @@
 // Offline app-shell cache. Bump CACHE to ship an update.
-const CACHE = 'protocol-tracker-v2';
+const CACHE = 'protocol-tracker-v3';
 const SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.webmanifest',
+  './content/coimbra/catalog.json',
+  './content/coimbra/timing.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon-180.png',

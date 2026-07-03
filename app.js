@@ -104,7 +104,9 @@ async function migrateEncryptExisting() {
 }
 const db = {
   all: async () => Promise.all((await rawAll()).map(decRow)),
-  put: async (rec) => rawTx(STORE, 'readwrite', (s) => encRecord(rec).then((row) => s.put(row))),
+  // Encrypt BEFORE opening the tx — awaiting crypto inside a live IDB tx
+  // deactivates it (auto-commit), throwing TransactionInactiveError.
+  put: async (rec) => { const row = await encRecord(rec); return rawTx(STORE, 'readwrite', (s) => s.put(row)); },
   del: (id) => rawTx(STORE, 'readwrite', (s) => s.delete(id)),
   clear: () => rawTx(STORE, 'readwrite', (s) => s.clear()),
 };
@@ -125,8 +127,26 @@ async function decryptBackup(passphrase, blob) {
   return aesDecrypt(key, blob.iv, blob.ciphertext);
 }
 
+/* ================================================================================
+   Coimbra Protocol content (supplement catalog + intake timing) — loaded at boot.
+   Data derived from the CP community docs the patient shared; reference only, not
+   medical advice. Users enter their own regimen.
+   ================================================================================ */
+let CATALOG = { supplements: [] };
+let TIMING = { dayParts: [], timing: {}, referenceSchedule: { slots: [] }, protocolRules: [] };
+async function loadContent() {
+  try { CATALOG = await fetch('./content/coimbra/catalog.json', { cache: 'no-cache' }).then((r) => r.json()); } catch (e) {}
+  try { TIMING = await fetch('./content/coimbra/timing.json', { cache: 'no-cache' }).then((r) => r.json()); } catch (e) {}
+}
+const catalogById = (id) => (CATALOG.supplements || []).find((s) => s.id === id) || null;
+const dayParts = () => (TIMING.dayParts || []);
+const dayPartIndex = (key) => { const i = dayParts().findIndex((d) => d.key === key); return i < 0 ? 99 : i; };
+const dayPartLabel = (key) => (dayParts().find((d) => d.key === key) || {}).label || key;
+const timingFor = (timingKey) => (TIMING.timing || {})[timingKey] || {};
+
 /* ---------- UI helpers ---------- */
 const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
 let toastTimer;
 function toast(msg, isErr) {
@@ -136,65 +156,276 @@ function toast(msg, isErr) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (el.className = 'toast'), 2600);
 }
-function fmt(iso) { try { return new Date(iso).toLocaleString(); } catch { return iso; } }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
-let editingId = null;
+/* ---------- Data-model accessors (all encrypted records live in STORE) ---------- */
+async function getProfile() { return (await db.all()).find((r) => r.type === 'profile') || null; }
+async function getSupps() { return (await db.all()).filter((r) => r.type === 'supp'); }
+async function getTodayLog() {
+  const d = todayKey();
+  return (await db.all()).find((r) => r.type === 'log' && r.date === d) || { id: 'log-' + d, type: 'log', date: d, taken: {} };
+}
+const saveTodayLog = (log) => db.put(log);
 
-async function render() {
-  const list = $('#list');
-  const records = (await db.all()).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-  $('#count').textContent = records.length ? `${records.length} record${records.length > 1 ? 's' : ''}` : '';
-  if (!records.length) { list.innerHTML = '<div class="empty">No records yet. Add one above — it saves only on this device.</div>'; return; }
-  list.innerHTML = records.map((r) => `
-    <div class="rec" data-id="${r.id}">
-      <div class="top">
-        <div>
-          <div class="name">${esc(r.patient) || '(no name)'}</div>
-          <div class="proto">${esc(r.protocol) || '—'}</div>
-        </div>
-        <span class="pill ${r.status}">${esc(r.status)}</span>
-      </div>
-      ${r.notes ? `<div class="notes">${esc(r.notes)}</div>` : ''}
-      <div class="meta">updated ${fmt(r.updatedAt)}</div>
-      <div class="actions">
-        <button class="ghost mini" data-edit="${r.id}">Edit</button>
-        <button class="danger" data-del="${r.id}">Delete</button>
-      </div>
-    </div>`).join('');
+/* ---------- Screen router ---------- */
+const SCREENS = ['home', 'onboard-profile', 'onboard-supps', 'dashboard'];
+function showScreen(name) {
+  SCREENS.forEach((s) => { const el = document.getElementById(s); if (el) el.hidden = (s !== name); });
+  $('#lock').hidden = true;
+  window.scrollTo(0, 0);
+}
+async function routeAfterUnlock() {
+  if (!(await getProfile())) return showProfileScreen();
+  if (!(await getSupps()).length) return showSuppsScreen();
+  return showDashboard();
 }
 
-function readForm() {
-  return {
-    patient: $('#f-patient').value.trim(),
-    protocol: $('#f-protocol').value.trim(),
-    status: $('#f-status').value,
-    notes: $('#f-notes').value.trim(),
-  };
-}
-function fillForm(r) {
-  $('#f-patient').value = r ? r.patient : '';
-  $('#f-protocol').value = r ? r.protocol : '';
-  $('#f-status').value = r ? r.status : 'active';
-  $('#f-notes').value = r ? r.notes : '';
-}
-function resetForm() { editingId = null; fillForm(null); $('#save-btn').textContent = 'Add record'; $('#cancel-btn').style.display = 'none'; }
-
-async function saveRecord() {
-  const data = readForm();
-  if (!data.patient && !data.protocol) { toast('Enter a name or a protocol.', true); return; }
-  const now = new Date().toISOString();
-  let rec;
-  if (editingId) {
-    const existing = (await db.all()).find((x) => x.id === editingId) || {};
-    rec = { ...existing, ...data, id: editingId, updatedAt: now };
+/* ================================ ONBOARDING 1: PROFILE ================================ */
+async function showProfileScreen() {
+  const p = await getProfile();
+  $('#p-name').value = p ? (p.name || '') : '';
+  $('#p-weight').value = p && p.weight != null ? p.weight : '';
+  $('#p-weight-unit').value = p ? (p.weightUnit || 'kg') : 'kg';
+  const known = Array.from($('#p-condition').options).map((o) => o.value);
+  if (p && p.condition && !known.includes(p.condition)) {
+    $('#p-condition').value = '__custom';
+    $('#p-condition-custom').hidden = false;
+    $('#p-condition-custom').value = p.condition;
   } else {
-    rec = { ...data, id: uid(), createdAt: now, updatedAt: now };
+    $('#p-condition').value = p ? (p.condition || 'Multiple Sclerosis') : 'Multiple Sclerosis';
+    $('#p-condition-custom').hidden = $('#p-condition').value !== '__custom';
   }
+  showScreen('onboard-profile');
+}
+async function saveProfile() {
+  const name = $('#p-name').value.trim();
+  if (!name) { toast('What should we call you?', true); $('#p-name').focus(); return false; }
+  let condition = $('#p-condition').value;
+  if (condition === '__custom') condition = $('#p-condition-custom').value.trim() || 'Other';
+  const weightRaw = $('#p-weight').value.trim();
+  const existing = await getProfile();
+  const rec = {
+    ...(existing || {}), id: existing ? existing.id : 'profile', type: 'profile',
+    name, condition,
+    weight: weightRaw === '' ? null : Number(weightRaw),
+    weightUnit: $('#p-weight-unit').value,
+    updatedAt: new Date().toISOString(),
+  };
   await db.put(rec);
-  resetForm();
-  await render();
-  toast(editingId ? 'Saved.' : 'Added.');
+  return true;
+}
+
+/* ================================ ONBOARDING 2: SUPPLEMENTS ================================ */
+let suppEditingId = null;
+
+function populateCatalogPicker() {
+  const sel = $('#supp-pick');
+  sel.innerHTML = (CATALOG.supplements || [])
+    .map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('') +
+    `<option value="__custom">Other (not listed)…</option>`;
+}
+function onPickChange() {
+  const id = $('#supp-pick').value;
+  const s = catalogById(id);
+  const formSel = $('#supp-form');
+  const doseList = $('#supp-dose-list');
+  if (id === '__custom' || !s) {
+    $('#supp-role').textContent = 'Add your own — set a form, dose and timing.';
+    formSel.innerHTML = `<option value="">(type below)</option>`;
+    formSel.insertAdjacentHTML('beforeend', '');
+    $('#supp-unit').textContent = '';
+    $('#supp-doseunit').value = '';
+    doseList.innerHTML = '';
+    setDaypartChips([]);
+    $('#supp-hint').innerHTML = '';
+    // let form be free text via a prompt-like fallback: reuse form select's editability
+    formSel.innerHTML = `<option value="Capsule">Capsule</option><option value="Tablet">Tablet</option><option value="Drops">Drops</option><option value="Powder">Powder</option><option value="Liquid">Liquid</option><option value="Other">Other</option>`;
+    return;
+  }
+  $('#supp-role').textContent = s.role || '';
+  formSel.innerHTML = (s.forms || []).map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  $('#supp-unit').textContent = s.unit ? `(${s.unit})` : '';
+  $('#supp-doseunit').value = s.unit || '';
+  doseList.innerHTML = (s.commonDoses || []).map((d) => `<option value="${d}">`).join('');
+  // default day-parts from timing
+  const t = timingFor(s.timingKey);
+  setDaypartChips(t.defaultDayParts || []);
+  renderTimingHint(s);
+}
+function renderTimingHint(s) {
+  const t = timingFor(s.timingKey);
+  if (!t || (!t.notes && t.withFood == null)) { $('#supp-hint').innerHTML = ''; return; }
+  const bits = [];
+  if (t.withFood === true) bits.push('🍽️ with food');
+  if (t.withFood === false) bits.push('⛔🍽️ away from food' + (t.spacing ? ` (${esc(t.spacing)})` : ''));
+  if (t.water) bits.push('💧 ' + esc(t.water));
+  const chips = bits.map((b) => `<span class="tchip">${b}</span>`).join('');
+  $('#supp-hint').innerHTML = `${chips}${t.notes ? `<p class="hint">${esc(t.notes)}</p>` : ''}`;
+}
+function setDaypartChips(active) {
+  const wrap = $('#supp-dayparts');
+  const set = new Set(active || []);
+  wrap.innerHTML = dayParts().map((d) =>
+    `<button type="button" class="chip${set.has(d.key) ? ' on' : ''}" data-dp="${esc(d.key)}">${esc(d.label)}</button>`).join('');
+}
+function selectedDayparts() { return $$('#supp-dayparts .chip.on').map((b) => b.dataset.dp); }
+
+function openSuppEditor(rec) {
+  suppEditingId = rec ? rec.id : null;
+  $('#supp-editor-title').textContent = rec ? 'Edit supplement' : 'Add a supplement';
+  $('#supp-save').textContent = rec ? 'Save' : 'Add to my list';
+  populateCatalogPicker();
+  if (rec) {
+    $('#supp-pick').value = catalogById(rec.suppId) ? rec.suppId : '__custom';
+    onPickChange();
+    if (rec.form) $('#supp-form').value = rec.form;
+    $('#supp-dose').value = rec.dose != null ? rec.dose : '';
+    $('#supp-doseunit').value = rec.unit || '';
+    setDaypartChips(rec.dayParts || []);
+    const s = catalogById(rec.suppId); if (s) renderTimingHint(s);
+  } else {
+    $('#supp-pick').selectedIndex = 0;
+    onPickChange();
+    $('#supp-dose').value = '';
+  }
+  $('#supp-editor').hidden = false;
+  $('#supp-add-toggle').hidden = true;
+  $('#supp-editor').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function closeSuppEditor() {
+  $('#supp-editor').hidden = true;
+  $('#supp-add-toggle').hidden = false;
+  suppEditingId = null;
+}
+async function saveSupp() {
+  const pickId = $('#supp-pick').value;
+  const cat = catalogById(pickId);
+  const name = cat ? cat.name : ($('#supp-form') && $('#supp-pick').selectedOptions[0].text) || 'Supplement';
+  const form = $('#supp-form').value || '';
+  const doseRaw = $('#supp-dose').value.trim();
+  const dayPartsSel = selectedDayparts();
+  if (!dayPartsSel.length) { toast('When do you take it? Tap at least one time.', true); return; }
+  const existing = suppEditingId ? (await getSupps()).find((r) => r.id === suppEditingId) : null;
+  const rec = {
+    ...(existing || {}),
+    id: existing ? existing.id : uid(), type: 'supp',
+    suppId: cat ? cat.id : '__custom',
+    name: cat ? cat.name : name,
+    form,
+    dose: doseRaw === '' ? null : Number(doseRaw),
+    unit: $('#supp-doseunit').value.trim(),
+    dayParts: dayPartsSel,
+    timingKey: cat ? cat.timingKey : 'with-food',
+    updatedAt: new Date().toISOString(),
+  };
+  await db.put(rec);
+  closeSuppEditor();
+  await renderSuppList();
+  toast(existing ? 'Updated.' : `${rec.name} added.`);
+}
+async function renderSuppList() {
+  const supps = (await getSupps()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const list = $('#supp-list');
+  if (!supps.length) {
+    list.innerHTML = '<div class="empty">No supplements yet. Add the ones you take.</div>';
+  } else {
+    list.innerHTML = supps.map((r) => {
+      const when = (r.dayParts || []).map(dayPartLabel).join(' · ');
+      const dose = [r.dose, r.unit].filter((x) => x != null && x !== '').join(' ');
+      return `<div class="supp-row" data-id="${r.id}">
+        <div class="supp-main">
+          <div class="supp-name">${esc(r.name)}${r.form ? ` <span class="supp-form">${esc(r.form)}</span>` : ''}</div>
+          <div class="supp-sub">${dose ? esc(dose) + ' · ' : ''}${esc(when)}</div>
+        </div>
+        <div class="supp-acts">
+          <button class="ghost mini" data-edit="${r.id}">Edit</button>
+          <button class="danger" data-del="${r.id}">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  $('#supps-done').disabled = supps.length === 0;
+}
+async function showSuppsScreen() {
+  showScreen('onboard-supps');
+  closeSuppEditor();
+  await renderSuppList();
+}
+
+/* ================================ DASHBOARD ================================ */
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+async function showDashboard() {
+  showScreen('dashboard');
+  await renderDashboard();
+}
+async function renderDashboard() {
+  const p = await getProfile();
+  $('#dash-greet').textContent = p && p.name ? `${greeting()}, ${p.name}` : greeting();
+  $('#dash-date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+
+  const supps = await getSupps();
+  const log = await getTodayLog();
+  const taken = log.taken || {};
+
+  // Build (supp, dayPart) items, grouped by dayPart in chronological order.
+  const items = [];
+  supps.forEach((s) => (s.dayParts || []).forEach((dp) => items.push({ s, dp, key: `${s.id}::${dp}` })));
+  items.sort((a, b) => dayPartIndex(a.dp) - dayPartIndex(b.dp) || a.s.name.localeCompare(b.s.name));
+
+  const total = items.length;
+  const done = items.filter((it) => taken[it.key]).length;
+  $('#dash-progress').textContent = total ? `${done}/${total} taken` : 'no supplements yet';
+  $('#progress-fill').style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
+
+  // group
+  const groups = [];
+  items.forEach((it) => {
+    let g = groups.find((x) => x.dp === it.dp);
+    if (!g) { g = { dp: it.dp, items: [] }; groups.push(g); }
+    g.items.push(it);
+  });
+
+  const plan = $('#day-plan');
+  if (!total) {
+    plan.innerHTML = '<div class="empty">No supplements yet. Add some under ⚙️ Manage.</div>';
+  } else {
+    plan.innerHTML = groups.map((g) => `
+      <div class="slot">
+        <div class="slot-head">${esc(dayPartLabel(g.dp))}</div>
+        ${g.items.map((it) => {
+          const t = timingFor(it.s.timingKey);
+          const dose = [it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' ');
+          const tags = [];
+          if (t.withFood === true) tags.push('🍽️ with food');
+          if (t.withFood === false) tags.push('⛔ away from food');
+          if (t.water) tags.push('💧 ' + esc(t.water));
+          const checked = taken[it.key] ? ' checked' : '';
+          return `<label class="dose${checked ? ' taken' : ''}" data-key="${esc(it.key)}">
+            <input type="checkbox" class="take"${checked} />
+            <span class="dose-body">
+              <span class="dose-name">${esc(it.s.name)}${it.s.form ? ` <span class="supp-form">${esc(it.s.form)}</span>` : ''}${dose ? ` — ${esc(dose)}` : ''}</span>
+              ${tags.length ? `<span class="dose-tags">${tags.map((x) => `<span class="tchip">${x}</span>`).join('')}</span>` : ''}
+            </span>
+          </label>`;
+        }).join('')}
+      </div>`).join('');
+  }
+
+  // safety reminders
+  const sev = { critical: '🔴', high: '🟠', medium: '🟡' };
+  $('#safety-list').innerHTML = (TIMING.protocolRules || [])
+    .map((r) => `<div class="safety-row"><span>${sev[r.severity] || '•'}</span><span>${esc(r.text)}</span></div>`).join('');
+
+  const disc = (CATALOG.meta && CATALOG.meta.disclaimer) || '';
+  const attr = (CATALOG.meta && CATALOG.meta.attribution) || '';
+  $('#disclaimer').innerHTML = `${esc(disc)}<br><span class="attr">${esc(attr)}</span>`;
 }
 
 /* ---------- Backup / restore (UI) ---------- */
@@ -223,8 +454,8 @@ async function restoreBackup(file) {
     if (!Array.isArray(records)) throw new Error('Corrupt backup contents.');
     await db.clear();
     for (const r of records) await db.put(r);
-    await render();
     toast(`Restored ${records.length} record(s).`);
+    await routeAfterUnlock();
   } catch (e) {
     toast('Restore failed: wrong passphrase or bad file.', true);
   }
@@ -234,10 +465,10 @@ async function restoreBackup(file) {
 function showLock(mode) {
   // mode: 'setup' (first run) | 'unlock'
   const setup = mode === 'setup';
+  SCREENS.forEach((s) => { const el = document.getElementById(s); if (el) el.hidden = true; });
   $('#lock').hidden = false;
-  $('#app').hidden = true;
   $('#lock-sub').textContent = setup
-    ? 'Set a passphrase to protect the records on this device.'
+    ? 'Create a passphrase to protect your data on this device.'
     : 'Enter your passphrase to unlock.';
   $('#lock-pass2').hidden = !setup;
   $('#lock-note').hidden = !setup;
@@ -248,11 +479,6 @@ function showLock(mode) {
   $('#lock').dataset.mode = mode;
   setTimeout(() => $('#lock-pass').focus(), 50);
 }
-function enterApp() {
-  $('#lock').hidden = true;
-  $('#app').hidden = false;
-  render();
-}
 async function submitLock() {
   const mode = $('#lock').dataset.mode;
   const pass = $('#lock-pass').value;
@@ -261,49 +487,76 @@ async function submitLock() {
     if (pass.length < 6) { msg.textContent = 'Passphrase needs 6+ characters.'; return; }
     if (pass !== $('#lock-pass2').value) { msg.textContent = 'Passphrases do not match.'; return; }
     $('#lock-btn').disabled = true;
-    try { await auth.setup(pass); enterApp(); toast('Passphrase set. Records are now encrypted.'); }
+    try { await auth.setup(pass); toast('Passphrase set. Your data is encrypted.'); await routeAfterUnlock(); }
     catch (e) { msg.textContent = 'Could not set passphrase.'; }
     finally { $('#lock-btn').disabled = false; }
   } else {
     if (!pass) { msg.textContent = 'Enter your passphrase.'; return; }
     $('#lock-btn').disabled = true;
-    try { await auth.unlock(pass); enterApp(); }
+    try { await auth.unlock(pass); await routeAfterUnlock(); }
     catch (e) { msg.textContent = e.message || 'Wrong passphrase.'; $('#lock-pass').select(); }
     finally { $('#lock-btn').disabled = false; }
   }
 }
+async function goLogin() {
+  showLock((await auth.isConfigured()) ? 'unlock' : 'setup');
+}
 function lockNow() {
   auth.lock();
-  resetForm();
-  showLock('unlock');
+  suppEditingId = null;
+  showScreen('home');
   toast('Locked.');
 }
 
 /* ---------- Wiring ---------- */
 function wire() {
-  $('#save-btn').addEventListener('click', saveRecord);
-  $('#cancel-btn').addEventListener('click', resetForm);
-  $('#export-btn').addEventListener('click', exportBackup);
-  $('#lock-now').addEventListener('click', lockNow);
+  // home
+  $('#home-login').addEventListener('click', goLogin);
+  // lock
   $('#lock-btn').addEventListener('click', submitLock);
+  $('#lock-back').addEventListener('click', () => showScreen('home'));
   $('#lock-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter' && $('#lock-pass2').hidden) submitLock(); });
   $('#lock-pass2').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitLock(); });
-  $('#restore-input').addEventListener('change', (e) => { if (e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ''; });
-  $('#list').addEventListener('click', async (e) => {
+  // profile
+  $('#p-condition').addEventListener('change', (e) => { $('#p-condition-custom').hidden = e.target.value !== '__custom'; });
+  $('#p-continue').addEventListener('click', async () => { if (await saveProfile()) await showSuppsScreen(); });
+  // supplements
+  $('#supp-add-toggle').addEventListener('click', () => openSuppEditor(null));
+  $('#supp-cancel').addEventListener('click', closeSuppEditor);
+  $('#supp-save').addEventListener('click', saveSupp);
+  $('#supp-pick').addEventListener('change', onPickChange);
+  $('#supp-dayparts').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (b) b.classList.toggle('on'); });
+  $('#supp-list').addEventListener('click', async (e) => {
     const del = e.target.getAttribute('data-del');
     const edit = e.target.getAttribute('data-edit');
-    if (del) { await db.del(del); if (editingId === del) resetForm(); await render(); toast('Deleted.'); }
-    if (edit) {
-      const r = (await db.all()).find((x) => x.id === edit);
-      if (r) { editingId = edit; fillForm(r); $('#save-btn').textContent = 'Save changes'; $('#cancel-btn').style.display = 'inline-block'; window.scrollTo({ top: 0, behavior: 'smooth' }); }
-    }
+    if (del) { await db.del(del); await renderSuppList(); toast('Removed.'); }
+    if (edit) { const r = (await getSupps()).find((x) => x.id === edit); if (r) openSuppEditor(r); }
   });
+  $('#supps-done').addEventListener('click', showDashboard);
+  // dashboard
+  $('#dash-lock').addEventListener('click', lockNow);
+  $('#dash-reset').addEventListener('click', async () => {
+    const log = await getTodayLog(); log.taken = {}; await saveTodayLog(log); await renderDashboard(); toast('Fresh day.');
+  });
+  $('#day-plan').addEventListener('change', async (e) => {
+    const label = e.target.closest('.dose'); if (!label) return;
+    const key = label.dataset.key;
+    const log = await getTodayLog();
+    log.taken = log.taken || {};
+    if (e.target.checked) log.taken[key] = true; else delete log.taken[key];
+    await saveTodayLog(log);
+    await renderDashboard();
+  });
+  $('#go-edit-supps').addEventListener('click', showSuppsScreen);
+  $('#go-edit-profile').addEventListener('click', showProfileScreen);
+  $('#export-btn').addEventListener('click', exportBackup);
+  $('#restore-input').addEventListener('change', (e) => { if (e.target.files[0]) restoreBackup(e.target.files[0]); e.target.value = ''; });
 }
 
 async function boot() {
   wire();
-  resetForm();
-  showLock((await auth.isConfigured()) ? 'unlock' : 'setup');
+  await loadContent();
+  showScreen('home');
 }
 
 if ('serviceWorker' in navigator) {

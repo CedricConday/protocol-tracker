@@ -4,16 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Protocol Tracker</title>
-  <meta name="description" content="Local-first clinical protocol tracker. Your data stays on this device." />
+  <meta name="description" content="Your personal Coimbra Protocol companion. Your data stays on this device." />
   <meta name="theme-color" content="#0d9488" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Protocols" />
+  <meta name="apple-mobile-web-app-title" content="Protocol" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+
+  <!-- ============ LOCK (setup / unlock) ============ -->
   <div id="lock" class="lock" hidden>
     <div class="lockbox">
       <div class="lock-logo">🩺</div>
@@ -24,62 +26,158 @@
       <button id="lock-btn"></button>
       <p id="lock-msg" class="lock-msg"></p>
       <p id="lock-note" class="lock-note" hidden>🔒 Your records are encrypted on this device with this passphrase. There is <strong>no way to recover it</strong> if you forget it — so keep an encrypted backup.</p>
+      <button id="lock-back" class="linkbtn" type="button">← Back</button>
     </div>
   </div>
 
-  <div id="app" hidden>
-  <header>
-    <div class="wrap" style="padding:0">
-      <div class="head-row">
-        <h1>🩺 Protocol Tracker</h1>
-        <button id="lock-now" class="ghost mini">🔒 Lock</button>
-      </div>
-      <div class="badge">Local-first · <span class="locknote">🔒 data stays on this device</span> · <span id="count"></span></div>
+  <!-- ============ HOME / LANDING ============ -->
+  <div id="home" class="screen hero" hidden>
+    <div class="hero-inner">
+      <div class="hero-logo">🩺</div>
+      <h1>Protocol Tracker</h1>
+      <p class="hero-tag">Your personal Coimbra&nbsp;Protocol companion — plan your day, take each supplement at the right time.</p>
+      <button id="home-login" class="big">Log in</button>
+      <p class="hero-note">🔒 Everything stays encrypted on <em>this device</em>. Nothing is sent anywhere.</p>
     </div>
-  </header>
+  </div>
 
-  <main class="wrap">
-    <section class="card">
-      <h2>Add / edit record</h2>
-      <div class="row">
-        <div><label for="f-patient">Patient / subject</label><input id="f-patient" placeholder="e.g. Case 014 or initials" /></div>
-        <div><label for="f-status">Status</label>
-          <select id="f-status">
-            <option value="active">active</option>
-            <option value="paused">paused</option>
-            <option value="done">done</option>
-          </select>
+  <!-- ============ ONBOARDING 1 — PROFILE ============ -->
+  <div id="onboard-profile" class="screen" hidden>
+    <main class="wrap">
+      <div class="steps"><span class="dot on"></span><span class="dot"></span><span class="lbl">Step 1 of 2 · About you</span></div>
+      <section class="card">
+        <h2>A few basics</h2>
+        <p class="hint">Just enough to make the app yours. This never leaves your device, and you can change it anytime.</p>
+        <label for="p-name">Your name</label>
+        <input id="p-name" placeholder="e.g. the patient" autocomplete="off" />
+        <div class="row">
+          <div style="flex:2">
+            <label for="p-weight">Weight <span class="opt">(optional)</span></label>
+            <input id="p-weight" type="number" inputmode="decimal" min="0" placeholder="e.g. 68" />
+          </div>
+          <div style="flex:1">
+            <label for="p-weight-unit">Unit</label>
+            <select id="p-weight-unit"><option value="kg">kg</option><option value="lb">lb</option></select>
+          </div>
         </div>
-      </div>
-      <label for="f-protocol">Protocol</label>
-      <input id="f-protocol" placeholder="e.g. Coimbra protocol — week 3" />
-      <label for="f-notes">Notes</label>
-      <textarea id="f-notes" placeholder="Observations, doses, next review…"></textarea>
-      <div class="actions">
-        <button id="save-btn">Add record</button>
-        <button id="cancel-btn" class="ghost" style="display:none">Cancel</button>
-      </div>
-    </section>
+        <p class="hint">Vitamin D dosing on the protocol is often per‑kg — handy to have, but your doctor sets the dose, not the app.</p>
+        <label for="p-condition">Condition</label>
+        <select id="p-condition">
+          <option value="Multiple Sclerosis">Multiple Sclerosis</option>
+          <option value="Rheumatoid Arthritis">Rheumatoid Arthritis</option>
+          <option value="Psoriasis / Psoriatic Arthritis">Psoriasis / Psoriatic Arthritis</option>
+          <option value="Hashimoto's Thyroiditis">Hashimoto's Thyroiditis</option>
+          <option value="Crohn's / Colitis">Crohn's / Colitis</option>
+          <option value="Lupus (SLE)">Lupus (SLE)</option>
+          <option value="Vitiligo">Vitiligo</option>
+          <option value="Other autoimmune">Other autoimmune</option>
+          <option value="__custom">Something else…</option>
+        </select>
+        <input id="p-condition-custom" placeholder="Type your condition" hidden style="margin-top:8px" />
+        <div class="actions">
+          <button id="p-continue">Continue →</button>
+        </div>
+      </section>
+    </main>
+  </div>
 
-    <section class="card">
-      <h2>Records</h2>
-      <div id="list"></div>
-    </section>
+  <!-- ============ ONBOARDING 2 — SUPPLEMENTS ============ -->
+  <div id="onboard-supps" class="screen" hidden>
+    <main class="wrap">
+      <div class="steps"><span class="dot done"></span><span class="dot on"></span><span class="lbl">Step 2 of 2 · Your supplements</span></div>
+      <section class="card">
+        <h2>What do you take?</h2>
+        <p class="hint">Add each supplement <em>you</em> take, the way your doctor prescribed it. We don't suggest doses — you're in charge. Pick when you take it and we'll line up your day.</p>
+        <div id="supp-list" class="supp-list"></div>
+        <button id="supp-add-toggle" class="ghost full">＋ Add a supplement</button>
+      </section>
 
-    <section class="card">
-      <h2>Encrypted backup</h2>
-      <p class="hint">Your data never touches a server. Back up to an encrypted file you control, and restore it on any device with the passphrase.</p>
-      <label for="f-pass">Passphrase (6+ chars — you'll need it to restore)</label>
-      <input id="f-pass" type="password" placeholder="passphrase" autocomplete="new-password" />
-      <div class="actions">
-        <button id="export-btn">Export encrypted backup</button>
-        <label class="ghost" for="restore-input" style="display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-weight:600;cursor:pointer">Restore from backup</label>
-        <input id="restore-input" type="file" accept=".ptbackup,application/json" style="display:none" />
+      <section id="supp-editor" class="card" hidden>
+        <h2 id="supp-editor-title">Add a supplement</h2>
+        <label for="supp-pick">Supplement</label>
+        <select id="supp-pick"></select>
+        <div id="supp-role" class="rolehint"></div>
+        <div class="row">
+          <div style="flex:2">
+            <label for="supp-form">Form</label>
+            <select id="supp-form"></select>
+          </div>
+        </div>
+        <div class="row">
+          <div style="flex:2">
+            <label for="supp-dose">Dose <span id="supp-unit" class="opt"></span></label>
+            <input id="supp-dose" type="number" inputmode="decimal" min="0" placeholder="amount" list="supp-dose-list" />
+            <datalist id="supp-dose-list"></datalist>
+          </div>
+          <div style="flex:1">
+            <label for="supp-doseunit">Unit</label>
+            <input id="supp-doseunit" placeholder="mg" />
+          </div>
+        </div>
+        <label>When do you take it? <span class="opt">(tap all that apply)</span></label>
+        <div id="supp-dayparts" class="chips"></div>
+        <div id="supp-hint" class="timinghint"></div>
+        <div class="actions">
+          <button id="supp-save">Add to my list</button>
+          <button id="supp-cancel" class="ghost">Cancel</button>
+        </div>
+      </section>
+
+      <div class="wrap" style="padding:0 0 24px">
+        <button id="supps-done" class="big" disabled>Go to my dashboard →</button>
+        <p class="hint" style="text-align:center">You can add, edit or remove supplements anytime.</p>
       </div>
-      <p class="hint">Encryption: PBKDF2-SHA256 (200k) → AES-GCM-256, all in your browser.</p>
-    </section>
-  </main>
-  </div><!-- /#app -->
+    </main>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dashboard" class="screen" hidden>
+    <header>
+      <div class="wrap" style="padding:0">
+        <div class="head-row">
+          <h1>🩺 <span id="dash-greet">Today</span></h1>
+          <button id="dash-lock" class="ghost mini">🔒 Lock</button>
+        </div>
+        <div class="badge"><span id="dash-date"></span> · <span id="dash-progress"></span></div>
+      </div>
+    </header>
+    <main class="wrap">
+      <section class="card">
+        <div class="dash-head">
+          <h2 style="margin:0">Start your day</h2>
+          <button id="dash-reset" class="linkbtn" type="button" title="Uncheck everything for a fresh day">↺ Reset day</button>
+        </div>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+        <div id="day-plan"></div>
+      </section>
+
+      <section class="card safety">
+        <h2>Protocol reminders</h2>
+        <div id="safety-list"></div>
+      </section>
+
+      <details class="card">
+        <summary>⚙️ Manage</summary>
+        <div class="manage">
+          <button id="go-edit-supps" class="ghost full">Edit my supplements</button>
+          <button id="go-edit-profile" class="ghost full">Edit my details</button>
+          <hr class="sep" />
+          <h3 class="mini-h">Encrypted backup</h3>
+          <p class="hint">Save an encrypted copy you control, and restore it on any device with the passphrase. Nothing touches a server.</p>
+          <label for="f-pass">Backup passphrase (6+ chars)</label>
+          <input id="f-pass" type="password" placeholder="passphrase" autocomplete="new-password" />
+          <div class="actions">
+            <button id="export-btn">Export backup</button>
+            <label class="ghost filelabel" for="restore-input">Restore</label>
+            <input id="restore-input" type="file" accept=".ptbackup,application/json" hidden />
+          </div>
+          <p class="hint">PBKDF2‑SHA256 (200k) → AES‑GCM‑256, all in your browser.</p>
+        </div>
+      </details>
+
+      <p class="disclaimer" id="disclaimer"></p>
+    </main>
+  </div>
 
   <div id="toast" class="toast"></div>
   <script src="./app.js"></script>
