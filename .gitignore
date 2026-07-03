@@ -45,3 +45,8 @@ yarn-error.*
 content/coimbra-source/   # the patient CP source docs — copyrighted, do NOT publish until cleared
 test/node_modules/
 HANDOFF.md
+content/coimbra-source/
+push-service/.env
+push-service/node_modules/
+push-service/schedules.json
+from_C3_to_C1.md
