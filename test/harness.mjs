@@ -118,8 +118,12 @@ try {
   click('#supps-done');
   ok('dashboard visible', await waitFor(() => visible('dashboard')));
   ok('pre-start shows Start-my-day', await waitFor(() => !$('#day-start').hidden));
+  ok('pre-start: loggers hidden (hero focus)', $('#card-water').hidden === true && $('#card-meal').hidden === true);
+  ok('pre-start: preview shows projected times', /\d/.test($('#day-preview').textContent));
   click('#day-start-btn');                       // set T0 — the schedule flows from here
   ok('dashboard shows dose items', await waitFor(() => $$('#day-plan .dose').length >= 3));
+  ok('started: loggers now shown', $('#card-water').hidden === false);
+  ok('started: slot shows a live status/time', /(now|min|\d:\d|:\d\d)/.test($('#day-plan .slot-head').textContent));
   ok('greeting shows name', /the patient/.test($('#dash-greet').textContent));
   ok('safety reminders rendered', await waitFor(() => $$('#safety-list .safety-row').length >= 3));
   ok('sources & references rendered', await waitFor(() => $$('#refs-list .ref-row').length >= 3));
@@ -131,6 +135,25 @@ try {
   })());
   ok('computeFires: drops past slots', window.__pt.computeFires(0, [{ dp: 'breakfast' }], 9e12).length === 0);
   ok('reminders toggle hidden when push unsupported', $('#reminders-wrap').hidden === true);
+  ok('slotStatus: done/upcoming/due/overdue', (() => {
+    const s = window.__pt.slotStatus;
+    return s(1000, 30, 0, true) === 'done'
+      && s(60 * 60000, 30, 0, false) === 'upcoming'
+      && s(5 * 60000, 30, 0, false) === 'due'
+      && s(0, 30, 40 * 60000, false) === 'overdue';
+  })());
+  ok('formatRelative: now / in 23 min / 20 min ago', (() => {
+    const f = window.__pt.formatRelative;
+    return f(0, 0) === 'now' && f(23 * 60000, 0) === 'in 23 min' && f(0, 20 * 60000) === '20 min ago';
+  })());
+  ok('bedtimeAdvisory: fires past bedtime, null without / early', (() => {
+    const ba = window.__pt.bedtimeAdvisory, items = [{ off: 300 }];
+    const late = new Date(); late.setHours(23, 0, 0, 0);
+    const early = new Date(); early.setHours(8, 0, 0, 0);
+    return !!ba({ bedtime: '22:00' }, items, late.getTime())
+      && ba({}, items, early.getTime()) === null
+      && ba({ bedtime: '22:00' }, items, early.getTime()) === null;
+  })());
 
   // mark one taken
   const box = $('#day-plan .dose input.take');

@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v12'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v13'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
@@ -218,6 +218,7 @@ async function showProfileScreen() {
     $('#p-condition').value = p ? (p.condition || 'Multiple Sclerosis') : 'Multiple Sclerosis';
     $('#p-condition-custom').hidden = $('#p-condition').value !== '__custom';
   }
+  if ($('#p-bedtime')) $('#p-bedtime').value = (p && p.bedtime) ? p.bedtime : '22:00';
   showScreen('onboard-profile');
 }
 async function saveProfile() {
@@ -232,6 +233,7 @@ async function saveProfile() {
     name, condition,
     weight: weightRaw === '' ? null : Number(weightRaw),
     weightUnit: $('#p-weight-unit').value,
+    bedtime: ($('#p-bedtime') && $('#p-bedtime').value) || null,
     updatedAt: new Date().toISOString(),
   };
   await db.put(rec);
@@ -408,8 +410,9 @@ async function startMyDay() {
   log.planned = items.length; // denominator for adherence history
   await saveTodayLog(log);
   await pushSchedule(computeFires(log.t0, items, log.t0)); // register today's reminders (no-op if off)
+  const adv = bedtimeAdvisory(await getProfile(), items, log.t0);
   await renderDashboard();
-  toast('Day started — follow your schedule. 🌿');
+  toast(adv ? 'Day started 🌙 — a bit past bedtime, but you’re good.' : 'Day started — follow your schedule. 🌿');
 }
 
 /* ---------- Symptoms ---------- */
@@ -557,7 +560,60 @@ function groupByDayPart(items) {
   items.forEach((it) => { let g = groups.find((x) => x.dp === it.dp); if (!g) { g = { dp: it.dp, at: it.at, items: [] }; groups.push(g); } g.items.push(it); });
   return groups;
 }
-function doseHtml(it, taken, isDue) {
+
+/* ---------- Schedule engine (flows from the single T0 anchor) ----------
+   Each slot has a scheduled time (T0 + offset) and a tolerance window, and moves
+   through upcoming → due → overdue → done, shown with a relative time. Faithful to
+   the original app's per-anchor schedule, not a flat checklist. */
+const DEFAULT_TOLERANCE_MIN = 30;
+const DUE_LEAD_MIN = 10; // a slot reads "due" up to 10 min before its scheduled time
+const toleranceFor = (timingKey) => { const t = timingFor(timingKey); return (t && typeof t.tolerance === 'number') ? t.tolerance : DEFAULT_TOLERANCE_MIN; };
+// Pure: the state of a scheduled slot right now.
+function slotStatus(at, tolMin, now, allTaken) {
+  if (allTaken) return 'done';
+  if (now > at + tolMin * 60000) return 'overdue';
+  if (now >= at - DUE_LEAD_MIN * 60000) return 'due';
+  return 'upcoming';
+}
+// Pure: "now" / "in 23 min" / "20 min ago" / "3h ago". Empty for far-future
+// (the slot already shows the clock time, so a relative form would just duplicate it).
+function formatRelative(at, now) {
+  const min = Math.round((at - now) / 60000);
+  if (Math.abs(min) < 1) return 'now';
+  if (min > 0 && min < 60) return `in ${min} min`;
+  if (min < 0 && min > -60) return `${-min} min ago`;
+  if (min <= -60 && min > -1440) return `${Math.round(-min / 60)}h ago`;
+  return '';
+}
+const lastOffsetOf = (items) => items.reduce((mx, it) => Math.max(mx, it.off || 0), 0);
+// Bedtime is a soft advisory only (night owls welcome) — never a gate.
+function bedtimeDate(bt) {
+  if (!bt || !/^\d{1,2}:\d{2}$/.test(bt)) return null;
+  const [h, m] = bt.split(':').map(Number);
+  const d = new Date(); d.setHours(h, m, 0, 0); return d;
+}
+// Returns an advisory if starting at `start` would run late vs the user's bedtime, else null.
+function bedtimeAdvisory(profile, items, start) {
+  const bt = bedtimeDate(profile && profile.bedtime);
+  if (!bt) return null;
+  const bedMs = bt.getTime();
+  const lastAt = start + lastOffsetOf(items || []) * 60000;
+  if (start > bedMs) return { kind: 'late-start', bedMs, lastAt };
+  if ((items || []).length && lastAt > bedMs) return { kind: 'late-finish', bedMs, lastAt };
+  return null;
+}
+function bedtimeHint(adv) {
+  if (!adv) return '';
+  const bed = fmtTime(adv.bedMs), last = fmtTime(adv.lastAt);
+  return adv.kind === 'late-start'
+    ? `It’s past your usual bedtime (${bed}). Starting now is fine if you’re still up — your last dose lands around ${last}.`
+    : `Start now and your last dose lands around ${last}, past your usual bedtime (${bed}). That’s okay — you can adjust bedtime in ⚙️ Manage.`;
+}
+// Pre-start focuses on the ritual; the loggers appear once the day is running.
+function showSecondaryCards(show) {
+  ['#card-water', '#card-symptom', '#card-meal'].forEach((id) => { const el = $(id); if (el) el.hidden = !show; });
+}
+function doseHtml(it, taken, active) {
   const t = timingFor(it.s.timingKey);
   const dose = [it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' ');
   const tags = [];
@@ -565,11 +621,11 @@ function doseHtml(it, taken, isDue) {
   if (t.withFood === false) tags.push('⛔ away from food');
   if (t.water) tags.push('💧 ' + esc(t.water));
   const isTaken = !!taken[it.key];
-  const due = isDue && !isTaken;
-  return `<label class="dose${isTaken ? ' taken' : ''}${due ? ' due' : ''}" data-key="${esc(it.key)}">
+  const hot = active && !isTaken; // slot is due/overdue and this dose isn't taken yet
+  return `<label class="dose${isTaken ? ' taken' : ''}${hot ? ' due' : ''}" data-key="${esc(it.key)}">
     <input type="checkbox" class="take"${isTaken ? ' checked' : ''} />
     <span class="dose-body">
-      <span class="dose-name">${esc(it.s.name)}${it.s.form ? ` <span class="supp-form">${esc(it.s.form)}</span>` : ''}${dose ? ` — ${esc(dose)}` : ''}${due ? ' <span class="nowtag">now</span>' : ''}</span>
+      <span class="dose-name">${esc(it.s.name)}${it.s.form ? ` <span class="supp-form">${esc(it.s.form)}</span>` : ''}${dose ? ` — ${esc(dose)}` : ''}</span>
       ${tags.length ? `<span class="dose-tags">${tags.map((x) => `<span class="tchip">${x}</span>`).join('')}</span>` : ''}
     </span>
   </label>`;
@@ -633,27 +689,38 @@ async function renderDashboard() {
 
   if (!items.length) {
     startBox.hidden = true; progWrap.hidden = true; resetBtn.hidden = true;
+    showSecondaryCards(false);
     $('#plan-title').textContent = 'Your day';
     planEl.innerHTML = '<div class="empty">No supplements yet. Add some under ⚙️ Manage below.</div>';
     return;
   }
 
   if (!log.t0) {
-    // Pre-start: the day begins when they tap the button (T0). Everything flows from there.
+    // Pre-start: the day is a ritual — a focused hero, everything else steps back until
+    // they tap Start. T0 is set at that moment and the whole schedule flows from it.
     $('#plan-title').textContent = 'Ready when you are';
     startBox.hidden = false; progWrap.hidden = true; resetBtn.hidden = true;
+    showSecondaryCards(false);
     planEl.innerHTML = '';
     const n = items.length;
-    $('#day-start-sub').textContent = `${n} dose${n > 1 ? 's' : ''} across your day. Tap to begin — your schedule flows from now.`;
-    $('#day-preview').innerHTML = groupByDayPart(items).map((g) =>
-      `<div class="preview-slot"><div class="ps-head">${esc(dayPartLabel(g.dp))}</div>${g.items.map((it) =>
+    $('#day-start-sub').textContent = `${n} dose${n > 1 ? 's' : ''} across your day. Tap when you take your first — your whole schedule flows from that moment.`;
+    const now = Date.now();
+    const adv = bedtimeAdvisory(p, items, now);
+    const bh = $('#day-bedtime-hint');
+    if (bh) { const msg = bedtimeHint(adv); bh.innerHTML = msg ? `🌙 ${esc(msg)}` : ''; bh.hidden = !msg; }
+    // Preview shows where each slot would land if they started right now.
+    const timed = items.map((it) => ({ ...it, at: now + it.off * 60000 }));
+    $('#day-preview').innerHTML = groupByDayPart(timed).map((g) =>
+      `<div class="preview-slot"><div class="ps-head">${esc(dayPartLabel(g.dp))} <span class="ps-time">${fmtTime(g.at)}</span></div>${g.items.map((it) =>
         `<div class="preview-item">${esc(it.s.name)}${it.s.dose != null && it.s.dose !== '' ? ` · ${esc([it.s.dose, it.s.unit].filter((x) => x != null && x !== '').join(' '))}` : ''}</div>`).join('')}</div>`).join('');
     return;
   }
 
-  // Started: live schedule anchored to T0 (each dose target = T0 + its day-part offset).
+  // Started: live schedule anchored to T0. Each slot = T0 + offset, with a tolerance
+  // window and a live status (upcoming → due → overdue → done).
   $('#plan-title').textContent = 'Your day';
   startBox.hidden = true; progWrap.hidden = false; resetBtn.hidden = false;
+  showSecondaryCards(true);
 
   const total = items.length;
   const done = items.filter((it) => taken[it.key]).length;
@@ -662,15 +729,20 @@ async function renderDashboard() {
 
   const now = Date.now();
   const timed = items.map((it) => ({ ...it, at: log.t0 + it.off * 60000 }));
-  const due = timed.filter((it) => !taken[it.key] && it.at <= now + 15 * 60000);
-  const dueKey = due.length ? due[due.length - 1].key : null;
-
   const banner = (done === total) ? '<div class="alldone">✅ All done for today — beautifully done. 💛</div>' : '';
-  planEl.innerHTML = banner + groupByDayPart(timed).map((g) => `
-    <div class="slot">
-      <div class="slot-head">${esc(dayPartLabel(g.dp))} <span class="slot-time">${fmtTime(g.at)}</span></div>
-      ${g.items.map((it) => doseHtml(it, taken, it.key === dueKey)).join('')}
-    </div>`).join('');
+  planEl.innerHTML = banner + groupByDayPart(timed).map((g) => {
+    const tol = Math.max(...g.items.map((it) => toleranceFor(it.s.timingKey)));
+    const allTaken = g.items.every((it) => taken[it.key]);
+    const st = slotStatus(g.at, tol, now, allTaken);
+    const rel = st === 'done' ? '' : formatRelative(g.at, now);
+    const pill = st === 'due' ? '<span class="nowtag">now</span>'
+      : st === 'overdue' ? '<span class="overduetag">overdue</span>' : '';
+    return `<div class="slot slot-${st}">
+      <div class="slot-head"><span>${esc(dayPartLabel(g.dp))} ${pill}</span>
+      <span class="slot-time">${fmtTime(g.at)}${rel ? ` · ${esc(rel)}` : ''}</span></div>
+      ${g.items.map((it) => doseHtml(it, taken, st === 'due' || st === 'overdue')).join('')}
+    </div>`;
+  }).join('');
 }
 
 /* ---------- Backup / restore (UI) ---------- */
@@ -920,4 +992,4 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', boot);
 
 // expose for the self-test harness (node/headless)
-if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires };
+if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires, slotStatus, formatRelative, bedtimeAdvisory };

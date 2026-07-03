@@ -74,6 +74,8 @@
           <option value="__custom">Something else…</option>
         </select>
         <input id="p-condition-custom" placeholder="Type your condition" hidden style="margin-top:8px" />
+        <label for="p-bedtime">Usual bedtime <span class="opt">(optional — just for a gentle late-start heads-up; never blocks you)</span></label>
+        <input id="p-bedtime" type="time" value="22:00" />
         <div class="actions">
           <button id="p-continue">Continue →</button>
         </div>
@@ -154,13 +156,14 @@
         <div id="day-start" hidden>
           <button id="day-start-btn" class="big">▶ Start my day</button>
           <p class="hint" id="day-start-sub"></p>
+          <p id="day-bedtime-hint" class="bedtime-hint" hidden></p>
           <div id="day-preview"></div>
         </div>
         <div id="progress-wrap" hidden><div id="progress-bar"><div id="progress-fill"></div></div></div>
         <div id="day-plan"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="card-water">
         <div class="dash-head">
           <h2 style="margin:0">💧 Water</h2>
           <span id="water-total" class="water-total"></span>
@@ -173,7 +176,7 @@
         </div>
       </section>
 
-      <section class="card">
+      <section class="card" id="card-symptom">
         <div class="dash-head">
           <h2 style="margin:0">How you feel</h2>
           <button id="symptom-add" class="ghost mini">＋ Log</button>
@@ -199,7 +202,7 @@
         <div id="symptom-list"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="card-meal">
         <div class="dash-head">
           <h2 style="margin:0">🍽️ Meals</h2>
           <button id="meal-add" class="ghost mini">＋ Log</button>

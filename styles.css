@@ -148,12 +148,21 @@ button.big { width: 100%; padding: 15px; font-size: 16px; border-radius: 12px; }
 }
 .slot-time { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 600; font-size: 12px; }
 .dose.due { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-/* Start-my-day (T0) */
-#day-start-btn { margin-bottom: 6px; }
-#day-preview { margin-top: 14px; }
+/* Start-my-day (T0) — the ritual is the hero: a bigger, gently pulsing button. */
+#day-start-btn { margin-bottom: 6px; padding: 20px; font-size: 19px; font-weight: 800; letter-spacing: .3px; box-shadow: 0 4px 14px rgba(193,95,60,.28); animation: pulse-soft 2.4s ease-in-out infinite; }
+@keyframes pulse-soft { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+@media (prefers-reduced-motion: reduce) { #day-start-btn { animation: none; } }
+#day-start-sub { text-align: center; }
+.bedtime-hint { font-size: 12px; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid #F1D8CB; border-radius: 10px; padding: 9px 11px; margin-top: 10px; line-height: 1.45; }
+#day-preview { margin-top: 16px; }
 .preview-slot { margin-bottom: 10px; }
-.preview-slot .ps-head { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-d); font-weight: 700; margin-bottom: 2px; }
+.preview-slot .ps-head { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--accent-d); font-weight: 700; margin-bottom: 2px; display: flex; justify-content: space-between; }
+.preview-slot .ps-time { text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 600; font-size: 11px; }
 .preview-item { color: var(--muted); font-size: 13px; padding: 2px 0; }
+/* Slot status */
+.overduetag { text-transform: none; letter-spacing: 0; font-size: 10px; font-weight: 700; background: var(--red); color: #FFFFFF; padding: 1px 8px; border-radius: 999px; }
+.slot-overdue .dose.due { border-color: var(--red); box-shadow: 0 0 0 3px #F3D9D5; }
+.slot-done .slot-head { opacity: .55; }
 
 /* ---------- Water ---------- */
 .water-total { font-size: 13px; font-weight: 600; color: var(--muted); }
