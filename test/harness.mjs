@@ -123,6 +123,12 @@ try {
   ok('sources & references rendered', await waitFor(() => $$('#refs-list .ref-row').length >= 3));
   ok('safety reminders cite a source', /Source:/.test($('#safety-src').textContent));
   ok('references footer attributes sharing', /the patient/.test($('#refs-foot').textContent));
+  ok('computeFires: one nudge per future slot', (() => {
+    const f = window.__pt.computeFires(1000000, [{ dp: 'breakfast' }, { dp: 'breakfast' }, { dp: 'lunch' }], 0);
+    return f.length === 2 && f[0].at < f[1].at && f.every((x) => x.at > 0);
+  })());
+  ok('computeFires: drops past slots', window.__pt.computeFires(0, [{ dp: 'breakfast' }], 9e12).length === 0);
+  ok('reminders toggle hidden when push unsupported', $('#reminders-wrap').hidden === true);
 
   // mark one taken
   const box = $('#day-plan .dose input.take');

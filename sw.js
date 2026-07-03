@@ -1,6 +1,6 @@
 // App-shell cache. NETWORK-FIRST for the shell so new deploys land on next open;
 // falls back to cache when offline. Bump CACHE to force a clean sweep.
-const CACHE = 'protocol-tracker-v11';
+const CACHE = 'protocol-tracker-v12';
 const SHELL = [
   './',
   './index.html',
@@ -25,6 +25,25 @@ self.addEventListener('activate', (e) => {
 });
 
 const cachePut = (req, res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}); return res; };
+
+// ---- Web Push: show the generic reminder, and focus/open the app on tap. ----
+self.addEventListener('push', (e) => {
+  let d = { title: 'Protocol Tracker', body: 'Time for your next dose 🌿', tag: 'dose', url: './' };
+  try { if (e.data) d = { ...d, ...e.data.json() }; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(d.title, {
+    body: d.body, tag: d.tag, renotify: true,
+    icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+    data: { url: d.url || './' },
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+    for (const c of cs) { if ('focus' in c) return c.focus(); }
+    return self.clients.openWindow ? self.clients.openWindow(url) : undefined;
+  }));
+});
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;

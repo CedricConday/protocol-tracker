@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v11'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v12'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
@@ -396,8 +396,10 @@ async function showDashboard() {
 async function startMyDay() {
   const log = await getTodayLog();
   log.t0 = Date.now();
-  log.planned = orderedItems(await getSupps()).length; // denominator for adherence history
+  const items = orderedItems(await getSupps());
+  log.planned = items.length; // denominator for adherence history
   await saveTodayLog(log);
+  await pushSchedule(computeFires(log.t0, items, log.t0)); // register today's reminders (no-op if off)
   await renderDashboard();
   toast('Day started — follow your schedule. 🌿');
 }
@@ -619,6 +621,7 @@ async function renderDashboard() {
   await renderSymptomsToday();
   await renderWater();
   await renderMeals();
+  await renderReminders();
 
   if (!items.length) {
     startBox.hidden = true; progWrap.hidden = true; resetBtn.hidden = true;
@@ -693,6 +696,84 @@ async function restoreBackup(file) {
   } catch (e) {
     toast('Restore failed: wrong passphrase or bad file.', true);
   }
+}
+
+/* ================================================================================
+   Web Push reminders — generic, T0-driven, zero-PHI.
+   On "Start my day" the client posts this device's fire-times (T0 + each due
+   day-part offset) to the push service; the service fires a GENERIC push at each
+   ("Time for your next dose"), and the app fills in the details on-device. No
+   supplement names / doses / identity ever leave the device. Best-effort: if the
+   service is unreachable, everything else keeps working.
+   ================================================================================ */
+const PUSH_BASE = 'https://push.condaydigital.com';
+const VAPID_PUBLIC_KEY = 'BPOGpA_jadj9nEPW_6AGT2FnKMFPO7Ro97WMS8ot4FcAhfyR8nhFWnMirK_g-WnCLTcL1ZkhB5hMWyz23Pc-Tyg';
+const REMINDERS_KEY = 'reminders';
+const pushSupported = () => ('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined');
+function urlB64ToUint8(b64) {
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+  const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(s), arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+const remindersEnabled = async () => !!(((await metaGet(REMINDERS_KEY)) || {}).enabled);
+const setRemindersEnabled = (v) => metaPut({ k: REMINDERS_KEY, enabled: !!v });
+const swReg = () => ('serviceWorker' in navigator ? navigator.serviceWorker.ready : Promise.resolve(null));
+async function pushHealthy() { try { return (await fetch(PUSH_BASE + '/health', { cache: 'no-store' })).ok; } catch { return false; } }
+// Pure: one generic reminder per FUTURE day-part slot (supplements sharing a slot collapse to one nudge).
+function computeFires(t0, items, now) {
+  const slots = new Set();
+  (items || []).forEach((it) => { const at = t0 + (DAYPART_OFFSET[it.dp] ?? 999) * 60000; if (at > now) slots.add(at); });
+  return Array.from(slots).sort((a, b) => a - b).map((at) => ({ at }));
+}
+async function pushSchedule(fires) {
+  if (!pushSupported() || !(await remindersEnabled())) return;
+  try {
+    const reg = await swReg(); if (!reg) return;
+    const sub = await reg.pushManager.getSubscription(); if (!sub) return;
+    await fetch(PUSH_BASE + '/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, fires }) });
+  } catch (e) { /* best-effort; the app works without reminders */ }
+}
+async function pushCancel() {
+  try {
+    const reg = await swReg(); if (!reg) return;
+    const sub = await reg.pushManager.getSubscription(); if (!sub) return;
+    await fetch(PUSH_BASE + '/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+  } catch (e) {}
+}
+async function enableReminders() {
+  if (!pushSupported()) { toast('Reminders aren’t supported on this device.', true); return; }
+  if (!(await pushHealthy())) { toast('Reminder service isn’t available yet — try again soon.', true); return; }
+  let perm = Notification.permission;
+  if (perm === 'default') perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Allow notifications in your browser to get reminders.', true); return; }
+  try {
+    const reg = await swReg(); if (!reg) throw new Error('no sw');
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC_KEY) });
+    await setRemindersEnabled(true);
+    const log = await getTodayLog(); // if a day is already running, register its remaining nudges now
+    if (log.t0) await pushSchedule(computeFires(log.t0, orderedItems(await getSupps()), Date.now()));
+    await renderReminders();
+    toast('Reminders on — a nudge at each dose time. 🔔');
+  } catch (e) { toast('Could not enable reminders.', true); }
+}
+async function disableReminders() {
+  await pushCancel();
+  try { const reg = await swReg(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch (e) {}
+  await setRemindersEnabled(false);
+  await renderReminders();
+  toast('Reminders off.');
+}
+async function renderReminders() {
+  const wrap = $('#reminders-wrap'); if (!wrap) return;
+  if (!pushSupported()) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const on = await remindersEnabled();
+  const btn = $('#reminders-toggle');
+  btn.textContent = on ? '🔔 Reminders on — tap to turn off' : '🔔 Enable reminders';
+  btn.classList.toggle('on', on);
 }
 
 /* ---------- Lock screen ---------- */
@@ -770,8 +851,9 @@ function wire() {
   $('#dash-lock').addEventListener('click', lockNow);
   $('#day-start-btn').addEventListener('click', startMyDay);
   $('#dash-reset').addEventListener('click', async () => {
-    const log = await getTodayLog(); log.taken = {}; log.t0 = null; await saveTodayLog(log); await renderDashboard(); toast('Fresh day.');
+    const log = await getTodayLog(); log.taken = {}; log.t0 = null; await saveTodayLog(log); await pushCancel(); await renderDashboard(); toast('Fresh day.');
   });
+  $('#reminders-toggle').addEventListener('click', async () => { if (await remindersEnabled()) await disableReminders(); else await enableReminders(); });
   $('#day-plan').addEventListener('change', async (e) => {
     const label = e.target.closest('.dose'); if (!label) return;
     const key = label.dataset.key;
@@ -830,4 +912,4 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', boot);
 
 // expose for the self-test harness (node/headless)
-if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN };
+if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires };
