@@ -3,7 +3,8 @@
     "version": 1,
     "purpose": "Per-supplement intake timing + day-part ordering for the dashboard 'start your day' view, plus protocol safety rules to surface. Guidance only, never prescriptive.",
     "source": "Patientenleitfaden 2019 (Prof. Dr. C.G. Coimbra) + practice schedule © Christina Kiening / Praxis Johannes Demuth (coimbraprotokoll.de), shared by a family member.",
-    "disclaimer": "Reference only — NOT medical advice. Timing reflects common CP practice; the user's own doctor's instructions take precedence."
+    "disclaimer": "Reference only — NOT medical advice. Timing reflects common CP practice; the user's own doctor's instructions take precedence.",
+    "sourceRefs": { "timing": "kiening", "referenceSchedule": "kiening", "protocolRules": "faqs" }
   },
   "dayParts": [
     { "key": "on-waking", "label": "On waking" },

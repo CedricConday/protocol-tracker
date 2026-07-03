@@ -1,6 +1,6 @@
 // App-shell cache. NETWORK-FIRST for the shell so new deploys land on next open;
 // falls back to cache when offline. Bump CACHE to force a clean sweep.
-const CACHE = 'protocol-tracker-v10';
+const CACHE = 'protocol-tracker-v11';
 const SHELL = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const SHELL = [
   './manifest.webmanifest',
   './content/coimbra/catalog.json',
   './content/coimbra/timing.json',
+  './content/coimbra/sources.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon-180.png',

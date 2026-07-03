@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v10'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v11'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
@@ -143,15 +143,24 @@ async function decryptBackup(passphrase, blob) {
    ================================================================================ */
 let CATALOG = { supplements: [] };
 let TIMING = { dayParts: [], timing: {}, referenceSchedule: { slots: [] }, protocolRules: [] };
+let SOURCES = { sources: [], disclaimer: '', sharedBy: '', copyright: '' };
 async function loadContent() {
   try { CATALOG = await fetch('./content/coimbra/catalog.json', { cache: 'no-cache' }).then((r) => r.json()); } catch (e) {}
   try { TIMING = await fetch('./content/coimbra/timing.json', { cache: 'no-cache' }).then((r) => r.json()); } catch (e) {}
+  try { SOURCES = await fetch('./content/coimbra/sources.json', { cache: 'no-cache' }).then((r) => r.json()); } catch (e) {}
 }
 const catalogById = (id) => (CATALOG.supplements || []).find((s) => s.id === id) || null;
 const dayParts = () => (TIMING.dayParts || []);
 const dayPartIndex = (key) => { const i = dayParts().findIndex((d) => d.key === key); return i < 0 ? 99 : i; };
 const dayPartLabel = (key) => (dayParts().find((d) => d.key === key) || {}).label || key;
 const timingFor = (timingKey) => (TIMING.timing || {})[timingKey] || {};
+// ---- Source attribution: resolve a fact to its cited source so nothing reads as our own advice.
+const sourceById = (id) => (SOURCES.sources || []).find((s) => s.id === id) || null;
+const sourceRef = (kind) => ((TIMING.meta && TIMING.meta.sourceRefs) || {})[kind] || null;
+// A timing entry may name its own `source`; otherwise fall back to the timing-section default.
+const sourceForTiming = (t) => sourceById((t && t.source) || sourceRef('timing'));
+const sourceForRules = () => sourceById(sourceRef('protocolRules'));
+const sourceShort = (src) => (src ? (src.shortTitle || src.title || '') : '');
 // Relative offsets from T0 (minutes) — the day flows from when the user taps "Start my day".
 const DAYPART_OFFSET = { 'on-waking': 0, 'breakfast': 45, 'mid-morning': 150, 'lunch': 300, 'afternoon': 480, 'evening': 720, 'bedtime': 900 };
 const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -272,7 +281,9 @@ function renderTimingHint(s) {
   if (t.withFood === false) bits.push('⛔🍽️ away from food' + (t.spacing ? ` (${esc(t.spacing)})` : ''));
   if (t.water) bits.push('💧 ' + esc(t.water));
   const chips = bits.map((b) => `<span class="tchip">${b}</span>`).join('');
-  $('#supp-hint').innerHTML = `${chips}${t.notes ? `<p class="hint">${esc(t.notes)}</p>` : ''}`;
+  const src = sourceForTiming(t);
+  const cite = src ? `<p class="src">Source: ${esc(sourceShort(src))} — see 📖 Sources &amp; references</p>` : '';
+  $('#supp-hint').innerHTML = `${chips}${t.notes ? `<p class="hint">${esc(t.notes)}</p>` : ''}${cite}`;
 }
 function setDaypartChips(active) {
   const wrap = $('#supp-dayparts');
@@ -557,9 +568,39 @@ function renderSafety() {
   const sev = { critical: '🔴', high: '🟠', medium: '🟡' };
   $('#safety-list').innerHTML = (TIMING.protocolRules || [])
     .map((r) => `<div class="safety-row"><span>${sev[r.severity] || '•'}</span><span>${esc(r.text)}</span></div>`).join('');
-  const disc = (CATALOG.meta && CATALOG.meta.disclaimer) || '';
+  // Attribute the reminders to their cited source so they read as a reference, not our advice.
+  const rsrc = sourceForRules();
+  const sfoot = $('#safety-src');
+  if (sfoot) sfoot.innerHTML = rsrc
+    ? `Source: ${esc(sourceShort(rsrc))} — full citations under 📖 Sources &amp; references below.`
+    : '';
+  renderSources();
+  const disc = (SOURCES.disclaimer) || (CATALOG.meta && CATALOG.meta.disclaimer) || '';
   const attr = (CATALOG.meta && CATALOG.meta.attribution) || '';
   $('#disclaimer').innerHTML = `${esc(disc)}<br><span class="attr">${esc(attr)}</span>`;
+}
+// The citation surface: lists the real source documents so every surfaced fact is traceable.
+function renderSources() {
+  const list = $('#refs-list');
+  if (!list) return;
+  const srcs = SOURCES.sources || [];
+  list.innerHTML = srcs.length
+    ? srcs.map((s) => {
+        const by = [s.author, s.org].filter(Boolean).join(' · ');
+        return `<div class="ref-row">
+          <div class="ref-title">${esc(s.title || s.shortTitle || '')}</div>
+          ${by ? `<div class="ref-by">${esc(by)}</div>` : ''}
+          ${s.covers ? `<div class="ref-covers">${esc(s.covers)}</div>` : ''}
+        </div>`;
+      }).join('')
+    : '<div class="empty" style="padding:12px 0">No sources loaded.</div>';
+  const foot = $('#refs-foot');
+  if (foot) {
+    const parts = [];
+    if (SOURCES.sharedBy) parts.push(esc(SOURCES.sharedBy));
+    if (SOURCES.copyright) parts.push(esc(SOURCES.copyright));
+    foot.innerHTML = parts.join('<br>');
+  }
 }
 async function renderDashboard() {
   const p = await getProfile();

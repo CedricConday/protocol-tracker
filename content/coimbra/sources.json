@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "version": 1,
+    "purpose": "Citation registry for the facts the app surfaces (intake timing, doses, safety reminders). Every fact is attributed to one of these Coimbra Protocol community sources so it reads as a cited reference, never as the app's own medical advice."
+  },
+  "disclaimer": "Reference only — not medical advice. Everything the app surfaces reflects common Coimbra Protocol practice as described in the sources below. Your own protocol doctor's instructions always take precedence.",
+  "sharedBy": "Source materials shared for this app by a family member.",
+  "copyright": "These documents belong to their authors and the Coimbra Protocol community. They are cited here, not reproduced.",
+  "sources": [
+    {
+      "id": "leitfaden-2019",
+      "shortTitle": "Patientenleitfaden 2019",
+      "title": "Patientenleitfaden 2019 — Coimbra Protocol patient guide",
+      "author": "Prof. Dr. Cícero Galli Coimbra",
+      "covers": "Protocol framework, onboarding, the Vitamin D dosing principle, and safety monitoring."
+    },
+    {
+      "id": "faqs",
+      "shortTitle": "FAQs Coimbraprotokoll",
+      "title": "FAQs Coimbraprotokoll",
+      "author": "German Coimbra Protocol patient community",
+      "covers": "Standard supplement regimen and doses, the lab panel, diet rules, and safety / intoxication warnings."
+    },
+    {
+      "id": "kiening",
+      "shortTitle": "Praxis-Schema (C. Kiening)",
+      "title": "NEM-Infos & Produktempfehlungen · daily intake schedule",
+      "author": "Christina Kiening — Praxis Johannes Demuth",
+      "org": "coimbraprotokoll.de",
+      "covers": "Supplement forms, product guidance, and the day-part intake-timing schedule."
+    }
+  ]
+}

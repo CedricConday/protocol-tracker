@@ -218,6 +218,17 @@ input[type="range"] { accent-color: var(--accent); padding: 0; }
 .safety .safety-row:first-child { border-top: none; }
 .safety .safety-row span:first-child { flex: none; }
 
+/* ---------- Attribution / sources ---------- */
+.src { font-size: 11px; color: #8a8474; margin-top: 8px; font-style: italic; }
+.src-foot { font-size: 11px; color: #8a8474; line-height: 1.5; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.refs-list { margin-top: 6px; }
+.ref-row { padding: 10px 0; border-top: 1px solid var(--line); }
+.ref-row:first-child { border-top: none; }
+.ref-title { font-weight: 600; font-size: 13px; }
+.ref-by { color: var(--accent-d); font-size: 12px; margin-top: 2px; }
+.ref-covers { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.45; }
+.refs-foot { font-size: 11px; color: #8a8474; line-height: 1.5; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+
 /* ---------- Manage / details ---------- */
 details.card > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--muted); list-style: none; }
 details.card > summary::-webkit-details-marker { display: none; }

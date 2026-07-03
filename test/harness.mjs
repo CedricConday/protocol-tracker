@@ -70,6 +70,7 @@ try {
   ok('catalog picker populated', $('#supp-pick').options.length > 3);
   ok('forms populated', $('#supp-form').options.length >= 1);
   ok('dayparts prefilled from timing', $$('#supp-dayparts .chip.on').length >= 1);
+  ok('timing hint cites a source', await waitFor(() => /Source:/.test($('#supp-hint').textContent)));
   $('#supp-dose').value = '40000';
   click('#supp-save');
   ok('supp 1 added', await waitFor(() => rows() === 1));
@@ -114,9 +115,14 @@ try {
   // DASHBOARD
   click('#supps-done');
   ok('dashboard visible', await waitFor(() => visible('dashboard')));
+  ok('pre-start shows Start-my-day', await waitFor(() => !$('#day-start').hidden));
+  click('#day-start-btn');                       // set T0 — the schedule flows from here
   ok('dashboard shows dose items', await waitFor(() => $$('#day-plan .dose').length >= 3));
   ok('greeting shows name', /the patient/.test($('#dash-greet').textContent));
   ok('safety reminders rendered', await waitFor(() => $$('#safety-list .safety-row').length >= 3));
+  ok('sources & references rendered', await waitFor(() => $$('#refs-list .ref-row').length >= 3));
+  ok('safety reminders cite a source', /Source:/.test($('#safety-src').textContent));
+  ok('references footer attributes sharing', /the patient/.test($('#refs-foot').textContent));
 
   // mark one taken
   const box = $('#day-plan .dose input.take');
