@@ -1,0 +1,165 @@
+{
+  "meta": {
+    "version": 1,
+    "purpose": "Selectable supplement catalog for the onboarding picker. Users choose their own supplement, form, dose and timing — the app never prescribes.",
+    "source": "Coimbra Protocol community materials shared by a family member (2026-07): FAQs Coimbraprotokoll, Patientenleitfaden 2019 (Prof. Dr. C.G. Coimbra), Magnesium notes, and 'NEM Infos und Produktempfehlungen' (© Christina Kiening, coimbraprotokoll.de).",
+    "attribution": "Compiled from the German Coimbra Protocol patient community. Product/form guidance © Christina Kiening (coimbraprotokoll.de). Shared for the app by a family member.",
+    "disclaimer": "Reference only — NOT medical advice. Individual doses (especially Vitamin D) are set by a trained protocol doctor based on labs. Never take >10,000 IU/day Vitamin D long-term without medical monitoring. Users enter their own regimen."
+  },
+  "supplements": [
+    {
+      "id": "vitamin-d3",
+      "name": "Vitamin D3 (Cholecalciferol)",
+      "role": "Core — the protocol's active agent",
+      "forms": ["Capsule (oil-microencapsulated)", "Softgel", "Oil drops", "Crystalline powder"],
+      "unit": "IU",
+      "commonDoses": [10000, 20000, 30000, 40000, 50000, 60000],
+      "allowCustomDose": true,
+      "timingKey": "vitamin-d3",
+      "notes": "Individual dose set by the protocol doctor. WARNING: never >10,000 IU/day long-term without a doctor + blood/urine monitoring. Often split ~50/50 across breakfast & lunch. Drops go on a spoon (not in liquid), kept refrigerated & dark; capsules/softgels need no refrigeration."
+    },
+    {
+      "id": "magnesium",
+      "name": "Magnesium",
+      "role": "Cofactor #1 — >300 enzyme processes, activates Vitamin D, calms nerves",
+      "forms": ["Complex (blend)", "Chloride", "Citrate", "Bisglycinate", "L-Threonate", "Malate", "Oxide", "Transdermal oil"],
+      "unit": "mg elemental",
+      "commonDoses": [200, 300, 400, 600, 800, 1000, 1200],
+      "allowCustomDose": true,
+      "timingKey": "magnesium",
+      "notes": "Dr. Coimbra: 800–1200 mg ELEMENTAL/day (label mg usually = raw compound, not elemental). Form is secondary to elemental total + tolerance. Citrate/oxide can cause loose stools; bisglycinate gentler/calming; L-Threonate crosses the blood-brain barrier (favored for MS, ~60% less needed). Water-soluble → overdose flushes out (may loosen stools). LDN users may go higher (~1000 mg)."
+    },
+    {
+      "id": "vitamin-b2",
+      "name": "Vitamin B2 (Riboflavin)",
+      "role": "Cofactor — needed to convert Vitamin D; split into small doses",
+      "forms": ["Riboflavin", "Riboflavin-5-Phosphate (active)"],
+      "unit": "mg",
+      "commonDoses": [25, 31, 100, 120, 240],
+      "allowCustomDose": true,
+      "timingKey": "vitamin-b2",
+      "notes": "Coimbra default ~240 mg/day Riboflavin, better split into several small doses. Turns urine bright yellow (harmless). MTHFR patients use the active form (Riboflavin-5-Phosphate; ~25 mg ≈ 100 mg plain riboflavin)."
+    },
+    {
+      "id": "vitamin-b9-folate",
+      "name": "Vitamin B9 (Folate)",
+      "role": "Cofactor — nerve/brain tissue, immune & DNA regulation",
+      "forms": ["L-Methylfolate (active)", "Folinic acid"],
+      "unit": "mg",
+      "commonDoses": [0.4, 1, 4, 8, 12],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Coimbra default 4–12 mg/day. Use natural/active folate (L-Methylfolate) — NOT synthetic folic acid, which can block folate receptors. High methyl-donor doses can cause jitters/headache in some."
+    },
+    {
+      "id": "vitamin-b12",
+      "name": "Vitamin B12",
+      "role": "Cofactor — nerve health",
+      "forms": ["Methylcobalamin (active)", "Hydroxocobalamin", "Cyanocobalamin"],
+      "unit": "mcg",
+      "commonDoses": [20, 100, 500, 1000],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Coimbra default ~20 mcg/day. Prefer active methylcobalamin, especially for MTHFR patients."
+    },
+    {
+      "id": "b-complex",
+      "name": "B-Complex (full spectrum)",
+      "role": "Cofactor — B-vitamins support each other; convenient alternative to individual B's",
+      "forms": ["Active/methylated B-complex", "Standard B-complex"],
+      "unit": "capsule(s)",
+      "commonDoses": [1, 2],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "MTHFR patients need the active/methylated forms. A B-complex can replace separate B2/B9/B12."
+    },
+    {
+      "id": "choline",
+      "name": "Choline",
+      "role": "Cofactor — liver/detox; active form aids brain & myelin repair",
+      "forms": ["CDP-Choline (Citicoline)", "Choline bitartrate", "Alpha-GPC"],
+      "unit": "mg",
+      "commonDoses": [250, 500],
+      "allowCustomDose": true,
+      "timingKey": "on-waking",
+      "notes": "Coimbra default ~500 mg/day. CDP-Choline (Citicoline) additionally supports brain/nerve-cell healing (myelin synthesis)."
+    },
+    {
+      "id": "omega-3",
+      "name": "Omega-3 (DHA/EPA)",
+      "role": "Cofactor — anti-inflammatory, myelin synthesis (esp. year 1 of MS)",
+      "forms": ["Fish oil (purified)", "Algae oil (vegan)", "Liquid oil", "Capsules"],
+      "unit": "mg DHA",
+      "commonDoses": [500, 1000, 2000, 3000],
+      "allowCustomDose": true,
+      "timingKey": "omega-3",
+      "notes": "Coimbra (MS): ~2,000 mg DHA/day. Prefer purified/molecular-processed oil (heavy-metal risk). Never heat it (heat-sensitive). Vegan = algae; flax/ALA is NOT sufficient. Store liquid oil refrigerated."
+    },
+    {
+      "id": "selenium",
+      "name": "Selenium",
+      "role": "Cofactor — immune support",
+      "forms": ["Selenomethionine", "Sodium selenite"],
+      "unit": "mcg",
+      "commonDoses": [100, 200, 300],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Coimbra default 100–300 mcg/day (by BMI/blood level)."
+    },
+    {
+      "id": "zinc",
+      "name": "Zinc",
+      "role": "Cofactor — immune support",
+      "forms": ["Zinc bisglycinate", "Zinc picolinate", "Zinc citrate", "Zinc gluconate"],
+      "unit": "mg",
+      "commonDoses": [15, 25, 30],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Coimbra default ~15 mg/day (by BMI/blood level)."
+    },
+    {
+      "id": "chromium",
+      "name": "Chromium",
+      "role": "Cofactor — immune (interferon/interleukin), insulin/metabolism",
+      "forms": ["Chromium picolinate"],
+      "unit": "mcg",
+      "commonDoses": [200, 450],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Coimbra default ~450 mcg/day."
+    },
+    {
+      "id": "vitamin-k2",
+      "name": "Vitamin K2",
+      "role": "Bone density (added to protocol 2023)",
+      "forms": ["MK-7", "MK-4"],
+      "unit": "mcg",
+      "commonDoses": [100, 200],
+      "allowCustomDose": true,
+      "timingKey": "vitamin-d3",
+      "notes": "Added by Dr. Coimbra in 2023 for bone density. Taken with breakfast alongside Vitamin D (fat-soluble)."
+    },
+    {
+      "id": "silicon",
+      "name": "Silicon (Silizium)",
+      "role": "Bone density (added to protocol 2023)",
+      "forms": ["Silica / orthosilicic acid", "Capsule"],
+      "unit": "mg",
+      "commonDoses": [300],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Added by Dr. Coimbra in 2023 for bone density."
+    },
+    {
+      "id": "cofactors-combo",
+      "name": "Cofactors combo capsule (e.g. 'Cofactors Immun')",
+      "role": "Convenience — all cofactors except Magnesium & Omega-3 in one capsule",
+      "forms": ["Combo capsule"],
+      "unit": "capsule(s)",
+      "commonDoses": [1, 2, 3, 4, 5, 6],
+      "allowCustomDose": true,
+      "timingKey": "with-food",
+      "notes": "Combines B-vitamins, folate, selenium, zinc, chromium, choline etc. Dose 3–6 caps/day by BMI/labs. Replaces the individual cofactors (still take Magnesium & Omega-3 separately)."
+    }
+  ]
+}

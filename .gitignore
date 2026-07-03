@@ -42,3 +42,4 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+content/coimbra-source/   # the patient CP source docs — copyrighted, do NOT publish until cleared

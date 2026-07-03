@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "version": 1,
+    "purpose": "Per-supplement intake timing + day-part ordering for the dashboard 'start your day' view, plus protocol safety rules to surface. Guidance only, never prescriptive.",
+    "source": "Patientenleitfaden 2019 (Prof. Dr. C.G. Coimbra) + practice schedule © Christina Kiening / Praxis Johannes Demuth (coimbraprotokoll.de), shared by a family member.",
+    "disclaimer": "Reference only — NOT medical advice. Timing reflects common CP practice; the user's own doctor's instructions take precedence."
+  },
+  "dayParts": [
+    { "key": "on-waking", "label": "On waking" },
+    { "key": "breakfast", "label": "With breakfast" },
+    { "key": "mid-morning", "label": "Mid-morning" },
+    { "key": "lunch", "label": "With lunch" },
+    { "key": "afternoon", "label": "Afternoon" },
+    { "key": "evening", "label": "Evening" },
+    { "key": "bedtime", "label": "Before bed" }
+  ],
+  "timing": {
+    "vitamin-d3": {
+      "withFood": true,
+      "defaultDayParts": ["breakfast", "lunch"],
+      "split": "Often split ~50/50 across two meals (breakfast + lunch).",
+      "water": "normal",
+      "notes": "Fat-soluble → take with a meal (capsules at the END of the meal). Drops on a spoon, not in liquid; keep refrigerated & dark. Keep well away from calcium-rich foods."
+    },
+    "magnesium": {
+      "withFood": false,
+      "defaultDayParts": ["on-waking", "mid-morning", "afternoon", "bedtime"],
+      "spacing": "≥30 min BEFORE a meal or ≥90 min AFTER a meal.",
+      "water": "with water",
+      "notes": "Take AWAY from food to avoid loose stools; spread across the day. A larger complex dose before bed is common (calming). Never take in the same slot as a meal-bound supplement."
+    },
+    "omega-3": {
+      "withFood": true,
+      "defaultDayParts": ["breakfast", "lunch"],
+      "water": "normal",
+      "notes": "With meals. Never heat it (heat-sensitive). Liquid oil can be stirred into cold food (yogurt/muesli/salad)."
+    },
+    "on-waking": {
+      "withFood": false,
+      "defaultDayParts": ["on-waking"],
+      "water": "with water",
+      "notes": "Taken on an empty stomach after waking (e.g. Choline/CDP-Choline in the practice schedule)."
+    },
+    "with-food": {
+      "withFood": true,
+      "defaultDayParts": ["breakfast"],
+      "water": "normal",
+      "notes": "Take with a meal (fat-soluble vitamins and most cofactors sit with breakfast/lunch)."
+    }
+  },
+  "referenceSchedule": {
+    "note": "Real CP practice schedule (Praxis Demuth / Christina Kiening) — an EXAMPLE of ordering, not a prescription. Used to seed the dashboard's default day-part suggestions.",
+    "slots": [
+      { "dayPart": "on-waking", "items": ["Magnesium complex", "Magnesium L-Threonate", "CDP-Choline"], "rule": "Magnesium separate from food (≥30 min before / ≥90 min after)" },
+      { "dayPart": "breakfast", "items": ["Vitamin D3 (50% of day)", "Vitamin K2", "Omega-3", "Cofactors / B2"] },
+      { "dayPart": "mid-morning", "items": ["Magnesium complex", "Magnesium L-Threonate", "Silicon"], "rule": "Magnesium separate from food" },
+      { "dayPart": "lunch", "items": ["Vitamin D3 (50% of day)", "Omega-3", "Cofactors"] },
+      { "dayPart": "afternoon", "items": ["Magnesium complex", "Magnesium L-Threonate", "CDP-Choline", "Silicon"], "rule": "Magnesium separate from food" },
+      { "dayPart": "bedtime", "items": ["Magnesium complex (larger dose)", "Cofactors"], "rule": "Magnesium separate from food" }
+    ]
+  },
+  "protocolRules": [
+    { "id": "fluids", "severity": "critical", "text": "Drink 2.5–3 L of fluid daily — mandatory, to keep urine calcium diluted and protect the kidneys." },
+    { "id": "no-dairy", "severity": "critical", "text": "No dairy or calcium-fortified foods (incl. fortified plant milks). High-dose Vitamin D drives calcium absorption." },
+    { "id": "calcium-limit", "severity": "high", "text": "Keep dietary calcium ≤ ~500 mg/day while on high-dose Vitamin D." },
+    { "id": "no-vitamin-c-supp", "severity": "high", "text": "Avoid Vitamin C supplements/meds — risk of calcium-oxalate kidney stones." },
+    { "id": "contraindicated-meds", "severity": "high", "text": "Contraindicated: Lithium carbonate, Anastrozole, proton-pump inhibitors (omeprazole etc.). Avoid nephrotoxic drugs; read labels." },
+    { "id": "nausea-warning", "severity": "critical", "text": "Persistent nausea (with thirst/vomiting/appetite loss/constipation) → measure 24h urine calcium and contact your protocol doctor. Do NOT change the Vitamin D dose during a 24h collection." },
+    { "id": "no-smoking-alcohol", "severity": "medium", "text": "No smoking; limit alcohol to ~1 glass wine / 2 beers per week — both blunt Vitamin D activation." },
+    { "id": "exercise", "severity": "medium", "text": "Weight-bearing exercise ≥150 min/week to protect bone density and reduce stress." }
+  ]
+}
