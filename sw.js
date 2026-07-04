@@ -1,6 +1,6 @@
 // App-shell cache. NETWORK-FIRST for the shell so new deploys land on next open;
 // falls back to cache when offline. Bump CACHE to force a clean sweep.
-const CACHE = 'protocol-tracker-v14';
+const CACHE = 'protocol-tracker-v15';
 const SHELL = [
   './',
   './index.html',
@@ -31,7 +31,7 @@ self.addEventListener('push', (e) => {
   let d = { title: 'Protocol Tracker', body: 'Time for your next dose 🌿', tag: 'dose', url: './' };
   try { if (e.data) d = { ...d, ...e.data.json() }; } catch (_) {}
   e.waitUntil(self.registration.showNotification(d.title, {
-    body: d.body, tag: d.tag, renotify: true,
+    body: d.body, tag: d.tag, renotify: true, silent: false, requireInteraction: true, vibrate: [200, 100, 200],
     icon: './icons/icon-192.png', badge: './icons/icon-192.png',
     data: { url: d.url || './' },
   }));
