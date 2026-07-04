@@ -181,6 +181,30 @@ try {
   await tick(400);
   ok('wrong pass stays on lock', !$('#lock').hidden);
   ok('wrong pass shows error', $('#lock-msg').textContent.length > 0);
+
+  // BACKUP / RESTORE round-trip — the encrypted backup is the ONLY recovery path
+  // (no passphrase reset), so it has to be loss-less and reject bad input.
+  const pt = window.__pt;
+  const sample = [
+    { id: 'profile', type: 'profile', name: 'the patient', weight: 68, weightUnit: 'kg', condition: 'Multiple Sclerosis' },
+    { id: 'log-2026-07-04', type: 'log', date: '2026-07-04', t0: 1751000000000, planned: 3, taken: { 'vitamin-d3::breakfast': true } },
+    { id: 'sym-1', type: 'symptom', date: '2026-07-04', ts: '2026-07-04T09:00:00.000Z', label: 'Fatigue', severity: 4, note: 'mild' },
+  ];
+  const backup = await pt.encryptBackup('backup-pass-42', sample);
+  ok('backup blob is self-describing (app/v/kdf/salt/iv/ciphertext)',
+    backup.app === 'protocol-tracker' && backup.v === 1 && backup.kdf && backup.kdf.iters === 200000
+    && !!backup.salt && !!backup.iv && !!backup.ciphertext);
+  ok('backup leaks no plaintext PHI', !/the patient|Fatigue|Multiple Sclerosis/.test(JSON.stringify(backup)));
+  let restored = null;
+  try { restored = await pt.decryptBackup('backup-pass-42', backup); } catch (e) { restored = e; }
+  ok('restore returns an array', Array.isArray(restored));
+  ok('round-trip is loss-less (deep-equal)', JSON.stringify(restored) === JSON.stringify(sample));
+  let wrongRejected = false;
+  try { await pt.decryptBackup('wrong-pass', backup); } catch { wrongRejected = true; }
+  ok('wrong backup passphrase is rejected', wrongRejected);
+  let foreignRejected = false;
+  try { await pt.decryptBackup('backup-pass-42', { app: 'not-us', v: 1 }); } catch { foreignRejected = true; }
+  ok('foreign/corrupt blob is rejected', foreignRejected);
 } catch (e) {
   console.log('\n💥 THREW:', (e && e.stack) || e);
   results.push([false, 'no exceptions during flow']);
