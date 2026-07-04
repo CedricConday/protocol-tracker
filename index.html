@@ -24,6 +24,7 @@
       <input id="lock-pass" type="password" placeholder="Passphrase" autocomplete="current-password" />
       <input id="lock-pass2" type="password" placeholder="Confirm passphrase" autocomplete="new-password" hidden />
       <button id="lock-btn"></button>
+      <button id="lock-passkey" class="linkbtn" type="button" hidden>🔓 Unlock with Face ID / passkey</button>
       <p id="lock-msg" class="lock-msg"></p>
       <p id="lock-note" class="lock-note" hidden>🔒 Your records are encrypted on this device with this passphrase. There is <strong>no way to recover it</strong> if you forget it — so keep an encrypted backup.</p>
       <button id="lock-back" class="linkbtn" type="button">← Back</button>
@@ -253,6 +254,17 @@
             <h3 class="mini-h">Dose reminders</h3>
             <p class="hint">A gentle push notification at each dose time. The reminder is generic — no supplement names or health details ever leave your device.</p>
             <button id="reminders-toggle" class="ghost full">🔔 Enable reminders</button>
+          </div>
+          <div id="passkey-wrap" hidden>
+            <hr class="sep" />
+            <h3 class="mini-h">Face ID / passkey unlock</h3>
+            <p class="hint">Unlock with your device’s Face ID, Touch ID, or PIN instead of typing your passphrase. Your passphrase still works, and nothing new leaves this device.</p>
+            <div id="passkey-setup">
+              <label for="pk-pass">Confirm your passphrase to enable</label>
+              <input id="pk-pass" type="password" autocomplete="current-password" placeholder="passphrase" />
+              <button id="passkey-enable" class="ghost full">🔓 Enable Face ID / passkey unlock</button>
+            </div>
+            <p id="passkey-on" class="hint" hidden>✅ Face ID / passkey unlock is on. <button id="passkey-remove" class="linkbtn" type="button">Remove</button></p>
           </div>
           <hr class="sep" />
           <h3 class="mini-h">Encrypted backup</h3>

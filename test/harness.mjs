@@ -213,6 +213,17 @@ try {
   let foreignRejected = false;
   try { await pt.decryptBackup('backup-pass-42', { app: 'not-us', v: 1 }); } catch { foreignRejected = true; }
   ok('foreign/corrupt blob is rejected', foreignRejected);
+
+  // FACE ID / PASSKEY unlock — the PRF-wrap crypto core (the WebAuthn ceremony itself
+  // needs a real device, but the wrap/unwrap of the passphrase is testable headless).
+  const prf = crypto.getRandomValues(new Uint8Array(32));
+  const wrappedPass = await pt.wrapPassphrase(prf, 'coimbra2026');
+  ok('passkey wrap hides the passphrase', !/coimbra2026/.test(JSON.stringify(wrappedPass)) && !!wrappedPass.iv && !!wrappedPass.ct);
+  ok('passkey unwrap round-trips the passphrase', (await pt.unwrapPassphrase(prf, wrappedPass)) === 'coimbra2026');
+  let badPrfRejected = false;
+  try { await pt.unwrapPassphrase(crypto.getRandomValues(new Uint8Array(32)), wrappedPass); } catch { badPrfRejected = true; }
+  ok('wrong passkey secret cannot unwrap', badPrfRejected);
+  ok('passkey UI hidden where WebAuthn unsupported (this env)', $('#passkey-wrap').hidden === true);
 } catch (e) {
   console.log('\n💥 THREW:', (e && e.stack) || e);
   results.push([false, 'no exceptions during flow']);

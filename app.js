@@ -87,6 +87,16 @@ const auth = {
   },
   lock() { sessionKey = null; },
   get unlocked() { return !!sessionKey; },
+  // Re-auth check that does NOT change lock state — used to confirm identity before
+  // granting a new unlock method (passkey setup). True iff the passphrase is correct.
+  async verify(passphrase) {
+    const meta = await metaGet(AUTH_KEY);
+    if (!meta) return false;
+    try {
+      const key = await deriveKey(passphrase, unb64(meta.salt), meta.iters || KDF_ITERS);
+      return (await aesDecrypt(key, meta.verifier.iv, meta.verifier.ct)) === VERIFY_TOKEN;
+    } catch { return false; }
+  },
 };
 
 /* ---------- Record store (encrypted at rest; transparently to callers) ----------
@@ -700,6 +710,7 @@ async function renderDashboard() {
   await renderWater();
   await renderMeals();
   await renderReminders();
+  await renderPasskey();
 
   if (!items.length) {
     startBox.hidden = true; progWrap.hidden = true; resetBtn.hidden = true;
@@ -881,6 +892,102 @@ async function renderReminders() {
   btn.classList.toggle('on', on);
 }
 
+/* ---------- Face ID / passkey unlock (WebAuthn PRF wraps the passphrase) ----------
+   Purely additive: the passphrase stays the source of truth and always works. A passkey,
+   gated by device biometrics, yields a stable 32-byte PRF secret we use to encrypt (wrap)
+   the passphrase, so the user can unlock with Face/Touch ID. Everything stays on-device
+   and zero-knowledge — nothing new leaves the browser. Any failure falls back to passphrase. */
+const PASSKEY_KEY = 'passkey';
+const webauthnSupported = () => (typeof window !== 'undefined') && (typeof window.PublicKeyCredential === 'function');
+const hasPasskey = async () => !!(await metaGet(PASSKEY_KEY));
+
+// Pure + headless-testable crypto core: import the PRF secret as an AES-GCM key,
+// then wrap / unwrap the passphrase with it.
+async function prfKeyFrom(prfBytes) {
+  return crypto.subtle.importKey('raw', prfBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+async function wrapPassphrase(prfBytes, passphrase) { return aesEncrypt(await prfKeyFrom(prfBytes), passphrase); }
+async function unwrapPassphrase(prfBytes, wrapped) { return aesDecrypt(await prfKeyFrom(prfBytes), wrapped.iv, wrapped.ct); }
+
+// WebAuthn assertion requesting the PRF extension → 32-byte secret (needs a real device).
+async function prfAssert(credId, saltBytes) {
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: rand(32),
+      rpId: location.hostname,
+      allowCredentials: credId ? [{ id: credId, type: 'public-key' }] : [],
+      userVerification: 'required',
+      timeout: 60000,
+      extensions: { prf: { eval: { first: saltBytes } } },
+    },
+  });
+  const res = assertion.getClientExtensionResults();
+  const first = res && res.prf && res.prf.results && res.prf.results.first;
+  if (!first) throw new Error('This device can’t provide a passkey secret (PRF).');
+  return new Uint8Array(first);
+}
+
+async function enablePasskey(passphrase) {
+  if (!webauthnSupported()) { toast('Passkeys aren’t supported on this device.', true); return; }
+  if (!(await auth.verify(passphrase))) { toast('That passphrase doesn’t match.', true); return; }
+  try {
+    const salt = rand(32);
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: rand(32),
+        rp: { id: location.hostname, name: 'Protocol Tracker' },
+        user: { id: rand(16), name: 'protocol-tracker', displayName: 'Protocol Tracker' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { residentKey: 'preferred', userVerification: 'required' },
+        timeout: 60000,
+        extensions: { prf: {} },
+      },
+    });
+    const credId = new Uint8Array(cred.rawId);
+    const prf = await prfAssert(credId, salt);          // materialize the secret now
+    const wrapped = await wrapPassphrase(prf, passphrase);
+    await metaPut({ k: PASSKEY_KEY, v: 1, credId: b64(credId), salt: b64(salt), wrapped });
+    await renderPasskey();
+    toast('Face ID / passkey unlock is on. 🔓');
+  } catch (e) { toast('Could not set up passkey unlock.', true); }
+}
+
+async function removePasskey() {
+  await rawTx(META, 'readwrite', (s) => s.delete(PASSKEY_KEY));
+  await renderPasskey();
+  toast('Passkey unlock removed.');
+}
+
+async function unlockWithPasskey() {
+  const meta = await metaGet(PASSKEY_KEY);
+  if (!meta || !webauthnSupported()) return;
+  const btn = $('#lock-passkey'), msg = $('#lock-msg');
+  if (btn) btn.disabled = true;
+  try {
+    const prf = await prfAssert(unb64(meta.credId), unb64(meta.salt));
+    const passphrase = await unwrapPassphrase(prf, meta.wrapped);
+    await auth.unlock(passphrase);
+    await routeAfterUnlock();
+  } catch (e) {
+    if (msg) msg.textContent = 'Face ID unlock didn’t work — enter your passphrase.';
+  } finally { if (btn) btn.disabled = false; }
+}
+
+async function renderPasskey() {
+  const wrap = $('#passkey-wrap');
+  if (wrap) {
+    if (!webauthnSupported() || !sessionKey) { wrap.hidden = true; }
+    else {
+      wrap.hidden = false;
+      const on = await hasPasskey();
+      const setup = $('#passkey-setup'); if (setup) setup.hidden = on;
+      const onEl = $('#passkey-on'); if (onEl) onEl.hidden = !on;
+    }
+  }
+  const lb = $('#lock-passkey');
+  if (lb) lb.hidden = !(webauthnSupported() && $('#lock').dataset.mode === 'unlock' && (await hasPasskey()));
+}
+
 /* ---------- Lock screen ---------- */
 function showLock(mode) {
   // mode: 'setup' (first run) | 'unlock'
@@ -897,6 +1004,7 @@ function showLock(mode) {
   $('#lock-pass').value = '';
   $('#lock-pass2').value = '';
   $('#lock').dataset.mode = mode;
+  renderPasskey();  // reveal the "Unlock with Face ID" button in unlock mode if a passkey exists
   setTimeout(() => $('#lock-pass').focus(), 50);
 }
 async function submitLock() {
@@ -937,6 +1045,10 @@ function wire() {
   $('#lock-back').addEventListener('click', () => showScreen('home'));
   $('#lock-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter' && $('#lock-pass2').hidden) submitLock(); });
   $('#lock-pass2').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitLock(); });
+  $('#lock-passkey').addEventListener('click', unlockWithPasskey);
+  // passkey (Face ID) setup / removal under Manage
+  $('#passkey-enable').addEventListener('click', async () => { const v = $('#pk-pass').value; $('#pk-pass').value = ''; await enablePasskey(v); });
+  $('#passkey-remove').addEventListener('click', removePasskey);
   // profile
   $('#p-condition').addEventListener('change', (e) => { $('#p-condition-custom').hidden = e.target.value !== '__custom'; });
   $('#p-continue').addEventListener('click', async () => { if (await saveProfile()) await showSuppsScreen(); });
@@ -1023,4 +1135,4 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', boot);
 
 // expose for the self-test harness (node/headless)
-if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires, slotStatus, formatRelative, bedtimeAdvisory, iosInstallHintNeeded };
+if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires, slotStatus, formatRelative, bedtimeAdvisory, iosInstallHintNeeded, wrapPassphrase, unwrapPassphrase };
