@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v13'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v14'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
@@ -39,10 +39,10 @@ const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const rand = (n) => crypto.getRandomValues(new Uint8Array(n));
 const KDF_ITERS = 200000;
 
-async function deriveKey(passphrase, salt) {
+async function deriveKey(passphrase, salt, iters = KDF_ITERS) {
   const base = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: KDF_ITERS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
     base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
   );
 }
@@ -78,7 +78,7 @@ const auth = {
   async unlock(passphrase) {
     const meta = await metaGet(AUTH_KEY);
     if (!meta) throw new Error('No passphrase set.');
-    const key = await deriveKey(passphrase, unb64(meta.salt));
+    const key = await deriveKey(passphrase, unb64(meta.salt), meta.iters || KDF_ITERS);
     try {
       const token = await aesDecrypt(key, meta.verifier.iv, meta.verifier.ct);
       if (token !== VERIFY_TOKEN) throw new Error('bad');
@@ -132,7 +132,7 @@ async function encryptBackup(passphrase, records) {
 }
 async function decryptBackup(passphrase, blob) {
   if (!blob || blob.app !== 'protocol-tracker') throw new Error('Not a Protocol Tracker backup file.');
-  const key = await deriveKey(passphrase, unb64(blob.salt));
+  const key = await deriveKey(passphrase, unb64(blob.salt), (blob.kdf && blob.kdf.iters) || KDF_ITERS);
   return aesDecrypt(key, blob.iv, blob.ciphertext);
 }
 
@@ -197,7 +197,21 @@ function showScreen(name) {
   $('#lock').hidden = true;
   window.scrollTo(0, 0);
 }
+/* ---------- Schema migrations: additive + versioned, run behind decryption ----------
+   Bump SCHEMA_VERSION and add an ordered migration when the record shape changes.
+   Runs after every unlock; never destructive. v1 = baseline, no migrations yet. */
+const SCHEMA_VERSION = 1;
+async function runMigrations() {
+  if (!sessionKey) return;
+  const rec = await metaGet('schema');
+  const cur = (rec && rec.v) || 1;
+  // Future migrations run here in order (cur -> SCHEMA_VERSION), behind decryption. None for v1.
+  if (cur !== SCHEMA_VERSION) await metaPut({ k: 'schema', v: SCHEMA_VERSION });
+  else if (!rec) await metaPut({ k: 'schema', v: SCHEMA_VERSION });
+}
+
 async function routeAfterUnlock() {
+  await runMigrations();
   if (!(await getProfile())) return showProfileScreen();
   if (!(await getSupps()).length) return showSuppsScreen();
   return showDashboard();
@@ -977,6 +991,12 @@ async function boot() {
   booted = true;
   wire();
   const av = $('#app-version'); if (av) av.textContent = APP_VERSION;
+  const ub = $('#update-btn');
+  if (ub) ub.addEventListener('click', async () => {
+    toast('Checking for the latest version…');
+    try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch (e) {}
+    setTimeout(() => window.location.reload(), 700);
+  });
   await loadContent();
   showScreen('home');
 }
