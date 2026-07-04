@@ -1,0 +1,8 @@
+{
+  "name": "protocol-tracker-push",
+  "private": true,
+  "description": "Zero-PHI Web Push scheduler for Protocol Tracker (fires generic dose reminders at T0-relative times).",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "web-push": "^3.6.7" }
+}
