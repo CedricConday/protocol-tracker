@@ -804,6 +804,15 @@ const PUSH_BASE = 'https://push.condaydigital.com';
 const VAPID_PUBLIC_KEY = 'BPOGpA_jadj9nEPW_6AGT2FnKMFPO7Ro97WMS8ot4FcAhfyR8nhFWnMirK_g-WnCLTcL1ZkhB5hMWyz23Pc-Tyg';
 const REMINDERS_KEY = 'reminders';
 const pushSupported = () => ('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined');
+// iOS Safari exposes PushManager only after the PWA is installed to the Home Screen,
+// so before that pushSupported() is false and the reminders block hides itself. Detect
+// that specific case to instead show an "Add to Home Screen" hint.
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent || '')
+  || ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/.test(navigator.userAgent || '')); // iPadOS reports as Mac
+const isStandalone = () => navigator.standalone === true
+  || (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches);
+// Pure: show the install hint only when push can't work yet but WOULD after installing.
+const iosInstallHintNeeded = (supported, ios, standalone) => !supported && ios && !standalone;
 function urlB64ToUint8(b64) {
   const pad = '='.repeat((4 - (b64.length % 4)) % 4);
   const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
@@ -861,6 +870,8 @@ async function disableReminders() {
   toast('Reminders off.');
 }
 async function renderReminders() {
+  const iosHint = $('#ios-install-hint');
+  if (iosHint) iosHint.hidden = !iosInstallHintNeeded(pushSupported(), isIOS(), isStandalone());
   const wrap = $('#reminders-wrap'); if (!wrap) return;
   if (!pushSupported()) { wrap.hidden = true; return; }
   wrap.hidden = false;
@@ -1012,4 +1023,4 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', boot);
 
 // expose for the self-test harness (node/headless)
-if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires, slotStatus, formatRelative, bedtimeAdvisory };
+if (typeof window !== 'undefined') window.__pt = { encryptBackup, decryptBackup, deriveKey, aesEncrypt, aesDecrypt, VERIFY_TOKEN, computeFires, slotStatus, formatRelative, bedtimeAdvisory, iosInstallHintNeeded };

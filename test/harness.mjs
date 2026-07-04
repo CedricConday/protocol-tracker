@@ -135,6 +135,14 @@ try {
   })());
   ok('computeFires: drops past slots', window.__pt.computeFires(0, [{ dp: 'breakfast' }], 9e12).length === 0);
   ok('reminders toggle hidden when push unsupported', $('#reminders-wrap').hidden === true);
+  ok('iOS install hint hidden on non-iOS (this env)', $('#ios-install-hint').hidden === true);
+  ok('iosInstallHintNeeded: only when unsupported + iOS + not standalone', (() => {
+    const f = window.__pt.iosInstallHintNeeded;
+    return f(false, true, false) === true      // iOS Safari, not installed → show
+      && f(true, true, false) === false         // push already works (installed) → hide
+      && f(false, true, true) === false          // standalone (installed) → hide
+      && f(false, false, false) === false;       // not iOS (e.g. desktop) → hide
+  })());
   ok('slotStatus: done/upcoming/due/overdue', (() => {
     const s = window.__pt.slotStatus;
     return s(1000, 30, 0, true) === 'done'
