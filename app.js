@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v15'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v16'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
