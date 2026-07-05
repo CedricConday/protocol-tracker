@@ -842,6 +842,10 @@ const PUSH_BASE = 'https://push.condaydigital.com';
 const VAPID_PUBLIC_KEY = 'BPOGpA_jadj9nEPW_6AGT2FnKMFPO7Ro97WMS8ot4FcAhfyR8nhFWnMirK_g-WnCLTcL1ZkhB5hMWyz23Pc-Tyg';
 const REMINDERS_KEY = 'reminders';
 const pushSupported = () => ('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined');
+// Native Capacitor wrapper: reminders run as on-device LocalNotifications (sound when closed),
+// independent of web-push. cap-notify.js sets window.CapNotify.isNative only inside the wrapper.
+const isNativeWrap = () => !!(window.CapNotify && window.CapNotify.isNative);
+const remindersCapable = () => pushSupported() || isNativeWrap();
 // iOS Safari exposes PushManager only after the PWA is installed to the Home Screen,
 // so before that pushSupported() is false and the reminders block hides itself. Detect
 // that specific case to instead show an "Add to Home Screen" hint.
@@ -869,6 +873,8 @@ function computeFires(t0, items, now) {
   return Array.from(slots).sort((a, b) => a - b).map((at) => ({ at }));
 }
 async function pushSchedule(fires) {
+  // Native wrapper: mirror the same fires to on-device local notifications (custom sound, works closed).
+  if (isNativeWrap()) { if (await remindersEnabled()) window.CapNotify.schedule(fires); else window.CapNotify.cancelAll(); }
   if (!pushSupported() || !(await remindersEnabled())) return;
   try {
     const reg = await swReg(); if (!reg) return;
@@ -877,6 +883,7 @@ async function pushSchedule(fires) {
   } catch (e) { /* best-effort; the app works without reminders */ }
 }
 async function pushCancel() {
+  if (isNativeWrap()) window.CapNotify.cancelAll();
   try {
     const reg = await swReg(); if (!reg) return;
     const sub = await reg.pushManager.getSubscription(); if (!sub) return;
@@ -885,6 +892,14 @@ async function pushCancel() {
 }
 async function enableReminders() {
   unlockAudio(); // prime the reminder sound on this user gesture
+  if (isNativeWrap()) { // native path: LocalNotifications permission handled in CapNotify.schedule; no web push
+    await setRemindersEnabled(true);
+    const log = await getTodayLog();
+    if (log.t0) await pushSchedule(computeFires(log.t0, orderedItems(await getSupps()), Date.now()));
+    await renderReminders();
+    toast('Reminders on — a nudge at each dose time. 🔔');
+    return;
+  }
   if (!pushSupported()) { toast('Reminders aren’t supported on this device.', true); return; }
   if (!(await pushHealthy())) { toast('Reminder service isn’t available yet — try again soon.', true); return; }
   let perm = Notification.permission;
@@ -912,7 +927,7 @@ async function renderReminders() {
   const iosHint = $('#ios-install-hint');
   if (iosHint) iosHint.hidden = !iosInstallHintNeeded(pushSupported(), isIOS(), isStandalone());
   const wrap = $('#reminders-wrap'); if (!wrap) return;
-  if (!pushSupported()) { wrap.hidden = true; return; }
+  if (!remindersCapable()) { wrap.hidden = true; return; }
   wrap.hidden = false;
   const on = await remindersEnabled();
   const btn = $('#reminders-toggle');

@@ -1,0 +1,12 @@
+{
+  "appId": "com.condaydigital.protocoltracker",
+  "appName": "Protocol Tracker",
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#2E7D32",
+      "sound": "dose.wav"
+    }
+  }
+}

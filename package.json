@@ -1,0 +1,16 @@
+{
+  "name": "protocol-tracker-wrapper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor native wrapper for the Protocol Tracker PWA (closed-app dose-reminder sound).",
+  "scripts": {
+    "sync:www": "bash ./sync-www.sh",
+    "sync": "npm run sync:www && npx cap sync && bash ./apply-native-assets.sh"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/local-notifications": "^8.2.0"
+  }
+}
