@@ -1,6 +1,32 @@
 'use strict';
 
-const APP_VERSION = 'v16'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v17'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+
+// ---- Reminder sound. Web push on desktop can't force a notification sound, so the APP plays it.
+// AudioContext is unlocked on a user gesture (Start my day / Enable reminders); the SW pings us on each push. ----
+let _audioCtx = null;
+function unlockAudio() {
+  try {
+    _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  } catch (_) {}
+}
+function playDing() {
+  try {
+    if (!_audioCtx) return;
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    const now = _audioCtx.currentTime;
+    const o = _audioCtx.createOscillator(), g = _audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, now);
+    o.frequency.setValueAtTime(1175, now + 0.15);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.35, now + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    o.connect(g); g.connect(_audioCtx.destination);
+    o.start(now); o.stop(now + 0.52);
+  } catch (_) {}
+}
 
 /* ---------- IndexedDB (local-first store; nothing leaves the device) ---------- */
 const DB_NAME = 'protocol-tracker';
@@ -428,6 +454,7 @@ async function showDashboard() {
   await renderDashboard();
 }
 async function startMyDay() {
+  unlockAudio(); // prime the reminder sound on this user gesture
   const log = await getTodayLog();
   log.t0 = Date.now();
   const items = orderedItems(await getSupps());
@@ -857,6 +884,7 @@ async function pushCancel() {
   } catch (e) {}
 }
 async function enableReminders() {
+  unlockAudio(); // prime the reminder sound on this user gesture
   if (!pushSupported()) { toast('Reminders aren’t supported on this device.', true); return; }
   if (!(await pushHealthy())) { toast('Reminder service isn’t available yet — try again soon.', true); return; }
   let perm = Notification.permission;
@@ -1130,6 +1158,8 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (swReloaded) return; swReloaded = true; window.location.reload();
   });
+  // SW pings us when a push notification fires → play the ding (only audible if the app is open).
+  navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'play-sound') playDing(); });
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 document.addEventListener('DOMContentLoaded', boot);
