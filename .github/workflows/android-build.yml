@@ -1,0 +1,65 @@
+name: Android build (debug APK)
+
+# Machine-independent build: the runner has the Android SDK, so neither the VPS
+# nor the Chromebook needs a toolchain. Produces a debug-signed, sideloadable APK
+# (no Play Store, no signing secrets). android/ is gitignored & regenerated here.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'app.js'
+      - 'index.html'
+      - 'cap-notify.js'
+      - 'capacitor.config.json'
+      - 'sounds/**'
+      - 'sync-www.sh'
+      - 'apply-native-assets.sh'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Provision SDK packages (compileSdk 36)
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Stage web assets → www/
+        run: bash sync-www.sh
+
+      - name: Add Android platform (gitignored → regenerate)
+        run: npx cap add android
+
+      - name: Restore native assets (custom sound → res/raw)
+        run: bash apply-native-assets.sh
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: protocol-tracker-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

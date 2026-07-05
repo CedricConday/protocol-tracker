@@ -933,6 +933,9 @@ async function renderReminders() {
   const btn = $('#reminders-toggle');
   btn.textContent = on ? '🔔 Reminders on — tap to turn off' : '🔔 Enable reminders';
   btn.classList.toggle('on', on);
+  // Native-only: a "test the sound" button, shown once reminders are on (proves the closed-app ding).
+  const testBtn = $('#reminders-test');
+  if (testBtn) testBtn.hidden = !(on && isNativeWrap());
 }
 
 /* ---------- Face ID / passkey unlock (WebAuthn PRF wraps the passphrase) ----------
@@ -1114,6 +1117,7 @@ function wire() {
     const log = await getTodayLog(); log.taken = {}; log.t0 = null; await saveTodayLog(log); await pushCancel(); await renderDashboard(); toast('Fresh day.');
   });
   $('#reminders-toggle').addEventListener('click', async () => { if (await remindersEnabled()) await disableReminders(); else await enableReminders(); });
+  { const rt = $('#reminders-test'); if (rt) rt.addEventListener('click', async () => { const r = await window.CapNotify.testFire(15); if (r && r.ok) toast('Test reminder in 15s — lock your phone now to hear it. 🔊'); else toast('Enable reminders first, then run the test.', true); }); }
   $('#day-plan').addEventListener('change', async (e) => {
     const label = e.target.closest('.dose'); if (!label) return;
     const key = label.dataset.key;

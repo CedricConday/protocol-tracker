@@ -19,7 +19,25 @@ npx cap add android   # (already scaffolded locally; re-run on a fresh clone)
 bash ./apply-native-assets.sh
 ```
 
-## Android — build & sideload (needs Android Studio / SDK; not the VPS)
+## Build via GitHub Actions (PRIMARY — no local toolchain needed)
+`.github/workflows/android-build.yml` builds a **debug-signed, sideloadable APK**
+on a runner (the VPS and Chromebook can't build). It regenerates `android/` from
+scratch (`cap add android` → `apply-native-assets.sh`) → `./gradlew assembleDebug`
+→ uploads `app-debug.apk` as an artifact. Runs on push to `master` (touching
+wrapper files) or manually via **Actions ▸ Android build ▸ Run workflow**.
+Download the APK from the run's **Artifacts**, then sideload to the device.
+
+## Prove the closed-app sound (the actual acceptance test)
+This needs a human on the physical Android device — a headless box can't hear it.
+1. Sideload `app-debug.apk` (enable "install unknown apps" for the file manager).
+2. Open the app → **⚙️ Manage ▸ Protocol reminders ▸ 🔔 Enable reminders**
+   (grant the Android 13+ notification permission when prompted).
+3. Tap **🔊 Test the reminder sound** → **lock/close the app immediately.**
+4. ~15 s later the notification must arrive **and play `dose.wav`** with the app
+   closed. That's the proof. If it's silent, check: notification permission
+   granted? channel `dose` importance not muted by the OS? Do Not Disturb off?
+
+## Android — build & sideload manually (alt: needs Android Studio / SDK; not the VPS)
 1. `npx cap open android` (or open `android/` in Android Studio).
 2. Custom sound is at `android/app/src/main/res/raw/dose.wav` (restored by the script).
 3. **Exact timing (optional polish):** LocalNotifications uses `allowWhileIdle`
