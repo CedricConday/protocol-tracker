@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'v17'; // bump with each release; shown under ⚙️ Manage to spot stale caches
+const APP_VERSION = 'v18'; // bump with each release; shown under ⚙️ Manage to spot stale caches
 
 // ---- Reminder sound. Web push on desktop can't force a notification sound, so the APP plays it.
 // AudioContext is unlocked on a user gesture (Start my day / Enable reminders); the SW pings us on each push. ----
@@ -910,8 +910,12 @@ async function enableReminders() {
     let sub = await reg.pushManager.getSubscription();
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC_KEY) });
     await setRemindersEnabled(true);
-    const log = await getTodayLog(); // if a day is already running, register its remaining nudges now
-    if (log.t0) await pushSchedule(computeFires(log.t0, orderedItems(await getSupps()), Date.now()));
+    // Register this device with the push-service NOW — even before a day is started (empty fires) —
+    // so the server knows the subscription. Previously registration only happened on Start-my-day,
+    // so a freshly-installed app (esp. iOS) was invisible to the server and could never be reminded.
+    const log = await getTodayLog();
+    const fires = log.t0 ? computeFires(log.t0, orderedItems(await getSupps()), Date.now()) : [];
+    await pushSchedule(fires);
     await renderReminders();
     toast('Reminders on — a nudge at each dose time. 🔔');
   } catch (e) { toast('Could not enable reminders.', true); }
