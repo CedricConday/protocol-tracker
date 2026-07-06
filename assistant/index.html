@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Protocol Tracker — Assistant</title>
+<style>
+  :root{--ink:#1b1f24;--accent:#22506e;--mute:#55616c;--bg:#f6f8fa}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Liberation Sans",Arial,sans-serif;color:var(--ink);background:#fff;line-height:1.5}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:20px;color:var(--accent);margin:0 0 2px}
+  .sub{color:var(--mute);font-size:13px;margin:0 0 14px}
+  .disc{font-size:12px;color:var(--mute);background:var(--bg);border-left:3px solid var(--accent);padding:8px 10px;border-radius:4px;margin-bottom:14px}
+  input,button,textarea{font:inherit}
+  #q{width:100%;padding:11px 12px;border:1px solid #cdd6df;border-radius:8px}
+  .row{display:flex;gap:8px;margin-top:8px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:11px 16px;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  #status{font-size:12px;color:var(--mute);margin:10px 0}
+  .answer{margin-top:16px;white-space:pre-wrap}
+  .src{margin-top:16px}
+  .src h3{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);border-bottom:1px solid #e3e9ef;padding-bottom:4px}
+  .chunk{font-size:13px;padding:8px 0;border-bottom:1px solid #eef2f6}
+  .cite{font-weight:700;color:var(--accent)}
+  .key{margin-top:14px;font-size:12px}
+  .key input{width:100%;padding:8px;border:1px solid #cdd6df;border-radius:6px;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Protocol Tracker — Assistant</h1>
+  <p class="sub">Ask how the app works. Answers are grounded in the app's own docs, with citations.</p>
+  <p class="disc">Answers questions about the app and its technology — <b>not medical advice</b>. Retrieval runs entirely on your device; only a general question is sent to your own LLM key (optional).</p>
+
+  <input id="q" placeholder="e.g. How is my backup encrypted? Does it work offline?" />
+  <div class="row">
+    <button id="ask">Ask</button>
+    <button id="retr" class="ghost">Show sources only (no key)</button>
+  </div>
+  <div class="key">Optional — bring your own key for a written answer (OpenAI-compatible):
+    <input id="apikey" type="password" placeholder="sk-... (stays in this browser, never stored)"/>
+  </div>
+  <div id="status"></div>
+  <div class="answer" id="answer"></div>
+  <div class="src" id="sources"></div>
+</div>
+
+<script type="module">
+import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+const $ = id => document.getElementById(id);
+const status = m => $("status").textContent = m;
+let index = null, embed = null;
+
+async function ready(){
+  if(!index){ status("Loading index…"); index = await (await fetch("./index.json")).json(); }
+  if(!embed){ status("Loading on-device embedder (first time only)…");
+    embed = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2"); }
+  status("");
+}
+const cos=(a,b)=>{let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;};
+async function retrieve(q,k=3){
+  await ready();
+  const out = await embed(q,{pooling:"mean",normalize:true});
+  const qv = Array.from(out.data);
+  return index.chunks.map(c=>({c,score:cos(qv,c.embedding)}))
+    .sort((a,b)=>b.score-a.score).slice(0,k).map(x=>x.c);
+}
+function showSources(hits){
+  $("sources").innerHTML = "<h3>Sources</h3>" + hits.map((c,i)=>
+    `<div class="chunk"><span class="cite">[${i+1}]</span> <b>${c.source}</b>${c.heading?" · "+c.heading:""}<br>${c.text.slice(0,240)}…</div>`).join("");
+}
+async function generate(q,hits,key){
+  const ctx = hits.map((c,i)=>`[${i+1}] (${c.source}) ${c.text}`).join("\n\n");
+  const body = {model:"gpt-4o-mini",messages:[
+    {role:"system",content:"Answer ONLY from the numbered context about the Protocol Tracker app. Cite sources inline as [1],[2]. If the answer isn't in the context, say so. Never give medical advice."},
+    {role:"user",content:`Context:\n${ctx}\n\nQuestion: ${q}`}]};
+  const r = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)});
+  const j = await r.json();
+  return j.choices?.[0]?.message?.content || ("Error: "+JSON.stringify(j).slice(0,200));
+}
+$("retr").onclick = async()=>{ $("answer").textContent=""; const h=await retrieve($("q").value||"encryption"); showSources(h); status("Retrieved on-device.");};
+$("ask").onclick = async()=>{
+  const q=$("q").value.trim(); if(!q)return;
+  const key=$("apikey").value.trim();
+  const h=await retrieve(q); showSources(h);
+  if(!key){ $("answer").textContent="(Add a key for a written answer — sources retrieved above.)"; return; }
+  status("Generating…"); $("answer").textContent=await generate(q,h,key); status("");
+};
+</script>
+</body>
+</html>

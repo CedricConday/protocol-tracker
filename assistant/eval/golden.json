@@ -1,0 +1,12 @@
+[
+  {"q": "How is my backup data encrypted?", "expect": "README.md"},
+  {"q": "Where is my patient data stored?", "expect": "README.md"},
+  {"q": "How do I move my data to another device?", "expect": "DEVICE_TRANSFER_DESIGN.md"},
+  {"q": "Does the app work offline?", "expect": "README.md"},
+  {"q": "What is the backup file format?", "expect": "DATA_CONTRACT.md"},
+  {"q": "What happens if I lose my passphrase?", "expect": "README.md"},
+  {"q": "How is the data structured or what fields are stored?", "expect": "DATA_CONTRACT.md"},
+  {"q": "How is the native app wrapper built?", "expect": "WRAPPER_BUILD.md"},
+  {"q": "Is my data ever sent to a server?", "expect": "README.md"},
+  {"q": "What key derivation is used for encryption?", "expect": "README.md"}
+]
