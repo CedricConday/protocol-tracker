@@ -59,6 +59,19 @@ merge if you approve. Nothing here touches the **T0** logic.
 - [ ] iOS lock-screen notification privacy parity; sync-server reference; upgrade migration
       tooling (from ROADMAP.md open questions).
 
+## Feature diff — native vs web build (task #8, done)
+- **Native is the more complete TRACKER.** It has screens the web build doesn't:
+  LabResults, MRI, Relapse, Sleep, Calcium, Journal, Report, SupplementEditor.
+- **Web-only = medical CONTENT/advice features:** Dashboard, Meals, Safety (drug
+  interactions), Sources (citations), and the RAG **"knowledge Assistant."**
+- **These were deliberately removed from native** to make it a *pure tracker* (no medical
+  advice → regulatory-clean, and aligned with the medtech-honesty stance in
+  project_medtech_qualification). Porting them back would re-introduce the exact exposure
+  the pure-tracker decision avoids.
+- **Recommendation: launch the native app as-is.** It's already the best version *for
+  the first user's need* (private dose/symptom tracking with T0 reminders). The RAG Assistant is a
+  possible *future, separate* product — not part of this launch.
+
 ## Bottom line
 The native app is real, coherent, Expo-Go-ready, and its notifications (with sound) are the
 thing the PWA couldn't do. The remaining work to *launch* is mostly on-device confirmation
