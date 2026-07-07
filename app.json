@@ -60,6 +60,7 @@
       "ios",
       "android",
       "web"
-    ]
+    ],
+    "privacy": "public"
   }
 }
