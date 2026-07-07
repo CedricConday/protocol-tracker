@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Modal,
@@ -13,53 +13,41 @@ import {
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getDaySummary, getDayDetail, localDateStr, todayStr, type DayDetail } from '../db/queries';
+import { getCalendarMonth, getDayDetail, localDateStr, todayStr, type CalendarDay, type DayDetail } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
-
-const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
-  '05-30': {
-    label: 'World MS Day',
-    message: 'May 30 — World MS Day. You are not alone. 2.9 million people live with MS worldwide.',
-  },
-  '03-07': {
-    label: 'MS Awareness Month',
-    message: 'March 7 — Multiple Sclerosis Awareness Month. Raise awareness, share your story.',
-  },
-  '03-31': {
-    label: 'MS Awareness Month End',
-    message: 'March 31 — End of MS Awareness Month. Keep spreading knowledge about MS.',
-  },
-};
-
-function getAwarenessDate(dateStr: string): { label: string; message: string } | null {
-  const d = new Date(dateStr + 'T00:00:00');
-  const key = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  return AWARENESS_DATES[key] ?? null;
-}
-
-const COLS = 6;
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Monday-first, matching the PWA calendar.
+const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Monday-first offset for the 1st of the month (0 = Monday … 6 = Sunday).
+function mondayOffset(year: number, month: number): number {
+  return (new Date(year, month, 1).getDay() + 6) % 7;
+}
+
+const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
+  '05-30': { label: 'World MS Day', message: 'May 30 — World MS Day.' },
+  '03-07': { label: 'MS Awareness Month', message: 'March 7 — MS Awareness Month.' },
+  '03-31': { label: 'MS Awareness Month End', message: 'March 31 — End of MS Awareness Month.' },
+};
+function getAwarenessDate(dateStr: string): { label: string; message: string } | null {
+  const d = new Date(dateStr + 'T00:00:00');
+  const key = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return AWARENESS_DATES[key] ?? null;
+}
+
+// Dose-compliance cell background.
 function getBoxColor(compliancePct: number, totalDoses: number) {
   if (totalDoses === 0) return '#E8E0D8';
   if (compliancePct >= 80) return '#5A8A5A';
   if (compliancePct >= 50) return '#C4882A';
   return '#C04040';
 }
-
-function getYearColor(compliancePct: number, totalDoses: number) {
-  if (totalDoses === 0) return '#E8E0D8';
-  if (compliancePct >= 80) return '#22c55e';
-  if (compliancePct >= 50) return '#eab308';
-  return '#ef4444';
-}
-
 function getTodayBrighter(compliancePct: number, totalDoses: number) {
   if (totalDoses === 0) return '#D8CFC8';
   if (compliancePct >= 80) return '#6FA06F';
@@ -67,46 +55,14 @@ function getTodayBrighter(compliancePct: number, totalDoses: number) {
   return '#D05050';
 }
 
-interface DayCell {
-  date: string;
-  dayNumber: number;
-  compliancePct: number;
-  totalDoses: number;
-  isToday: boolean;
-}
-
-function buildLast30Days(): string[] {
-  const days: string[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(localDateStr(d));
-  }
-  return days;
-}
-
-function buildLast365Days(): string[] {
-  const days: string[] = [];
-  for (let i = 364; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(localDateStr(d));
-  }
-  return days;
-}
-
-function getCurrentMonthYear(): string {
-  const now = new Date();
-  return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
-}
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const EVENT_DOT = '#C04040';
+const JOURNAL_DOT = '#7C6FB8';
+const WATER_DOT = '#3B9AE1';
 
 function formatFullDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${WEEKDAYS[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
-
 function fmtTime(ts: number | null): string {
   if (!ts) return '';
   const d = new Date(ts);
@@ -116,290 +72,195 @@ function fmtTime(ts: number | null): string {
 const DOSE_STATUS_COLOR: Record<string, string> = {
   taken: '#5A8A5A', missed: '#C04040', due: '#C4882A', upcoming: '#7A6A62',
 };
-
 const EVENT_LABEL: Record<string, string> = {
   relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',
 };
 
+// One slot in the month grid — either a real day or a leading/trailing blank.
+type Slot = { date: string; day: number } | null;
+
 export default function CalendarScreen() {
-  const [cells, setCells] = useState<DayCell[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [data, setData] = useState<Map<string, CalendarDay>>(new Map());
   const [loaded, setLoaded] = useState(false);
-  const [viewMode, setViewMode] = useState<'30d' | '12m'>('30d');
+  const [refreshing, setRefreshing] = useState(false);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [detail, setDetail] = useState<DayDetail | null>(null);
 
-  const loadData = useCallback(async (mode: '30d' | '12m') => {
-    const dateStrs = mode === '30d' ? buildLast30Days() : buildLast365Days();
-    const today = todayStr();
-    const results = await Promise.all(
-      dateStrs.map(async (dateStr) => {
-        const summary = await getDaySummary(dateStr);
-        return {
-          date: dateStr,
-          dayNumber: new Date(dateStr + 'T00:00:00').getDate(),
-          compliancePct: summary.compliancePct,
-          totalDoses: summary.totalDoses,
-          isToday: dateStr === today,
-        };
-      }),
-    );
-    setCells(results);
+  const loadMonth = useCallback(async (year: number, month: number) => {
+    const map = await getCalendarMonth(year, month);
+    setData(map);
     setLoaded(true);
   }, []);
 
-  useFocusEffect(useCallback(() => { loadData(viewMode); }, [loadData, viewMode]));
-
-  useEffect(() => {
-    loadData(viewMode);
-  }, [viewMode, loadData]);
+  useFocusEffect(useCallback(() => { loadMonth(viewYear, viewMonth); }, [loadMonth, viewYear, viewMonth]));
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData(viewMode);
+    await loadMonth(viewYear, viewMonth);
     setRefreshing(false);
   };
+
+  const shiftMonth = (delta: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let m = viewMonth + delta;
+    let y = viewYear;
+    if (m < 0) { m = 11; y -= 1; }
+    else if (m > 11) { m = 0; y += 1; }
+    // Don't page past the current month (no future data).
+    if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return;
+    setViewYear(y);
+    setViewMonth(m);
+  };
+  const canGoNext = !(viewYear === now.getFullYear() && viewMonth === now.getMonth());
 
   const openDay = useCallback(async (date: string) => {
     setDetailDate(date);
     setDetail(null);
-    try {
-      setDetail(await getDayDetail(date));
-    } catch (e) {
-      setDetail(null);
-    }
+    try { setDetail(await getDayDetail(date)); } catch { setDetail(null); }
   }, []);
-
-  const closeDay = useCallback(() => {
-    setDetailDate(null);
-    setDetail(null);
-  }, []);
-
+  const closeDay = useCallback(() => { setDetailDate(null); setDetail(null); }, []);
   const stepDay = useCallback((delta: number) => {
     if (!detailDate) return;
     const d = new Date(detailDate + 'T00:00:00');
     d.setDate(d.getDate() + delta);
     const next = localDateStr(d);
-    const today = todayStr();
-    if (next > today) return;
+    if (next > todayStr()) return;
     openDay(next);
   }, [detailDate, openDay]);
 
-  const rows: DayCell[][] = [];
-  for (let i = 0; i < cells.length; i += COLS) {
-    rows.push(cells.slice(i, i + COLS));
+  // Build the month grid: leading blanks + each day.
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const offset = mondayOffset(viewYear, viewMonth);
+  const mm = String(viewMonth + 1).padStart(2, '0');
+  const today = todayStr();
+  const slots: Slot[] = [];
+  for (let i = 0; i < offset; i++) slots.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    slots.push({ date: `${viewYear}-${mm}-${String(d).padStart(2, '0')}`, day: d });
   }
+  while (slots.length % 7 !== 0) slots.push(null);
+  const weeks: Slot[][] = [];
+  for (let i = 0; i < slots.length; i += 7) weeks.push(slots.slice(i, i + 7));
 
-  // Build year grid data
-  const yearMonthRows: { month: number; days: DayCell[] }[] = (() => {
-    if (cells.length !== 365) return [];
-    const months: { month: number; days: DayCell[] }[] = [];
-    for (let i = 0; i < 12; i++) {
-      const m = new Date();
-      m.setMonth(m.getMonth() - 11 + i);
-      const month = m.getMonth();
-      const year = m.getFullYear();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const monthCells = cells.filter((c) => {
-        const d = new Date(c.date);
-        return d.getMonth() === month && d.getFullYear() === year;
-      });
-      // Pad to fill the row
-      months.push({ month, days: monthCells });
+  const handleShare = async () => {
+    try {
+      const rows = Array.from(data.values())
+        .filter((c) => c.totalDoses > 0 || c.eventCount > 0 || c.hasJournal || c.hasWater)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((c) => {
+          const d = new Date(c.date + 'T00:00:00');
+          const bits = [
+            c.totalDoses > 0 ? `${c.compliancePct}% (${c.takenDoses}/${c.totalDoses})` : '—',
+            c.eventCount > 0 ? `${c.eventCount} event(s)` : '',
+            c.hasJournal ? 'journal' : '',
+          ].filter(Boolean).join(' · ');
+          return `<tr><td style="border:1px solid #333;padding:8px">${WEEKDAYS[d.getDay()]} ${c.date}</td><td style="border:1px solid #333;padding:8px">${bits}</td></tr>`;
+        })
+        .join('');
+      const html = `<html><body style="background:#FAF7F4;color:#2C2420;font-family:sans-serif;padding:20px">
+        <h1 style="color:#C96A50">${MONTH_NAMES[viewMonth]} ${viewYear}</h1>
+        <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows || '<tr><td>No data this month</td></tr>'}</tbody></table>
+        </body></html>`;
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, { mimeType: 'text/html' });
+    } catch (e) {
+      Alert.alert('Share Failed', e instanceof Error ? e.message : 'Unknown error');
     }
-    return months;
-  })();
+  };
 
-    const handleShare = async () => {
-      try {
-        const htmlRows = cells
-          .map((c) => {
-            const date = new Date(c.date);
-            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
-            return `<tr>
-              <td style="border:1px solid #333;padding:8px;text-align:center;">${dayName}<br/>${c.date}</td>
-              <td style="border:1px solid #333;padding:8px;text-align:center;background-color:${getBoxColor(c.compliancePct, c.totalDoses)};color:white;">
-                ${c.compliancePct}%<br/>${c.totalDoses} doses
-              </td>
-            </tr>`;
-          })
-          .join('');
-        
-        const html = `
-          <html><body style="background:#FAF7F4;color:#2C2420;font-family:sans-serif;padding:20px">
-            <h1 style="color:#C96A50">Compliance Calendar</h1>
-            <p style="color:#7A6A62;margin-bottom:16px">Last ${viewMode === '30d' ? '30 days' : '12 months'}</p>
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <thead>
-                <tr style="background:#F2EDE8">
-                  <th style="border:1px solid #D8CFC8;padding:8px;">Date</th>
-                  <th style="border:1px solid #333;padding:8px;">Compliance / Doses</th>
-                </tr>
-              </thead>
-              <tbody>${htmlRows}</tbody>
-            </table>
-          </body></html>`;
-        
-        const { uri } = await Print.printToFileAsync({ html });
-        await Sharing.shareAsync(uri, { mimeType: 'text/html' });
-      } catch (e) {
-        Alert.alert('Share Failed', e instanceof Error ? e.message : 'Unknown error');
-      }
-    };
-
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
-        }
-      >
-        <View style={styles.headerRow}>
-          <Text style={styles.heading}>History</Text>
-          <TouchableOpacity style={styles.shareButton} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleShare(); }} activeOpacity={0.8} accessibilityLabel="Share calendar" accessibilityRole="button">
-            <Text style={styles.shareButtonText}>Share</Text>
-          </TouchableOpacity>
-        </View>
-
-      {/* View Toggle */}
-      <View style={styles.toggleRow}>
-        <TouchableOpacity
-          style={[styles.toggleBtn, viewMode === '30d' && styles.toggleBtnActive]}
-          onPress={() => setViewMode('30d')}
-          activeOpacity={0.7}
-          accessibilityLabel="Show last 30 days"
-          accessibilityRole="button"
-        >
-          <Text style={[styles.toggleBtnText, viewMode === '30d' && styles.toggleBtnTextActive]}>30 Days</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleBtn, viewMode === '12m' && styles.toggleBtnActive]}
-          onPress={() => setViewMode('12m')}
-          activeOpacity={0.7}
-          accessibilityLabel="Show last 12 months"
-          accessibilityRole="button"
-        >
-          <Text style={[styles.toggleBtnText, viewMode === '12m' && styles.toggleBtnTextActive]}>12 Months</Text>
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
+    >
+      <View style={styles.headerRow}>
+        <Text style={styles.heading}>History</Text>
+        <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8} accessibilityLabel="Share this month" accessibilityRole="button">
+          <Text style={styles.shareButtonText}>Share</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Month / year header */}
-      <Text style={styles.monthHeader}>{viewMode === '30d' ? getCurrentMonthYear() : 'Last 12 Months'}</Text>
+      {/* Month navigation */}
+      <View style={styles.monthNav}>
+        <TouchableOpacity onPress={() => shiftMonth(-1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Previous month" accessibilityRole="button">
+          <Text style={styles.navArrow}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.monthTitle}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
+        <TouchableOpacity onPress={() => shiftMonth(1)} disabled={!canGoNext} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Next month" accessibilityRole="button">
+          <Text style={[styles.navArrow, !canGoNext && styles.navArrowDisabled]}>›</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Weekday header */}
+      <View style={styles.weekHeader}>
+        {WEEKDAY_HEADERS.map((w) => (
+          <Text key={w} style={styles.weekHeaderCell}>{w}</Text>
+        ))}
+      </View>
 
       {!loaded ? (
-        <View style={styles.grid}>
+        <View style={{ gap: 6 }}>
           {Array.from({ length: 5 }).map((_, ri) => (
-            <View key={ri} style={styles.row}>
-              {Array.from({ length: 6 }).map((_, ci) => (
-                <View key={ci} style={styles.cellWrapper}>
-                  <SkeletonCard height={48} borderRadius={10} />
-                </View>
+            <View key={ri} style={styles.week}>
+              {Array.from({ length: 7 }).map((_, ci) => (
+                <View key={ci} style={styles.slot}><SkeletonCard height={44} borderRadius={8} /></View>
               ))}
             </View>
           ))}
         </View>
-      ) : cells.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyTitle}>No History Yet</Text>
-          <Text style={styles.emptyText}>
-            Start your day from the Home tab to begin tracking your compliance.
-          </Text>
-        </View>
-      ) : viewMode === '30d' ? (
-        <View style={styles.grid}>
-          {rows.map((row, ri) => (
-            <View key={ri} style={styles.row}>
-              {row.map((cell) => {
-                const bgColor = cell.isToday
-                  ? getTodayBrighter(cell.compliancePct, cell.totalDoses)
-                  : getBoxColor(cell.compliancePct, cell.totalDoses);
-                const awareness = getAwarenessDate(cell.date);
+      ) : (
+        <View style={{ gap: 6 }}>
+          {weeks.map((week, wi) => (
+            <View key={wi} style={styles.week}>
+              {week.map((slot, si) => {
+                if (!slot) return <View key={`b${si}`} style={styles.slot} />;
+                const c = data.get(slot.date);
+                const isToday = slot.date === today;
+                const hasDoses = !!c && c.totalDoses > 0;
+                const hasData = !!c && (c.totalDoses > 0 || c.eventCount > 0 || c.hasJournal || c.hasWater || c.started);
+                const bg = hasDoses
+                  ? (isToday ? getTodayBrighter(c!.compliancePct, c!.totalDoses) : getBoxColor(c!.compliancePct, c!.totalDoses))
+                  : (hasData ? '#F2EDE8' : 'transparent');
+                const textColor = hasDoses ? '#FAF7F4' : (hasData ? '#2C2420' : '#B7ABA2');
+                const awareness = getAwarenessDate(slot.date);
                 return (
                   <TouchableOpacity
-                    key={cell.date}
-                    style={styles.cellWrapper}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDay(cell.date); }}
+                    key={slot.date}
+                    style={styles.slot}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); openDay(slot.date); }}
                     activeOpacity={0.7}
-                    accessibilityLabel={`${cell.date}, ${cell.compliancePct} percent compliance, ${cell.totalDoses} doses${cell.isToday ? ', today' : ''}${awareness ? `, ${awareness.label}` : ''}. Tap for details.`}
                     accessibilityRole="button"
+                    accessibilityLabel={`${slot.date}${hasDoses ? `, ${c!.compliancePct}% compliance` : ''}${c && c.eventCount > 0 ? `, ${c.eventCount} event${c.eventCount > 1 ? 's' : ''}` : ''}${c && c.hasJournal ? ', journal entry' : ''}${isToday ? ', today' : ''}. Tap for details.`}
                   >
-                    <View
-                      style={[
-                        styles.cell,
-                        { backgroundColor: bgColor },
-                        cell.isToday ? styles.cellToday : null,
-                      ]}
-                    >
-                      <Text style={styles.cellText}>{cell.dayNumber}</Text>
+                    <View style={[styles.cell, { backgroundColor: bg }, isToday && styles.cellToday]}>
+                      <Text style={[styles.cellText, { color: textColor }]}>{slot.day}</Text>
+                      <View style={styles.dots}>
+                        {!!c && c.eventCount > 0 && <View style={[styles.dot, { backgroundColor: EVENT_DOT }]} />}
+                        {!!c && c.hasJournal && <View style={[styles.dot, { backgroundColor: JOURNAL_DOT }]} />}
+                        {!!c && c.hasWater && <View style={[styles.dot, { backgroundColor: WATER_DOT }]} />}
+                      </View>
+                      {awareness && <View style={styles.awarenessDot} />}
                     </View>
-                    {awareness && <View style={styles.awarenessDot} />}
                   </TouchableOpacity>
                 );
               })}
             </View>
           ))}
         </View>
-      ) : (
-        <View style={styles.yearGrid}>
-          {yearMonthRows.map((m) => (
-            <View key={m.month} style={styles.yearRow}>
-              <Text style={styles.yearMonthLabel}>{MONTH_ABBR[m.month]}</Text>
-              <View style={styles.yearCells}>
-                {m.days.map((d) => (
-                  <View
-                    key={d.date}
-                    style={[styles.yearCell, { backgroundColor: getYearColor(d.compliancePct, d.totalDoses) }]}
-                  />
-                ))}
-              </View>
-            </View>
-          ))}
-        </View>
       )}
 
       {/* Legend */}
-      {viewMode === '12m' ? (
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-            <Text style={styles.legendLabel}>Good</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#eab308' }]} />
-            <Text style={styles.legendLabel}>Fair</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
-            <Text style={styles.legendLabel}>Missed</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' }]} />
-            <Text style={styles.legendLabel}>No data</Text>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#5A8A5A' }]} />
-            <Text style={styles.legendLabel}>≥80%</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#C4882A' }]} />
-            <Text style={styles.legendLabel}>50–79%</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#C04040' }]} />
-            <Text style={styles.legendLabel}>{'<'}50%</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: '#E8E0D8', borderWidth: 1, borderColor: '#D8CFC8' }]} />
-            <Text style={styles.legendLabel}>No data</Text>
-          </View>
-        </View>
-      )}
+      <View style={styles.legend}>
+        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: '#5A8A5A' }]} /><Text style={styles.legendLabel}>≥80% pills</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: EVENT_DOT }]} /><Text style={styles.legendLabel}>Event</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: JOURNAL_DOT }]} /><Text style={styles.legendLabel}>Journal</Text></View>
+        <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: WATER_DOT }]} /><Text style={styles.legendLabel}>Water</Text></View>
+      </View>
 
       <Modal visible={detailDate !== null} animationType="slide" transparent onRequestClose={closeDay}>
         <View style={styles.modalOverlay}>
@@ -473,234 +334,51 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF7F4',
-  },
-  content: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  heading: {
-    color: '#2C2420',
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  monthHeader: {
-    color: '#7A6A62',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 20,
-    letterSpacing: 0.3,
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    marginTop: 60,
-    paddingHorizontal: 20,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    color: '#2C2420',
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  emptyText: {
-    color: '#7A6A62',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  grid: {
-    gap: 8,
-    marginBottom: 24,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  cellWrapper: {
-    flex: 1,
-    aspectRatio: 1,
-  },
-  cell: {
-    flex: 1,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-    minWidth: 48,
-  },
-  cellToday: {
-    borderWidth: 2,
-    borderColor: '#C96A50',
-  },
-  awarenessDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F97316',
-    position: 'absolute',
-    bottom: 4,
-  },
-  cellText: {
-    color: '#FAF7F4',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 16,
-    paddingTop: 4,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendLabel: {
-    color: '#7A6A62',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  toggleBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 10, alignItems: 'center', backgroundColor: '#F2EDE8' },
-  toggleBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
-  toggleBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  toggleBtnTextActive: { color: '#C96A50', fontWeight: '700' },
-  yearGrid: { gap: 4, marginBottom: 24 },
-  yearRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  yearMonthLabel: { width: 32, color: '#7A6A62', fontSize: 10, fontWeight: '600', textAlign: 'right' },
-  yearCells: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
-  yearCell: { width: 8, height: 8, borderRadius: 2 },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  shareButton: {
-    backgroundColor: '#F2EDE8',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#D8CFC8',
-  },
-  shareButtonText: {
-    color: '#C96A50',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FAF7F4',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 16,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    maxHeight: '80%',
-  },
-  detailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  detailArrow: {
-    color: '#C96A50',
-    fontSize: 30,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-  },
-  detailDate: {
-    color: '#2C2420',
-    fontSize: 16,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'center',
-  },
-  detailBody: {
-    marginBottom: 12,
-  },
-  detailSection: {
-    color: '#2C2420',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  detailSummary: {
-    color: '#7A6A62',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    gap: 8,
-  },
-  detailDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  detailRowText: {
-    color: '#2C2420',
-    fontSize: 14,
-    flex: 1,
-  },
-  detailRowMeta: {
-    color: '#7A6A62',
-    fontSize: 12,
-  },
-  detailMood: {
-    fontSize: 20,
-  },
-  detailMuted: {
-    color: '#B0A098',
-    fontSize: 13,
-    fontStyle: 'italic',
-    paddingVertical: 2,
-  },
-  detailEvent: {
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#EFE9E3',
-  },
-  detailEventTitle: {
-    color: '#2C2420',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  detailClose: {
-    backgroundColor: '#C96A50',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  detailCloseText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  container: { flex: 1, backgroundColor: '#FAF7F4' },
+  content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  heading: { color: '#2C2420', fontSize: 22, fontWeight: '700' },
+  shareButton: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#D8CFC8' },
+  shareButtonText: { color: '#C96A50', fontSize: 15, fontWeight: '600' },
+
+  monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  navArrow: { color: '#C96A50', fontSize: 30, fontWeight: '700', paddingHorizontal: 12 },
+  navArrowDisabled: { color: '#D8CFC8' },
+  monthTitle: { color: '#2C2420', fontSize: 16, fontWeight: '700' },
+
+  weekHeader: { flexDirection: 'row', marginBottom: 8 },
+  weekHeaderCell: { flex: 1, textAlign: 'center', color: '#B0A098', fontSize: 11, fontWeight: '700' },
+
+  week: { flexDirection: 'row', gap: 6 },
+  slot: { flex: 1, aspectRatio: 1 },
+  cell: { flex: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minHeight: 40 },
+  cellToday: { borderWidth: 2, borderColor: '#C96A50' },
+  cellText: { fontSize: 13, fontWeight: '700' },
+  dots: { flexDirection: 'row', gap: 2, position: 'absolute', bottom: 4 },
+  dot: { width: 5, height: 5, borderRadius: 2.5 },
+  awarenessDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#F97316', position: 'absolute', top: 4, right: 4 },
+
+  legend: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, paddingTop: 16 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 9, height: 9, borderRadius: 4.5 },
+  legendLabel: { color: '#7A6A62', fontSize: 12, fontWeight: '500' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#FAF7F4', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '80%' },
+  detailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  detailArrow: { color: '#C96A50', fontSize: 30, fontWeight: '700', paddingHorizontal: 8 },
+  detailDate: { color: '#2C2420', fontSize: 16, fontWeight: '700', flex: 1, textAlign: 'center' },
+  detailBody: { marginBottom: 12 },
+  detailSection: { color: '#2C2420', fontSize: 15, fontWeight: '700', marginTop: 14, marginBottom: 6 },
+  detailSummary: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, gap: 8 },
+  detailDot: { width: 8, height: 8, borderRadius: 4 },
+  detailRowText: { color: '#2C2420', fontSize: 14, flex: 1 },
+  detailRowMeta: { color: '#7A6A62', fontSize: 12 },
+  detailMood: { fontSize: 20 },
+  detailMuted: { color: '#B0A098', fontSize: 13, fontStyle: 'italic', paddingVertical: 2 },
+  detailEvent: { paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#EFE9E3' },
+  detailEventTitle: { color: '#2C2420', fontSize: 14, fontWeight: '600' },
+  detailClose: { backgroundColor: '#C96A50', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  detailCloseText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

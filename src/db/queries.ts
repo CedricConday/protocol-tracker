@@ -226,6 +226,76 @@ export async function getDaySummary(date: string = todayStr()): Promise<DaySumma
   };
 }
 
+export interface CalendarDay {
+  date: string;
+  totalDoses: number;
+  takenDoses: number;
+  compliancePct: number;
+  eventCount: number;
+  hasJournal: boolean;
+  hasWater: boolean;
+  started: boolean;
+}
+
+// Aggregates a whole month in a few range queries (like the PWA's dayMap), NOT
+// one query per day. Critically, a day counts as data if it has ANY dose, event,
+// journal entry, water, or started anchor — so event-only days are visible and
+// clickable on the grid (the bug the dose-only getDaySummary caused).
+export async function getCalendarMonth(year: number, month: number): Promise<Map<string, CalendarDay>> {
+  const db = await getDb();
+  const mm = String(month + 1).padStart(2, '0');
+  const start = `${year}-${mm}-01`;
+  const endDay = new Date(year, month + 1, 0).getDate();
+  const end = `${year}-${mm}-${String(endDay).padStart(2, '0')}`;
+
+  const map = new Map<string, CalendarDay>();
+  const ensure = (d: string): CalendarDay => {
+    let c = map.get(d);
+    if (!c) {
+      c = { date: d, totalDoses: 0, takenDoses: 0, compliancePct: 0, eventCount: 0, hasJournal: false, hasWater: false, started: false };
+      map.set(d, c);
+    }
+    return c;
+  };
+
+  const doseRows = await db.getAllAsync<{ date: string; status: string; c: number }>(
+    'SELECT date, status, COUNT(*) c FROM dose_logs WHERE date BETWEEN ? AND ? GROUP BY date, status',
+    [start, end],
+  );
+  for (const r of doseRows) {
+    const c = ensure(r.date);
+    c.totalDoses += r.c;
+    if (r.status === 'taken') c.takenDoses += r.c;
+  }
+  for (const c of map.values()) {
+    c.compliancePct = c.totalDoses > 0 ? Math.round((c.takenDoses / c.totalDoses) * 100) : 0;
+  }
+
+  const evRows = await db.getAllAsync<{ date: string; c: number }>(
+    'SELECT date, COUNT(*) c FROM relapse_events WHERE date BETWEEN ? AND ? GROUP BY date',
+    [start, end],
+  );
+  for (const r of evRows) ensure(r.date).eventCount = r.c;
+
+  const jRows = await db.getAllAsync<{ date: string }>(
+    'SELECT date FROM journal_entries WHERE date BETWEEN ? AND ?',
+    [start, end],
+  );
+  for (const r of jRows) ensure(r.date).hasJournal = true;
+
+  const anchorRows = await db.getAllAsync<{ date: string; t0_timestamp: number | null; water_ml: number }>(
+    'SELECT date, t0_timestamp, water_ml FROM daily_anchors WHERE date BETWEEN ? AND ?',
+    [start, end],
+  );
+  for (const r of anchorRows) {
+    const c = ensure(r.date);
+    if (r.t0_timestamp) c.started = true;
+    if (r.water_ml > 0) c.hasWater = true;
+  }
+
+  return map;
+}
+
 export interface DayDetail {
   date: string;
   doses: { name: string; status: string; scheduled_time: number; logged_time: number | null }[];
