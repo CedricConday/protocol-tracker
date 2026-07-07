@@ -38,8 +38,7 @@
         {
           "locationWhenInUsePermission": "Protocol Tracker uses your location to show local UV index and air quality for your protocol."
         }
-      ],
-      "@journeyapps/react-native-quick-sqlite"
+      ]
     ]
   }
 }
