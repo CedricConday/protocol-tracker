@@ -7,12 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FAF7F4"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.protocoltracker.app",
@@ -28,7 +22,6 @@
       },
       "package": "com.protocoltracker.app",
       "versionCode": 1,
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -48,7 +41,16 @@
       ],
       "expo-secure-store",
       "expo-sharing",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FAF7F4"
+        }
+      ]
     ],
     "extra": {
       "eas": {
@@ -64,7 +66,6 @@
       "ios",
       "android",
       "web"
-    ],
-    "privacy": "public"
+    ]
   }
 }

@@ -7,8 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "storybook": "storybook dev -p 6007",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "storybook:dev": "storybook dev -p 6007"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -22,6 +22,7 @@
     "expo-camera": "~57.0.4",
     "expo-crypto": "~57.0.2",
     "expo-device": "~57.0.1",
+    "expo-font": "~57.0.3",
     "expo-haptics": "~57.0.2",
     "expo-image-picker": "~57.0.16",
     "expo-local-authentication": "~57.0.2",
@@ -30,6 +31,7 @@
     "expo-print": "~57.0.1",
     "expo-secure-store": "~57.0.3",
     "expo-sharing": "~57.0.18",
+    "expo-splash-screen": "~57.0.8",
     "expo-sqlite": "~57.0.2",
     "expo-status-bar": "~57.0.1",
     "expo-store-review": "~57.0.2",
