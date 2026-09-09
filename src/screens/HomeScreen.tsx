@@ -23,6 +23,7 @@ import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
 import SunTracker from '../components/SunTracker';
+import { MEDICAL_DISCLAIMER } from '../config/links';
 import WaterTracker from '../components/WaterTracker';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
@@ -559,6 +560,33 @@ export default function HomeScreen() {
         </View>
       )}
 
+        {/* Quick log — daily entries that were buried under Settings.
+            They belong to the day, so they live on Today. */}
+        <View style={styles.quickLogRow}>
+          <TouchableOpacity
+            style={styles.quickLogBtn}
+            onPress={() => navigation.navigate('Sleep' as never)}
+            activeOpacity={0.8}
+            accessibilityLabel="Sleep check-in"
+            accessibilityRole="button"
+          >
+            <Text style={styles.quickLogIcon}>🌙</Text>
+            <Text style={styles.quickLogLabel}>Sleep check-in</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickLogBtn}
+            onPress={() => navigation.navigate('CalciumLog' as never)}
+            activeOpacity={0.8}
+            accessibilityLabel="Calcium log"
+            accessibilityRole="button"
+          >
+            <Text style={styles.quickLogIcon}>🔥</Text>
+            <Text style={styles.quickLogLabel}>Calcium log</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.homeDisclaimer}>{MEDICAL_DISCLAIMER}</Text>
+
       </ScrollView>
 
       <DoseDetailModal
@@ -580,7 +608,7 @@ export default function HomeScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>90-Day Milestone 🏆</Text>
             <Text style={styles.modalBody}>
-              You've maintained the Protocol for {currentStreak} consecutive days. Research shows consistent adherence at this stage significantly reduces relapse risk. Keep going.
+              You've logged {currentStreak} consecutive days. That is a long streak to hold — well done. Keep going.
             </Text>
             <TouchableOpacity
               style={styles.modalButton}
@@ -968,6 +996,14 @@ const styles = StyleSheet.create({
   insightCard: { backgroundColor: '#FBF0ED', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
   insightLabel: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
   insightText: { color: '#7A6A62', fontSize: 14, lineHeight: 22 },
+  quickLogRow: { flexDirection: 'row', gap: 12, marginTop: 24 },
+  quickLogBtn: {
+    flex: 1, backgroundColor: '#F2EDE8', borderRadius: 14, borderWidth: 1,
+    borderColor: '#D8CFC8', paddingVertical: 18, alignItems: 'center', gap: 6,
+  },
+  quickLogIcon: { fontSize: 22 },
+  quickLogLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
+  homeDisclaimer: { color: '#B0A098', fontSize: 11, lineHeight: 17, marginTop: 28 },
   strictBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8EC', borderRadius: 8, padding: 10, marginBottom: 10, gap: 8, borderWidth: 1, borderColor: '#eab308' },
   strictAmberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#eab308' },
   strictBadgeText: { color: '#8A5A10', fontSize: 13, fontWeight: '600', flex: 1 },

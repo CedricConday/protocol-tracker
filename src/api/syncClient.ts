@@ -1,6 +1,11 @@
 import { getDb } from '../db/schema';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:4000';
+// Sync is OFF unless a backend is explicitly configured at build time. There is
+// no default endpoint on purpose: the store build ships with no server, so the
+// App Privacy answer "no data collected" is true by construction rather than by
+// the accident of there being no JWT yet.
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? null;
+export const SYNC_ENABLED = API_BASE !== null;
 
 async function getPatientJwt(): Promise<string | null> {
   try {
@@ -12,6 +17,7 @@ async function getPatientJwt(): Promise<string | null> {
 }
 
 export async function uploadPendingActions(): Promise<void> {
+  if (!SYNC_ENABLED) return;
   try {
     const jwt = await getPatientJwt();
     if (!jwt) return;
@@ -46,6 +52,7 @@ export async function uploadPendingActions(): Promise<void> {
 }
 
 export async function fetchRecommendations(): Promise<void> {
+  if (!SYNC_ENABLED) return;
   try {
     const jwt = await getPatientJwt();
     if (!jwt) return;
@@ -70,6 +77,7 @@ export async function fetchRecommendations(): Promise<void> {
 }
 
 export async function fetchDoctorFlags(): Promise<void> {
+  if (!SYNC_ENABLED) return;
   try {
     const jwt = await getPatientJwt();
     if (!jwt) return;
@@ -91,6 +99,7 @@ export async function fetchDoctorFlags(): Promise<void> {
 }
 
 export async function activatePatientWithCode(code: string): Promise<{ success: boolean; error?: string }> {
+  if (!SYNC_ENABLED) return { success: false, error: 'Sync is not enabled in this build.' };
   try {
     const res = await fetch(`${API_BASE}/invites/activate`, {
       method: 'POST',
@@ -110,6 +119,7 @@ export async function activatePatientWithCode(code: string): Promise<{ success: 
 }
 
 export async function syncAll(): Promise<void> {
+  if (!SYNC_ENABLED) return;
   await uploadPendingActions();
   await fetchRecommendations();
   await fetchDoctorFlags();

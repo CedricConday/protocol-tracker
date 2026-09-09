@@ -348,7 +348,9 @@ export const setupNotificationHandler = (): void => {
 
     switch (type) {
       case 'supplement':
-        navigate('Calendar');
+        // A dose reminder belongs on Today, where the dose can be confirmed —
+        // the History tab only shows what already happened.
+        navigate('Home');
         break;
       case 'water':
         navigate('Home');
@@ -363,7 +365,9 @@ export const setupNotificationHandler = (): void => {
         navigate('Home');
         break;
       case 'events':
-        navigate('Events');
+        // There is no 'Events' route; the events list is the Relapse screen
+        // inside the Journal tab. This navigated nowhere before.
+        navigate('Journal', { screen: 'Relapse' });
         break;
     }
   });

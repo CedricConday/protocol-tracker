@@ -12,6 +12,7 @@ import {
   View,
   Alert,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +23,7 @@ import {
   getSupplementForms, updateSupplementForm, getMiscFlag, setMiscFlag,
 } from '../db/queries';
 import { getDb } from '../db/schema';
+import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
 import Pressable from '../components/Pressable';
 import { t, setLanguage, getLanguage } from '../i18n';
 import { C, space, radius, shadow, text as T } from '../theme';
@@ -346,6 +348,10 @@ export default function SettingsScreen() {
 
             <Row icon="list-outline" label="Manage supplements" sub="Add, edit, remove" onPress={() => navigation.navigate('SupplementEditor')} />
 
+            <Row icon="alarm-outline" label="Schedule & reminders" sub="Dose times relative to Start my day" onPress={() => navigation.navigate('Schedule')} />
+
+            <Row icon="chatbubble-ellipses-outline" label="Reminder tone" sub="Gentle · Direct · Motivational" onPress={() => navigation.navigate('CoachingStyle')} />
+
             <Row icon="timer-outline" label="Timing windows" sub="Tolerance per supplement" onPress={() => toggleSection('timing')} />
             <Expand k="timing">
               {toleranceRules.map((rule) => {
@@ -407,11 +413,12 @@ export default function SettingsScreen() {
             </Expand>
           </Group>
 
-          {/* ── Health ────────────────────────────────────────────────────── */}
-          <Group label="Health">
-            <Row icon="flask-outline"    label="Lab results"        sub="PTH · Vitamin D · Calcium" onPress={() => navigation.navigate('LabResults')} />
-            <Row icon="moon-outline"       label="Sleep check-in"    sub="Weekly hygiene score"     onPress={() => navigation.navigate('Sleep')} />
-            <Row icon="flame-outline"      label="Calcium log"       sub="3-day reintroduction"     onPress={() => navigation.navigate('CalciumLog')} last />
+          {/* ── Sharing ───────────────────────────────────────────────────
+              Lab results, sleep and calcium moved to the Records and Today
+              tabs — they are the day's work, not settings. */}
+          <Group label="Sharing">
+            <Row icon="people-outline" label="Family sync" sub="Pair a phone with a code" onPress={() => navigation.navigate('FamilySync')} />
+            <Row icon="heart-outline"  label="Caregiver"   sub="Check-in and shared progress" onPress={() => navigation.navigate('Caregiver')} last />
           </Group>
 
           {/* ── App ───────────────────────────────────────────────────────── */}
@@ -442,8 +449,26 @@ export default function SettingsScreen() {
               </View>
             </Expand>
             <Row icon="download-outline"            label="Export my data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
+            <Row icon="chatbox-ellipses-outline"    label="Send feedback"  onPress={() => navigation.navigate('Feedback')} />
             <Row icon="information-circle-outline"  label="About"          onPress={() => navigation.navigate('About')} last />
           </Group>
+
+          {/* ── Support ───────────────────────────────────────────────────
+              Opens the community page in the system browser. Nothing is
+              collected in-app and nothing in the app unlocks from this —
+              Apple 3.2.2(iv) and 3.2.1(vii). Do not add a supporter tier. */}
+          <Group label="Support">
+            <Row
+              icon="open-outline"
+              label="Support this app"
+              sub="Free forever · opens in your browser"
+              onPress={() => Linking.openURL(SUPPORT_URL).catch(() =>
+                Alert.alert('Could not open', 'Please try again from your browser.'))}
+              last
+            />
+          </Group>
+
+          <Text style={styles.disclaimer}>{MEDICAL_DISCLAIMER}</Text>
 
           {/* ── Danger ────────────────────────────────────────────────────── */}
           <Text style={[styles.groupLabel, { color: C.danger }]}>Danger zone</Text>
@@ -623,6 +648,10 @@ const styles = StyleSheet.create({
 
   // Danger
   dangerGroup: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#C0404020' },
+  disclaimer: {
+    color: C.textMuted, fontSize: 12, lineHeight: 18,
+    paddingHorizontal: space.md, marginTop: space.lg, marginBottom: space.md,
+  },
   dangerRow: { flexDirection: 'row', alignItems: 'center', padding: space.md, gap: space.sm },
   dangerTitle: { ...T.body, color: C.text, fontWeight: '700' },
   dangerSub:   { ...T.small, color: C.textSub, marginTop: 2 },

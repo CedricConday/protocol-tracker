@@ -8,6 +8,10 @@ import { navigationRef } from './navigationRef';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
+import CaregiverScreen from '../screens/CaregiverScreen';
+import CoachingStyleScreen from '../screens/CoachingStyleScreen';
+import FamilySyncScreen from '../screens/FamilySyncScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import CalciumLogScreen from '../screens/CalciumLogScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -47,6 +51,26 @@ function HomeNavigator() {
         component={CalendarScreen}
         options={{ ...SUB_HEADER, title: 'History', animation: 'slide_from_right' }}
       />
+      <HomeNav.Screen
+        name="Sleep"
+        component={SleepScreen}
+        options={{
+          ...SUB_HEADER,
+          title: 'Sleep Check-in',
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <HomeNav.Screen
+        name="CalciumLog"
+        component={CalciumLogScreen}
+        options={{
+          ...SUB_HEADER,
+          title: 'Calcium Log',
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
     </HomeNav.Navigator>
   );
 }
@@ -54,12 +78,7 @@ function HomeNavigator() {
 function CalendarTabNavigator() {
   return (
     <CalendarTabNav.Navigator screenOptions={{ headerShown: false }}>
-      <CalendarTabNav.Screen name="CalendarMain" component={ScheduleScreen} />
-      <CalendarTabNav.Screen
-        name="CalendarView"
-        component={CalendarScreen}
-        options={{ ...SUB_HEADER, title: 'History', animation: 'slide_from_right' }}
-      />
+      <CalendarTabNav.Screen name="CalendarMain" component={CalendarScreen} />
     </CalendarTabNav.Navigator>
   );
 }
@@ -120,14 +139,29 @@ function SettingsNavigator() {
         options={{ ...SUB_HEADER, title: 'About', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
-        name="Sleep"
-        component={SleepScreen}
-        options={{ ...SUB_HEADER, title: 'Sleep Check-in', animation: 'slide_from_right' }}
+        name="Schedule"
+        component={ScheduleScreen}
+        options={{ ...SUB_HEADER, title: 'Schedule & Reminders', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
-        name="CalciumLog"
-        component={CalciumLogScreen}
-        options={{ ...SUB_HEADER, title: 'Calcium Log', animation: 'slide_from_right' }}
+        name="CoachingStyle"
+        component={CoachingStyleScreen}
+        options={{ ...SUB_HEADER, title: 'Reminder Tone', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="FamilySync"
+        component={FamilySyncScreen}
+        options={{ ...SUB_HEADER, title: 'Family Sync', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="Caregiver"
+        component={CaregiverScreen}
+        options={{ ...SUB_HEADER, title: 'Caregiver', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="Feedback"
+        component={FeedbackScreen}
+        options={{ ...SUB_HEADER, title: 'Send Feedback', animation: 'slide_from_right' }}
       />
     </SettingsNav.Navigator>
   );
@@ -163,8 +197,8 @@ function TabNavigator() {
       <Tab.Screen
         name="Calendar"
         options={{
-          tabBarLabel: 'Calendar',
-          tabBarIcon: ({ color, size }) => <Ionicons name="calendar" size={size} color={color} />,
+          tabBarLabel: 'History',
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       >
         {() => <ErrorBoundary><CalendarTabNavigator /></ErrorBoundary>}
@@ -183,7 +217,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Home"
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: 'Today',
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       >
@@ -192,8 +226,8 @@ function TabNavigator() {
       <Tab.Screen
         name="Summary"
         options={{
-          tabBarLabel: 'Summary',
-          tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart" size={size} color={color} />,
+          tabBarLabel: 'Records',
+          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={size} color={color} />,
         }}
       >
         {() => <ErrorBoundary><SummaryNavigator /></ErrorBoundary>}
