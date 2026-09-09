@@ -45,7 +45,10 @@
         {
           "locationWhenInUsePermission": "Protocol Tracker uses your location to show local UV index and air quality for your protocol."
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {
@@ -53,7 +56,7 @@
       }
     },
     "owner": "<expo-account>",
-    "runtimeVersion": "exposdk:54.0.0",
+    "runtimeVersion": "exposdk:57.0.0",
     "updates": {
       "url": "https://u.expo.dev/c6ea28d8-fbbe-47ba-b70f-1092e1c7a355"
     },
