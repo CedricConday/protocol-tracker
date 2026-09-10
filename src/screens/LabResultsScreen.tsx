@@ -53,11 +53,11 @@ function formatDate(d: string) {
 // Pure-tracker build: values are shown exactly as the user entered them, with
 // no low / high / in-range judgement, so there is nothing to colour or label.
 
-const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: string; unit: string; min: number; max: number }> = {
-  VitD: { stateKey: 'vitD', dbCol: 'vit_d_ngml', label: 'Vit D 25-OH', unit: 'ng/mL', min: 150, max: 280 },
-  PTH: { stateKey: 'pth', dbCol: 'pth_pgml', label: 'PTH', unit: 'pg/mL', min: 10, max: 30 },
-  Calcium: { stateKey: 'calciumSerum', dbCol: 'calcium_serum_mgdl', label: 'Calcium (serum)', unit: 'mg/dL', min: 8.5, max: 10.2 },
-  Creatinine: { stateKey: 'creatinine', dbCol: 'creatinine_mgdl', label: 'Creatinine', unit: 'mg/dL', min: 0.5, max: 1.2 },
+const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: string; unit: string }> = {
+  VitD: { stateKey: 'vitD', dbCol: 'vit_d_ngml', label: 'Vit D 25-OH', unit: 'ng/mL' },
+  PTH: { stateKey: 'pth', dbCol: 'pth_pgml', label: 'PTH', unit: 'pg/mL' },
+  Calcium: { stateKey: 'calciumSerum', dbCol: 'calcium_serum_mgdl', label: 'Calcium (serum)', unit: 'mg/dL' },
+  Creatinine: { stateKey: 'creatinine', dbCol: 'creatinine_mgdl', label: 'Creatinine', unit: 'mg/dL' },
 };
 
 export default function LabResultsScreen() {
@@ -346,7 +346,6 @@ const styles = StyleSheet.create({
   markerLabel: { color: '#7A6A62', fontSize: 13 },
   markerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   markerValue: { fontSize: 15, fontWeight: '600' },
-  markerStatus: { fontSize: 11, fontWeight: '700', minWidth: 36, textAlign: 'right' },
   sulkowitch: { color: '#eab308', fontSize: 12, marginTop: 8 },
   cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
   cardHint: { color: '#E8E0D8', fontSize: 11, marginTop: 8 },
