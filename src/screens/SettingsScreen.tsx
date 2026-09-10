@@ -32,6 +32,52 @@ import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } 
 type ToleranceRule = { id: number; supplement_name: string; tolerance_window: number };
 type Supplement = { id: string; name: string; stock_days: number | null };
 
+// ── Primitives ────────────────────────────────────────────────────────────────
+// Module scope on purpose: as inner functions these were a fresh component type
+// on every render, so React unmounted and remounted the subtree on each
+// keystroke and the keyboard closed after every digit.
+
+const Row = ({
+  icon, label, sub, onPress, right, last, badge, dim,
+}: {
+  icon: string; label: string; sub?: string; onPress?: () => void;
+  right?: React.ReactNode; last?: boolean; badge?: number; dim?: boolean;
+}) => {
+  const inner = (
+    <View style={[styles.row, last && styles.rowLast, dim && { opacity: 0.45 }]}>
+      <View style={styles.iconPill}>
+        <Ionicons name={icon as any} size={17} color={C.primary} />
+      </View>
+      <View style={styles.rowContent}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+      </View>
+      {badge ? (
+        <View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View>
+      ) : null}
+      {right ?? (onPress ? (
+        <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
+      ) : null)}
+    </View>
+  );
+  if (!onPress) return inner;
+  return (
+    <Pressable onPress={onPress} accessibilityLabel={label} accessibilityRole="button">
+      {inner}
+    </Pressable>
+  );
+};
+
+const Group = ({ label, children }: { label?: string; children: React.ReactNode }) => (
+  <View style={styles.groupWrap}>
+    {label ? <Text style={styles.groupLabel}>{label}</Text> : null}
+    <View style={styles.group}>{children}</View>
+  </View>
+);
+
+const Expand = ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+  open ? <View style={styles.expand}>{children}</View> : null;
+
 export default function SettingsScreen() {
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
@@ -245,49 +291,6 @@ export default function SettingsScreen() {
     return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   }, [name]);
 
-  // ── Primitives ──────────────────────────────────────────────────────────────
-
-  const Row = ({
-    icon, label, sub, onPress, right, last, badge, dim,
-  }: {
-    icon: string; label: string; sub?: string; onPress?: () => void;
-    right?: React.ReactNode; last?: boolean; badge?: number; dim?: boolean;
-  }) => {
-    const inner = (
-      <View style={[styles.row, last && styles.rowLast, dim && { opacity: 0.45 }]}>
-        <View style={styles.iconPill}>
-          <Ionicons name={icon as any} size={17} color={C.primary} />
-        </View>
-        <View style={styles.rowContent}>
-          <Text style={styles.rowLabel}>{label}</Text>
-          {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
-        </View>
-        {badge ? (
-          <View style={styles.badge}><Text style={styles.badgeText}>{badge}</Text></View>
-        ) : null}
-        {right ?? (onPress ? (
-          <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
-        ) : null)}
-      </View>
-    );
-    if (!onPress) return inner;
-    return (
-      <Pressable onPress={onPress} accessibilityLabel={label} accessibilityRole="button">
-        {inner}
-      </Pressable>
-    );
-  };
-
-  const Group = ({ label, children }: { label?: string; children: React.ReactNode }) => (
-    <View style={styles.groupWrap}>
-      {label ? <Text style={styles.groupLabel}>{label}</Text> : null}
-      <View style={styles.group}>{children}</View>
-    </View>
-  );
-
-  const Expand = ({ k, children }: { k: string; children: React.ReactNode }) =>
-    expandedSection === k ? <View style={styles.expand}>{children}</View> : null;
-
   const BEDTIME_HOURS = [18, 19, 20, 21, 22, 23];
   const BEDTIME_MINUTES = [0, 15, 30, 45];
 
@@ -320,7 +323,7 @@ export default function SettingsScreen() {
           {/* ── Protocol ──────────────────────────────────────────────────── */}
           <Group label="Protocol">
             <Row icon="person-outline" label="You" sub={name ? `${name}${weight ? ` · ${weight} kg` : ''}` : 'Name, weight, language'} onPress={() => toggleSection('profile')} />
-            <Expand k="profile">
+            <Expand open={expandedSection === 'profile'}>
               <Text style={styles.inputLabel}>{t('yourName')}</Text>
               <TextInput style={styles.input} placeholder="Alex" placeholderTextColor={C.textMuted} value={name} onChangeText={setName} autoCapitalize="words" />
               <Text style={styles.inputLabel}>{t('weightKg')}</Text>
@@ -341,7 +344,7 @@ export default function SettingsScreen() {
             </Expand>
 
             <Row icon="flask-outline" label="Daily D3" sub={d3Dose ? `${d3Dose} IU` : 'Not set'} onPress={() => toggleSection('dose')} />
-            <Expand k="dose">
+            <Expand open={expandedSection === 'dose'}>
               <Text style={styles.inputLabel}>{t('dailyD3')}</Text>
               <TextInput style={styles.input} placeholder="5000" placeholderTextColor={C.textMuted} value={d3Dose} onChangeText={setD3Dose} keyboardType="numeric" />
             </Expand>
@@ -353,7 +356,7 @@ export default function SettingsScreen() {
             <Row icon="chatbubble-ellipses-outline" label="Reminder tone" sub="Gentle · Direct · Motivational" onPress={() => navigation.navigate('CoachingStyle')} />
 
             <Row icon="timer-outline" label="Timing windows" sub="Tolerance per supplement" onPress={() => toggleSection('timing')} />
-            <Expand k="timing">
+            <Expand open={expandedSection === 'timing'}>
               {toleranceRules.map((rule) => {
                 const val = getToleranceValue(rule.id);
                 return (
@@ -379,7 +382,7 @@ export default function SettingsScreen() {
               onPress={() => toggleSection('bedtime')}
               last
             />
-            <Expand k="bedtime">
+            <Expand open={expandedSection === 'bedtime'}>
               <Text style={styles.miniLabel}>Hour</Text>
               <View style={styles.chipWrap}>
                 {BEDTIME_HOURS.map((h) => (
@@ -424,7 +427,7 @@ export default function SettingsScreen() {
           {/* ── App ───────────────────────────────────────────────────────── */}
           <Group label="App">
             <Row icon="notifications-outline"     label="Notifications" sub="Topics, quiet hours" onPress={() => toggleSection('notif')} />
-            <Expand k="notif">
+            <Expand open={expandedSection === 'notif'}>
               {[
                 { key: 'supplements',    label: 'Supplement reminders' },
                 { key: 'water',          label: 'Water' },
