@@ -1,5 +1,10 @@
 # Build notes & sign-off — Expo Go rewire (2026-07-07, overnight)
 
+> **Historical record.** The `src/db/powersync/*` and `src/db/drizzle/*` paths named below
+> no longer exist in any branch — the spike modules were removed in `01815af`
+> ("cleanup: remove dead spike modules"). Read them as a log of what was tried, not as
+> live pointers. _Noted 2026-09-10._
+
 **Branch:** `expo-go-rewire-2026-07-07` (master untouched at `817b449`). Review, then
 merge if you approve. Nothing here touches the **T0** logic.
 
@@ -12,7 +17,7 @@ merge if you approve. Nothing here touches the **T0** logic.
    `drizzle-orm` (only `src/db/drizzle/*`), `@journeyapps/react-native-quick-sqlite`
    (only referenced in app.json). None are imported by any screen, hook, or App.tsx.
 3. **T0 is intact and is the crown jewel.** `startDay(t0)` writes `daily_anchors.t0_timestamp`;
-   every dose fires at `t0 + rule.offset_minutes`. Real DB = `expo-sqlite` (`coimbra.db`).
+   every dose fires at `t0 + rule.offset_minutes`. Real DB = `expo-sqlite` (`protocol_tracker.db`; this file was written when it was still `coimbra.db` — renamed with the app, corrected here 2026-09-10).
    **Not touched.**
 4. **Notification SOUND is wired in code** — `sound: true` on all 6 notification types,
    `shouldPlaySound: true` handler, HIGH-importance `supplements` Android channel. The

@@ -1,5 +1,10 @@
 # Lab Results — 4-lib spike
 
+> **Historical record.** The `src/db/powersync/*` and `src/db/drizzle/*` paths named below
+> no longer exist in any branch — the spike modules were removed in `01815af`
+> ("cleanup: remove dead spike modules"). Read them as a log of what was tried, not as
+> live pointers. _Noted 2026-09-10._
+
 ## Drizzle ✅ (reference — done before this session)
 - Install: clean (`drizzle-orm` + `drizzle-kit` in existing deps)
 - tsc: passes
