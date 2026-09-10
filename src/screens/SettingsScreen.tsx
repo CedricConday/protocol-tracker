@@ -424,13 +424,9 @@ export default function SettingsScreen() {
             </Expand>
           </Group>
 
-          {/* ── Sharing ───────────────────────────────────────────────────
-              Lab results, sleep and calcium moved to the Records and Today
-              tabs — they are the day's work, not settings. */}
-          <Group label="Sharing">
-            <Row icon="people-outline" label="Family sync" sub="Pair a phone with a code" onPress={() => navigation.navigate('FamilySync')} />
-            <Row icon="heart-outline"  label="Caregiver"   sub="Check-in and shared progress" onPress={() => navigation.navigate('Caregiver')} last />
-          </Group>
+          {/* Sharing (Family sync, Caregiver) pulled from the menu 2026-09-10 to
+              keep Settings light. The screens and their routes are untouched —
+              re-expose them as a submenu when they are actually needed. */}
 
           {/* ── App ───────────────────────────────────────────────────────── */}
           <Group label="App">
