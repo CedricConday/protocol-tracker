@@ -7,8 +7,9 @@ Active backlog and exploration items.
 The app ships as a **pure tracker**: the user enters everything; the app gives
 no medical advice, information, interpretation, or recommendations. The
 following were removed for launch and are parked here as future ideas (some
-would need medical/regulatory review before returning). Original code is under
-`src/_sidelined/` and in git history.
+would need medical/regulatory review before returning). The original code is in git
+history only — there is no `src/_sidelined/` directory (removed 2026-07-01; pointer
+corrected 2026-09-10).
 
 - **Pre-loaded protocols** — per-disease Vitamin D3 doses, doctor notes, protocol descriptions. (Users build their own.)
 - **Drug contraindication / interaction warnings** — Lithium/thiazide/calcium/NSAID safety messages, supplement spacing warnings.
@@ -36,6 +37,13 @@ Evaluate **NotebookLM CLI** as the LLM backend for the symptom journal — summa
 - Micro-CBT module + dietary note + elevated calcium alert
 - Onboarding track selection (simple vs full protocol)
 - Lab trends + family sync + coaching style picker
+
+## Known drift (2026-09-10)
+
+Some advisory surfaces survived the pure-tracker cut and are still live: the food-pairing
+block in `src/components/DoseDetailModal.tsx`, the 12-month MRI banner in
+`src/screens/MriScreen.tsx`, and contraindication fields in `src/db/schema.ts` /
+`queries.ts`. Keeping or stripping them is a product decision — see `STATUS.md`.
 
 ## Open questions
 
