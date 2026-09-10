@@ -1,0 +1,48 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Raoul Dufy",
+      "x": 0,
+      "y": 0,
+      "w": 430,
+      "h": 1020
+    },
+    {
+      "file": "Klee.dc.html",
+      "title": "Paul Klee",
+      "x": 510,
+      "y": 0,
+      "w": 430,
+      "h": 1020
+    },
+    {
+      "file": "Renoir.dc.html",
+      "title": "Pierre-Auguste Renoir",
+      "x": 1020,
+      "y": 0,
+      "w": 430,
+      "h": 1020
+    },
+    {
+      "file": "Current.dc.html",
+      "title": "Current build",
+      "x": 1530,
+      "y": 0,
+      "w": 430,
+      "h": 1020
+    }
+  ],
+  "annotations": [
+    {
+      "id": "why",
+      "x": 0,
+      "y": -150,
+      "w": 470,
+      "text": "Same screen, four palettes. Dufy and Renoir both had rheumatoid arthritis; Klee had scleroderma. The last board is the palette shipping today, for comparison."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

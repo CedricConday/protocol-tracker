@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Sign in", "x": 0, "y": 0, "w": 390, "h": 844 },
+    { "file": "TodayStart.dc.html", "title": "Today — before T=0", "x": 470, "y": 0, "w": 390, "h": 844 },
+    { "file": "TodayActive.dc.html", "title": "Today — running", "x": 940, "y": 0, "w": 390, "h": 844 },
+    { "file": "Settings.dc.html", "x": 1410, "y": 0, "w": 390, "h": 844 },
+    { "file": "Identity.dc.html", "title": "Logo & palette", "x": 1880, "y": 0, "w": 560, "h": 844 }
+  ],
+  "annotations": [
+    { "id": "t0-note", "x": 470, "y": -130, "w": 390, "text": "T=0 is the whole app: nothing is scheduled until the user taps start, and every offset is computed from that moment." }
+  ],
+  "launch": { "view": "canvas" }
+}
