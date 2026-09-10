@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build-storybook": "storybook build",
-    "storybook:dev": "storybook dev -p 6007"
+    "storybook:dev": "storybook dev -p 6007",
+    "e2e": "node e2e/run.mjs",
+    "e2e:serve": "expo start --web --port 8085"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
