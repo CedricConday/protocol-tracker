@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { generateComplianceReport } from '../components/ComplianceReport';
-import { getProfile, getScheduleRules } from '../db/queries';
+import { getProfile, getSupplementsWithRules } from '../db/queries';
 import { t } from '../i18n';
 
 export default function ReportScreen() {
@@ -18,8 +18,10 @@ export default function ReportScreen() {
     setGenerating(true);
     try {
       const profile = await getProfile();
-      const rules = await getScheduleRules();
-      const d3 = rules.find((r) => r.supplement_id === 'vit_d3');
+      // No 'vit_d3' id exists in this build - the user names their own
+      // supplements - so match the D3 entry by name.
+      const rows = await getSupplementsWithRules();
+      const d3 = rows.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
       const uri = await generateComplianceReport(
         profile?.name ?? 'Patient',
         profile?.weight_kg ?? 70,

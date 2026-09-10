@@ -30,14 +30,15 @@ interface LabResult {
   notes: string;
 }
 
-// Ranges the results are charted against.
+// Units and labels for the markers. No target ranges: the app does not tell
+// users what to aim for.
 const TARGETS = {
-  vit_d: { min: 150, max: 280, unit: 'ng/mL', label: 'Vit D 25-OH' },
-  pth: { min: 10, max: 30, unit: 'pg/mL', label: 'PTH' },
-  calcium_serum: { min: 8.5, max: 10.2, unit: 'mg/dL', label: 'Calcium (serum)' },
-  calcium_urine: { min: 0, max: 300, unit: 'mg/g Cr', label: 'Calcium (urine)' },
-  creatinine: { min: 0.5, max: 1.2, unit: 'mg/dL', label: 'Creatinine' },
-  nfl: { min: 0, max: 10, unit: 'pg/mL', label: 'NfL (serum)' },
+  vit_d: { unit: 'ng/mL', label: 'Vit D 25-OH' },
+  pth: { unit: 'pg/mL', label: 'PTH' },
+  calcium_serum: { unit: 'mg/dL', label: 'Calcium (serum)' },
+  calcium_urine: { unit: 'mg/g Cr', label: 'Calcium (urine)' },
+  creatinine: { unit: 'mg/dL', label: 'Creatinine' },
+  nfl: { unit: 'pg/mL', label: 'NfL (serum)' },
 };
 
 const SULKOWITCH = ['None', 'Slight', 'Moderate', 'Heavy'];
@@ -49,25 +50,8 @@ function formatDate(d: string) {
   return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
 }
 
-function valueStatus(_val: number | null, _min: number, _max: number): 'ok' | 'low' | 'high' | 'unknown' {
-  // Pure-tracker build: the app does not judge logged values as low / high /
-  // in-range. Values are shown exactly as the user entered them.
-  return 'unknown';
-}
-
-function statusColor(s: 'ok' | 'low' | 'high' | 'unknown') {
-  if (s === 'ok') return '#C96A50';
-  if (s === 'low') return '#3b82f6';
-  if (s === 'high') return '#ef4444';
-  return '#555555';
-}
-
-function statusLabel(s: 'ok' | 'low' | 'high' | 'unknown') {
-  if (s === 'ok') return '✓';
-  if (s === 'low') return '↓ Low';
-  if (s === 'high') return '↑ High';
-  return '';
-}
+// Pure-tracker build: values are shown exactly as the user entered them, with
+// no low / high / in-range judgement, so there is nothing to colour or label.
 
 const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: string; unit: string; min: number; max: number }> = {
   VitD: { stateKey: 'vitD', dbCol: 'vit_d_ngml', label: 'Vit D 25-OH', unit: 'ng/mL', min: 150, max: 280 },
@@ -150,21 +134,14 @@ export default function LabResultsScreen() {
     ]);
   };
 
-  const renderMarker = (val: number | null, min: number, max: number, unit: string, label: string) => {
-    const s = valueStatus(val, min, max);
-    const color = statusColor(s);
-    return (
-      <View key={label} style={styles.markerRow}>
-        <Text style={styles.markerLabel}>{label}</Text>
-        <View style={styles.markerRight}>
-          <Text style={[styles.markerValue, { color }]}>
-            {val !== null ? `${val} ${unit}` : '—'}
-          </Text>
-          <Text style={[styles.markerStatus, { color }]}>{statusLabel(s)}</Text>
-        </View>
+  const renderMarker = (val: number | null, unit: string, label: string) => (
+    <View key={label} style={styles.markerRow}>
+      <Text style={styles.markerLabel}>{label}</Text>
+      <View style={styles.markerRight}>
+        <Text style={styles.markerValue}>{val !== null ? `${val} ${unit}` : '—'}</Text>
       </View>
-    );
-  };
+    </View>
+  );
 
   return (
     <ScrollView
@@ -314,12 +291,12 @@ export default function LabResultsScreen() {
         results.map(r => (
           <TouchableOpacity key={r.id} style={styles.card} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85} accessibilityLabel={`Lab result from ${formatDate(r.date)}`} accessibilityRole="button">
             <Text style={styles.cardDate}>{formatDate(r.date)}</Text>
-            {(!profile || profile.keyMarkers.includes('VitD')) && renderMarker(r.vit_d_ngml, TARGETS.vit_d.min, TARGETS.vit_d.max, TARGETS.vit_d.unit, TARGETS.vit_d.label)}
-            {(!profile || profile.keyMarkers.includes('PTH')) && renderMarker(r.pth_pgml, TARGETS.pth.min, TARGETS.pth.max, TARGETS.pth.unit, TARGETS.pth.label)}
-            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_serum_mgdl, TARGETS.calcium_serum.min, TARGETS.calcium_serum.max, TARGETS.calcium_serum.unit, TARGETS.calcium_serum.label)}
-            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_urine_mg_g_cr, TARGETS.calcium_urine.min, TARGETS.calcium_urine.max, TARGETS.calcium_urine.unit, TARGETS.calcium_urine.label)}
-            {(!profile || profile.keyMarkers.includes('Creatinine')) && renderMarker(r.creatinine_mgdl, TARGETS.creatinine.min, TARGETS.creatinine.max, TARGETS.creatinine.unit, TARGETS.creatinine.label)}
-            {r.nfl_pgl !== null && r.nfl_pgl !== undefined && renderMarker(r.nfl_pgl, TARGETS.nfl.min, TARGETS.nfl.max, TARGETS.nfl.unit, TARGETS.nfl.label)}
+            {(!profile || profile.keyMarkers.includes('VitD')) && renderMarker(r.vit_d_ngml, TARGETS.vit_d.unit, TARGETS.vit_d.label)}
+            {(!profile || profile.keyMarkers.includes('PTH')) && renderMarker(r.pth_pgml, TARGETS.pth.unit, TARGETS.pth.label)}
+            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_serum_mgdl, TARGETS.calcium_serum.unit, TARGETS.calcium_serum.label)}
+            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_urine_mg_g_cr, TARGETS.calcium_urine.unit, TARGETS.calcium_urine.label)}
+            {(!profile || profile.keyMarkers.includes('Creatinine')) && renderMarker(r.creatinine_mgdl, TARGETS.creatinine.unit, TARGETS.creatinine.label)}
+            {r.nfl_pgl !== null && r.nfl_pgl !== undefined && renderMarker(r.nfl_pgl, TARGETS.nfl.unit, TARGETS.nfl.label)}
             {r.sulkowitch ? (
               <Text style={styles.sulkowitch}>Sulkowitch: {r.sulkowitch}</Text>
             ) : null}
