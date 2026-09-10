@@ -63,8 +63,8 @@ None captured yet. [`assets/screenshots/README.md`](./assets/screenshots/README.
 ### Install + run
 
 ```bash
-git clone https://github.com/CedricConday/protocol-tracker-lab.git
-cd protocol-tracker-lab
+git clone https://github.com/CedricConday/protocol-tracker.git
+cd protocol-tracker
 npm install
 npx expo start            # add --tunnel for a device on another network
 ```
