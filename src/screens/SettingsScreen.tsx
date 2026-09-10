@@ -17,7 +17,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  getProfile, updateProfile, getScheduleRules, updateRuleDose,
+  getProfile, updateProfile, getSupplementsWithRules,
   updateRuleTolerance, getLastBloodTestDate,
   setLastBloodTestDate, getAllSupplements, updateSupplementStock,
   getSupplementForms, updateSupplementForm, getMiscFlag, setMiscFlag,
@@ -78,11 +78,24 @@ const Group = ({ label, children }: { label?: string; children: React.ReactNode 
 const Expand = ({ open, children }: { open: boolean; children: React.ReactNode }) =>
   open ? <View style={styles.expand}>{children}</View> : null;
 
+type D3Display = { dose: string; unit: string } | null;
+
+// The pure-tracker build seeds nothing, so there is no fixed 'vit_d3' id: the
+// user creates their own supplements. Find the D3 entry by name, falling back
+// to the first row measured in IU.
+async function readD3Display(): Promise<D3Display> {
+  const rows = await getSupplementsWithRules();
+  const byName = rows.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
+  const row = byName ?? rows.find((r) => r.dose_unit.trim().toUpperCase() === 'IU');
+  if (!row || !row.dose_amount.trim()) return null;
+  return { dose: row.dose_amount.trim(), unit: row.dose_unit.trim() || 'IU' };
+}
+
 export default function SettingsScreen() {
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
-  const [d3Dose, setD3Dose] = useState('');
-  const [d3RuleId, setD3RuleId] = useState<number | null>(null);
+  // Display only: the daily D3 dose is edited in SupplementEditor.
+  const [d3, setD3] = useState<D3Display>(null);
   const [bedtimeHour, setBedtimeHour] = useState(22);
   const [bedtimeMinute, setBedtimeMinute] = useState(0);
   const [toleranceRules, setToleranceRules] = useState<ToleranceRule[]>([]);
@@ -124,9 +137,7 @@ export default function SettingsScreen() {
         setBedtimeHour(profile.bedtime_hour ?? 22);
         setBedtimeMinute(profile.bedtime_minute ?? 0);
       }
-      const rules = await getScheduleRules();
-      const d3 = rules.find((r) => r.supplement_id === 'vit_d3');
-      if (d3) { setD3RuleId(d3.id); setD3Dose(d3.dose_amount); }
+      setD3(await readD3Display());
 
       const db = await getDb();
       const toleranceRulesData = await db.getAllAsync(`
@@ -174,6 +185,12 @@ export default function SettingsScreen() {
     })();
   }, []);
 
+  // SupplementEditor owns the dose, so re-read it when we come back.
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', async () => setD3(await readD3Display()));
+    return unsub;
+  }, [navigation]);
+
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
@@ -183,9 +200,6 @@ export default function SettingsScreen() {
         bedtime_hour: bedtimeHour,
         bedtime_minute: bedtimeMinute,
       });
-      if (d3RuleId != null && d3Dose.trim()) {
-        await updateRuleDose(d3RuleId, d3Dose.trim(), 'IU');
-      }
       for (const [ruleId, value] of toleranceChanges) {
         await updateRuleTolerance(ruleId, value);
       }
@@ -209,7 +223,7 @@ export default function SettingsScreen() {
     } finally {
       setSaving(false);
     }
-  }, [name, weight, d3Dose, d3RuleId, bedtimeHour, bedtimeMinute, toleranceChanges, bloodTestDate, stockChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
+  }, [name, weight, bedtimeHour, bedtimeMinute, toleranceChanges, bloodTestDate, stockChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
 
   const handleResetAll = () => {
     Alert.alert(
@@ -314,7 +328,7 @@ export default function SettingsScreen() {
             <View style={styles.heroInfo}>
               <Text style={styles.heroName}>{name || 'Add your name'}</Text>
               <Text style={styles.heroSub}>
-                {d3Dose ? `${d3Dose} IU D3 · daily` : 'Protocol not configured yet'}
+                {d3 ? `${d3.dose} ${d3.unit} D3 · daily` : 'Protocol not configured yet'}
               </Text>
             </View>
             {pulseDosing ? <View style={styles.statusDot} /> : null}
@@ -343,13 +357,7 @@ export default function SettingsScreen() {
               </View>
             </Expand>
 
-            <Row icon="flask-outline" label="Daily D3" sub={d3Dose ? `${d3Dose} IU` : 'Not set'} onPress={() => toggleSection('dose')} />
-            <Expand open={expandedSection === 'dose'}>
-              <Text style={styles.inputLabel}>{t('dailyD3')}</Text>
-              <TextInput style={styles.input} placeholder="5000" placeholderTextColor={C.textMuted} value={d3Dose} onChangeText={setD3Dose} keyboardType="numeric" />
-            </Expand>
-
-            <Row icon="list-outline" label="Manage supplements" sub="Add, edit, remove" onPress={() => navigation.navigate('SupplementEditor')} />
+            <Row icon="list-outline" label="Manage supplements" sub={d3 ? `Daily D3 ${d3.dose} ${d3.unit} · add, edit, remove` : 'Set your daily D3 · add, edit, remove'} onPress={() => navigation.navigate('SupplementEditor')} />
 
             <Row icon="alarm-outline" label="Schedule & reminders" sub="Dose times relative to Start my day" onPress={() => navigation.navigate('Schedule')} />
 
