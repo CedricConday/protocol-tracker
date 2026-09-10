@@ -501,7 +501,7 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.version}>the Protocol App · v1.0.0 · © 2026</Text>
+          <Text style={styles.version}>Protocol Tracker · v1.0.0 · © 2026</Text>
 
         </ScrollView>
 

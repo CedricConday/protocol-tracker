@@ -52,7 +52,7 @@ export default function AboutScreen() {
         </View>
       </View>
 
-      <Text style={styles.appName}>the Protocol</Text>
+      <Text style={styles.appName}>Protocol Tracker</Text>
       <Text style={styles.version}>v{appVersion}</Text>
 
       <Text style={styles.description}>
