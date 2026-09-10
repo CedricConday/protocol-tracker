@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getScheduleRules, updateRuleDose, setMiscFlag } from '../db/queries';
+import { getSupplementsWithRules, addSupplement, updateRuleDose, setMiscFlag } from '../db/queries';
 import { createDefaultProfile } from '../db/seed';
 import * as Notifications from 'expo-notifications';
 import { DISEASE_PROFILES } from '../data/diseaseProfiles';
@@ -114,10 +114,23 @@ export default function OnboardingScreen({ onComplete }: Props) {
           await AsyncStorage.setItem('caregiver_patient_name', caregiverPatientName.trim());
         }
         if (d3Dose.trim()) {
-          const rules = await getScheduleRules();
-          const d3Rule = rules.find((r) => r.supplement_id === 'vit_d3');
-          if (d3Rule) {
-            await updateRuleDose(d3Rule.id, d3Dose.trim(), 'IU');
+          // The dose entered here becomes the user's first supplement, created
+          // through the same path as Manage supplements. Nothing is pre-seeded:
+          // everything after this one the user adds themselves.
+          const existing = await getSupplementsWithRules();
+          const d3Row = existing.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
+          if (d3Row?.rule_id != null) {
+            await updateRuleDose(d3Row.rule_id, d3Dose.trim(), 'IU');
+          } else if (!d3Row) {
+            await addSupplement({
+              name: 'Vitamin D3',
+              form: 'capsule',
+              dose_amount: d3Dose.trim(),
+              dose_unit: 'IU',
+              offset_minutes: 0,
+              with_food: false,
+              tolerance_window: 30,
+            });
           }
         }
         await setMiscFlag('onboarding_track', onboardingTrack);
