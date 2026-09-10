@@ -56,3 +56,7 @@ e2e/report/
 # artboards. The artboards and canvas.json are the source; these are output.
 design/protocol-tracker-app.html
 design/palettes/protocol-tracker-palettes.html
+
+# folded-in research notes: named clinical material about a real person.
+# Lives with the app on this box, deliberately never enters git or GitHub.
+research/
