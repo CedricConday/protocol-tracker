@@ -91,6 +91,23 @@ async function readD3Display(): Promise<D3Display> {
   return { dose: row.dose_amount.trim(), unit: row.dose_unit.trim() || 'IU' };
 }
 
+const NOTIF_TOPICS = ['supplements', 'water', 'exercise', 'morning_checkin', 'weekly_summary'];
+
+/** The fields handleSave writes. Compared against live state to decide whether
+ *  there is anything to save; the tolerance and stock Maps track themselves. */
+type SavedFields = {
+  name: string;
+  weight: string;
+  bedtimeHour: number;
+  bedtimeMinute: number;
+  bloodTestDate: string;
+  aiProvider: string;
+  aiApiKey: string;
+  notifPrefs: Record<string, boolean>;
+  quietStart: string;
+  quietEnd: string;
+};
+
 export default function SettingsScreen() {
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
@@ -119,6 +136,9 @@ export default function SettingsScreen() {
   const [pulseDosing, setPulseDosing] = useState(false);
   const [strictMode, setStrictMode] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  // Set once the initial load finishes; null until then, which keeps the save
+  // footer hidden while the screen is still populating itself.
+  const [baseline, setBaseline] = useState<SavedFields | null>(null);
 
   const toggleSection = (key: string) => {
     hSelect();
@@ -131,11 +151,15 @@ export default function SettingsScreen() {
   useEffect(() => {
     (async () => {
       const profile = await getProfile();
+      const loadedName = profile ? profile.name : '';
+      const loadedWeight = profile ? String(profile.weight_kg) : '';
+      const loadedBedtimeHour = profile?.bedtime_hour ?? 22;
+      const loadedBedtimeMinute = profile?.bedtime_minute ?? 0;
       if (profile) {
-        setName(profile.name);
-        setWeight(String(profile.weight_kg));
-        setBedtimeHour(profile.bedtime_hour ?? 22);
-        setBedtimeMinute(profile.bedtime_minute ?? 0);
+        setName(loadedName);
+        setWeight(loadedWeight);
+        setBedtimeHour(loadedBedtimeHour);
+        setBedtimeMinute(loadedBedtimeMinute);
       }
       setD3(await readD3Display());
 
@@ -167,9 +191,8 @@ export default function SettingsScreen() {
       const forms = await getSupplementForms();
       setSuppForms(forms);
 
-      const topics = ['supplements', 'water', 'exercise', 'morning_checkin', 'weekly_summary'];
       const loaded: Record<string, boolean> = {};
-      for (const tp of topics) {
+      for (const tp of NOTIF_TOPICS) {
         const val = await getMiscFlag(`notif_pref_${tp}`);
         loaded[tp] = val === null ? true : val === 'true';
       }
@@ -182,6 +205,21 @@ export default function SettingsScreen() {
       if (pd) setPulseDosing(pd === 'true');
       const sm = await getMiscFlag('strict_mode_enabled');
       if (sm) setStrictMode(sm === 'true');
+
+      // Everything above is now the on-disk truth. Record it so the save
+      // footer can tell "nothing touched yet" from "unsaved edits".
+      setBaseline({
+        name: loadedName,
+        weight: loadedWeight,
+        bedtimeHour: loadedBedtimeHour,
+        bedtimeMinute: loadedBedtimeMinute,
+        bloodTestDate: lastTest || '',
+        aiProvider: savedAiProvider || 'groq',
+        aiApiKey: savedAiApiKey || '',
+        notifPrefs: loaded,
+        quietStart: qs || '22:00',
+        quietEnd: qe || '07:00',
+      });
     })();
   }, []);
 
@@ -217,6 +255,12 @@ export default function SettingsScreen() {
       }
       await setMiscFlag('notif_quiet_start', quietStart);
       await setMiscFlag('notif_quiet_end', quietEnd);
+      // Live values, not the trimmed copies written above — otherwise trailing
+      // whitespace in a field would leave the footer stuck open after saving.
+      setBaseline({
+        name, weight, bedtimeHour, bedtimeMinute, bloodTestDate,
+        aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd,
+      });
       setSaved(true);
       hSuccess();
       setTimeout(() => setSaved(false), 2000);
@@ -224,6 +268,26 @@ export default function SettingsScreen() {
       setSaving(false);
     }
   }, [name, weight, bedtimeHour, bedtimeMinute, toleranceChanges, bloodTestDate, stockChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
+
+  const isDirty = useMemo(() => {
+    if (!baseline) return false;
+    if (toleranceChanges.size > 0 || stockChanges.size > 0) return true;
+    return (
+      name !== baseline.name ||
+      weight !== baseline.weight ||
+      bedtimeHour !== baseline.bedtimeHour ||
+      bedtimeMinute !== baseline.bedtimeMinute ||
+      bloodTestDate !== baseline.bloodTestDate ||
+      aiProvider !== baseline.aiProvider ||
+      aiApiKey !== baseline.aiApiKey ||
+      quietStart !== baseline.quietStart ||
+      quietEnd !== baseline.quietEnd ||
+      NOTIF_TOPICS.some((k) => (notifPrefs[k] ?? true) !== (baseline.notifPrefs[k] ?? true))
+    );
+  }, [
+    baseline, toleranceChanges, stockChanges, name, weight, bedtimeHour, bedtimeMinute,
+    bloodTestDate, aiProvider, aiApiKey, quietStart, quietEnd, notifPrefs,
+  ]);
 
   const handleResetAll = () => {
     Alert.alert(
@@ -469,8 +533,14 @@ export default function SettingsScreen() {
               icon="open-outline"
               label="Support this app"
               sub="Free forever · opens in your browser"
-              onPress={() => Linking.openURL(SUPPORT_URL).catch(() =>
-                Alert.alert('Could not open', 'Please try again from your browser.'))}
+              onPress={() => {
+                if (!/^https?:\/\//.test(SUPPORT_URL)) {
+                  Alert.alert('Not set up yet', 'The support link is still a placeholder.');
+                  return;
+                }
+                Linking.openURL(SUPPORT_URL).catch(() =>
+                  Alert.alert('Could not open', 'Please try again from your browser.'));
+              }}
               last
             />
           </Group>
@@ -506,16 +576,20 @@ export default function SettingsScreen() {
         </ScrollView>
 
         {/* ── Save Footer ──────────────────────────────────────────────────── */}
-        <View style={styles.footer}>
-          <Pressable
-            onPress={() => { hPress(); handleSave(); }}
-            disabled={saving}
-            style={[styles.saveBtn, saving && { opacity: 0.4 }]}
-            accessibilityLabel={saving ? 'Saving' : 'Save changes'} accessibilityRole="button"
-          >
-            <Text style={styles.saveBtnText}>{saving ? t('saving') : saved ? `${t('saved')} ✓` : t('save')}</Text>
-          </Pressable>
-        </View>
+        {/* Only while there is something to save, plus the in-flight and the
+            2s "Saved ✓" states so the confirmation is not cut off. */}
+        {(isDirty || saving || saved) && (
+          <View style={styles.footer}>
+            <Pressable
+              onPress={() => { hPress(); handleSave(); }}
+              disabled={saving}
+              style={[styles.saveBtn, saving && { opacity: 0.4 }]}
+              accessibilityLabel={saving ? 'Saving' : 'Save changes'} accessibilityRole="button"
+            >
+              <Text style={styles.saveBtnText}>{saving ? t('saving') : saved ? `${t('saved')} ✓` : t('save')}</Text>
+            </Pressable>
+          </View>
+        )}
 
       </KeyboardAvoidingView>
     </SafeAreaView>

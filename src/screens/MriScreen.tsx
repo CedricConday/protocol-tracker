@@ -45,7 +45,6 @@ export default function MriScreen() {
   const [scans, setScans] = useState<MriScan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [overdueAlert, setOverdueAlert] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
@@ -82,8 +81,7 @@ export default function MriScreen() {
     );
     setScans(rows);
     // Pure-tracker build: the app doesn't judge whether a scan is "overdue" or
-    // advise scheduling one. The alert is left off.
-    setOverdueAlert(false);
+    // advise scheduling one.
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -250,12 +248,6 @@ export default function MriScreen() {
         <View style={styles.offlineBanner}>
           <Ionicons name="cloud-offline-outline" size={16} color="#C96A50" style={{ marginRight: 8 }} />
           <Text style={styles.offlineBannerText}>No connection — data shown is from last sync</Text>
-        </View>
-      )}
-
-      {overdueAlert && (
-        <View style={styles.overdueAlert}>
-          <Text style={styles.overdueAlertText}>⚠ It has been over 12 months since your last MRI. Consider scheduling a follow-up scan.</Text>
         </View>
       )}
 
@@ -426,8 +418,6 @@ export default function MriScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF7F4' },
   content: { padding: 20, paddingBottom: 48 },
-  overdueAlert: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C4882A' },
-  overdueAlertText: { color: '#C4882A', fontSize: 13, lineHeight: 19 },
   addBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   addBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
   addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },

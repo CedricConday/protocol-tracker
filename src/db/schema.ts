@@ -4,7 +4,7 @@ let db: SQLite.SQLiteDatabase | null = null;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
-    db = await SQLite.openDatabaseAsync('coimbra.db');
+    db = await SQLite.openDatabaseAsync('protocol_tracker.db');
   }
   return db;
 }

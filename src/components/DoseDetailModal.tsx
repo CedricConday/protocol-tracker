@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
-import { FOOD_PAIRINGS } from '../data/foodPairings';
 
 interface Props {
   visible: boolean;
@@ -129,18 +128,8 @@ export default function DoseDetailModal({
             </View>
           ) : null}
 
-          {(() => {
-            const pairing = FOOD_PAIRINGS.find(p => p.supplement_id === dose.supplement_id);
-            if (!pairing) return null;
-            return (
-              <View style={styles.foodPairingContainer}>
-                <Text style={styles.foodPairingTitle}>Food Pairing</Text>
-                <Text style={styles.foodPairingGreen}>✓ {pairing.pairs_with}</Text>
-                <Text style={styles.foodPairingRed}>✗ {pairing.avoid}</Text>
-                <Text style={styles.foodPairingTip}>{pairing.tip}</Text>
-              </View>
-            );
-          })()}
+          {/* Pure-tracker build: the food-pairing guidance (take with / avoid)
+              was advice, not tracking. Removed 2026-09-10. */}
 
           {showSkipReasons ? (
             <View style={styles.skipReasonsContainer}>
@@ -297,34 +286,6 @@ const styles = StyleSheet.create({
     color: '#7A6A62',
     fontSize: 13,
     lineHeight: 18,
-  },
-  foodPairingContainer: {
-    backgroundColor: '#F2EDE8',
-    borderRadius: 10,
-    padding: 14,
-    marginTop: 12,
-  },
-  foodPairingTitle: {
-    color: '#7A6A62',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    marginBottom: 6,
-  },
-  foodPairingGreen: {
-    color: '#5A8A5A',
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  foodPairingRed: {
-    color: '#C04040',
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  foodPairingTip: {
-    color: '#B0A098',
-    fontSize: 12,
-    fontStyle: 'italic',
   },
   skipReasonsContainer: {
     marginTop: 20,

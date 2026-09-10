@@ -17,14 +17,16 @@
 export const COMMUNITY_URL = 'https://www.facebook.com/REPLACE-ME-protocol-tracker';
 
 /**
- * Where the "Support this app" row goes. Points at the community page; the
- * fundraiser lives on that page, not here.
- * TODO(cedric): confirm this should stay COMMUNITY_URL and not a direct link.
+ * Where the "Support this app" row goes.
+ * TODO(cedric): INSERT GOFUNDME HERE — the row stays disabled until this is a
+ * real https:// URL. Note the Play rule above: Google has enforced against the
+ * destination link, not just in-app collection, so a direct fundraiser URL is
+ * the risk to weigh before shipping to Play.
  */
-export const SUPPORT_URL = COMMUNITY_URL;
+export const SUPPORT_URL = 'INSERT GOFUNDME HERE';
 
-/** TODO(cedric): real support address. */
-export const FEEDBACK_EMAIL = 'REPLACE-ME@example.com';
+/** Support address the Send Feedback screen hands to the user's mail app. */
+export const FEEDBACK_EMAIL = 'cedric@condaydigital.com';
 
 /** Shown wherever the app could be mistaken for giving medical guidance (Apple 1.4.1). */
 export const MEDICAL_DISCLAIMER =
