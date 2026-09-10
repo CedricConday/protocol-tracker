@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr } from '../db/queries';
-import type { JournalEntry } from '../types';
+import { getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, todayStr, localDateStr } from '../db/queries';
+import type { JournalEntry, RelapseEvent } from '../types';
 
 export function useJournalScreen() {
   const [refreshing, setRefreshing] = useState(false);
@@ -10,6 +10,7 @@ export function useJournalScreen() {
   const [existingNote, setExistingNote] = useState('');
   const [semanticSummary, setSemanticSummary] = useState('');
   const [weekMoods, setWeekMoods] = useState<{ day: string; emoji: string | null; compliancePct: number }[]>([]);
+  const [events, setEvents] = useState<RelapseEvent[]>([]);
 
   const today = todayStr();
 
@@ -26,6 +27,9 @@ export function useJournalScreen() {
     const all = await getRecentJournalEntries(7);
     setPastEntries(all.filter((e) => e.date !== today));
 
+    const recentEvents = await getRelapseEvents(10);
+    setEvents(recentEvents);
+
     const summary = await getSemanticJournalSummary();
     setSemanticSummary(summary);
 
@@ -35,7 +39,7 @@ export function useJournalScreen() {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = localDateStr(d);
       const entry = all.find((e) => e.date === dateStr);
       const summary = await getDaySummary(dateStr);
       weekDays.push({
@@ -53,6 +57,6 @@ export function useJournalScreen() {
 
   return {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
-    semanticSummary, weekMoods, loadData,
+    semanticSummary, weekMoods, events, loadData,
   };
 }

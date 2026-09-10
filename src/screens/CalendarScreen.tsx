@@ -44,17 +44,17 @@ function getAwarenessDate(dateStr: string): { label: string; message: string } |
 }
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const BG = '#FAF7F4';
-const ACCENT = '#C96A50';
-const INK = '#2C2420';
-const INK_MUTED = '#7A6A62';
+const BG = '#F7F7F2';
+const ACCENT = '#1B58B8';
+const INK = '#14213D';
+const INK_MUTED = '#5A6478';
 
 // Dose-compliance ring color.
 function getComplianceColor(compliancePct: number, totalDoses: number): string {
-  if (totalDoses === 0) return '#E8E0D8';
-  if (compliancePct >= 80) return '#5A8A5A';
-  if (compliancePct >= 50) return '#C4882A';
-  return '#C04040';
+  if (totalDoses === 0) return '#DBDDD3';
+  if (compliancePct >= 80) return '#2F8F5B';
+  if (compliancePct >= 50) return '#F2B233';
+  return '#C0392B';
 }
 
 // Health-app style compliance ring: a track plus an arc that fills by compliance %.
@@ -80,7 +80,7 @@ function ComplianceRing({ pct, color }: { pct: number; color: string }) {
 
 // Colorblind-safe markers: distinct SHAPE per data type, not color alone.
 // Event → diamond, Journal → square, Water → circle.
-const EVENT_COLOR = '#C04040';
+const EVENT_COLOR = '#C0392B';
 const JOURNAL_COLOR = '#7C6FB8';
 const WATER_COLOR = '#3B9AE1';
 
@@ -95,7 +95,7 @@ function fmtTime(ts: number | null): string {
 }
 
 const DOSE_STATUS_COLOR: Record<string, string> = {
-  taken: '#5A8A5A', missed: '#C04040', due: '#C4882A', upcoming: '#7A6A62',
+  taken: '#2F8F5B', missed: '#C0392B', due: '#F2B233', upcoming: '#5A6478',
 };
 const EVENT_LABEL: Record<string, string> = {
   relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',
@@ -196,8 +196,8 @@ export default function CalendarScreen() {
           return `<tr><td style="border:1px solid #333;padding:8px">${WEEKDAYS[d.getDay()]} ${c.date}</td><td style="border:1px solid #333;padding:8px">${bits}</td></tr>`;
         })
         .join('');
-      const html = `<html><body style="background:#FAF7F4;color:#2C2420;font-family:sans-serif;padding:20px">
-        <h1 style="color:#C96A50">${MONTH_NAMES[viewMonth]} ${viewYear}</h1>
+      const html = `<html><body style="background:#F7F7F2;color:#14213D;font-family:sans-serif;padding:20px">
+        <h1 style="color:#1B58B8">${MONTH_NAMES[viewMonth]} ${viewYear}</h1>
         <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows || `<tr><td>${t('noDataThisMonth')}</td></tr>`}</tbody></table>
         </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
@@ -267,7 +267,7 @@ export default function CalendarScreen() {
                 // Event/journal/water-only days are still a data card (just no ring).
                 const cellBg = hasData ? '#FFFFFF' : 'transparent';
                 const cellBorder = hasData ? '#EFE7DF' : 'transparent';
-                const textColor = hasData ? INK : (isFuture ? '#D8CFC8' : '#C3B7AD');
+                const textColor = hasData ? INK : (isFuture ? '#CFD2C6' : '#C3B7AD');
                 const awareness = getAwarenessDate(slot.date);
                 const disabled = isFuture || !hasData;
                 return (
@@ -306,9 +306,9 @@ export default function CalendarScreen() {
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendRow}>
-          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#5A8A5A' }]} /><Text style={styles.legendLabel}>≥80%</Text></View>
-          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#C4882A' }]} /><Text style={styles.legendLabel}>50–79%</Text></View>
-          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#C04040' }]} /><Text style={styles.legendLabel}>&lt;50%</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#2F8F5B' }]} /><Text style={styles.legendLabel}>≥80%</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#F2B233' }]} /><Text style={styles.legendLabel}>50–79%</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#C0392B' }]} /><Text style={styles.legendLabel}>&lt;50%</Text></View>
         </View>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}><View style={styles.legendDiamond} /><Text style={styles.legendLabel}>{t('event')}</Text></View>
@@ -349,7 +349,7 @@ export default function CalendarScreen() {
                   ) : (
                     detail.doses.map((d, i) => (
                       <View key={i} style={styles.detailRow}>
-                        <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#7A6A62' }]} />
+                        <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#5A6478' }]} />
                         <Text style={styles.detailRowText}>{d.name}</Text>
                         <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.logged_time ? fmtTime(d.logged_time) : d.status}</Text>
                       </View>
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   heading: { color: INK, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
-  shareButton: { backgroundColor: '#F2EDE8', borderRadius: 11, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#E4DAD1' },
+  shareButton: { backgroundColor: '#ECEDE6', borderRadius: 11, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#E4DAD1' },
   shareButtonText: { color: ACCENT, fontSize: 14, fontWeight: '700' },
 
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   journalCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#F5EEE7', borderRadius: 14, padding: 13 },
   detailMood: { fontSize: 24, lineHeight: 26 },
   journalNote: { color: '#3A302A', fontSize: 14, flex: 1, lineHeight: 20 },
-  detailMuted: { color: '#B0A098', fontSize: 14, fontStyle: 'italic', paddingVertical: 2 },
+  detailMuted: { color: '#9AA3B2', fontSize: 14, fontStyle: 'italic', paddingVertical: 2 },
   detailEvent: { flexDirection: 'row', gap: 11, alignItems: 'flex-start', paddingVertical: 11, paddingHorizontal: 14, backgroundColor: '#FBEDEA', borderWidth: 1, borderColor: '#F3D9D3', borderRadius: 14, marginBottom: 8 },
   detailEventDiamond: { width: 10, height: 10, backgroundColor: EVENT_COLOR, transform: [{ rotate: '45deg' }], marginTop: 5 },
   detailEventTitle: { color: '#8F2E2E', fontSize: 14, fontWeight: '800' },

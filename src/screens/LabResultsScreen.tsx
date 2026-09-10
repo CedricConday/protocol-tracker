@@ -148,7 +148,7 @@ export default function LabResultsScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />}
     >
       {/* Pure-tracker build: the "Protocol Target Ranges" card was removed — the
           app does not tell users what values to aim for. Users log their own
@@ -163,45 +163,45 @@ export default function LabResultsScreen() {
           <Text style={styles.formTitle}>{t('enterLabValues')}</Text>
 
           <Text style={styles.label}>{t('date')}</Text>
-          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B0A098" />
+          <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#9AA3B2" />
 
           {(!profile || profile.keyMarkers.includes('VitD')) && (
             <>
               <Text style={styles.label}>Vit D 25-OH (ng/mL)</Text>
-              <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#B0A098" />
+              <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#9AA3B2" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('PTH')) && (
             <>
               <Text style={styles.label}>PTH (pg/mL)</Text>
-              <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#B0A098" />
+              <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#9AA3B2" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Calcium')) && (
             <>
               <Text style={styles.label}>{t('calciumSerum')}</Text>
-              <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#B0A098" />
+              <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#9AA3B2" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Calcium')) && (
             <>
               <Text style={styles.label}>{t('calciumUrine')}</Text>
-              <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#B0A098" />
+              <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#9AA3B2" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Creatinine')) && (
             <>
               <Text style={styles.label}>{t('creatinine')}</Text>
-              <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#B0A098" />
+              <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#9AA3B2" />
             </>
           )}
 
           <Text style={styles.label}>{t('nfl')}</Text>
-          <TextInput style={styles.input} value={nfl} onChangeText={setNfl} keyboardType="decimal-pad" placeholder="e.g. 7.4" placeholderTextColor="#B0A098" />
+          <TextInput style={styles.input} value={nfl} onChangeText={setNfl} keyboardType="decimal-pad" placeholder="e.g. 7.4" placeholderTextColor="#9AA3B2" />
 
           <Text style={styles.label}>{t('sulkowitch')}</Text>
           <View style={styles.chipRow}>
@@ -225,7 +225,7 @@ export default function LabResultsScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder={t('labNotesPlaceholder')}
-            placeholderTextColor="#B0A098"
+            placeholderTextColor="#9AA3B2"
             multiline
             numberOfLines={2}
           />
@@ -312,51 +312,51 @@ export default function LabResultsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF7F4' },
+  container: { flex: 1, backgroundColor: '#F7F7F2' },
   content: { padding: 20, paddingBottom: 48 },
-  targetCard: { backgroundColor: '#1a2a1a', borderRadius: 14, padding: 16, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
-  targetTitle: { color: '#C96A50', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  targetRow: { color: '#7A6A62', fontSize: 13, marginBottom: 3 },
+  targetCard: { backgroundColor: '#1a2a1a', borderRadius: 14, padding: 16, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
+  targetTitle: { color: '#1B58B8', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  targetRow: { color: '#5A6478', fontSize: 13, marginBottom: 3 },
   targetRange: { color: '#cccccc', fontWeight: '600' },
-  addBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginBottom: 20 },
-  addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
-  form: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, marginBottom: 24 },
-  formTitle: { color: '#FAF7F4', fontSize: 17, fontWeight: '700', marginBottom: 4 },
-  label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  targetHint: { color: '#C96A50', textTransform: 'none', fontWeight: '400' },
-  input: { backgroundColor: '#FAF7F4', borderRadius: 8, padding: 14, color: '#FAF7F4', fontSize: 16, borderWidth: 1, borderColor: '#E8E0D8' },
+  addBtn: { backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 16, alignItems: 'center', marginBottom: 20 },
+  addBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
+  form: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 20, marginBottom: 24 },
+  formTitle: { color: '#F7F7F2', fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  label: { color: '#5A6478', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
+  targetHint: { color: '#1B58B8', textTransform: 'none', fontWeight: '400' },
+  input: { backgroundColor: '#F7F7F2', borderRadius: 8, padding: 14, color: '#F7F7F2', fontSize: 16, borderWidth: 1, borderColor: '#DBDDD3' },
   multiline: { height: 64, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#FAF7F4', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#E8E0D8' },
-  chipActive: { backgroundColor: '#C96A5022', borderColor: '#C96A50' },
-  chipText: { color: '#7A6A62', fontSize: 13 },
-  chipTextActive: { color: '#C96A50', fontWeight: '600' },
+  chip: { backgroundColor: '#F7F7F2', borderRadius: 6, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: '#DBDDD3' },
+  chipActive: { backgroundColor: '#1B58B822', borderColor: '#1B58B8' },
+  chipText: { color: '#5A6478', fontSize: 13 },
+  chipTextActive: { color: '#1B58B8', fontWeight: '600' },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  cancelBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  cancelBtn: { flex: 1, backgroundColor: '#F7F7F2', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  cancelBtnText: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
+  saveBtn: { flex: 2, backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
+  saveBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
-  emptySubtext: { color: '#D8CFC8', fontSize: 13, marginTop: 6, textAlign: 'center' },
-  card: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 14 },
-  cardDate: { color: '#FAF7F4', fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  emptyText: { color: '#5A6478', fontSize: 16, fontWeight: '600' },
+  emptySubtext: { color: '#CFD2C6', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  card: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, marginBottom: 14 },
+  cardDate: { color: '#F7F7F2', fontSize: 15, fontWeight: '700', marginBottom: 10 },
   markerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: '#222222' },
-  markerLabel: { color: '#7A6A62', fontSize: 13 },
+  markerLabel: { color: '#5A6478', fontSize: 13 },
   markerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   markerValue: { fontSize: 15, fontWeight: '600' },
   sulkowitch: { color: '#eab308', fontSize: 12, marginTop: 8 },
-  cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
-  cardHint: { color: '#E8E0D8', fontSize: 11, marginTop: 8 },
-  disclaimer: { color: '#D8CFC8', fontSize: 11, textAlign: 'center', marginTop: 24 },
-  trendSection: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 20 },
-  trendTitle: { color: '#2C2420', fontSize: 14, fontWeight: '700', marginBottom: 12 },
+  cardNotes: { color: '#5A6478', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
+  cardHint: { color: '#DBDDD3', fontSize: 11, marginTop: 8 },
+  disclaimer: { color: '#CFD2C6', fontSize: 11, textAlign: 'center', marginTop: 24 },
+  trendSection: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, marginBottom: 20 },
+  trendTitle: { color: '#14213D', fontSize: 14, fontWeight: '700', marginBottom: 12 },
   trendChart: { flex: 1, alignItems: 'center' },
-  trendChartLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '700', marginBottom: 8 },
+  trendChartLabel: { color: '#5A6478', fontSize: 11, fontWeight: '700', marginBottom: 8 },
   miniChart: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 2 },
   miniBar: { width: '100%', borderRadius: 2, minWidth: 6 },
-  miniValue: { color: '#7A6A62', fontSize: 8, marginTop: 2 },
-  miniDate: { color: '#B0A098', fontSize: 7 },
-  trendHint: { color: '#B0A098', fontSize: 13, textAlign: 'center', marginBottom: 16 },
+  miniValue: { color: '#5A6478', fontSize: 8, marginTop: 2 },
+  miniDate: { color: '#9AA3B2', fontSize: 7 },
+  trendHint: { color: '#9AA3B2', fontSize: 13, textAlign: 'center', marginBottom: 16 },
 });

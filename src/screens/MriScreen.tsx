@@ -127,7 +127,7 @@ export default function MriScreen() {
   };
 
   const assessmentColor = (a: string) =>
-    a === 'stable' ? '#5A8A5A' : a === 'improved' ? '#4A7A9B' : '#C04040';
+    a === 'stable' ? '#2F8F5B' : a === 'improved' ? '#2AA6B8' : '#C0392B';
 
   const handleCameraCapture = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -139,9 +139,10 @@ export default function MriScreen() {
     if (result.canceled || !result.assets[0]?.base64) return;
 
     const b64 = result.assets[0].base64;
+    const { getItemAsync } = await import('expo-secure-store');
     const [provider, apiKey] = await Promise.all([
       AsyncStorage.getItem('ai_provider'),
-      AsyncStorage.getItem('ai_api_key'),
+      getItemAsync('ai_api_key'),
     ]);
 
     if (!apiKey) {
@@ -243,11 +244,11 @@ export default function MriScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />}
     >
       {isOffline && (
         <View style={styles.offlineBanner}>
-          <Ionicons name="cloud-offline-outline" size={16} color="#C96A50" style={{ marginRight: 8 }} />
+          <Ionicons name="cloud-offline-outline" size={16} color="#1B58B8" style={{ marginRight: 8 }} />
           <Text style={styles.offlineBannerText}>{t('offlineBanner')}</Text>
         </View>
       )}
@@ -270,7 +271,7 @@ export default function MriScreen() {
             value={date}
             onChangeText={setDate}
             placeholder="YYYY-MM-DD"
-            placeholderTextColor="#B0A098"
+            placeholderTextColor="#9AA3B2"
           />
 
           <Text style={styles.label}>{t('facility')}</Text>
@@ -279,7 +280,7 @@ export default function MriScreen() {
             value={facility}
             onChangeText={setFacility}
             placeholder="e.g. Bethel Bielefeld"
-            placeholderTextColor="#B0A098"
+            placeholderTextColor="#9AA3B2"
           />
 
           <Text style={styles.label}>{t('scanType')}</Text>
@@ -316,7 +317,7 @@ export default function MriScreen() {
             value={newLesions}
             onChangeText={setNewLesions}
             placeholder='e.g. "None" or "2 new periventricular"'
-            placeholderTextColor="#B0A098"
+            placeholderTextColor="#9AA3B2"
           />
 
           <Text style={styles.label}>{t('enhancingLesions')}</Text>
@@ -353,7 +354,7 @@ export default function MriScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder={t('mriNotesPlaceholder')}
-            placeholderTextColor="#B0A098"
+            placeholderTextColor="#9AA3B2"
             multiline
             numberOfLines={3}
           />
@@ -417,42 +418,42 @@ export default function MriScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF7F4' },
+  container: { flex: 1, backgroundColor: '#F7F7F2' },
   content: { padding: 20, paddingBottom: 48 },
   addBtnRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  addBtn: { flex: 1, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
-  addBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
-  cameraBtn: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#C96A50', alignItems: 'center', justifyContent: 'center' },
-  form: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#D8CFC8' },
-  formTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 16 },
-  label: { color: '#7A6A62', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: '#FAF7F4', borderRadius: 10, padding: 14, color: '#2C2420', fontSize: 14, borderWidth: 1, borderColor: '#D8CFC8' },
+  addBtn: { flex: 1, backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 16, alignItems: 'center' },
+  addBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
+  cameraBtn: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#1B58B8', alignItems: 'center', justifyContent: 'center' },
+  form: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#CFD2C6' },
+  formTitle: { color: '#14213D', fontSize: 17, fontWeight: '700', marginBottom: 16 },
+  label: { color: '#5A6478', fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 12 },
+  input: { backgroundColor: '#F7F7F2', borderRadius: 10, padding: 14, color: '#14213D', fontSize: 14, borderWidth: 1, borderColor: '#CFD2C6' },
   multiline: { height: 80, textAlignVertical: 'top' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#FAF7F4', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#D8CFC8' },
-  chipActive: { backgroundColor: '#FBF0ED', borderColor: '#C96A50' },
-  chipText: { color: '#7A6A62', fontSize: 13 },
-  chipTextActive: { color: '#C96A50', fontWeight: '600' },
+  chip: { backgroundColor: '#F7F7F2', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#CFD2C6' },
+  chipActive: { backgroundColor: '#E7EEFB', borderColor: '#1B58B8' },
+  chipText: { color: '#5A6478', fontSize: 13 },
+  chipTextActive: { color: '#1B58B8', fontWeight: '600' },
   formActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  cancelBtn: { flex: 1, backgroundColor: '#FAF7F4', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#D8CFC8' },
-  cancelBtnText: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  saveBtn: { flex: 2, backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  cancelBtn: { flex: 1, backgroundColor: '#F7F7F2', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
+  cancelBtnText: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
+  saveBtn: { flex: 2, backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '700' },
+  saveBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyText: { color: '#7A6A62', fontSize: 16, fontWeight: '600' },
-  emptySubtext: { color: '#B0A098', fontSize: 13, marginTop: 6, textAlign: 'center' },
-  card: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#D8CFC8' },
+  emptyText: { color: '#5A6478', fontSize: 16, fontWeight: '600' },
+  emptySubtext: { color: '#9AA3B2', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  card: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#CFD2C6' },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
-  cardDate: { color: '#2C2420', fontSize: 15, fontWeight: '700' },
-  cardType: { color: '#7A6A62', fontSize: 12, marginTop: 2 },
+  cardDate: { color: '#14213D', fontSize: 15, fontWeight: '700' },
+  cardType: { color: '#5A6478', fontSize: 12, marginTop: 2 },
   assessmentBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   assessmentText: { fontSize: 12, fontWeight: '700' },
-  cardFacility: { color: '#7A6A62', fontSize: 13, marginBottom: 4 },
-  cardDetail: { color: '#2C2420', fontSize: 13, marginBottom: 2 },
-  cardNotes: { color: '#7A6A62', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
-  cardAge: { color: '#B0A098', fontSize: 11, marginTop: 8 },
-  disclaimer: { color: '#B0A098', fontSize: 11, textAlign: 'center', marginTop: 24 },
-  offlineBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF7F4', borderRadius: 14, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#C96A50' },
-  offlineBannerText: { color: '#7A6A62', fontSize: 13, flex: 1, lineHeight: 18 },
+  cardFacility: { color: '#5A6478', fontSize: 13, marginBottom: 4 },
+  cardDetail: { color: '#14213D', fontSize: 13, marginBottom: 2 },
+  cardNotes: { color: '#5A6478', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+  cardAge: { color: '#9AA3B2', fontSize: 11, marginTop: 8 },
+  disclaimer: { color: '#9AA3B2', fontSize: 11, textAlign: 'center', marginTop: 24 },
+  offlineBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F7F7F2', borderRadius: 14, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#1B58B8' },
+  offlineBannerText: { color: '#5A6478', fontSize: 13, flex: 1, lineHeight: 18 },
 });

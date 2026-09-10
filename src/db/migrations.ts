@@ -417,6 +417,18 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 14,
+    up: async (db) => {
+      // care_surveys was schema-only — nothing ever wrote to it. sleep_checkins
+      // had working read/write functions but its only screen (SleepScreen) is
+      // already gone from this tree. Both are dead weight; drop them.
+      await db.execAsync(`
+        DROP TABLE IF EXISTS care_surveys;
+        DROP TABLE IF EXISTS sleep_checkins;
+      `);
+    },
+  },
 ];
 
 async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {

@@ -1,7 +1,7 @@
 // Pure-tracker build: disease entries are NAME LABELS ONLY, so a user can tag
 // which condition they're tracking. All medical content — recommended doses,
 // doctor notes, protocol descriptions, marker recommendations — has been
-// removed (the app gives no advice). Originals: src/_sidelined/diseaseProfiles.original.ts.
+// removed (the app gives no advice). Originals in git history (diseaseProfiles.original.ts, removed 2026-07-01).
 export type DiseaseProfile = {
   id: string;
   name: string;

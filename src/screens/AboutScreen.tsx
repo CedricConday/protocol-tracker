@@ -1,37 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import * as Application from 'expo-application';
-
-const CITATIONS = [
-  {
-    finding: 'High-dose vitamin D3 significantly reduced relapse rates and improved quality of life in MS patients over 12 months.',
-    authors: 'Aivo et al.',
-    journal: 'J Steroid Biochem Mol Biol',
-    year: '2015',
-    pmid: '24709399',
-  },
-  {
-    finding: 'Vitamin D deficiency is strongly associated with MS risk and disease activity. Supplementation is considered safe and beneficial.',
-    authors: 'Holick MF',
-    journal: 'N Engl J Med',
-    year: '2007',
-    pmid: '17634462',
-  },
-  {
-    finding: 'the Protocol patients showed marked reduction in EDSS scores and stabilized disability progression with rigorous dietary adherence.',
-    authors: 'Coimbra CG, Junqueira VB',
-    journal: 'Arq Neuropsiquiatr',
-    year: '2003',
-    pmid: '12973534',
-  },
-];
 
 export default function AboutScreen() {
   const [appVersion, setAppVersion] = useState('');
@@ -62,36 +36,6 @@ export default function AboutScreen() {
       </Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>What is the Protocol?</Text>
-        <Text style={styles.sectionBody}>
-          The Protocol is a high-dose vitamin D3 supplementation therapy
-          for autoimmune diseases. Always consult your physician before making
-          changes to your protocol.
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Research Evidence</Text>
-        {CITATIONS.map((c) => (
-          <TouchableOpacity
-            key={c.pmid}
-            style={styles.citationCard}
-            onPress={() => Linking.openURL(`https://pubmed.ncbi.nlm.nih.gov/${c.pmid}/`)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.citationFinding}>{c.finding}</Text>
-            <View style={styles.citationMeta}>
-              <Text style={styles.citationAuthors}>{c.authors} · {c.journal} · {c.year}</Text>
-              <Text style={styles.citationPmid}>PMID {c.pmid}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-        <Text style={styles.citationDisclaimer}>
-          These findings are provided for informational purposes only. This app does not provide medical advice. Consult your Protocol physician before making any changes.
-        </Text>
-      </View>
-
-      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Key Features</Text>
         <View style={styles.featuresList}>
           <Text style={styles.featureItem}>• Supplement schedule with timing windows</Text>
@@ -118,7 +62,7 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F4',
+    backgroundColor: '#F7F7F2',
   },
   content: {
     paddingTop: 60,
@@ -133,29 +77,29 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoLetter: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
     fontSize: 34,
     fontWeight: '900',
     lineHeight: 40,
   },
   appName: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 4,
   },
   version: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 14,
     marginBottom: 24,
   },
   description: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 21,
@@ -166,7 +110,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -174,69 +118,29 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   sectionBody: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
     lineHeight: 22,
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E8E0D8',
-  },
-  citationCard: {
-    backgroundColor: '#F2EDE8',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#5A8A5A',
-    borderWidth: 1,
-    borderColor: '#E8E0D8',
-  },
-  citationFinding: {
-    color: '#2C2420',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 8,
-  },
-  citationMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  citationAuthors: {
-    color: '#7A6A62',
-    fontSize: 11,
-    flex: 1,
-    marginRight: 8,
-  },
-  citationPmid: {
-    color: '#4A7A9B',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  citationDisclaimer: {
-    color: '#B0A098',
-    fontSize: 11,
-    lineHeight: 16,
-    fontStyle: 'italic',
-    marginTop: 4,
-    textAlign: 'center',
+    borderColor: '#DBDDD3',
   },
   featuresList: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E8E0D8',
+    borderColor: '#DBDDD3',
   },
   featureItem: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     lineHeight: 22,
   },
   footer: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,

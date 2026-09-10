@@ -84,13 +84,17 @@ export const scheduleSupplementNotification = async (params: {
 
 export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<void> => {
   try {
-    const notifications: Promise<string>[] = [];
+    const notifications: Promise<string | null>[] = [];
     const intervalMs = 90 * 60 * 1000;
 
     let currentTime = new Date(t0);
     while (currentTime <= endTime) {
       const progress = await getWaterProgress();
       const body = `${patientName}, 500ml now — you're at ${progress.waterMl}ml of ${progress.goalMl}ml`;
+      // The catch goes on at push time, not at the Promise.allSettled below:
+      // getWaterProgress() yields on every pass, so a promise parked in this array
+      // with no handler yet rejects into an unhandled rejection before the loop
+      // ever finishes.
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
@@ -103,14 +107,20 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: new Date(currentTime),
           },
-        })
+        }).catch(() => null)
       );
 
       currentTime = new Date(currentTime.getTime() + intervalMs);
     }
 
-    await Promise.all(notifications);
-    console.log(`[Protocol Tracker Notifications] Scheduled ${notifications.length} water reminders`);
+    const results = await Promise.all(notifications);
+    const scheduled = results.filter((id) => id !== null).length;
+    if (scheduled < results.length) {
+      console.warn(
+        `[Protocol Tracker Notifications] ${results.length - scheduled} water reminders failed to schedule`,
+      );
+    }
+    console.log(`[Protocol Tracker Notifications] Scheduled ${scheduled} water reminders`);
   } catch (error) {
     console.error('[Protocol Tracker Notifications] Error scheduling water reminders:', error);
     throw error;
@@ -290,6 +300,8 @@ export const skipDoseFromNotification = async (doseId: number): Promise<void> =>
 export const setupNotificationHandler = (): void => {
   setupAndroidChannels();
 
+  // Fire-and-forget like the Android channels above, and guarded the same way:
+  // action buttons are a nicety, not a reason to reject into nothing.
   Notifications.setNotificationCategoryAsync('supplement', [
     {
       identifier: 'taken',
@@ -301,7 +313,7 @@ export const setupNotificationHandler = (): void => {
       buttonTitle: 'Skip',
       options: { opensAppToForeground: false },
     },
-  ]);
+  ]).catch(() => {});
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -365,9 +377,10 @@ export const setupNotificationHandler = (): void => {
         navigate('Home');
         break;
       case 'events':
-        // There is no 'Events' route; the events list is the Relapse screen
-        // inside the Journal tab. This navigated nowhere before.
-        navigate('Journal', { screen: 'Relapse' });
+        // The event log is absorbed into the Journal screen itself (no more
+        // separate Relapse route) — land on Journal and let the user expand
+        // "+ Log Event" from there.
+        navigate('Journal', { screen: 'JournalMain' });
         break;
     }
   });

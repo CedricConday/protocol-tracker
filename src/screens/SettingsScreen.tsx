@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Switch } from 'react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppReset } from '../context/AppResetContext';
 import {
@@ -7,6 +6,7 @@ import {
   Platform,
   SafeAreaView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -18,9 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getProfile, updateProfile, getSupplementsWithRules,
-  updateRuleTolerance, getLastBloodTestDate,
-  setLastBloodTestDate, getAllSupplements, updateSupplementStock,
-  getSupplementForms, updateSupplementForm, getMiscFlag, setMiscFlag,
+  updateRuleTolerance, getMiscFlag, setMiscFlag,
 } from '../db/queries';
 import { getDb } from '../db/schema';
 import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
@@ -30,7 +28,6 @@ import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 
 type ToleranceRule = { id: number; supplement_name: string; tolerance_window: number };
-type Supplement = { id: string; name: string; stock_days: number | null };
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 // Module scope on purpose: as inner functions these were a fresh component type
@@ -94,13 +91,12 @@ async function readD3Display(): Promise<D3Display> {
 const NOTIF_TOPICS = ['supplements', 'water', 'exercise', 'morning_checkin', 'weekly_summary'];
 
 /** The fields handleSave writes. Compared against live state to decide whether
- *  there is anything to save; the tolerance and stock Maps track themselves. */
+ *  there is anything to save; the tolerance Map tracks itself. */
 type SavedFields = {
   name: string;
   weight: string;
   bedtimeHour: number;
   bedtimeMinute: number;
-  bloodTestDate: string;
   aiProvider: string;
   aiApiKey: string;
   notifPrefs: Record<string, boolean>;
@@ -119,22 +115,16 @@ export default function SettingsScreen() {
   const [toleranceChanges, setToleranceChanges] = useState<Map<number, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [bloodTestDate, setBloodTestDate] = useState('');
-  const [supplements, setSupplements] = useState<Supplement[]>([]);
-  const [stockChanges, setStockChanges] = useState<Map<string, string>>(new Map());
   const [currentLanguage, setCurrentLanguage] = useState('en');
 
   const [aiProvider, setAiProvider] = useState('groq');
   const [aiApiKey, setAiApiKey] = useState('');
-  const [nudgeFocus, setNudgeFocus] = useState<string>('all');
-  const [suppForms, setSuppForms] = useState<{ id: string; name: string; form: string }[]>([]);
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
     supplements: true, water: true, exercise: true, morning_checkin: true, weekly_summary: true,
   });
   const [quietStart, setQuietStart] = useState('22:00');
   const [quietEnd, setQuietEnd] = useState('07:00');
   const [pulseDosing, setPulseDosing] = useState(false);
-  const [strictMode, setStrictMode] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   // Set once the initial load finishes; null until then, which keeps the save
   // footer hidden while the screen is still populating itself.
@@ -172,24 +162,14 @@ export default function SettingsScreen() {
       `) as ToleranceRule[];
       setToleranceRules(toleranceRulesData);
 
-      const lastTest = await getLastBloodTestDate();
-      if (lastTest) setBloodTestDate(lastTest);
-
-      const allSupps = await getAllSupplements();
-      setSupplements(allSupps);
-
       const lang = await getLanguage();
       setCurrentLanguage(lang);
 
+      const { getItemAsync } = await import('expo-secure-store');
       const savedAiProvider = await AsyncStorage.getItem('ai_provider');
-      const savedAiApiKey = await AsyncStorage.getItem('ai_api_key');
+      const savedAiApiKey = await getItemAsync('ai_api_key');
       if (savedAiProvider) setAiProvider(savedAiProvider);
       if (savedAiApiKey) setAiApiKey(savedAiApiKey);
-
-      const nudge = await AsyncStorage.getItem('nudge_focus');
-      if (nudge) setNudgeFocus(nudge);
-      const forms = await getSupplementForms();
-      setSuppForms(forms);
 
       const loaded: Record<string, boolean> = {};
       for (const tp of NOTIF_TOPICS) {
@@ -203,8 +183,6 @@ export default function SettingsScreen() {
       if (qe) setQuietEnd(qe);
       const pd = await getMiscFlag('pulse_dosing_enabled');
       if (pd) setPulseDosing(pd === 'true');
-      const sm = await getMiscFlag('strict_mode_enabled');
-      if (sm) setStrictMode(sm === 'true');
 
       // Everything above is now the on-disk truth. Record it so the save
       // footer can tell "nothing touched yet" from "unsaved edits".
@@ -213,7 +191,6 @@ export default function SettingsScreen() {
         weight: loadedWeight,
         bedtimeHour: loadedBedtimeHour,
         bedtimeMinute: loadedBedtimeMinute,
-        bloodTestDate: lastTest || '',
         aiProvider: savedAiProvider || 'groq',
         aiApiKey: savedAiApiKey || '',
         notifPrefs: loaded,
@@ -230,11 +207,16 @@ export default function SettingsScreen() {
   }, [navigation]);
 
   const handleSave = useCallback(async () => {
+    const parsedWeight = parseFloat(weight.trim());
+    if (!Number.isFinite(parsedWeight)) {
+      Alert.alert(t('invalidWeight'), t('invalidWeightSub'));
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile({
         name: name.trim(),
-        weight_kg: parseFloat(weight),
+        weight_kg: parsedWeight,
         bedtime_hour: bedtimeHour,
         bedtime_minute: bedtimeMinute,
       });
@@ -242,14 +224,10 @@ export default function SettingsScreen() {
         await updateRuleTolerance(ruleId, value);
       }
       setToleranceChanges(new Map());
-      if (bloodTestDate.trim()) await setLastBloodTestDate(bloodTestDate.trim());
-      for (const [id, val] of stockChanges) {
-        const num = parseInt(val, 10);
-        await updateSupplementStock(id, isNaN(num) ? null : num);
-      }
-      setStockChanges(new Map());
       await AsyncStorage.setItem('ai_provider', aiProvider);
-      await AsyncStorage.setItem('ai_api_key', aiApiKey);
+      const { setItemAsync, deleteItemAsync } = await import('expo-secure-store');
+      if (aiApiKey) await setItemAsync('ai_api_key', aiApiKey);
+      else await deleteItemAsync('ai_api_key');
       for (const [key, val] of Object.entries(notifPrefs)) {
         await setMiscFlag(`notif_pref_${key}`, val ? 'true' : 'false');
       }
@@ -258,26 +236,27 @@ export default function SettingsScreen() {
       // Live values, not the trimmed copies written above — otherwise trailing
       // whitespace in a field would leave the footer stuck open after saving.
       setBaseline({
-        name, weight, bedtimeHour, bedtimeMinute, bloodTestDate,
+        name, weight, bedtimeHour, bedtimeMinute,
         aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd,
       });
       setSaved(true);
       hSuccess();
       setTimeout(() => setSaved(false), 2000);
+    } catch {
+      Alert.alert(t('saveFailed'), t('saveFailedSub'));
     } finally {
       setSaving(false);
     }
-  }, [name, weight, bedtimeHour, bedtimeMinute, toleranceChanges, bloodTestDate, stockChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
+  }, [name, weight, bedtimeHour, bedtimeMinute, toleranceChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
 
   const isDirty = useMemo(() => {
     if (!baseline) return false;
-    if (toleranceChanges.size > 0 || stockChanges.size > 0) return true;
+    if (toleranceChanges.size > 0) return true;
     return (
       name !== baseline.name ||
       weight !== baseline.weight ||
       bedtimeHour !== baseline.bedtimeHour ||
       bedtimeMinute !== baseline.bedtimeMinute ||
-      bloodTestDate !== baseline.bloodTestDate ||
       aiProvider !== baseline.aiProvider ||
       aiApiKey !== baseline.aiApiKey ||
       quietStart !== baseline.quietStart ||
@@ -285,26 +264,27 @@ export default function SettingsScreen() {
       NOTIF_TOPICS.some((k) => (notifPrefs[k] ?? true) !== (baseline.notifPrefs[k] ?? true))
     );
   }, [
-    baseline, toleranceChanges, stockChanges, name, weight, bedtimeHour, bedtimeMinute,
-    bloodTestDate, aiProvider, aiApiKey, quietStart, quietEnd, notifPrefs,
+    baseline, toleranceChanges, name, weight, bedtimeHour, bedtimeMinute,
+    aiProvider, aiApiKey, quietStart, quietEnd, notifPrefs,
   ]);
 
   const handleResetAll = () => {
     Alert.alert(
       'Reset tracking data',
-      'Clears dose logs, water, journal, exercise, meals, surveys. Your schedule and profile stay.\n\nThis cannot be undone.',
+      'Clears dose logs, water, journal, exercise, meals. Your schedule and profile stay.\n\nThis cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset', style: 'destructive',
           onPress: async () => {
             const db = await getDb();
-            await db.execAsync(`
-              DELETE FROM dose_logs; DELETE FROM water_logs; DELETE FROM daily_anchors;
-              DELETE FROM exercise_logs; DELETE FROM journal_entries; DELETE FROM sun_log;
-              DELETE FROM meal_log; DELETE FROM relapse_events; DELETE FROM care_surveys;
-              DELETE FROM sleep_checkins; DELETE FROM calcium_logs;
-            `);
+            await db.withTransactionAsync(async () => {
+              await db.execAsync(`
+                DELETE FROM dose_logs; DELETE FROM water_logs; DELETE FROM daily_anchors;
+                DELETE FROM exercise_logs; DELETE FROM journal_entries; DELETE FROM sun_log;
+                DELETE FROM meal_log; DELETE FROM relapse_events; DELETE FROM calcium_logs;
+              `);
+            });
             await AsyncStorage.multiRemove(['fatigue_alert_shown','last_care_survey_date','auto_report_last_week','review_prompted']);
             Alert.alert('Done', 'Tracking data cleared.');
           },
@@ -323,15 +303,19 @@ export default function SettingsScreen() {
           text: 'Delete everything', style: 'destructive',
           onPress: async () => {
             const db = await getDb();
-            await db.execAsync(`
-              DELETE FROM user_profile; DELETE FROM supplements; DELETE FROM schedule_rules;
-              DELETE FROM supplement_conflicts; DELETE FROM daily_anchors; DELETE FROM dose_logs;
-              DELETE FROM water_logs; DELETE FROM exercise_logs; DELETE FROM journal_entries;
-              DELETE FROM relapse_events; DELETE FROM sun_log; DELETE FROM meal_log;
-              DELETE FROM care_surveys; DELETE FROM blood_test_reminders; DELETE FROM lab_results;
-              DELETE FROM mri_scans; DELETE FROM sleep_checkins; DELETE FROM calcium_logs;
-            `);
+            await db.withTransactionAsync(async () => {
+              await db.execAsync(`
+                DELETE FROM user_profile; DELETE FROM supplements; DELETE FROM schedule_rules;
+                DELETE FROM supplement_conflicts; DELETE FROM daily_anchors; DELETE FROM dose_logs;
+                DELETE FROM water_logs; DELETE FROM exercise_logs; DELETE FROM journal_entries;
+                DELETE FROM relapse_events; DELETE FROM sun_log; DELETE FROM meal_log;
+                DELETE FROM blood_test_reminders; DELETE FROM lab_results;
+                DELETE FROM mri_scans; DELETE FROM calcium_logs;
+              `);
+            });
             await AsyncStorage.clear();
+            const { deleteItemAsync } = await import('expo-secure-store');
+            await deleteItemAsync('ai_api_key');
             resetToOnboarding();
           },
         },
@@ -351,12 +335,6 @@ export default function SettingsScreen() {
     if (toleranceChanges.has(ruleId)) return toleranceChanges.get(ruleId)!;
     const rule = toleranceRules.find((r) => r.id === ruleId);
     return rule?.tolerance_window ?? 30;
-  };
-
-  const getStockValue = (id: string): string => {
-    if (stockChanges.has(id)) return stockChanges.get(id)!;
-    const s = supplements.find((sup) => sup.id === id);
-    return s?.stock_days != null ? String(s.stock_days) : '';
   };
 
   const handleLanguageSwitch = async (lang: string) => {
@@ -522,6 +500,40 @@ export default function SettingsScreen() {
             <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
             <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
             <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} last />
+          </Group>
+
+          {/* ── Advanced ──────────────────────────────────────────────────
+              MRI camera auto-fill needs a vision-capable API key (see
+              MriScreen's callVisionApi). The key lives in SecureStore, not
+              AsyncStorage, alongside the patient_jwt in api/syncClient.ts. */}
+          <Group label={t('advancedGroup')}>
+            <Row
+              icon="hardware-chip-outline" label={t('aiWorkspace')} sub={t('aiWorkspaceSub')}
+              onPress={() => toggleSection('ai')} last
+            />
+            <Expand open={expandedSection === 'ai'}>
+              <Text style={styles.inputLabel}>{t('aiProviderLabel')}</Text>
+              <View style={styles.segment}>
+                {(['groq', 'openai', 'anthropic'] as const).map((p) => (
+                  <Pressable
+                    key={p}
+                    style={[styles.segmentBtn, aiProvider === p && styles.segmentBtnActive]}
+                    onPress={() => setAiProvider(p)}
+                    accessibilityLabel={`Use ${p}`} accessibilityRole="button"
+                  >
+                    <Text style={[styles.segmentText, aiProvider === p && styles.segmentTextActive]}>
+                      {p === 'openai' ? 'OpenAI' : p === 'groq' ? 'Groq' : 'Anthropic'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.inputLabel}>{t('aiApiKeyLabel')}</Text>
+              <TextInput
+                style={styles.input} placeholder="sk-..." placeholderTextColor={C.textMuted}
+                value={aiApiKey} onChangeText={setAiApiKey}
+                autoCapitalize="none" autoCorrect={false} secureTextEntry
+              />
+            </Expand>
           </Group>
 
           {/* ── Support ───────────────────────────────────────────────────
@@ -712,15 +724,6 @@ const styles = StyleSheet.create({
   stepperBtnText:  { color: C.text, fontSize: 18, fontWeight: '700' },
   stepperValue:    { color: C.text, fontSize: 15, fontWeight: '700', minWidth: 44, textAlign: 'center' },
 
-  // Supplement form
-  formRowWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: space.sm },
-  stockName:   { ...T.body, color: C.textSub, fontWeight: '600', flex: 1 },
-  formRow:     { flexDirection: 'row', gap: 4 },
-  formBtn:     { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
-  formBtnActive:{ backgroundColor: C.primaryBg },
-  formBtnText: { color: C.textMuted, fontSize: 11, fontWeight: '700' },
-  formBtnTextActive: { color: C.primary },
-
   // Notifications
   notifRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   notifLabel: { ...T.body, color: C.text, flex: 1 },
@@ -728,7 +731,7 @@ const styles = StyleSheet.create({
   quietSep:  { ...T.body, color: C.textSub },
 
   // Danger
-  dangerGroup: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#C0404020' },
+  dangerGroup: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#C0392B20' },
   disclaimer: {
     color: C.textMuted, fontSize: 12, lineHeight: 18,
     paddingHorizontal: space.md, marginTop: space.lg, marginBottom: space.md,

@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
@@ -13,17 +14,14 @@ import CoachingStyleScreen from '../screens/CoachingStyleScreen';
 import FamilySyncScreen from '../screens/FamilySyncScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import CalendarScreen from '../screens/CalendarScreen';
-import CalciumLogScreen from '../screens/CalciumLogScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LabResultsScreen from '../screens/LabResultsScreen';
 import MriScreen from '../screens/MriScreen';
 import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
-import RelapseScreen from '../screens/RelapseScreen';
 import ReportScreen from '../screens/ReportScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import SleepScreen from '../screens/SleepScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 
@@ -36,8 +34,8 @@ const SettingsNav = createNativeStackNavigator();
 
 const SUB_HEADER = {
   headerShown: true,
-  headerStyle: { backgroundColor: '#FAF7F4' },
-  headerTintColor: '#2C2420',
+  headerStyle: { backgroundColor: '#F7F7F2' },
+  headerTintColor: '#14213D',
   headerShadowVisible: false,
   headerBackTitleVisible: false,
 } as const;
@@ -50,26 +48,6 @@ function HomeNavigator() {
         name="Calendar"
         component={CalendarScreen}
         options={{ ...SUB_HEADER, title: 'History', animation: 'slide_from_right' }}
-      />
-      <HomeNav.Screen
-        name="Sleep"
-        component={SleepScreen}
-        options={{
-          ...SUB_HEADER,
-          title: 'Sleep Check-in',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <HomeNav.Screen
-        name="CalciumLog"
-        component={CalciumLogScreen}
-        options={{
-          ...SUB_HEADER,
-          title: 'Calcium Log',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
       />
     </HomeNav.Navigator>
   );
@@ -87,16 +65,6 @@ function JournalNavigator() {
   return (
     <JournalNav.Navigator screenOptions={{ headerShown: false }}>
       <JournalNav.Screen name="JournalMain" component={JournalScreen} />
-      <JournalNav.Screen
-        name="Relapse"
-        component={RelapseScreen}
-        options={{
-          ...SUB_HEADER,
-          title: 'Events',
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
     </JournalNav.Navigator>
   );
 }
@@ -175,15 +143,15 @@ function TabNavigator() {
         headerShown: false,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          backgroundColor: '#FAF7F4',
-          borderTopColor: '#D8CFC8',
+          backgroundColor: '#F7F7F2',
+          borderTopColor: '#CFD2C6',
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: 16,
           height: 72,
         },
-        tabBarActiveTintColor: '#C96A50',
-        tabBarInactiveTintColor: '#B0A098',
+        tabBarActiveTintColor: '#1B58B8',
+        tabBarInactiveTintColor: '#9AA3B2',
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -247,7 +215,16 @@ function TabNavigator() {
   );
 }
 
-export default function Navigation() {
+interface NavigationProps {
+  /**
+   * Fired on the first laid-out frame of real content (Home or onboarding).
+   * App uses it to drop the native splash, so the OS layer is only replaced
+   * once there is something usable underneath it — never by a blank frame.
+   */
+  onReady?: () => void;
+}
+
+export default function Navigation({ onReady }: NavigationProps) {
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -259,16 +236,26 @@ export default function Navigation() {
   if (hasProfile === null) return null;
 
   if (!hasProfile) {
-    return <OnboardingScreen onComplete={() => setHasProfile(true)} />;
+    return (
+      <View style={styles.root} onLayout={onReady}>
+        <OnboardingScreen onComplete={() => setHasProfile(true)} />
+      </View>
+    );
   }
 
   return (
     <AppResetProvider value={() => setHasProfile(false)}>
-      <NavigationContainer ref={navigationRef}>
-        <ErrorBoundary>
-          <TabNavigator />
-        </ErrorBoundary>
-      </NavigationContainer>
+      <View style={styles.root} onLayout={onReady}>
+        <NavigationContainer ref={navigationRef}>
+          <ErrorBoundary>
+            <TabNavigator />
+          </ErrorBoundary>
+        </NavigationContainer>
+      </View>
     </AppResetProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

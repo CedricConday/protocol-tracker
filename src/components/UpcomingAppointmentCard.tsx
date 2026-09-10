@@ -154,12 +154,12 @@ export default UpcomingAppointmentCard;
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FBF0ED',
+    backgroundColor: '#E7EEFB',
     borderRadius: 14,
     padding: 16,
     paddingLeft: 19,
     borderLeftWidth: 3,
-    borderLeftColor: '#C96A50',
+    borderLeftColor: '#1B58B8',
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -178,21 +178,21 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     position: 'absolute',
   },
   dotPulse: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     position: 'absolute',
   },
   label: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.4,
-    color: '#C96A50',
+    color: '#1B58B8',
     textTransform: 'uppercase',
   },
   title: {
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   away: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#C96A50',
+    color: '#1B58B8',
   },
   link: {
     fontSize: 12,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
   completeBtn: {
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',

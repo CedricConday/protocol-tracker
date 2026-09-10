@@ -1,39 +1,40 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { t } from '../i18n';
 
+// The goal is context, not a ceiling. High-dose D3 protocols ask for intake well
+// above 2.5 L, and the old card swapped its button for a "goal reached" banner at
+// exactly that point — so the litres that matter most were the ones it refused to
+// record.
 const GOAL_ML = 2500;
 const SEGMENT_ML = 500;
 const SEGMENTS = GOAL_ML / SEGMENT_ML;
+const PRESETS = [150, 250, 500, 750];
+const STEP = 50;
 
 interface Props {
   waterMl: number;
-  onAdd: () => void;
+  onAdd: (amountMl: number) => void;
 }
 
 const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props) {
+  const [amount, setAmount] = useState(250);
+  const [draft, setDraft] = useState('250');
+
   const goalReached = waterMl >= GOAL_ML;
   const fullSegments = Math.floor(waterMl / SEGMENT_ML);
   const partialRatio = (waterMl % SEGMENT_ML) / SEGMENT_ML;
 
-  const tapScale = useRef(new Animated.Value(1)).current;
-  const goalAnim = useRef(new Animated.Value(goalReached ? 1 : 0)).current;
+  const setBoth = (next: number) => {
+    const clamped = Math.max(STEP, Math.min(5000, next));
+    setAmount(clamped);
+    setDraft(String(clamped));
+  };
 
-  useEffect(() => {
-    Animated.spring(goalAnim, {
-      toValue: goalReached ? 1 : 0,
-      useNativeDriver: true,
-      friction: 6,
-    }).start();
-  }, [goalReached, goalAnim]);
-
-  function handleAdd() {
-    Animated.sequence([
-      Animated.spring(tapScale, { toValue: 0.93, useNativeDriver: true, friction: 10 }),
-      Animated.spring(tapScale, { toValue: 1, useNativeDriver: true, friction: 6 }),
-    ]).start();
-    onAdd();
-  }
+  const commitDraft = () => {
+    const parsed = parseInt(draft.replace(/[^0-9]/g, ''), 10);
+    setBoth(Number.isFinite(parsed) ? parsed : amount);
+  };
 
   return (
     <View style={styles.container}>
@@ -44,8 +45,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
         </View>
         <Text style={[styles.amount, goalReached ? styles.amountDone : null]}>
           {waterMl >= 1000 ? `${(waterMl / 1000).toFixed(1)}L` : `${waterMl}ml`}
-          {' '}
-          <Text style={styles.goal}>/ 2.5L</Text>
+          <Text style={styles.goal}> · goal 2.5L</Text>
         </Text>
       </View>
 
@@ -56,7 +56,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
           return (
             <View key={i} style={styles.segmentTrack}>
               {isFull ? (
-                <View style={[styles.segmentFill, styles.segmentFull]} />
+                <View style={[styles.segmentFill, goalReached ? styles.segmentDone : styles.segmentFull]} />
               ) : isPartial ? (
                 <View style={styles.segmentPartialContainer}>
                   <View style={[styles.segmentFill, styles.segmentPartial, { width: `${partialRatio * 100}%` }]} />
@@ -69,27 +69,67 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
         })}
       </View>
 
-      <View style={styles.tickRow}>
-        <Text style={styles.tick}>0</Text>
-        <Text style={styles.tick}>0.5L</Text>
-        <Text style={styles.tick}>1L</Text>
-        <Text style={styles.tick}>1.5L</Text>
-        <Text style={styles.tick}>2L</Text>
-        <Text style={styles.tickGoal}>2.5L</Text>
+      <View style={styles.stepperRow}>
+        <TouchableOpacity
+          style={styles.stepBtn}
+          onPress={() => setBoth(amount - STEP)}
+          activeOpacity={0.7}
+          accessibilityLabel="Decrease amount"
+          accessibilityRole="button"
+        >
+          <Text style={styles.stepBtnText}>−</Text>
+        </TouchableOpacity>
+
+        <View style={styles.field}>
+          <TextInput
+            style={styles.fieldInput}
+            value={draft}
+            onChangeText={setDraft}
+            onEndEditing={commitDraft}
+            onBlur={commitDraft}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            onSubmitEditing={commitDraft}
+            accessibilityLabel="Millilitres of water to log"
+          />
+          <Text style={styles.fieldUnit}>ml</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.stepBtn}
+          onPress={() => setBoth(amount + STEP)}
+          activeOpacity={0.7}
+          accessibilityLabel="Increase amount"
+          accessibilityRole="button"
+        >
+          <Text style={styles.stepBtnText}>+</Text>
+        </TouchableOpacity>
       </View>
 
-      {goalReached ? (
-        <Animated.View style={[styles.goalBanner, { transform: [{ scale: goalAnim }] }]}>
-          <Text style={styles.goalBannerText}>{t('goalReachedWater')}</Text>
-        </Animated.View>
-      ) : (
-        <Animated.View style={{ transform: [{ scale: tapScale }] }}>
-          <TouchableOpacity style={styles.button} onPress={handleAdd} activeOpacity={1}>
-            <Text style={styles.buttonText}>+ 250 ml</Text>
-            <Text style={styles.buttonSub}>{GOAL_ML - waterMl} ml to go</Text>
+      <View style={styles.presetRow}>
+        {PRESETS.map((ml) => (
+          <TouchableOpacity
+            key={ml}
+            style={[styles.preset, amount === ml ? styles.presetActive : null]}
+            onPress={() => setBoth(ml)}
+            activeOpacity={0.7}
+            accessibilityLabel={`Set ${ml} millilitres`}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.presetText, amount === ml ? styles.presetTextActive : null]}>{ml}</Text>
           </TouchableOpacity>
-        </Animated.View>
-      )}
+        ))}
+      </View>
+
+      <TouchableOpacity
+        style={styles.logBtn}
+        onPress={() => onAdd(amount)}
+        activeOpacity={0.85}
+        accessibilityLabel={`Log ${amount} millilitres of water`}
+        accessibilityRole="button"
+      >
+        <Text style={styles.logBtnText}>Log {amount} ml</Text>
+      </TouchableOpacity>
     </View>
   );
 });
@@ -97,31 +137,33 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
 export default WaterTracker;
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#F2EDE8', borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#E8E0D8', shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  container: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#DBDDD3', shadowColor: '#14213D', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   droplet: { fontSize: 16 },
-  label: { color: '#7A6A62', fontSize: 14, fontWeight: '600' },
-  amount: { color: '#2C2420', fontSize: 16, fontWeight: '700' },
-  amountDone: { color: '#5A8A5A' },
-  goal: { color: '#B0A098', fontSize: 14, fontWeight: '400' },
-  segmentRow: { flexDirection: 'row', gap: 4, marginBottom: 6 },
-  segmentTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#E8E0D8' },
+  label: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
+  amount: { color: '#14213D', fontSize: 16, fontWeight: '700' },
+  amountDone: { color: '#2F8F5B' },
+  goal: { color: '#9AA3B2', fontSize: 13, fontWeight: '400' },
+  segmentRow: { flexDirection: 'row', gap: 4, marginBottom: 14 },
+  segmentTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#DBDDD3' },
   segmentFill: { height: '100%', borderRadius: 5 },
-  segmentFull: { width: '100%', backgroundColor: '#4A7A9B' },
+  segmentFull: { width: '100%', backgroundColor: '#2AA6B8' },
+  segmentDone: { width: '100%', backgroundColor: '#2F8F5B' },
   segmentPartialContainer: { width: '100%', height: '100%', flexDirection: 'row' },
-  segmentPartial: { backgroundColor: '#6A9AB5' },
+  segmentPartial: { backgroundColor: '#63C2D1' },
   segmentEmpty: { width: '100%', backgroundColor: 'transparent' },
-  tickRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
-  tick: { color: '#B0A098', fontSize: 10 },
-  tickGoal: { color: '#4A7A9B', fontSize: 10, fontWeight: '600' },
-  button: {
-    backgroundColor: '#EBF0F5', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderWidth: 1, borderColor: '#4A7A9B30',
-  },
-  buttonText: { color: '#4A7A9B', fontSize: 15, fontWeight: '700' },
-  buttonSub: { color: '#7A9BB5', fontSize: 12 },
-  goalBanner: { backgroundColor: '#F0F7F0', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#5A8A5A30' },
-  goalBannerText: { color: '#5A8A5A', fontSize: 14, fontWeight: '600' },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  stepBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#F7F7F2', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { color: '#5A6478', fontSize: 22, fontWeight: '600', lineHeight: 26 },
+  field: { flex: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, backgroundColor: '#F7F7F2', borderWidth: 1, borderColor: '#CFD2C6' },
+  fieldInput: { minWidth: 64, textAlign: 'right', color: '#14213D', fontSize: 19, fontWeight: '700', padding: 0 },
+  fieldUnit: { color: '#9AA3B2', fontSize: 14, fontWeight: '600' },
+  presetRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
+  preset: { flex: 1, height: 44, borderRadius: 11, backgroundColor: '#F7F7F2', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
+  presetActive: { backgroundColor: '#EAF7F9', borderColor: '#2AA6B8' },
+  presetText: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
+  presetTextActive: { color: '#2AA6B8', fontWeight: '700' },
+  logBtn: { height: 48, borderRadius: 12, backgroundColor: '#2AA6B8', alignItems: 'center', justifyContent: 'center' },
+  logBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
 });

@@ -2,7 +2,6 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,10 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { getDb } from '../db/schema';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
+import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, logRelapseEvent, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t } from '../i18n';
 import { useJournalScreen } from '../hooks';
@@ -30,10 +28,36 @@ const MOODS = [
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// Absorbed from the former standalone RelapseScreen (event type -> accent color / label).
+const EVENT_TYPES = ['relapse', 'cortisone', 'symptom', 'pain'] as const;
+const TYPE_COLORS: Record<string, string> = {
+  relapse: '#C0392B',
+  cortisone: '#eab308',
+  symptom: '#888888',
+  pain: '#a855f7',
+};
+const TYPE_LABELS: Record<string, string> = {
+  relapse: 'Relapse',
+  cortisone: 'Cortisone',
+  symptom: 'Symptom',
+  pain: 'Pain',
+};
+const PAIN_SUBTYPES = [
+  'Dysesthetic (burning/tingling)',
+  'Spasticity (muscle)',
+  'Musculoskeletal',
+  'Headache',
+];
+
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   return `${days[d.getDay()]} ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+function formatEventDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
 function complianceBadgeColor(pct: number): string {
@@ -43,18 +67,31 @@ function complianceBadgeColor(pct: number): string {
 }
 
 export default function JournalScreen() {
-  const navigation = useNavigation<any>();
   const {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
-    semanticSummary, weekMoods, loadData,
+    semanticSummary, weekMoods, events, loadData,
   } = useJournalScreen();
+  const today = todayStr();
+
   const [note, setNote] = useState('');
   const [dietaryNote, setDietaryNote] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const noteRef = useRef<TextInput>(null);
-  const today = todayStr();
+
+  // Absorbed from the former standalone RelapseScreen ("+ Log Event" used to
+  // navigate there; the form now expands in place instead of leaving Journal).
+  const [logEventOpen, setLogEventOpen] = useState(false);
+  const [eventType, setEventType] = useState<string>('relapse');
+  const [eventDate, setEventDate] = useState(today);
+  const [cortisoneDose, setCortisoneDose] = useState('');
+  const [severity, setSeverity] = useState<number | null>(null);
+  const [eventNotes, setEventNotes] = useState('');
+  const [painSubtype, setPainSubtype] = useState<string | null>(null);
+  const [lasted24h, setLasted24h] = useState<boolean | null>(null);
+  const [hasFever, setHasFever] = useState<boolean | null>(null);
+  const [eventLogged, setEventLogged] = useState(false);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -77,7 +114,6 @@ export default function JournalScreen() {
     await loadData();
     setRefreshing(false);
   };
-
 
   const handleSave = useCallback(async () => {
     if (!selectedMood) return;
@@ -109,22 +145,236 @@ export default function JournalScreen() {
     setSelectedMood(mood);
   };
 
+  const handleLogEvent = useCallback(async () => {
+    await logRelapseEvent({
+      date: eventDate,
+      type: eventType,
+      cortisone_dose_mg: eventType === 'cortisone' && cortisoneDose ? parseInt(cortisoneDose, 10) : undefined,
+      notes: eventNotes,
+      severity: severity ?? undefined,
+      pain_type: eventType === 'pain' ? (painSubtype ?? undefined) : undefined,
+      lasted_24h: lasted24h !== null ? (lasted24h ? 1 : 0) : undefined,
+      has_fever: hasFever !== null ? (hasFever ? 1 : 0) : undefined,
+    });
+    setEventType('relapse');
+    setEventDate(today);
+    setCortisoneDose('');
+    setSeverity(null);
+    setEventNotes('');
+    setPainSubtype(null);
+    setLasted24h(null);
+    setHasFever(null);
+    setEventLogged(true);
+    setTimeout(() => setEventLogged(false), 2000);
+    await loadData();
+  }, [eventType, eventDate, cortisoneDose, severity, eventNotes, painSubtype, lasted24h, hasFever, today, loadData]);
+
+  const eventPlaceholder = eventType === 'cortisone'
+    ? 'Pulse dose details...'
+    : eventType === 'symptom'
+      ? 'What symptoms?'
+      : 'Describe what happened...';
+
+  const eventSubmitDisabled = (eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null);
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />
       }
     >
       <View style={styles.headingRow}>
         <Text style={styles.heading}>{t('journal')}</Text>
-        <TouchableOpacity style={styles.logEventBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Relapse'); }} activeOpacity={0.7} accessibilityLabel="Log a relapse or medical event" accessibilityRole="button">
-          <Text style={styles.logEventBtnText}>+ Log Event</Text>
+        <TouchableOpacity
+          style={[styles.logEventBtn, logEventOpen ? styles.logEventBtnActive : null]}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLogEventOpen((v) => !v); }}
+          activeOpacity={0.7}
+          accessibilityLabel={logEventOpen ? 'Hide event log form' : 'Show event log form'}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.logEventBtnText, logEventOpen ? styles.logEventBtnTextActive : null]}>
+            {logEventOpen ? '− ' : '+ '}{t('logEvent')}
+          </Text>
         </TouchableOpacity>
       </View>
       <Text style={styles.dateSubtitle}>{formatDateLabel(today)}</Text>
+
+      {/* Absorbed from RelapseScreen: logging a relapse/symptom/cortisone/pain
+          event now happens in place instead of on a separate screen. */}
+      {logEventOpen ? (
+        <View style={styles.logEventPanel}>
+          <Text style={styles.fieldLabel}>{t('date')}</Text>
+          <View style={styles.sectionCard}>
+            <TextInput
+              style={styles.input}
+              value={eventDate}
+              onChangeText={setEventDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#9AA3B2"
+              autoCapitalize="none"
+            />
+            <Text style={styles.datePreview}>{formatEventDate(eventDate)}</Text>
+          </View>
+
+          <Text style={styles.fieldLabel}>{t('type')}</Text>
+          <View style={styles.typeRow}>
+            {EVENT_TYPES.map((et) => {
+              const selected = eventType === et;
+              const color = TYPE_COLORS[et];
+              return (
+                <TouchableOpacity
+                  key={et}
+                  style={[
+                    styles.typeButton,
+                    selected
+                      ? { backgroundColor: color, borderColor: color }
+                      : { backgroundColor: 'transparent', borderColor: color },
+                  ]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEventType(et); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.typeButtonText, { color: selected ? '#F7F7F2' : color }]}>
+                    {TYPE_LABELS[et]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {eventType === 'pain' ? (
+            <>
+              <Text style={styles.fieldLabel}>{t('painType')}</Text>
+              <View style={styles.painSubtypeContainer}>
+                {PAIN_SUBTYPES.map((subtype) => {
+                  const selected = painSubtype === subtype;
+                  return (
+                    <TouchableOpacity
+                      key={subtype}
+                      style={[styles.painSubtypeButton, selected ? styles.painSubtypeSelected : null]}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPainSubtype(subtype); }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.painSubtypeText, selected ? styles.painSubtypeTextSelected : null]}>
+                        {subtype}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
+
+          {eventType === 'cortisone' ? (
+            <>
+              <Text style={styles.fieldLabel}>{t('cortisoneDose')}</Text>
+              <View style={styles.sectionCard}>
+                <TextInput
+                  style={[styles.input, styles.inputLast]}
+                  value={cortisoneDose}
+                  onChangeText={setCortisoneDose}
+                  placeholder="e.g. 1000"
+                  placeholderTextColor="#9AA3B2"
+                  keyboardType="numeric"
+                />
+              </View>
+            </>
+          ) : null}
+
+          <Text style={styles.fieldLabel}>
+            Severity
+            {eventType !== 'cortisone' ? <Text style={styles.required}> *</Text> : null}
+          </Text>
+          <View style={styles.severityRow}>
+            {[1, 2, 3, 4, 5].map((s) => {
+              const selected = severity === s;
+              const hue = 120 - (s - 1) * 30;
+              const color = selected ? `hsl(${hue}, 80%, 50%)` : '#555555';
+              return (
+                <TouchableOpacity
+                  key={s}
+                  style={[
+                    styles.severityCircle,
+                    { borderColor: color },
+                    selected ? { backgroundColor: color } : null,
+                  ]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeverity(s); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.severityText, { color: selected ? '#F7F7F2' : '#5A6478' }]}>
+                    {s}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {eventType === 'relapse' || eventType === 'symptom' ? (
+            <>
+              <Text style={styles.fieldLabel}>24-Hour Rule</Text>
+              <View style={styles.yesNoRow}>
+                {([true, false] as const).map((val) => (
+                  <TouchableOpacity
+                    key={String(val)}
+                    style={[styles.yesNoBtn, lasted24h === val ? styles.yesNoBtnActive : null]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLasted24h(val); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.yesNoBtnText, lasted24h === val ? styles.yesNoBtnTextActive : null]}>
+                      {val ? 'Yes — lasted >24h' : 'No — resolved sooner'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.fieldLabel}>{t('feverPresent')}</Text>
+              <View style={styles.yesNoRow}>
+                {([true, false] as const).map((val) => (
+                  <TouchableOpacity
+                    key={String(val)}
+                    style={[styles.yesNoBtn, hasFever === val ? styles.yesNoBtnActive : null]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setHasFever(val); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.yesNoBtnText, hasFever === val ? styles.yesNoBtnTextActive : null]}>
+                      {val ? 'Yes' : 'No'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {hasFever === true ? (
+                <View style={styles.feverWarning}>
+                  <Text style={styles.feverWarningText}>Fever can mimic or mask a relapse. Contact your neurologist if symptoms persist beyond 48h after fever resolves.</Text>
+                </View>
+              ) : null}
+            </>
+          ) : null}
+
+          <Text style={styles.fieldLabel}>{t('notes')}</Text>
+          <View style={styles.sectionCard}>
+            <TextInput
+              style={[styles.input, styles.inputMultiline, styles.inputLast]}
+              value={eventNotes}
+              onChangeText={setEventNotes}
+              placeholder={eventPlaceholder}
+              placeholderTextColor="#9AA3B2"
+              multiline
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.logButton, eventSubmitDisabled ? styles.logButtonDisabled : null]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLogEvent().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }}
+            disabled={eventSubmitDisabled}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.logButtonText}>
+              {eventLogged ? 'Logged ✓' : t('logEvent')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {/* Semantic memory summary */}
       <Text style={styles.semanticSummary}>{semanticSummary}</Text>
@@ -177,7 +427,7 @@ export default function JournalScreen() {
         ref={noteRef}
         style={styles.noteInput}
         placeholder={t('howAreYouToday')}
-        placeholderTextColor="#B0A098"
+        placeholderTextColor="#9AA3B2"
         multiline
         value={note}
         onChangeText={setNote}
@@ -187,7 +437,7 @@ export default function JournalScreen() {
       <TextInput
         style={styles.dietaryInput}
         placeholder={t('dairyPrompt')}
-        placeholderTextColor="#B0A098"
+        placeholderTextColor="#9AA3B2"
         value={dietaryNote}
         onChangeText={setDietaryNote}
       />
@@ -215,7 +465,7 @@ export default function JournalScreen() {
         </Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>{t('thisWeek')}</Text>
+      <Text style={styles.sectionTitle}>{t('recentEntries')}</Text>
       {pastEntries.length === 0 ? (
         <EmptyState
           icon="📓"
@@ -251,6 +501,40 @@ export default function JournalScreen() {
         })
       )}
 
+      {/* Absorbed from RelapseScreen: recent relapse/symptom/cortisone/pain history. */}
+      <Text style={styles.sectionTitle}>{t('eventHistory')}</Text>
+      {events.length === 0 ? (
+        <Text style={styles.emptyText}>{t('noEvents')}</Text>
+      ) : (
+        events.map((e) => {
+          const color = TYPE_COLORS[e.type] ?? '#888888';
+          return (
+            <View key={e.id} style={styles.eventCard}>
+              <View style={styles.eventTop}>
+                <View style={[styles.eventBadge, { backgroundColor: color + '30' }]}>
+                  <Text style={[styles.eventBadgeText, { color }]}>
+                    {TYPE_LABELS[e.type] ?? e.type}
+                  </Text>
+                </View>
+                <Text style={styles.eventDateText}>{formatEventDate(e.date)}</Text>
+                {e.severity != null ? (
+                  <View style={styles.severityDots}>
+                    {Array.from({ length: e.severity }, (_, i) => (
+                      <View key={i} style={[styles.dot, { backgroundColor: color }]} />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+              {e.pain_type ? (
+                <Text style={styles.painTypeTag}>{e.pain_type}</Text>
+              ) : null}
+              {e.notes ? (
+                <Text style={styles.eventNotes}>{e.notes}</Text>
+              ) : null}
+            </View>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
@@ -258,7 +542,7 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F4',
+    backgroundColor: '#F7F7F2',
   },
   content: {
     paddingTop: 60,
@@ -267,19 +551,119 @@ const styles = StyleSheet.create({
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   heading: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 22,
     fontWeight: '700',
   },
-  logEventBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#C04040' },
-  logEventBtnText: { color: '#C04040', fontSize: 14, fontWeight: '600' },
+  logEventBtn: { backgroundColor: '#ECEDE6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#C0392B' },
+  logEventBtnText: { color: '#C0392B', fontSize: 14, fontWeight: '600' },
+  logEventBtnActive: { backgroundColor: '#C0392B', borderColor: '#C0392B' },
+  logEventBtnTextActive: { color: '#F7F7F2' },
+  logEventPanel: { marginBottom: 20 },
+  fieldLabel: {
+    color: '#5A6478',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 24,
+    marginTop: 16,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  required: {
+    color: '#C0392B',
+  },
+  sectionCard: {
+    backgroundColor: '#ECEDE6',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#DBDDD3',
+    shadowColor: '#14213D',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  typeButton: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  typeButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  input: {
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 12,
+    color: '#14213D',
+    fontSize: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#CFD2C6',
+    marginBottom: 2,
+  },
+  inputLast: {
+    borderBottomWidth: 0,
+    marginBottom: 10,
+  },
+  inputMultiline: {
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  datePreview: {
+    color: '#5A6478',
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  severityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  severityCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  severityText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  logButton: {
+    backgroundColor: '#1B58B8',
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  logButtonDisabled: {
+    opacity: 0.4,
+  },
+  logButtonText: {
+    color: '#F7F7F2',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   dateSubtitle: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.1,
@@ -301,12 +685,12 @@ const styles = StyleSheet.create({
     minWidth: 58,
   },
   moodUnselected: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
   },
   moodSelected: {
-    backgroundColor: '#FBF0ED',
+    backgroundColor: '#E7EEFB',
     borderWidth: 2,
-    borderColor: '#C96A50',
+    borderColor: '#1B58B8',
   },
   moodEmoji: {
     fontSize: 24,
@@ -317,15 +701,15 @@ const styles = StyleSheet.create({
   },
   moodLabel: {
     fontSize: 10,
-    color: '#7A6A62',
+    color: '#5A6478',
     fontWeight: '600',
   },
   moodLabelSelected: {
-    color: '#C96A50',
+    color: '#1B58B8',
   },
   noteInput: {
-    backgroundColor: '#F2EDE8',
-    color: '#2C2420',
+    backgroundColor: '#ECEDE6',
+    color: '#14213D',
     borderRadius: 14,
     padding: 16,
     minHeight: 120,
@@ -334,16 +718,16 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#D8CFC8',
+    borderColor: '#CFD2C6',
   },
   complianceLine: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: 16,
   },
   saveButton: {
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -353,21 +737,21 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
     fontSize: 16,
     fontWeight: '700',
   },
   saveButtonTextSaved: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
   },
   emptyText: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 15,
     textAlign: 'center',
     marginTop: 20,
   },
   entryCard: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 14,
     padding: 16,
     marginBottom: 8,
@@ -381,7 +765,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   entryDate: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
@@ -396,36 +780,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   entryNote: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     marginTop: 10,
     lineHeight: 22,
   },
   dietaryInput: {
-    backgroundColor: '#F2EDE8',
-    color: '#2C2420',
+    backgroundColor: '#ECEDE6',
+    color: '#14213D',
     borderRadius: 10,
     padding: 14,
     fontSize: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#D8CFC8',
+    borderColor: '#CFD2C6',
   },
-  cbtOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 32 },
-  cbtModal: { backgroundColor: '#FAF7F4', borderRadius: 20, padding: 28, alignItems: 'center' },
-  cbtTitle: { color: '#2C2420', fontSize: 18, fontWeight: '800', marginBottom: 12, textAlign: 'center' },
-  cbtMessage: { color: '#7A6A62', fontSize: 15, lineHeight: 24, textAlign: 'center' },
-  cbtSkip: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#D8CFC8', paddingVertical: 12, alignItems: 'center' },
-  cbtSkipText: { color: '#7A6A62', fontSize: 15, fontWeight: '600' },
-  cbtDone: { flex: 1, backgroundColor: '#22c55e', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  cbtDoneText: { color: '#FAF7F4', fontSize: 15, fontWeight: '800' },
   semanticSummary: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
     fontStyle: 'italic',
     lineHeight: 22,
     marginBottom: 20,
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 14,
     padding: 16,
   },
@@ -442,13 +818,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayEmpty: {
     borderWidth: 1,
-    borderColor: '#D8CFC8',
+    borderColor: '#CFD2C6',
   },
   weekDayEmoji: {
     fontSize: 16,
@@ -459,8 +835,90 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   weekDayLabel: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 10,
     fontWeight: '600',
+  },
+  painSubtypeContainer: {
+    gap: 8,
+  },
+  painSubtypeButton: {
+    borderWidth: 1,
+    borderColor: '#CFD2C6',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#ECEDE6',
+  },
+  painSubtypeSelected: {
+    borderColor: '#9B7FC0',
+    backgroundColor: '#F0EBF7',
+  },
+  painSubtypeText: {
+    color: '#5A6478',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  painSubtypeTextSelected: {
+    color: '#6B4FBF',
+    fontWeight: '700',
+  },
+  painTypeTag: {
+    color: '#6B4FBF',
+    fontSize: 12,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#CFD2C6', paddingVertical: 12, alignItems: 'center' },
+  yesNoBtnActive: { borderColor: '#2F8F5B', backgroundColor: '#EFF7EF' },
+  yesNoBtnText: { color: '#5A6478', fontSize: 13, fontWeight: '600' },
+  yesNoBtnTextActive: { color: '#2F8F5B' },
+  feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#F2B233' },
+  feverWarningText: { color: '#F2B233', fontSize: 12, lineHeight: 18 },
+  eventCard: {
+    backgroundColor: '#ECEDE6',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#CFD2C6',
+  },
+  eventTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  eventBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  eventBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  eventDateText: {
+    color: '#14213D',
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  severityDots: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  eventNotes: {
+    color: '#5A6478',
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginTop: 8,
+    lineHeight: 22,
   },
 });

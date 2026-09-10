@@ -3,7 +3,7 @@ import { getDb } from './schema';
 // Pure-tracker build: the app ships with NO pre-loaded protocol, supplements,
 // schedule, interaction warnings, dietary rules, or awareness content. The user
 // enters their own protocol in the app (Supplement Editor). The original seed
-// data is preserved in src/_sidelined/seed.original.ts.
+// data is preserved in git history (seed.original.ts, removed 2026-07-01).
 export async function seedDb(): Promise<void> {
   const db = await getDb();
   // A single, user-configurable blood-test reminder interval. No content, just

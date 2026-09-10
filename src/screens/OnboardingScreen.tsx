@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -32,21 +31,13 @@ const CONDITION_ICONS: Record<string, string> = {
   ra: '🦴', hashimoto: '🦋', crohn: '🫁', t1d: '🩸',
 };
 
+// The welcome beat lives on the startup screen (SplashAnimation), so onboarding
+// opens straight on the profile step.
 const STEPS = [
-  {
-    title: 'Welcome to Protocol Tracker',
-    icon: '🧬',
-    body: 'A personal companion for tracking a high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
-  },
   {
     title: 'Set Up Your Profile',
     icon: '👤',
     body: 'Your information stays on your device — nothing is shared without your consent.',
-  },
-  {
-    title: 'How do you want to use this app?',
-    icon: '🎯',
-    body: 'Choose the mode that fits your style.',
   },
   {
     title: 'Your Condition',
@@ -65,22 +56,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
-  const [patientType, setPatientType] = useState<'new' | 'experienced' | 'caregiver'>('new');
-  const [caregiverPatientName, setCaregiverPatientName] = useState('');
-  const [onboardingTrack, setOnboardingTrack] = useState<'simple' | 'full'>('full');
   const [saving, setSaving] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const weightRef = useRef<TextInput>(null);
+  const d3Ref = useRef<TextInput>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const iconScale = useRef(new Animated.Value(0.5)).current;
-  const iconOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(iconScale, { toValue: 1, useNativeDriver: true, friction: 6, tension: 80 }),
-      Animated.timing(iconOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-    ]).start();
-  }, []);
 
   const slideTo = (index: number) => {
     Animated.parallel([
@@ -108,11 +89,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
     } else {
       setSaving(true);
       try {
-        await createDefaultProfile(name.trim(), isCaregiver ? 0 : parseFloat(weight));
-        await AsyncStorage.setItem('patient_type', patientType);
-        if (isCaregiver && caregiverPatientName.trim()) {
-          await AsyncStorage.setItem('caregiver_patient_name', caregiverPatientName.trim());
-        }
+        await createDefaultProfile(name.trim(), parseFloat(weight));
         if (d3Dose.trim()) {
           // The dose entered here becomes the user's first supplement, created
           // through the same path as Manage supplements. Nothing is pre-seeded:
@@ -133,7 +110,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
             });
           }
         }
-        await setMiscFlag('onboarding_track', onboardingTrack);
+        await setMiscFlag('onboarding_track', 'full');
         if (selectedProfile) {
           await setMiscFlag('disease_profile', selectedProfile);
         }
@@ -149,15 +126,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
     }
   };
 
-  const isCaregiver = patientType === 'caregiver';
-
   const canProceed = () => {
-    if (step === 1) {
-      if (isCaregiver) return name.trim().length > 0 && caregiverPatientName.trim().length > 0;
+    if (step === 0) {
       return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
     }
-    if (step === 2) return onboardingTrack !== null;
-    if (step === 3) return selectedProfile !== null;
+    if (step === 1) return selectedProfile !== null;
     return true;
   };
 
@@ -181,44 +154,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
             { transform: [{ translateX }] },
           ]}
         >
-          {/* Step 0: Welcome */}
-          <View style={styles.page}>
-            <Animated.View style={[styles.welcomeCircle, { transform: [{ scale: iconScale }], opacity: iconOpacity }]}>
-              <Ionicons name="medical" size={28} color="#22c55e" />
-            </Animated.View>
-            <Text style={styles.title}>Welcome, let's get you set up</Text>
-            <Text style={styles.body}>
-              This app is your daily companion for your dosing protocol. We'll keep it simple.
-            </Text>
-            <Text style={styles.inputLabel}>Who is using this app?</Text>
-            <View style={styles.typeRow}>
-              {([
-                { key: 'new', label: 'New Patient', desc: 'Just starting the protocol' },
-                { key: 'experienced', label: 'Experienced', desc: 'Already on the protocol' },
-                { key: 'caregiver', label: 'Caregiver', desc: 'Supporting someone on protocol' },
-              ] as const).map((t) => (
-                <TouchableOpacity
-                  key={t.key}
-                  style={[styles.typeBtn, patientType === t.key ? styles.typeBtnActive : null]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPatientType(t.key); }}
-                  activeOpacity={0.7}
-                  accessibilityLabel={`Select patient type: ${t.label}`}
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.typeBtnLabel, patientType === t.key ? styles.typeBtnLabelActive : null]}>{t.label}</Text>
-                  <Text style={styles.typeBtnDesc}>{t.desc}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Step 1: Profile */}
-          <ScrollView
-            style={{ width }}
-            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 40 }]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+          {/* Step 0: Profile */}
+          <View style={[styles.page, { justifyContent: 'flex-start', paddingTop: 32 }]}>
             <Text style={styles.icon}>👤</Text>
             <Text style={styles.title}>Set Up Your Profile</Text>
             <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
@@ -228,91 +165,46 @@ export default function OnboardingScreen({ onComplete }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="e.g. Alex"
-                placeholderTextColor="#B0A098"
+                placeholderTextColor="#9AA3B2"
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => weightRef.current?.focus()}
               />
-              {isCaregiver ? (
-                <>
-                  <Text style={styles.inputLabel}>Patient's Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="The person you're supporting"
-                    placeholderTextColor="#B0A098"
-                    value={caregiverPatientName}
-                    onChangeText={setCaregiverPatientName}
-                    autoCapitalize="words"
-                  />
-                  <View style={styles.caregiverNote}>
-                    <Text style={styles.caregiverNoteText}>
-                      You'll track their protocol from your device. The patient controls what data you can view.
-                    </Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.inputLabel}>What's your weight? (we use this for your D3 dose)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. 70"
-                    placeholderTextColor="#B0A098"
-                    value={weight}
-                    onChangeText={setWeight}
-                    keyboardType="numeric"
-                  />
-                  <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. 5000"
-                    placeholderTextColor="#B0A098"
-                    value={d3Dose}
-                    onChangeText={setD3Dose}
-                    keyboardType="numeric"
-                  />
-                  <Text style={styles.hint}>
-                    Enter the dose your doctor prescribed.
-                  </Text>
-                </>
-              )}
-            </View>
-          </ScrollView>
-
-          {/* Step 2: Track Selection */}
-          <View style={styles.page}>
-            <Text style={styles.icon}>🎯</Text>
-            <Text style={styles.title}>How do you want to use this app?</Text>
-            <View style={{ width: '100%', gap: 10, marginTop: 12 }}>
-              <TouchableOpacity
-                style={[styles.trackCard, onboardingTrack === 'simple' && styles.trackCardActive]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOnboardingTrack('simple'); }}
-                activeOpacity={0.7}
-                accessibilityLabel="Select daily companion track"
-                accessibilityRole="button"
-              >
-                <Ionicons name="sunny-outline" size={24} color={onboardingTrack === 'simple' ? '#C96A50' : '#7A6A62'} accessible={false} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.trackTitle, onboardingTrack === 'simple' && styles.trackTitleActive]}>Daily companion</Text>
-                  <Text style={styles.trackDesc}>Simple daily check-ins. I just want to stay on track.</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.trackCard, onboardingTrack === 'full' && styles.trackCardActive]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setOnboardingTrack('full'); }}
-                activeOpacity={0.7}
-                accessibilityLabel="Select full protocol track"
-                accessibilityRole="button"
-              >
-                <Ionicons name="flask-outline" size={24} color={onboardingTrack === 'full' ? '#C96A50' : '#7A6A62'} accessible={false} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.trackTitle, onboardingTrack === 'full' && styles.trackTitleActive]}>Full protocol</Text>
-                  <Text style={styles.trackDesc}>I want everything — labs, reports, full tracking.</Text>
-                </View>
-              </TouchableOpacity>
+                <Text style={styles.inputLabel}>What's your weight? (we use this for your D3 dose)</Text>
+                <TextInput
+                  ref={weightRef}
+                  style={styles.input}
+                  placeholder="e.g. 70"
+                  placeholderTextColor="#9AA3B2"
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="numeric"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => d3Ref.current?.focus()}
+                />
+                <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
+                <TextInput
+                  ref={d3Ref}
+                  style={styles.input}
+                  placeholder="e.g. 5000"
+                  placeholderTextColor="#9AA3B2"
+                  value={d3Dose}
+                  onChangeText={setD3Dose}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+                <Text style={styles.hint}>
+                  Enter the dose your doctor prescribed.
+                </Text>
             </View>
           </View>
 
-          {/* Step 3: Condition (disease profile) */}
+          {/* Step 1: Condition (disease profile) */}
           <ScrollView
             style={{ width }}
             contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 40 }]}
@@ -341,37 +233,17 @@ export default function OnboardingScreen({ onComplete }: Props) {
             </View>
           </ScrollView>
 
-          {/* Step 4: Notifications / Done */}
+          {/* Step 2: Notifications / Done */}
           <View style={styles.page}>
             <Text style={styles.icon}>🔔</Text>
             <Text style={styles.title}>Almost Ready</Text>
-            {isCaregiver ? (
-              <>
-                <Text style={styles.body}>
-                  Enable notifications to stay in the loop. You'll only receive updates the patient has approved sharing.
-                </Text>
-                <View style={styles.featureList}>
-                  <Text style={styles.featureItem}>• Alert when a dose is overdue</Text>
-                  <Text style={styles.featureItem}>• Daily compliance summary (if patient approves)</Text>
-                  <Text style={styles.featureItem}>• Relapse or symptom events logged</Text>
-                </View>
-                <View style={styles.infoNote}>
-                  <Text style={styles.infoNoteText}>
-                    The patient controls what you see. They can turn sharing on or off anytime in their Settings.
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={styles.body}>Enable notifications so you never miss a dose. You can change this later in Settings.</Text>
-                <View style={styles.featureList}>
-                  <Text style={styles.featureItem}>• Dose reminders</Text>
-                  <Text style={styles.featureItem}>• Water intake nudges</Text>
-                  <Text style={styles.featureItem}>• End-of-day summaries</Text>
-                  <Text style={styles.featureItem}>• Awareness calendar alerts</Text>
-                </View>
-              </>
-            )}
+              <Text style={styles.body}>Enable notifications so you never miss a dose. You can change this later in Settings.</Text>
+              <View style={styles.featureList}>
+                <Text style={styles.featureItem}>• Dose reminders</Text>
+                <Text style={styles.featureItem}>• Water intake nudges</Text>
+                <Text style={styles.featureItem}>• End-of-day summaries</Text>
+                <Text style={styles.featureItem}>• Awareness calendar alerts</Text>
+              </View>
           </View>
 
         </Animated.View>
@@ -388,12 +260,14 @@ export default function OnboardingScreen({ onComplete }: Props) {
             >
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
-          ) : (
-            <View style={styles.backPlaceholder} />
-          )}
+          ) : null}
 
           <TouchableOpacity
-            style={[styles.nextButton, !canProceed() ? styles.buttonDisabled : null]}
+            style={[
+              styles.nextButton,
+              step === 0 && styles.nextButtonWide,
+              !canProceed() ? styles.buttonDisabled : null,
+            ]}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleNext(); }}
             disabled={!canProceed() || saving}
             activeOpacity={0.8}
@@ -413,7 +287,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F4',
+    backgroundColor: '#F7F7F2',
   },
   flex: {
     flex: 1,
@@ -429,10 +303,10 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#D8CFC8',
+    backgroundColor: '#CFD2C6',
   },
   dotActive: {
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     width: 28,
     borderRadius: 5,
   },
@@ -451,24 +325,15 @@ const styles = StyleSheet.create({
     fontSize: 48,
     marginBottom: 20,
   },
-  welcomeCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#22c55e22',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
   title: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 26,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 12,
   },
   body: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
@@ -478,25 +343,25 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputLabel: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 6,
     marginTop: 16,
   },
   input: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#E8E0D8',
+    borderColor: '#DBDDD3',
     marginBottom: 4,
   },
   hint: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     marginTop: 8,
     lineHeight: 20,
@@ -510,7 +375,7 @@ const styles = StyleSheet.create({
     borderColor: '#F0EDEA',
   },
   featureItem: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     lineHeight: 24,
   },
@@ -524,7 +389,7 @@ const styles = StyleSheet.create({
     borderLeftColor: '#eab308',
   },
   infoNoteText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     lineHeight: 22,
   },
@@ -535,46 +400,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#D8CFC8',
+    borderTopColor: '#CFD2C6',
   },
   backButton: {
     paddingVertical: 12,
     paddingHorizontal: 8,
   },
   backText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     fontWeight: '600',
   },
-  backPlaceholder: {
-    width: 50,
-  },
   nextButton: {
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     borderRadius: 10,
     paddingVertical: 16,
     paddingHorizontal: 32,
     alignItems: 'center',
   },
+  // First step has no Back button, so the lone button spans the footer instead
+  // of floating in the right-hand corner.
+  nextButtonWide: {
+    flex: 1,
+  },
   buttonDisabled: {
     opacity: 0.4,
   },
   nextText: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
     fontSize: 16,
     fontWeight: '800',
   },
-  caregiverNote: { width: '100%', backgroundColor: '#FFF8EC', borderRadius: 14, padding: 14, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#eab308' },
-  caregiverNoteText: { color: '#7A6A62', fontSize: 13, lineHeight: 18 },
-  typeRow: { width: '100%', gap: 8, marginTop: 4 },
-  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#E8E0D8', padding: 16, backgroundColor: '#F2EDE8' },
-  trackCardActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
-  trackTitle: { color: '#7A6A62', fontSize: 15, fontWeight: '700' },
-  trackTitleActive: { color: '#C96A50' },
-  trackDesc: { color: '#B0A098', fontSize: 13, marginTop: 2 },
-  typeBtn: { borderRadius: 14, borderWidth: 1, borderColor: '#E8E0D8', padding: 14, backgroundColor: '#F2EDE8' },
-  typeBtnActive: { borderColor: '#C96A50', backgroundColor: '#FBF0ED' },
-  typeBtnLabel: { color: '#7A6A62', fontSize: 15, fontWeight: '700' },
-  typeBtnLabelActive: { color: '#C96A50' },
-  typeBtnDesc: { color: '#7A6A62', fontSize: 13, marginTop: 2 },
+  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#DBDDD3', padding: 16, backgroundColor: '#ECEDE6' },
+  trackCardActive: { borderColor: '#1B58B8', backgroundColor: '#E7EEFB' },
+  trackTitle: { color: '#5A6478', fontSize: 15, fontWeight: '700' },
+  trackTitleActive: { color: '#1B58B8' },
+  trackDesc: { color: '#9AA3B2', fontSize: 13, marginTop: 2 },
 });

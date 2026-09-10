@@ -13,7 +13,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DoseDetailModal from '../components/DoseDetailModal';
-import { confirmDose, skipDose } from '../db/queries';
+import { confirmDose, skipDose, localDateStr } from '../db/queries';
 import { useScheduleScreen } from '../hooks';
 import type { ScheduledDose } from '../types';
 import EmptyState from '../components/EmptyState';
@@ -26,16 +26,16 @@ function buildLast30Days(): string[] {
   const days: string[] = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   return days;
 }
 
 function getCellColor(pct: number, total: number) {
-  if (total === 0) return '#E8E0D8';
-  if (pct >= 80) return '#5A8A5A';
-  if (pct >= 50) return '#C4882A';
-  return '#C04040';
+  if (total === 0) return '#DBDDD3';
+  if (pct >= 80) return '#2F8F5B';
+  if (pct >= 50) return '#F2B233';
+  return '#C0392B';
 }
 
 
@@ -120,7 +120,7 @@ export default function ScheduleScreen() {
             <View key={ri} style={styles.calRow}>
               {row.map((cell) => {
                 const bg = cell.isToday
-                  ? (cell.totalDoses === 0 ? '#B0A098' : cell.compliancePct >= 80 ? '#4A7A4A' : cell.compliancePct >= 50 ? '#B07820' : '#A03030')
+                  ? (cell.totalDoses === 0 ? '#9AA3B2' : cell.compliancePct >= 80 ? '#4A7A4A' : cell.compliancePct >= 50 ? '#B07820' : '#A03030')
                   : getCellColor(cell.compliancePct, cell.totalDoses);
                 return (
                   <View key={cell.date} style={styles.calCellWrapper}>
@@ -133,7 +133,7 @@ export default function ScheduleScreen() {
             </View>
           ))}
           <View style={styles.legend}>
-            {[['#5A8A5A','≥80%'],['#C4882A','50–79%'],['#C04040','<50%'],['#E8E0D8','No data']].map(([color, label]) => (
+            {[['#2F8F5B','≥80%'],['#F2B233','50–79%'],['#C0392B','<50%'],['#DBDDD3','No data']].map(([color, label]) => (
               <View key={label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color, borderWidth: color === '#2a2a2a' ? 1 : 0, borderColor: '#444' }]} />
                 <Text style={styles.legendLabel}>{label}</Text>
@@ -201,12 +201,12 @@ export default function ScheduleScreen() {
 
                 <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
                   {item.status === 'taken' ? (
-                    <Text style={{ color: '#5A8A5A', fontWeight: '700' }}>Taken</Text>
+                    <Text style={{ color: '#2F8F5B', fontWeight: '700' }}>Taken</Text>
                   ) : item.status === 'missed' ? (
-                    <Text style={{ color: '#C04040', fontWeight: '700' }}>Missed</Text>
+                    <Text style={{ color: '#C0392B', fontWeight: '700' }}>Missed</Text>
                   ) : (
-                    <View style={{ backgroundColor: item.status === 'due' ? '#C96A50' : '#F2EDE8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#C96A50' }}>
-                      <Text style={{ color: item.status === 'due' ? '#FAF7F4' : '#C96A50', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
+                    <View style={{ backgroundColor: item.status === 'due' ? '#1B58B8' : '#ECEDE6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#1B58B8' }}>
+                      <Text style={{ color: item.status === 'due' ? '#F7F7F2' : '#1B58B8', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
                     </View>
                   )}
                 </View>
@@ -217,7 +217,7 @@ export default function ScheduleScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />
         }
       />
 
@@ -235,35 +235,35 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F4',
+    backgroundColor: '#F7F7F2',
     paddingTop: 60,
     paddingHorizontal: 20,
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   heading: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 22,
     fontWeight: '700',
   },
-  scanBtn: { backgroundColor: '#F2EDE8', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#C96A50' },
-  scanBtnText: { color: '#C96A50', fontSize: 14, fontWeight: '600' },
+  scanBtn: { backgroundColor: '#ECEDE6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#1B58B8' },
+  scanBtnText: { color: '#1B58B8', fontSize: 14, fontWeight: '600' },
   highDoseBanner: {
     backgroundColor: '#FDF3E0',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#C4882A60',
+    borderColor: '#F2B23360',
     padding: 14,
     marginBottom: 14,
   },
   highDoseBannerText: {
-    color: '#C4882A',
+    color: '#F2B233',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
     marginBottom: 8,
   },
   highDoseBannerDismiss: {
-    color: '#C4882A',
+    color: '#F2B233',
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'right',
@@ -284,17 +284,17 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   timeText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'right',
     lineHeight: 18,
   },
   timeTextDimmed: {
-    color: '#B0A098',
+    color: '#9AA3B2',
   },
   timeTextDue: {
-    color: '#C96A50',
+    color: '#1B58B8',
   },
   trackCol: {
     width: 20,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   lineSegment: {
     flex: 1,
     width: 1,
-    backgroundColor: '#D8CFC8',
+    backgroundColor: '#CFD2C6',
   },
   lineSegmentInvisible: {
     backgroundColor: 'transparent',
@@ -321,26 +321,26 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     justifyContent: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E0D8',
+    borderBottomColor: '#DBDDD3',
   },
   name: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 15,
     fontWeight: '600',
   },
   doseAmount: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     marginTop: 2,
   },
   foodTag: {
-    color: '#C4882A',
+    color: '#F2B233',
     fontSize: 13,
     fontWeight: '600',
     marginTop: 3,
   },
   skipReasonText: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 13,
     fontStyle: 'italic',
     marginTop: 3,
@@ -358,23 +358,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
   },
-  toggleRow: { flexDirection: 'row', backgroundColor: '#F2EDE8', borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#D8CFC8' },
+  toggleRow: { flexDirection: 'row', backgroundColor: '#ECEDE6', borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#CFD2C6' },
   toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: '#FAF7F4' },
-  toggleBtnText: { color: '#B0A098', fontSize: 13, fontWeight: '700' },
-  toggleBtnTextActive: { color: '#C96A50' },
+  toggleBtnActive: { backgroundColor: '#F7F7F2' },
+  toggleBtnText: { color: '#9AA3B2', fontSize: 13, fontWeight: '700' },
+  toggleBtnTextActive: { color: '#1B58B8' },
   calRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   calCellWrapper: { flex: 1, aspectRatio: 1 },
   calCell: { flex: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', minHeight: 48, minWidth: 48 },
-  calCellToday: { borderWidth: 2, borderColor: '#2C2420' },
-  calCellText: { color: '#FAF7F4', fontSize: 12, fontWeight: '700' },
+  calCellToday: { borderWidth: 2, borderColor: '#14213D' },
+  calCellText: { color: '#F7F7F2', fontSize: 12, fontWeight: '700' },
   legend: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, paddingTop: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendLabel: { color: '#7A6A62', fontSize: 11, fontWeight: '500' },
+  legendLabel: { color: '#5A6478', fontSize: 11, fontWeight: '500' },
 });

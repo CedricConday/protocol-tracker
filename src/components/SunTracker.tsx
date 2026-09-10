@@ -1,8 +1,13 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { t } from '../i18n';
 
+// The goal is context, not a ceiling. Someone who spent two hours outside should be
+// able to say so; the old card swapped its buttons for a "goal reached" banner at
+// 30 minutes, which silently made 30 the most the day could ever hold.
 const GOAL_MIN = 30;
+const PRESETS = [10, 20, 30, 60];
+const STEP = 5;
 
 interface Props {
   sunMinutes: number;
@@ -10,8 +15,22 @@ interface Props {
 }
 
 const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) {
+  const [amount, setAmount] = useState(20);
+  const [draft, setDraft] = useState('20');
+
   const goalReached = sunMinutes >= GOAL_MIN;
   const pct = Math.min(sunMinutes / GOAL_MIN, 1);
+
+  const setBoth = (next: number) => {
+    const clamped = Math.max(STEP, Math.min(600, next));
+    setAmount(clamped);
+    setDraft(String(clamped));
+  };
+
+  const commitDraft = () => {
+    const parsed = parseInt(draft.replace(/[^0-9]/g, ''), 10);
+    setBoth(Number.isFinite(parsed) ? parsed : amount);
+  };
 
   return (
     <View style={styles.container}>
@@ -22,31 +41,75 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) 
         </View>
         <Text style={[styles.amount, goalReached ? styles.amountDone : null]}>
           {sunMinutes}
-          <Text style={styles.goal}> / {GOAL_MIN} min</Text>
+          <Text style={styles.goal}> min · goal {GOAL_MIN}</Text>
         </Text>
       </View>
 
       <View style={styles.barBg}>
-        <View style={[styles.barFill, { width: `${pct * 100}%` as `${number}%` }]} />
+        <View style={[styles.barFill, goalReached ? styles.barFillDone : null, { width: `${pct * 100}%` as `${number}%` }]} />
       </View>
 
-      {goalReached ? (
-        <View style={styles.goalBanner}>
-          <Text style={styles.goalBannerText}>{t('goalReached')}</Text>
+      <View style={styles.stepperRow}>
+        <TouchableOpacity
+          style={styles.stepBtn}
+          onPress={() => setBoth(amount - STEP)}
+          activeOpacity={0.7}
+          accessibilityLabel="Decrease minutes"
+          accessibilityRole="button"
+        >
+          <Text style={styles.stepBtnText}>−</Text>
+        </TouchableOpacity>
+
+        <View style={styles.field}>
+          <TextInput
+            style={styles.fieldInput}
+            value={draft}
+            onChangeText={setDraft}
+            onEndEditing={commitDraft}
+            onBlur={commitDraft}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            onSubmitEditing={commitDraft}
+            accessibilityLabel="Minutes of sun to log"
+          />
+          <Text style={styles.fieldUnit}>min</Text>
         </View>
-      ) : (
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button} onPress={() => onLog(10)} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>+10</Text>
+
+        <TouchableOpacity
+          style={styles.stepBtn}
+          onPress={() => setBoth(amount + STEP)}
+          activeOpacity={0.7}
+          accessibilityLabel="Increase minutes"
+          accessibilityRole="button"
+        >
+          <Text style={styles.stepBtnText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.presetRow}>
+        {PRESETS.map((m) => (
+          <TouchableOpacity
+            key={m}
+            style={[styles.preset, amount === m ? styles.presetActive : null]}
+            onPress={() => setBoth(m)}
+            activeOpacity={0.7}
+            accessibilityLabel={`Set ${m} minutes`}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.presetText, amount === m ? styles.presetTextActive : null]}>{m}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => onLog(20)} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>+20</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => onLog(30)} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>+30</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        ))}
+      </View>
+
+      <TouchableOpacity
+        style={styles.logBtn}
+        onPress={() => onLog(amount)}
+        activeOpacity={0.85}
+        accessibilityLabel={`Log ${amount} minutes of sun`}
+        accessibilityRole="button"
+      >
+        <Text style={styles.logBtnText}>Log {amount} min</Text>
+      </TouchableOpacity>
     </View>
   );
 });
@@ -55,13 +118,13 @@ export default SunTracker;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 14,
     padding: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#E8E0D8',
-    shadowColor: '#2C2420',
+    borderColor: '#DBDDD3',
+    shadowColor: '#14213D',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -71,75 +134,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 12,
   },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  icon: {
-    fontSize: 16,
-  },
-  label: {
-    color: '#7A6A62',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  amount: {
-    color: '#2C2420',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  amountDone: {
-    color: '#5A8A5A',
-  },
-  goal: {
-    color: '#B0A098',
-    fontSize: 14,
-    fontWeight: '400',
-  },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  icon: { fontSize: 16 },
+  label: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
+  amount: { color: '#14213D', fontSize: 16, fontWeight: '700' },
+  amountDone: { color: '#2F8F5B' },
+  goal: { color: '#9AA3B2', fontSize: 13, fontWeight: '400' },
   barBg: {
     height: 8,
-    backgroundColor: '#E8E0D8',
+    backgroundColor: '#DBDDD3',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
   },
-  barFill: {
-    height: 8,
-    backgroundColor: '#C4882A',
-    borderRadius: 4,
+  barFill: { height: 8, backgroundColor: '#F2B233', borderRadius: 4 },
+  barFillDone: { backgroundColor: '#2F8F5B' },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  stepBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F2',
+    borderWidth: 1,
+    borderColor: '#CFD2C6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  button: {
+  stepBtnText: { color: '#5A6478', fontSize: 22, fontWeight: '600', lineHeight: 26 },
+  field: {
     flex: 1,
-    backgroundColor: '#FFF8EC',
-    borderRadius: 10,
-    paddingVertical: 12,
+    height: 46,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 12,
+    backgroundColor: '#F7F7F2',
     borderWidth: 1,
-    borderColor: '#C4882A30',
+    borderColor: '#CFD2C6',
   },
-  buttonText: {
-    color: '#C4882A',
-    fontSize: 15,
+  fieldInput: {
+    minWidth: 56,
+    textAlign: 'right',
+    color: '#14213D',
+    fontSize: 19,
     fontWeight: '700',
+    padding: 0,
   },
-  goalBanner: {
-    backgroundColor: '#F0F7F0',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
+  fieldUnit: { color: '#9AA3B2', fontSize: 14, fontWeight: '600' },
+  presetRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
+  preset: {
+    flex: 1,
+    height: 44,
+    borderRadius: 11,
+    backgroundColor: '#F7F7F2',
     borderWidth: 1,
-    borderColor: '#5A8A5A30',
+    borderColor: '#CFD2C6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  goalBannerText: {
-    color: '#5A8A5A',
-    fontSize: 14,
-    fontWeight: '600',
+  presetActive: { backgroundColor: '#FFF8EC', borderColor: '#F2B233' },
+  presetText: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
+  presetTextActive: { color: '#F2B233', fontWeight: '700' },
+  logBtn: {
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F2B233',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  logBtnText: { color: '#14213D', fontSize: 15, fontWeight: '700' },
 });

@@ -1,6 +1,6 @@
-import { getProfile, getMiscFlag, todayStr } from '../db/queries';
+import { getProfile, getMiscFlag, todayStr, localDateStr } from '../db/queries';
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
-import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications } from '../notifications';
+import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications, scheduleWaterReminders } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
 
 /**
@@ -23,9 +23,12 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   }
 
   const t0Ms = t0.getTime();
-  const dateStr = t0.toISOString().split('T')[0];
+  const dateStr = localDateStr(t0);
 
-  await cancelSupplementNotifications();
+  // Stale reminders are cosmetic; failing to start the day is not. This used to
+  // reject before setT0/createDoseLogs ran, so a notification hiccup meant the
+  // user simply could not start their day.
+  await cancelSupplementNotifications().catch(() => {});
   await setT0(t0Ms, dateStr);
 
   const rules = await getScheduleRules();
@@ -56,6 +59,9 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   }
 
   // Fire-and-forget — don't block the schedule return on notification errors
+  // Water reminders run from T=0 to T+12h, the window the daily 2.5 L goal
+  // is meant to be spread over.
+  scheduleWaterReminders(t0, new Date(t0Ms + 12 * 60 * 60 * 1000)).catch(() => {});
   scheduleExerciseReminder(t0).catch(() => {});
   scheduleEndOfDaySummary(t0).catch(() => {});
   scheduleMorningReminder().catch(() => {});

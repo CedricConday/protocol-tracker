@@ -211,14 +211,6 @@ export async function initDb(): Promise<void> {
       logged_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS care_surveys (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      date TEXT NOT NULL,
-      scores_json TEXT NOT NULL,
-      total INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     CREATE TABLE IF NOT EXISTS news_cache (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -264,13 +256,6 @@ export async function initDb(): Promise<void> {
       day INTEGER NOT NULL,
       calcium_mg INTEGER NOT NULL,
       notes TEXT NOT NULL DEFAULT ''
-    );
-
-    CREATE TABLE IF NOT EXISTS sleep_checkins (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      date TEXT NOT NULL,
-      score INTEGER NOT NULL,
-      answers TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS action_queue (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDoseLogs, getDaySummary, getScheduleRules } from '../db/queries';
+import { getDoseLogs, getDaySummary, getScheduleRules, localDateStr } from '../db/queries';
 import { formatDoseTime } from '../engine/scheduler';
 import type { DoseLog, DoseStatus, ScheduledDose } from '../types';
 
@@ -10,7 +10,7 @@ function buildLast30Days(): string[] {
   const days: string[] = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
   return days;
 }

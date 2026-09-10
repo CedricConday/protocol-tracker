@@ -340,33 +340,9 @@ export async function getWeekSummary(): Promise<{ date: string; compliancePct: n
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = localDateStr(d);
     const summary = await getDaySummary(dateStr);
     days.push({ date: dateStr, compliancePct: summary.compliancePct });
-  }
-  return days;
-}
-
-export async function getYearSummary(): Promise<{ date: string; compliancePct: number; totalDoses: number }[]> {
-  const days: { date: string; compliancePct: number; totalDoses: number }[] = [];
-  for (let i = 364; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const summary = await getDaySummary(dateStr);
-    days.push({ date: dateStr, compliancePct: summary.compliancePct, totalDoses: summary.totalDoses });
-  }
-  return days;
-}
-
-export async function getMonthSummary(): Promise<{ date: string; compliancePct: number; totalDoses: number }[]> {
-  const days: { date: string; compliancePct: number; totalDoses: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const summary = await getDaySummary(dateStr);
-    days.push({ date: dateStr, compliancePct: summary.compliancePct, totalDoses: summary.totalDoses });
   }
   return days;
 }
@@ -383,7 +359,7 @@ export async function getStreak(date: string = todayStr()): Promise<number> {
   const todayDate = new Date(date + 'T00:00:00');
   const startDate = new Date(todayDate);
   startDate.setDate(startDate.getDate() - 60);
-  const start = startDate.toISOString().split('T')[0];
+  const start = localDateStr(startDate);
 
   const rows = await db.getAllAsync<{ date: string; total: number; taken: number }>(
     `SELECT date, COUNT(*) as total,
@@ -428,21 +404,6 @@ export async function getAverageStartTime(): Promise<string | null> {
      )`
   );
   return row?.avg_time ?? null;
-}
-
-export async function getHighComplianceDaysCount(): Promise<number> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM (
-      SELECT date,
-        SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken,
-        COUNT(*) as total
-      FROM dose_logs
-      GROUP BY date
-      HAVING taken = total AND total > 0
-    )`
-  );
-  return row?.count ?? 0;
 }
 
 // ── First Meal Time ──────────────────────────────────────────────────────────
@@ -580,14 +541,32 @@ export async function getRelapseEvents(limit?: number): Promise<RelapseEvent[]> 
 }
 
 // ── Sun Exposure ─────────────────────────────────────────────────────────────
+// Adds to the day's total. The previous version wrote `minutes = excluded.minutes`,
+// which REPLACED the day with the increment: logging +10 then +20 stored 20 while
+// the screen showed 30, and the day collapsed to the last tap on reload.
 export async function logSunExposure(minutes: number, notes: string = '', uvIndex?: string): Promise<void> {
   const db = await getDb();
   const date = todayStr();
   await db.runAsync(
     `INSERT INTO sun_log (date, minutes, uv_index, notes)
      VALUES (?, ?, ?, ?)
-     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, uv_index = excluded.uv_index, notes = excluded.notes`,
+     ON CONFLICT(date) DO UPDATE SET
+       minutes = sun_log.minutes + excluded.minutes,
+       uv_index = COALESCE(excluded.uv_index, sun_log.uv_index),
+       notes = CASE WHEN excluded.notes = '' THEN sun_log.notes ELSE excluded.notes END`,
     [date, minutes, uvIndex ?? null, notes]
+  );
+}
+
+// Sets the day's total outright, for correcting a mis-tap rather than adding to it.
+export async function setSunExposure(minutes: number, notes: string = ''): Promise<void> {
+  const db = await getDb();
+  const date = todayStr();
+  await db.runAsync(
+    `INSERT INTO sun_log (date, minutes, uv_index, notes)
+     VALUES (?, ?, NULL, ?)
+     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, notes = excluded.notes`,
+    [date, Math.max(0, Math.round(minutes)), notes]
   );
 }
 
@@ -719,9 +698,18 @@ export async function deleteSupplement(supplementId: string): Promise<void> {
 // ── Protocol Adherence Score ──────────────────────────────────────────────────
 export async function getWeightedAdherenceScore(days: number = 14): Promise<number> {
   const db = await getDb();
+  // Bounded on both ends and anchored to the app's own clock (todayStr, local),
+  // not SQLite's date('now') — that reads the real device clock regardless of
+  // what the rest of the app believes "today" is, and had no upper bound at
+  // all, so any future-dated row (clock skew, a synced write) inflated the
+  // "trailing N days" score forever instead of aging out of it.
+  const ref = todayStr();
   const rows = await db.getAllAsync<{ supplement_id: string; status: string; row_num: number; total_rows: number }>(
-    'SELECT dl.supplement_id, dl.status, ROW_NUMBER() OVER (ORDER BY dl.date DESC) as row_num, COUNT(*) OVER () as total_rows FROM dose_logs dl WHERE dl.date >= date("now", "-" || ? || " days") ORDER BY dl.date DESC, dl.scheduled_time ASC',
-    [days]
+    `SELECT dl.supplement_id, dl.status, ROW_NUMBER() OVER (ORDER BY dl.date DESC) as row_num, COUNT(*) OVER () as total_rows
+     FROM dose_logs dl
+     WHERE dl.date >= date(?, '-' || ? || ' days') AND dl.date <= ?
+     ORDER BY dl.date DESC, dl.scheduled_time ASC`,
+    [ref, days, ref]
   );
   if (rows.length === 0) return 0;
 
@@ -795,7 +783,7 @@ function rowToMedicalEvent(row: Record<string, unknown>): MedicalEvent {
 export async function getNextMedicalEvent(): Promise<MedicalEvent | null> {
   const db = await getDb();
   const today = todayStr();
-  const in60 = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const in60 = localDateStr(new Date(Date.now() + 60 * 24 * 60 * 60 * 1000));
   const row = await db.getFirstAsync<Record<string, unknown>>(
     `SELECT * FROM medical_events
      WHERE completed = 0 AND scheduled_date >= ? AND scheduled_date <= ?
@@ -854,22 +842,6 @@ export async function getCalciumLogs(): Promise<{ test_start_date: string; day: 
   );
 }
 
-// ── Sleep Checkin ────────────────────────────────────────────────────────────
-
-export async function saveSleepCheckin(date: string, score: number, answers: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(
-    'INSERT INTO sleep_checkins (date, score, answers) VALUES (?, ?, ?)',
-    [date, score, answers]
-  );
-}
-
-export async function getLastSleepCheckin(): Promise<{ date: string; score: number; answers: string } | null> {
-  const db = await getDb();
-  return db.getFirstAsync<{ date: string; score: number; answers: string }>(
-    'SELECT date, score, answers FROM sleep_checkins ORDER BY date DESC LIMIT 1'
-  );
-}
 
 // ── Misc Flags ───────────────────────────────────────────────────────────────
 

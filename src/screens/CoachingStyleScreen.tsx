@@ -43,7 +43,7 @@ export default function CoachingStyleScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />}
     >
       <Text style={styles.heading}>{t('coachingStyle')}</Text>
       <Text style={styles.subtitle}>{t('coachingStyleSub')}</Text>
@@ -66,14 +66,14 @@ export default function CoachingStyleScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF7F4' },
+  container: { flex: 1, backgroundColor: '#F7F7F2' },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  heading: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginBottom: 4 },
-  subtitle: { color: '#7A6A62', fontSize: 14, marginBottom: 20 },
+  heading: { color: '#14213D', fontSize: 24, fontWeight: '800', marginBottom: 4 },
+  subtitle: { color: '#5A6478', fontSize: 14, marginBottom: 20 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 18, marginBottom: 10, borderWidth: 2, borderColor: '#F0EDEA' },
   cardActive: { borderColor: '#22c55e', backgroundColor: '#F0FDF4' },
-  cardLabel: { color: '#2C2420', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  cardLabel: { color: '#14213D', fontSize: 16, fontWeight: '700', marginBottom: 4 },
   cardLabelActive: { color: '#166534' },
-  cardDesc: { color: '#7A6A62', fontSize: 14, lineHeight: 20 },
-  note: { color: '#B0A098', fontSize: 12, textAlign: 'center', marginTop: 20, fontStyle: 'italic' },
+  cardDesc: { color: '#5A6478', fontSize: 14, lineHeight: 20 },
+  note: { color: '#9AA3B2', fontSize: 12, textAlign: 'center', marginTop: 20, fontStyle: 'italic' },
 });

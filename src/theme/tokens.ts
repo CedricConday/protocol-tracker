@@ -22,21 +22,21 @@ export const radius = {
 
 export const shadow = {
   subtle: {
-    shadowColor: '#2C2420',
+    shadowColor: '#14213D',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
   },
   medium: {
-    shadowColor: '#2C2420',
+    shadowColor: '#14213D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 14,
     elevation: 3,
   },
   heavy: {
-    shadowColor: '#2C2420',
+    shadowColor: '#14213D',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.12,
     shadowRadius: 28,

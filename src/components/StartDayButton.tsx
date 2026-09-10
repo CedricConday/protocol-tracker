@@ -48,7 +48,7 @@ export default function StartDayButton({ onPress, loading }: Props) {
          activeOpacity={0.8}
        >
         {loading ? (
-          <ActivityIndicator color="#FAF7F4" size="small" />
+          <ActivityIndicator color="#F7F7F2" size="small" />
         ) : (
           <Text style={styles.text}>{t('startDay')}</Text>
         )}
@@ -59,14 +59,14 @@ export default function StartDayButton({ onPress, loading }: Props) {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     borderRadius: 16,
     paddingHorizontal: 48,
     paddingVertical: 20,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 220,
-    shadowColor: '#A8503A',
+    shadowColor: '#12408C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   text: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: 0.5,

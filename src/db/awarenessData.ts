@@ -1,5 +1,5 @@
 // Pure-tracker build: app-authored health "awareness" messages removed.
-// No longer seeded. Original: src/_sidelined/awarenessData.original.ts.
+// No longer seeded. Original in git history (awarenessData.original.ts, removed 2026-07-01).
 export const AWARENESS_DATES: {
   id: string;
   title: string;

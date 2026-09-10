@@ -14,6 +14,10 @@ import type { MedicalEvent } from '../types';
 
 export function useHomeScreen(navigation: any) {
   const [t0, setT0] = useState<Date | null>(null);
+  // False until the first loadDay has read today's anchor. Until then neither
+  // Home is correct to show — `t0 === null` means "not known yet", not "day
+  // not started".
+  const [dayLoaded, setDayLoaded] = useState(false);
   const [doses, setDoses] = useState<any[]>([]);
   const [waterMl, setWaterMl] = useState(0);
   const [firstMealTime, setFirstMealTimeState] = useState<string | null>(null);
@@ -46,7 +50,24 @@ export function useHomeScreen(navigation: any) {
   const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
 
   const loadDay = useCallback(async () => {
+    // The anchor decides WHICH Home the user sees, so it is read and published
+    // before anything else. Everything below is detail on a screen the user is
+    // already looking at; if it were loaded first, an already-started day would
+    // render the "Start My Day" screen until the last of those reads landed.
     const anchor = await getAnchor();
+    if (anchor?.t0_timestamp) {
+      setT0(new Date(anchor.t0_timestamp));
+      const schedule = await getTodaySchedule();
+      setDoses(schedule);
+      const dueCount = schedule.filter((d) => d.status === 'due').length;
+      navigation.getParent()?.setOptions({ tabBarBadge: dueCount > 0 ? dueCount : undefined });
+    } else {
+      setT0(null);
+      setDoses([]);
+      navigation.getParent()?.setOptions({ tabBarBadge: undefined });
+    }
+    setDayLoaded(true);
+
     setWaterMl(anchor?.water_ml ?? 0);
     const ex = await getTodayExercise();
     const profile = await getProfile();
@@ -69,17 +90,6 @@ export function useHomeScreen(navigation: any) {
     const caregiverName = await AsyncStorage.getItem('caregiver_patient_name');
     setIsCaregiver(pt === 'caregiver');
     if (caregiverName) setCaregiverPatientName(caregiverName);
-    if (anchor?.t0_timestamp) {
-      setT0(new Date(anchor.t0_timestamp));
-      const schedule = await getTodaySchedule();
-      setDoses(schedule);
-      const dueCount = schedule.filter(d => d.status === 'due').length;
-      navigation.getParent()?.setOptions({ tabBarBadge: dueCount > 0 ? dueCount : undefined });
-    } else {
-      setT0(null);
-      setDoses([]);
-      navigation.getParent()?.setOptions({ tabBarBadge: undefined });
-    }
   }, [navigation]);
 
   useEffect(() => {
@@ -175,7 +185,7 @@ export function useHomeScreen(navigation: any) {
   }, []);
 
   return {
-    t0, setT0, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
     todayMeals, setTodayMeals,

@@ -71,11 +71,11 @@ function ProgressHeader({ t0, doses }: ProgressHeaderProps) {
 
 const headerStyles = StyleSheet.create({
   card: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#2C2420',
+    shadowColor: '#14213D',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -91,15 +91,15 @@ const headerStyles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   dateText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
   },
   startedText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
   },
   mealText: {
-    color: '#C4882A',
+    color: '#F2B233',
     fontSize: 12,
     marginTop: 2,
   },
@@ -109,19 +109,19 @@ const headerStyles = StyleSheet.create({
     marginBottom: 4,
   },
   tick: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 10,
   },
   trackOuter: {
     height: 10,
-    backgroundColor: '#E8E0D8',
+    backgroundColor: '#DBDDD3',
     borderRadius: 5,
     overflow: 'hidden',
     marginBottom: 14,
   },
   trackFill: {
     height: 10,
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     borderRadius: 5,
   },
   summaryRow: {
@@ -129,17 +129,17 @@ const headerStyles = StyleSheet.create({
     alignItems: 'baseline',
   },
   summaryCount: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 20,
     fontWeight: '700',
   },
   summaryOf: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 20,
     fontWeight: '700',
   },
   summaryLabel: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
   },
   celebrationRow: {
@@ -148,18 +148,18 @@ const headerStyles = StyleSheet.create({
     gap: 8,
   },
   celebrationIcon: {
-    color: '#C96A50',
+    color: '#1B58B8',
     fontSize: 22,
     fontWeight: '900',
   },
   celebrationText: {
-    color: '#C96A50',
+    color: '#1B58B8',
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
   },
   readyText: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
   },
 });
@@ -171,7 +171,7 @@ const headerStyles = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const {
-    t0, setT0, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
     todayMeals, setTodayMeals, patientName, isCaregiver, caregiverPatientName,
@@ -249,10 +249,13 @@ export default function HomeScreen() {
      }
    };
 
-  const handleAddWater = async () => {
+  const handleAddWater = async (amountMl: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await addWater(250);
-    setWaterMl((prev) => prev + 250);
+    await addWater(amountMl);
+    // Read the day back rather than assuming the increment landed, so the screen
+    // and daily_anchors can never disagree.
+    const anchor = await getAnchor();
+    setWaterMl(anchor?.water_ml ?? 0);
   };
 
   const handleLogExercise = async (minutes: number = 30, type: string = 'walk', intensity: string = 'moderate') => {
@@ -266,7 +269,10 @@ export default function HomeScreen() {
   const handleLogSun = async (minutes: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await logSunExposure(minutes);
-    setSunMinutes(prev => prev + minutes);
+    // Read the day back rather than assuming the increment landed — the screen and
+    // the sun_log row used to drift apart and only agree again after a reload.
+    const today = await getTodaySunLog();
+    setSunMinutes(today?.minutes ?? 0);
   };
 
   const handleLogMeal = async () => {
@@ -336,26 +342,44 @@ export default function HomeScreen() {
             : (patientName ? `Hello, ${patientName.split(' ')[0]}` : 'the Protocol')}
         </Text>
         {isCaregiver && (
-          <Text style={{ fontSize: 12, color: '#B0A098', marginTop: 2, textAlign: 'center' }}>
+          <Text style={{ fontSize: 12, color: '#9AA3B2', marginTop: 2, textAlign: 'center' }}>
             Caregiver · {patientName || 'Your account'}
           </Text>
         )}
       </View>
       {isCaregiver && (
         <TouchableOpacity
-          style={{ backgroundColor: '#C96A50', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
+          style={{ backgroundColor: '#1B58B8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
           onPress={() => navigation.navigate('Settings', { screen: 'Caregiver' })}
           activeOpacity={0.8}
           accessibilityLabel="Caregiver dashboard"
           accessibilityRole="button"
         >
-          <Text style={{ color: '#FAF7F4', fontSize: 12, fontWeight: '700' }}>Dashboard</Text>
+          <Text style={{ color: '#F7F7F2', fontSize: 12, fontWeight: '700' }}>Dashboard</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
   // ── Pre-day view ───────────────────────────────────────────────────────────
+
+  // Until the anchor has been read, `t0` is null because nothing is known yet,
+  // not because the day has not been started. Showing "Start My Day" here is
+  // wrong for anyone already mid-protocol, so the skeleton holds the frame.
+  if (!dayLoaded) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.scroll}>
+          {renderHeader()}
+          <SkeletonCard height={80} />
+          <SkeletonCard height={120} />
+          <SkeletonCard height={60} />
+          <SkeletonCard height={80} />
+          <SkeletonCard height={80} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!t0) {
     if (starting) {
@@ -503,40 +527,44 @@ export default function HomeScreen() {
             {doses.every((d) => d.status === 'taken') ? (
               <Text style={styles.allDoneLabel}>All done ✓</Text>
             ) : (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onLongPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setDosesExpanded(true);
-                }}
-                onPress={dosesExpanded ? undefined : () => {
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setDosesExpanded(true);
-                }}
-                accessibilityLabel={dosesExpanded ? "Collapse dose list" : "Expand to see all doses"}
-                accessibilityRole="button"
-              >
-                {dosesExpanded ? (
-                  <View>
-                    <Text style={styles.sectionLabel}>DOSES</Text>
-                    {doses.map((dose) => (
-                      <DoseRow key={dose.id} dose={dose} onPress={() => handleDosePress(dose)} />
-                    ))}
-                    <TouchableOpacity
-                      style={styles.collapseBtn}
-                      onPress={() => {
-                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                        setDosesExpanded(false);
-                      }}
-                      activeOpacity={0.7}
-                      accessibilityLabel="Collapse dose list"
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.collapseBtnText}>Collapse</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
+              dosesExpanded ? (
+                // Expanded, the list is just a list. Keeping the outer touchable
+                // here nested DoseRow and Collapse inside a button, so the wrapper
+                // competed with them for the touch responder and a long-press
+                // anywhere re-fired expand.
+                <View>
+                  <Text style={styles.sectionLabel}>DOSES</Text>
+                  {doses.map((dose) => (
+                    <DoseRow key={dose.id} dose={dose} onPress={() => handleDosePress(dose)} />
+                  ))}
+                  <TouchableOpacity
+                    style={styles.collapseBtn}
+                    onPress={() => {
+                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                      setDosesExpanded(false);
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Collapse dose list"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.collapseBtnText}>Collapse</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setDosesExpanded(true);
+                  }}
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setDosesExpanded(true);
+                  }}
+                  accessibilityLabel="Expand to see all doses"
+                  accessibilityRole="button"
+                >
                   <View>
                     {/* Stacked peek cards */}
                     <View style={styles.stackPeek}>
@@ -548,8 +576,8 @@ export default function HomeScreen() {
                       {doses.length - 1} more dose{doses.length - 1 !== 1 ? 's' : ''} today — tap to view all
                     </Text>
                   </View>
-                )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )
             )}
           </>
         ) : (
@@ -560,30 +588,9 @@ export default function HomeScreen() {
         </View>
       )}
 
-        {/* Quick log — daily entries that were buried under Settings.
-            They belong to the day, so they live on Today. */}
-        <View style={styles.quickLogRow}>
-          <TouchableOpacity
-            style={styles.quickLogBtn}
-            onPress={() => navigation.navigate('Sleep' as never)}
-            activeOpacity={0.8}
-            accessibilityLabel="Sleep check-in"
-            accessibilityRole="button"
-          >
-            <Text style={styles.quickLogIcon}>🌙</Text>
-            <Text style={styles.quickLogLabel}>Sleep check-in</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickLogBtn}
-            onPress={() => navigation.navigate('CalciumLog' as never)}
-            activeOpacity={0.8}
-            accessibilityLabel="Calcium log"
-            accessibilityRole="button"
-          >
-            <Text style={styles.quickLogIcon}>🔥</Text>
-            <Text style={styles.quickLogLabel}>Calcium log</Text>
-          </TouchableOpacity>
-        </View>
+        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+
+        <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
 
         <Text style={styles.homeDisclaimer}>{MEDICAL_DISCLAIMER}</Text>
 
@@ -632,14 +639,14 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF7F4',
+    backgroundColor: '#F7F7F2',
   },
-  lastEntryCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
+  lastEntryCard: { backgroundColor: '#ECEDE6', borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
   lastEntryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   lastEntryEmoji: { fontSize: 22 },
-  lastEntryDate: { color: '#7A6A62', fontSize: 12 },
-  lastEntryNote: { color: '#2C2420', fontSize: 14, lineHeight: 20 },
-  lastEntryEmpty: { color: '#B0A098', fontSize: 14, textAlign: 'center' },
+  lastEntryDate: { color: '#5A6478', fontSize: 12 },
+  lastEntryNote: { color: '#14213D', fontSize: 14, lineHeight: 20 },
+  lastEntryEmpty: { color: '#9AA3B2', fontSize: 14, textAlign: 'center' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -648,7 +655,7 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   modalContent: {
-    backgroundColor: '#FAF7F4',
+    backgroundColor: '#F7F7F2',
     borderRadius: 20,
     padding: 28,
     width: '100%',
@@ -656,14 +663,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 16,
     textAlign: 'center',
   },
   modalBody: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     lineHeight: 24,
     textAlign: 'center',
@@ -676,20 +683,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   modalButtonText: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
     fontSize: 16,
     fontWeight: '800',
   },
   quickLinksRow: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 16 },
-  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F2EDE8', borderRadius: 8, paddingVertical: 10 },
-  quickLinkText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
+  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#ECEDE6', borderRadius: 8, paddingVertical: 10 },
+  quickLinkText: { color: '#5A6478', fontSize: 13, fontWeight: '600' },
   reorderBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FBF0ED',
+    backgroundColor: '#E7EEFB',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#C96A50',
+    borderColor: '#1B58B8',
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -697,13 +704,13 @@ const styles = StyleSheet.create({
   },
   reorderBannerText: {
     flex: 1,
-    color: '#A8503A',
+    color: '#12408C',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   reorderBannerDismiss: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -714,7 +721,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF8EC',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#C4882A',
+    borderColor: '#F2B233',
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -728,7 +735,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   fatigueBannerDismiss: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -736,10 +743,10 @@ const styles = StyleSheet.create({
   surveyPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FBF0ED',
+    backgroundColor: '#E7EEFB',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#C96A5040',
+    borderColor: '#1B58B840',
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -747,13 +754,13 @@ const styles = StyleSheet.create({
   },
   surveyPromptText: {
     flex: 1,
-    color: '#A8503A',
+    color: '#12408C',
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   surveyPromptDismiss: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -765,12 +772,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   greeting: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 28,
     fontWeight: '800',
   },
   subtitle: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 40,
@@ -782,31 +789,31 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   exerciseCard: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
   },
   exerciseLabel: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
   },
   exerciseDone: {
-    color: '#5A8A5A',
+    color: '#2F8F5B',
     fontWeight: '700',
     marginTop: 8,
   },
   exerciseLogButton: {
-    backgroundColor: '#FBF0ED',
+    backgroundColor: '#E7EEFB',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#C96A50',
+    borderColor: '#1B58B8',
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 8,
   },
   exerciseLogButtonText: {
-    color: '#C96A50',
+    color: '#1B58B8',
     fontWeight: '600',
   },
   vitDBanner: {
@@ -829,7 +836,7 @@ const styles = StyleSheet.create({
   },
   relapseButton: {
     borderWidth: 1.5,
-    borderColor: '#C04040',
+    borderColor: '#C0392B',
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 24,
@@ -837,17 +844,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
-  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#EBF0F5', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#4A7A9B' },
-  reportReadyText: { color: '#4A7A9B', fontSize: 13, fontWeight: '600', flex: 1 },
-  reportReadyDismiss: { color: '#B0A098', fontSize: 16, paddingLeft: 12 },
+  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#EBF0F5', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#2AA6B8' },
+  reportReadyText: { color: '#2AA6B8', fontSize: 13, fontWeight: '600', flex: 1 },
+  reportReadyDismiss: { color: '#9AA3B2', fontSize: 16, paddingLeft: 12 },
   emptyDoses: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
   emptyDosesIcon: { fontSize: 40, marginBottom: 12 },
-  emptyDosesTitle: { color: '#2C2420', fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  emptyDosesSub: { color: '#B0A098', fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  emptyDosesTitle: { color: '#14213D', fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyDosesSub: { color: '#9AA3B2', fontSize: 14, textAlign: 'center', lineHeight: 22 },
   allDoneLabel: { color: '#22c55e', fontSize: 16, fontWeight: '700', textAlign: 'center', marginVertical: 12 },
   relapseButtonInline: {
     borderWidth: 1.5,
-    borderColor: '#C04040',
+    borderColor: '#C0392B',
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 24,
@@ -855,18 +862,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
-  sectionLabel: { color: '#B0A098', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
+  sectionLabel: { color: '#9AA3B2', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
   stackPeek: { height: 20, marginBottom: 8, position: 'relative' },
-  stackCard: { position: 'absolute', left: 0, right: 0, height: 8, backgroundColor: '#F0EBE8', borderRadius: 6, shadowColor: '#2C2420', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
-  stackLabel: { color: '#C96A50', fontSize: 13, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
-  collapseBtn: { backgroundColor: '#F2EDE8', borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4, borderWidth: 1, borderColor: '#D8CFC8' },
-  collapseBtnText: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
+  stackCard: { position: 'absolute', left: 0, right: 0, height: 8, backgroundColor: '#F0EBE8', borderRadius: 6, shadowColor: '#14213D', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  stackLabel: { color: '#1B58B8', fontSize: 13, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  collapseBtn: { backgroundColor: '#ECEDE6', borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4, borderWidth: 1, borderColor: '#CFD2C6' },
+  collapseBtnText: { color: '#5A6478', fontSize: 13, fontWeight: '600' },
   energyCard: { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#22c55e30' },
   energyLabel: { color: '#166534', fontSize: 13, fontWeight: '600' },
   energyCount: { color: '#166534', fontSize: 13, fontWeight: '700' },
   energyDot: { width: 20, height: 20, borderRadius: 10, flex: 1 },
   relapseButtonText: {
-    color: '#C04040',
+    color: '#C0392B',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -879,32 +886,32 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D8CFC8',
+    borderColor: '#CFD2C6',
     paddingVertical: 8,
     alignItems: 'center',
   },
   exercisePillActive: {
-    borderColor: '#C96A50',
-    backgroundColor: '#FBF0ED',
+    borderColor: '#1B58B8',
+    backgroundColor: '#E7EEFB',
   },
   exercisePillText: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 12,
     fontWeight: '600',
   },
   exercisePillTextActive: {
-    color: '#C96A50',
+    color: '#1B58B8',
   },
   exerciseIntensityPill: {
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D8CFC8',
+    borderColor: '#CFD2C6',
     paddingVertical: 8,
     alignItems: 'center',
   },
   exerciseIntensityActive: {
-    borderColor: '#C4882A',
+    borderColor: '#F2B233',
     backgroundColor: '#FFF8EC',
   },
   exerciseMinRow: {
@@ -915,19 +922,19 @@ const styles = StyleSheet.create({
   exerciseMinButton: {
     flex: 1,
     borderRadius: 8,
-    backgroundColor: '#FBF0ED',
+    backgroundColor: '#E7EEFB',
     borderWidth: 1,
-    borderColor: '#C96A5030',
+    borderColor: '#1B58B830',
     paddingVertical: 10,
     alignItems: 'center',
   },
   exerciseMinButtonText: {
-    color: '#C96A50',
+    color: '#1B58B8',
     fontSize: 14,
     fontWeight: '700',
   },
   mealPromptCard: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -936,25 +943,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   mealPromptTitle: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
     marginRight: 12,
   },
   mealPromptButton: {
-    backgroundColor: '#C96A50',
+    backgroundColor: '#1B58B8',
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   mealPromptButtonText: {
-    color: '#FAF7F4',
+    color: '#F7F7F2',
     fontSize: 14,
     fontWeight: '800',
   },
   journalSummaryCard: {
-    backgroundColor: '#F2EDE8',
+    backgroundColor: '#ECEDE6',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -969,60 +976,53 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   journalSummaryTitle: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 14,
     fontWeight: '600',
   },
   journalSummaryPreview: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     fontStyle: 'italic',
   },
   journalSummaryPrompt: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
-    textDecorationColor: '#C96A50',
+    textDecorationColor: '#1B58B8',
   },
-  consentBanner: { backgroundColor: '#EBF0F5', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#4A7A9B' },
-  consentBannerTitle: { color: '#4A7A9B', fontSize: 13, fontWeight: '800', marginBottom: 6 },
-  consentBannerText: { color: '#7A6A62', fontSize: 13, lineHeight: 18, marginBottom: 12 },
-  consentBannerBtn: { backgroundColor: '#4A7A9B', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  consentBannerBtnText: { color: '#FAF7F4', fontSize: 13, fontWeight: '700' },
-  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
+  consentBanner: { backgroundColor: '#EBF0F5', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#2AA6B8' },
+  consentBannerTitle: { color: '#2AA6B8', fontSize: 13, fontWeight: '800', marginBottom: 6 },
+  consentBannerText: { color: '#5A6478', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  consentBannerBtn: { backgroundColor: '#2AA6B8', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  consentBannerBtnText: { color: '#F7F7F2', fontSize: 13, fontWeight: '700' },
+  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#F2B233', gap: 10 },
   nudgeBannerText: { flex: 1, color: '#8A5A10', fontSize: 13, lineHeight: 18 },
-  nudgeBannerDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
-  insightCard: { backgroundColor: '#FBF0ED', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#C96A50' },
-  insightLabel: { color: '#C96A50', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
-  insightText: { color: '#7A6A62', fontSize: 14, lineHeight: 22 },
-  quickLogRow: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  quickLogBtn: {
-    flex: 1, backgroundColor: '#F2EDE8', borderRadius: 14, borderWidth: 1,
-    borderColor: '#D8CFC8', paddingVertical: 18, alignItems: 'center', gap: 6,
-  },
-  quickLogIcon: { fontSize: 22 },
-  quickLogLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600' },
-  homeDisclaimer: { color: '#B0A098', fontSize: 11, lineHeight: 17, marginTop: 28 },
+  nudgeBannerDismiss: { color: '#9AA3B2', fontSize: 16, fontWeight: '700' },
+  insightCard: { backgroundColor: '#E7EEFB', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
+  insightLabel: { color: '#1B58B8', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
+  insightText: { color: '#5A6478', fontSize: 14, lineHeight: 22 },
+  homeDisclaimer: { color: '#9AA3B2', fontSize: 11, lineHeight: 17, marginTop: 28 },
   strictBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8EC', borderRadius: 8, padding: 10, marginBottom: 10, gap: 8, borderWidth: 1, borderColor: '#eab308' },
   strictAmberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#eab308' },
   strictBadgeText: { color: '#8A5A10', fontSize: 13, fontWeight: '600', flex: 1 },
-  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#C4882A', gap: 10 },
+  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#F2B233', gap: 10 },
   hintCardInner: { flex: 1 },
-  hintCardTitle: { color: '#C4882A', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
-  hintCardText: { color: '#7A6A62', fontSize: 12, lineHeight: 18 },
-  hintCardDismiss: { color: '#B0A098', fontSize: 16, fontWeight: '700' },
-  wizardCard: { backgroundColor: '#FBF0ED', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#C96A5040' },
-  wizardTitle: { color: '#C96A50', fontSize: 15, fontWeight: '800', marginBottom: 12 },
-  wizardStep: { color: '#7A6A62', fontSize: 13, lineHeight: 20, marginBottom: 8 },
-  wizardBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
-  wizardBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '800' },
-  mealCard: { backgroundColor: '#F2EDE8', borderRadius: 12, padding: 14, marginBottom: 12 },
-  mealCardTitle: { color: '#7A6A62', fontSize: 12, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10 },
+  hintCardTitle: { color: '#F2B233', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
+  hintCardText: { color: '#5A6478', fontSize: 12, lineHeight: 18 },
+  hintCardDismiss: { color: '#9AA3B2', fontSize: 16, fontWeight: '700' },
+  wizardCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#1B58B840' },
+  wizardTitle: { color: '#1B58B8', fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  wizardStep: { color: '#5A6478', fontSize: 13, lineHeight: 20, marginBottom: 8 },
+  wizardBtn: { backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  wizardBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '800' },
+  mealCard: { backgroundColor: '#ECEDE6', borderRadius: 12, padding: 14, marginBottom: 12 },
+  mealCardTitle: { color: '#5A6478', fontSize: 12, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10 },
   mealButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  mealTypeBtn: { flex: 1, backgroundColor: '#E8E0D8', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  mealTypeBtnText: { color: '#C96A50', fontSize: 12, fontWeight: '700' },
+  mealTypeBtn: { flex: 1, backgroundColor: '#DBDDD3', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  mealTypeBtnText: { color: '#1B58B8', fontSize: 12, fontWeight: '700' },
   mealChipScroll: { marginTop: 4 },
-  mealChip: { backgroundColor: '#FBF0ED', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#C96A5030' },
-  mealChipText: { color: '#C96A50', fontSize: 12 },
+  mealChip: { backgroundColor: '#E7EEFB', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#1B58B830' },
+  mealChipText: { color: '#1B58B8', fontSize: 12 },
 });

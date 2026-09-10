@@ -82,7 +82,7 @@ export default function FamilySyncScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />}
     >
       <Text style={styles.heading}>{t('familySync')}</Text>
 
@@ -115,20 +115,20 @@ export default function FamilySyncScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF7F4' },
+  container: { flex: 1, backgroundColor: '#F7F7F2' },
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
-  heading: { color: '#2C2420', fontSize: 24, fontWeight: '800', marginBottom: 20 },
-  codeCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 24, shadowColor: '#2C2420', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  codeLabel: { color: '#7A6A62', fontSize: 13, fontWeight: '600', marginBottom: 12 },
-  codeValue: { color: '#2C2420', fontSize: 36, fontWeight: '800', letterSpacing: 6, marginBottom: 16 },
-  shareBtn: { backgroundColor: '#C96A50', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 32 },
-  shareBtnText: { color: '#FAF7F4', fontSize: 15, fontWeight: '700' },
-  sectionTitle: { color: '#7A6A62', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8, marginLeft: 4 },
-  emptyText: { color: '#B0A098', fontSize: 14, textAlign: 'center', marginTop: 20 },
+  heading: { color: '#14213D', fontSize: 24, fontWeight: '800', marginBottom: 20 },
+  codeCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 24, shadowColor: '#14213D', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  codeLabel: { color: '#5A6478', fontSize: 13, fontWeight: '600', marginBottom: 12 },
+  codeValue: { color: '#14213D', fontSize: 36, fontWeight: '800', letterSpacing: 6, marginBottom: 16 },
+  shareBtn: { backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 32 },
+  shareBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
+  sectionTitle: { color: '#5A6478', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8, marginLeft: 4 },
+  emptyText: { color: '#9AA3B2', fontSize: 14, textAlign: 'center', marginTop: 20 },
   memberCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   memberInfo: { flex: 1, marginRight: 12 },
-  memberName: { color: '#2C2420', fontSize: 15, fontWeight: '700' },
-  memberDate: { color: '#7A6A62', fontSize: 12, marginTop: 2 },
-  removeBtn: { backgroundColor: '#FDF5F5', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#C04040' },
-  removeBtnText: { color: '#C04040', fontSize: 12, fontWeight: '700' },
+  memberName: { color: '#14213D', fontSize: 15, fontWeight: '700' },
+  memberDate: { color: '#5A6478', fontSize: 12, marginTop: 2 },
+  removeBtn: { backgroundColor: '#FDF5F5', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: '#C0392B' },
+  removeBtnText: { color: '#C0392B', fontSize: 12, fontWeight: '700' },
 });

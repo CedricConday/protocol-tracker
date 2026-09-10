@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { AppState, InteractionManager, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import Navigation from './src/navigation';
 import { initDb, getDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
@@ -15,33 +16,89 @@ import SplashAnimation from './src/components/SplashAnimation';
 import { useBiometricGate } from './src/hooks/useBiometricGate';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 
-const PRIMING_KEY = '@coimbra:permission_primed';
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const PRIMING_KEY = '@pt:permission_primed';
+/**
+ * The key was '@coimbra:...' before the 2026-06-03 rename, and an install from
+ * before then still has the flag under that name. Read through to it once so
+ * nobody gets re-prompted for permissions they already granted, then delete it.
+ * Safe to drop this, and readPrimingFlag with it, once no install predates the
+ * rename.
+ */
+const LEGACY_PRIMING_KEY = '@coimbra:permission_primed';
+
+async function readPrimingFlag(): Promise<string | null> {
+  const primed = await AsyncStorage.getItem(PRIMING_KEY);
+  if (primed !== null) return primed;
+
+  const legacy = await AsyncStorage.getItem(LEGACY_PRIMING_KEY);
+  if (legacy === null) return null;
+
+  // Migrate it forward, then drop the old key. A failure here is not worth
+  // blocking the boot on: the worst case is that we try again next launch.
+  try {
+    await AsyncStorage.setItem(PRIMING_KEY, legacy);
+    await AsyncStorage.removeItem(LEGACY_PRIMING_KEY);
+  } catch {}
+  return legacy;
+}
+
+/**
+ * How long a boot may stay on the bare native splash before we put our own
+ * screen up. The fast path never reaches this — it exists so a cold, slow or
+ * migrating device shows the mark instead of an apparently frozen OS splash.
+ */
+const SLOW_BOOT_MS = 2500;
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPriming, setShowPriming] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [slowBoot, setSlowBoot] = useState(false);
   const { locked, authenticate } = useBiometricGate();
 
-  const completeBoot = useCallback(async () => {
-    await registerBackgroundTask();
-    setReady(true);
+  // The native splash is only dropped once there is real content underneath —
+  // never for a blank frame and never for a second splash screen of our own.
+  const hideNativeSplash = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
+
+  // Everything the first frame does not need. Notification categories, the
+  // background dose check and the first sync are all native round trips, and
+  // none of them is worth a millisecond between the user and their dose list,
+  // so they run after Home has painted.
+  const startDeferredWork = useCallback(() => {
+    InteractionManager.runAfterInteractions(() => {
+      setupNotificationHandler();
+      loadPatientName().catch(() => {});
+      registerBackgroundTask().catch(() => {});
+      syncAll().catch(() => {});
+    });
+  }, []);
+
+  const onNavigationReady = useCallback(() => {
+    hideNativeSplash();
+    startDeferredWork();
+  }, [hideNativeSplash, startDeferredWork]);
 
   useEffect(() => {
     async function boot() {
       try {
-        const db = await getDb();
-        await runMigrations(db);
-        await initDb();
-        await seedDb();
-        setupNotificationHandler();
-        await loadPatientName();
+        // The priming flag lives in AsyncStorage and the schema lives in
+        // SQLite; neither waits on the other, so they open in parallel.
+        const [primed] = await Promise.all([
+          readPrimingFlag(),
+          (async () => {
+            const db = await getDb();
+            await runMigrations(db);
+            await initDb();
+            await seedDb();
+          })(),
+        ]);
 
-        const primed = await AsyncStorage.getItem(PRIMING_KEY);
         if (primed === 'true') {
-          await completeBoot();
+          setReady(true);
         } else {
           setShowPriming(true);
         }
@@ -50,9 +107,16 @@ export default function App() {
       }
     }
     boot();
-  }, [completeBoot]);
+  }, []);
 
-  // Clear badge + sync when app comes to foreground
+  useEffect(() => {
+    if (ready || showPriming) return;
+    const t = setTimeout(() => setSlowBoot(true), SLOW_BOOT_MS);
+    return () => clearTimeout(t);
+  }, [ready, showPriming]);
+
+  // Clear badge + sync when the app comes back to the foreground. The first
+  // sync of the session is part of the deferred work above, not of boot.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
@@ -60,55 +124,48 @@ export default function App() {
         syncAll().catch(() => {});
       }
     });
-    // Clear on first mount too
     Notifications.setBadgeCountAsync(0).catch(() => {});
-    // Initial sync
-    syncAll().catch(() => {});
     return () => sub.remove();
   }, []);
 
-  const handlePrimingComplete = async () => {
+  const dismissPriming = async () => {
     await AsyncStorage.setItem(PRIMING_KEY, 'true');
     setShowPriming(false);
-    await completeBoot();
-  };
-
-  const handlePrimingSkip = async () => {
-    await AsyncStorage.setItem(PRIMING_KEY, 'true');
-    setShowPriming(false);
-    await completeBoot();
+    setReady(true);
   };
 
   if (error) {
     return (
-      <View style={styles.splash}>
+      <SplashAnimation onLayout={hideNativeSplash}>
         <Text style={styles.errorText}>DB Error: {error}</Text>
-      </View>
+      </SplashAnimation>
     );
   }
 
   if (!ready) {
+    // First run needs a host for the priming modal, and a slow boot deserves
+    // something to look at. A normal warm boot gets neither: it stays on the
+    // native splash and goes straight to Home.
+    if (!showPriming && !slowBoot) return null;
     return (
-      <View style={styles.splash}>
-        <Text style={styles.splashText}>Protocol Tracker</Text>
+      <SplashAnimation onLayout={hideNativeSplash}>
         <PermissionPrimingModal
           visible={showPriming}
-          onComplete={handlePrimingComplete}
-          onSkip={handlePrimingSkip}
+          onComplete={dismissPriming}
+          onSkip={dismissPriming}
         />
-      </View>
+      </SplashAnimation>
     );
   }
 
   if (locked) {
     return (
-      <View style={styles.splash}>
-        <Text style={styles.splashText}>Protocol Tracker</Text>
+      <SplashAnimation onLayout={hideNativeSplash}>
         <Text style={styles.errorText}>Authenticate to continue</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={authenticate} activeOpacity={0.8}>
           <Text style={styles.retryBtnText}>Try Again</Text>
         </TouchableOpacity>
-      </View>
+      </SplashAnimation>
     );
   }
 
@@ -116,26 +173,13 @@ export default function App() {
     <ErrorBoundary>
       <FontScaleProvider>
         <StatusBar style="light" />
-        <Navigation />
-        {showSplash && <SplashAnimation onFinish={() => setShowSplash(false)} />}
+        <Navigation onReady={onNavigationReady} />
       </FontScaleProvider>
     </ErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
-  splash: {
-    flex: 1,
-    backgroundColor: '#0d0d0d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  splashText: {
-    color: '#22c55e',
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
   errorText: {
     color: '#ef4444',
     fontSize: 13,
@@ -143,7 +187,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryBtn: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#C96A50',
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 32,

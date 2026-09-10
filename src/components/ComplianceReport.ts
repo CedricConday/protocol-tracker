@@ -1,5 +1,5 @@
 import * as Print from 'expo-print';
-import { getDaySummary, getStreak, getRelapseEvents, todayStr } from '../db/queries';
+import { getDaySummary, getStreak, getRelapseEvents, todayStr, localDateStr } from '../db/queries';
 
 function getBoxColor(pct: number, total: number): string {
   if (total === 0) return '#2a2a2a';
@@ -17,7 +17,7 @@ export async function generateComplianceReport(
   for (let i = 29; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(localDateStr(d));
   }
 
   let totalTaken = 0;

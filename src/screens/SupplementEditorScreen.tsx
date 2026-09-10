@@ -261,7 +261,7 @@ export default function SupplementEditorScreen() {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
             activeOpacity={0.8}
           >
-            <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#FAF7F4" />
+            <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#F7F7F2" />
           </TouchableOpacity>
         </View>
 
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.55 },
-  saveBtnText: { color: '#FAF7F4', fontSize: 14, fontWeight: '600' },
+  saveBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '600' },
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, color: C.text, fontWeight: '600' },
   emptySub: { fontSize: 13, color: C.textSub },

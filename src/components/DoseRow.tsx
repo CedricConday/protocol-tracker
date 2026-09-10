@@ -4,10 +4,10 @@ import { ScheduledDose } from '../types';
 import { t } from '../i18n';
 
 const statusBorderColors: Record<string, string> = {
-  taken:    '#5A8A5A',
-  due:      '#C96A50',
-  upcoming: '#4A7A9B',
-  missed:   '#C04040',
+  taken:    '#2F8F5B',
+  due:      '#F2603C',
+  upcoming: '#2AA6B8',
+  missed:   '#C0392B',
 };
 
 interface Props {
@@ -54,11 +54,11 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
   const timeLabel = `${hour12}:${minStr}`;
 
   const timeColor =
-    dose.status === 'due'   ? '#C96A50' :
-    dose.status === 'taken' ? '#B0A098' :
-                              '#7A6A62';
+    dose.status === 'due'   ? '#F2603C' :
+    dose.status === 'taken' ? '#9AA3B2' :
+                              '#5A6478';
 
-  const cardBg = dose.status === 'due' ? '#FBF0ED' : '#F2EDE8';
+  const cardBg = dose.status === 'due' ? '#E7EEFB' : '#ECEDE6';
 
   let rightEl: React.ReactElement | null = null;
   if (dose.status === 'taken') {
@@ -71,7 +71,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     rightEl = <Text style={styles.rightUpcoming}>›</Text>;
   }
 
-  const borderColor = statusBorderColors[dose.status] ?? '#3b82f6';
+  const borderColor = statusBorderColors[dose.status] ?? '#2AA6B8';
 
   const inner = (
     <Animated.View style={[styles.card, { backgroundColor: cardBg }, { paddingVertical: 22 }, { transform: [{ scale: confirmScale }] }]}>
@@ -83,7 +83,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
       {/* Left: time column */}
       <View style={styles.timeCol}>
         <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
-        <Text style={[styles.timeAmPm, { color: timeColor === '#7A6A62' ? '#B0A098' : timeColor }]}>
+        <Text style={[styles.timeAmPm, { color: timeColor === '#5A6478' ? '#9AA3B2' : timeColor }]}>
           {ampm}
         </Text>
       </View>
@@ -164,24 +164,24 @@ const styles = StyleSheet.create({
   separator: {
     width: 1,
     height: 36,
-    backgroundColor: '#D8CFC8',
+    backgroundColor: '#CFD2C6',
     marginHorizontal: 12,
   },
   center: {
     flex: 1,
   },
   name: {
-    color: '#2C2420',
+    color: '#14213D',
     fontSize: 15,
     fontWeight: '600',
   },
   meta: {
-    color: '#7A6A62',
+    color: '#5A6478',
     fontSize: 13,
     marginTop: 2,
   },
   withFoodTag: {
-    color: '#C4882A',
+    color: '#F2B233',
     fontSize: 11,
     marginTop: 4,
   },
@@ -191,22 +191,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rightTaken: {
-    color: '#5A8A5A',
+    color: '#2F8F5B',
     fontSize: 16,
     fontWeight: '700',
   },
   rightDue: {
-    color: '#C96A50',
+    color: '#F2603C',
     fontSize: 11,
     fontWeight: '800',
   },
   rightMissed: {
-    color: '#C04040',
+    color: '#C0392B',
     fontSize: 14,
     fontWeight: '700',
   },
   rightUpcoming: {
-    color: '#B0A098',
+    color: '#9AA3B2',
     fontSize: 18,
   },
 });
