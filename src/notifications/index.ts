@@ -62,7 +62,7 @@ export const scheduleSupplementNotification = async (params: {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: `Time for your ${params.doseAmount} ${params.supplementName}, ${patientName}`,
-        body: params.notes ?? 'Stay on schedule with the Protocol',
+        body: params.notes ?? 'Stay on schedule.',
         sound: true,
         categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },

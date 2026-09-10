@@ -34,7 +34,7 @@ const CONDITION_ICONS: Record<string, string> = {
 
 const STEPS = [
   {
-    title: 'Welcome to the Protocol',
+    title: 'Welcome to Protocol Tracker',
     icon: '🧬',
     body: 'A personal companion for tracking a high-dose Vitamin D3 protocol. Track your supplements, monitor compliance, and stay connected with your care plan.',
   },
@@ -175,7 +175,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
             </Animated.View>
             <Text style={styles.title}>Welcome, let's get you set up</Text>
             <Text style={styles.body}>
-              This app is your daily companion for the Protocol. We'll keep it simple.
+              This app is your daily companion for your dosing protocol. We'll keep it simple.
             </Text>
             <Text style={styles.inputLabel}>Who is using this app?</Text>
             <View style={styles.typeRow}>
@@ -258,7 +258,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                     keyboardType="numeric"
                   />
                   <Text style={styles.hint}>
-                    Your doctor determines the right dose. Protocol doses typically range from 10,000 to 100,000+ IU/day based on body weight. Low-dose (1,000–5,000 IU) is NOT the Protocol.
+                    Enter the dose your doctor prescribed.
                   </Text>
                 </>
               )}

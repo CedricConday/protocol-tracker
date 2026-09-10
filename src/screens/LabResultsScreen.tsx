@@ -29,7 +29,7 @@ interface LabResult {
   notes: string;
 }
 
-// the Protocol target ranges
+// Ranges the results are charted against.
 const TARGETS = {
   vit_d: { min: 150, max: 280, unit: 'ng/mL', label: 'Vit D 25-OH' },
   pth: { min: 10, max: 30, unit: 'pg/mL', label: 'PTH' },
@@ -305,7 +305,7 @@ export default function LabResultsScreen() {
         <EmptyState
           icon="🧪"
           title="No lab results yet"
-          subtitle="Add your Vitamin D, PTH, and Calcium readings to track trends against the Protocol targets."
+          subtitle="Add your Vitamin D, PTH, and Calcium readings to track trends over time."
           actionLabel="Add First Result"
           onAction={() => setShowForm(true)}
         />
