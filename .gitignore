@@ -45,3 +45,14 @@ yarn-error.*
 
 # storybook build output
 storybook-static/
+
+# local holding pen (removed/parked files, dev logs) — never ships
+.holding/
+
+# e2e run artefacts (screenshots, per-run reports) — 58M and regenerated per run
+e2e/report/
+
+# published design-canvas bundles: generated wrappers that embed the .dc.html
+# artboards. The artboards and canvas.json are the source; these are output.
+design/protocol-tracker-app.html
+design/palettes/protocol-tracker-palettes.html
