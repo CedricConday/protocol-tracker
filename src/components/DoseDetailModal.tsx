@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
+import { t } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -93,32 +94,30 @@ export default function DoseDetailModal({
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Dose</Text>
+            <Text style={styles.label}>{t('dose')}</Text>
             <Text style={styles.value}>{dose.doseAmount}</Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Scheduled</Text>
+            <Text style={styles.label}>{t('scheduled')}</Text>
             <Text style={styles.value}>{timeStr}</Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Window</Text>
+            <Text style={styles.label}>{t('window')}</Text>
             <Text style={styles.value}>
               {earliestStr} - {latestStr}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Tolerance</Text>
+            <Text style={styles.label}>{t('tolerance')}</Text>
             <Text style={styles.value}>{dose.toleranceMinutes} min</Text>
           </View>
 
           {dose.withFood && (
             <View style={styles.foodWarning}>
-              <Text style={styles.foodWarningText}>
-                Take with food
-              </Text>
+              <Text style={styles.foodWarningText}>{t('takeWithFood')}</Text>
             </View>
           )}
 
@@ -133,7 +132,7 @@ export default function DoseDetailModal({
 
           {showSkipReasons ? (
             <View style={styles.skipReasonsContainer}>
-              <Text style={styles.skipReasonsTitle}>Why are you skipping?</Text>
+              <Text style={styles.skipReasonsTitle}>{t('whySkipping')}</Text>
               {SKIP_REASONS.map((reason) => (
                 <TouchableOpacity
                   key={reason}
@@ -149,7 +148,7 @@ export default function DoseDetailModal({
                 onPress={() => setShowSkipReasons(false)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.cancelReasonText}>Cancel</Text>
+                <Text style={styles.cancelReasonText}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>
           ) : canAct ? (
@@ -164,7 +163,7 @@ export default function DoseDetailModal({
                 style={styles.skipButton}
                 onPress={handleSkipPress}
               >
-                <Text style={styles.skipButtonText}>Skip</Text>
+                <Text style={styles.skipButtonText}>{t('skip')}</Text>
               </TouchableOpacity>
             </View>
           ) : isTaken ? (

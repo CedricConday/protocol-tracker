@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { saveSleepCheckin, getLastSleepCheckin } from '../db/queries';
+import { t } from '../i18n';
 
 const QUESTIONS = [
   'Did you go to bed before midnight most nights this week?',
@@ -51,8 +52,8 @@ export default function SleepScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heading}>Sleep Hygiene Scorecard</Text>
-        <Text style={styles.subtitle}>Sunday weekly check-in</Text>
+        <Text style={styles.heading}>{t('sleepScorecard')}</Text>
+        <Text style={styles.subtitle}>{t('sundayCheckin')}</Text>
 
         {alreadyDone && (
           <View style={styles.doneBanner}>
@@ -73,7 +74,7 @@ export default function SleepScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.toggleBtnText, answers[i] === true && styles.toggleBtnTextActive]}>Yes</Text>
+                <Text style={[styles.toggleBtnText, answers[i] === true && styles.toggleBtnTextActive]}>{t('yes')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.toggleBtn, answers[i] === false && styles.toggleBtnActive]}
@@ -91,7 +92,7 @@ export default function SleepScreen() {
         ))}
 
         <View style={styles.scoreCard}>
-          <Text style={styles.scoreLabel}>Your sleep score</Text>
+          <Text style={styles.scoreLabel}>{t('yourSleepScore')}</Text>
           <Text style={[styles.scoreValue, { color: feedback.color }]}>{score}/5</Text>
           <Text style={[styles.scoreFeedback, { color: feedback.color }]}>{feedback.text}</Text>
         </View>

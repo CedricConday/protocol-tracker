@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
+import { t } from '../i18n';
 
 interface MriScan {
   id: number;
@@ -247,7 +248,7 @@ export default function MriScreen() {
       {isOffline && (
         <View style={styles.offlineBanner}>
           <Ionicons name="cloud-offline-outline" size={16} color="#C96A50" style={{ marginRight: 8 }} />
-          <Text style={styles.offlineBannerText}>No connection — data shown is from last sync</Text>
+          <Text style={styles.offlineBannerText}>{t('offlineBanner')}</Text>
         </View>
       )}
 
@@ -261,9 +262,9 @@ export default function MriScreen() {
         </View>
       ) : (
         <View style={styles.form}>
-          <Text style={styles.formTitle}>New MRI Scan</Text>
+          <Text style={styles.formTitle}>{t('newMri')}</Text>
 
-          <Text style={styles.label}>Date</Text>
+          <Text style={styles.label}>{t('date')}</Text>
           <TextInput
             style={styles.input}
             value={date}
@@ -272,7 +273,7 @@ export default function MriScreen() {
             placeholderTextColor="#B0A098"
           />
 
-          <Text style={styles.label}>Facility (optional)</Text>
+          <Text style={styles.label}>{t('facility')}</Text>
           <TextInput
             style={styles.input}
             value={facility}
@@ -281,7 +282,7 @@ export default function MriScreen() {
             placeholderTextColor="#B0A098"
           />
 
-          <Text style={styles.label}>Scan Type</Text>
+          <Text style={styles.label}>{t('scanType')}</Text>
           <View style={styles.chipRow}>
             {SCAN_TYPES.map(t => (
               <TouchableOpacity
@@ -295,7 +296,7 @@ export default function MriScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>With Contrast?</Text>
+          <Text style={styles.label}>{t('withContrast')}</Text>
           <View style={styles.chipRow}>
             {[['Yes', true], ['No', false]].map(([label, val]) => (
               <TouchableOpacity
@@ -309,7 +310,7 @@ export default function MriScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>New Lesions</Text>
+          <Text style={styles.label}>{t('newLesions')}</Text>
           <TextInput
             style={styles.input}
             value={newLesions}
@@ -318,7 +319,7 @@ export default function MriScreen() {
             placeholderTextColor="#B0A098"
           />
 
-          <Text style={styles.label}>Enhancing Lesions?</Text>
+          <Text style={styles.label}>{t('enhancingLesions')}</Text>
           <View style={styles.chipRow}>
             {[['Yes', true], ['No', false], ['Unknown', null]].map(([label, val]) => (
               <TouchableOpacity
@@ -332,7 +333,7 @@ export default function MriScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Overall Assessment</Text>
+          <Text style={styles.label}>{t('overallAssessment')}</Text>
           <View style={styles.chipRow}>
             {ASSESSMENTS.map(a => (
               <TouchableOpacity
@@ -346,12 +347,12 @@ export default function MriScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Notes (optional)</Text>
+          <Text style={styles.label}>{t('notesOptional')}</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Radiologist comments, key findings..."
+            placeholder={t('mriNotesPlaceholder')}
             placeholderTextColor="#B0A098"
             multiline
             numberOfLines={3}
@@ -359,7 +360,7 @@ export default function MriScreen() {
 
           <View style={styles.formActions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowForm(false)} activeOpacity={0.7}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
               <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Scan'}</Text>
@@ -371,9 +372,9 @@ export default function MriScreen() {
       {scans.length === 0 && !showForm ? (
         <EmptyState
           icon="🧠"
-          title="No MRI scans yet"
-          subtitle="Log each scan date and what you record from your report."
-          actionLabel="Log First Scan"
+          title={t('noMriYet')}
+          subtitle={t('mriEmptySub')}
+          actionLabel={t('logFirstScan')}
           onAction={() => setShowForm(true)}
         />
       ) : (
@@ -410,7 +411,7 @@ export default function MriScreen() {
         ))
       )}
 
-      <Text style={styles.disclaimer}>Not medical advice. Share results with your neurologist.</Text>
+      <Text style={styles.disclaimer}>{t('mriDisclaimer')}</Text>
     </ScrollView>
   );
 }

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { MedicalEvent } from '../types';
+import { t } from '../i18n';
 
 interface Props {
   event: MedicalEvent;
@@ -108,7 +109,7 @@ const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ ev
           />
           <View style={styles.dot} />
         </View>
-        <Text style={styles.label}>NEXT APPOINTMENT</Text>
+        <Text style={styles.label}>{t('nextAppointment')}</Text>
       </View>
 
       <Text style={styles.title}>{event.title}</Text>
@@ -117,7 +118,7 @@ const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ ev
       <View style={styles.footer}>
         <Text style={styles.away}>{awayLabel(days)}</Text>
         <TouchableOpacity onPress={handleViewDetails} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.link}>View Details →</Text>
+          <Text style={styles.link}>{t('viewDetails')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -126,13 +127,13 @@ const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ ev
         <View style={styles.expandInner}>
           {event.location ? (
             <View style={styles.meta}>
-              <Text style={styles.metaKey}>LOCATION</Text>
+              <Text style={styles.metaKey}>{t('locationUpper')}</Text>
               <Text style={styles.metaVal}>{event.location}</Text>
             </View>
           ) : null}
           {event.notes ? (
             <View style={styles.meta}>
-              <Text style={styles.metaKey}>NOTES</Text>
+              <Text style={styles.metaKey}>{t('notesUpper')}</Text>
               <Text style={styles.metaVal}>{event.notes}</Text>
             </View>
           ) : null}
@@ -141,7 +142,7 @@ const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ ev
             onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); }}
             activeOpacity={0.85}
           >
-            <Text style={styles.completeBtnText}>Mark Complete</Text>
+            <Text style={styles.completeBtnText}>{t('markComplete')}</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>

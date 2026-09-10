@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { t } from '../i18n';
 
 interface State { hasError: boolean; error: Error | null }
 export class ErrorBoundary extends React.Component<React.PropsWithChildren, State> {
@@ -9,10 +10,10 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Stat
     if (this.state.hasError) {
       return (
         <View style={s.container}>
-          <Text style={s.title}>Something went wrong</Text>
-          <Text style={s.sub}>Please restart the app</Text>
+          <Text style={s.title}>{t('somethingWentWrong')}</Text>
+          <Text style={s.sub}>{t('pleaseRestart')}</Text>
           <TouchableOpacity style={s.btn} onPress={() => this.setState({ hasError: false, error: null })}>
-            <Text style={s.btnText}>Try again</Text>
+            <Text style={s.btnText}>{t('tryAgain')}</Text>
           </TouchableOpacity>
         </View>
       );

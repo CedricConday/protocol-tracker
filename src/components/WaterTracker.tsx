@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { t } from '../i18n';
 
 const GOAL_ML = 2500;
 const SEGMENT_ML = 500;
@@ -39,7 +40,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
       <View style={styles.header}>
         <View style={styles.labelRow}>
           <Text style={styles.droplet}>💧</Text>
-          <Text style={styles.label}>Water</Text>
+          <Text style={styles.label}>{t('water')}</Text>
         </View>
         <Text style={[styles.amount, goalReached ? styles.amountDone : null]}>
           {waterMl >= 1000 ? `${(waterMl / 1000).toFixed(1)}L` : `${waterMl}ml`}
@@ -79,7 +80,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
 
       {goalReached ? (
         <Animated.View style={[styles.goalBanner, { transform: [{ scale: goalAnim }] }]}>
-          <Text style={styles.goalBannerText}>Goal reached — great work!</Text>
+          <Text style={styles.goalBannerText}>{t('goalReachedWater')}</Text>
         </Animated.View>
       ) : (
         <Animated.View style={{ transform: [{ scale: tapScale }] }}>

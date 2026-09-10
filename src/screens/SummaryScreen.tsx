@@ -13,6 +13,7 @@ import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
 import { getProfileById } from '../data/diseaseProfiles';
+import { t } from '../i18n';
 
 function getComplianceColor(compliancePct: number) {
   if (compliancePct >= 80) return '#22c55e';
@@ -119,16 +120,16 @@ export default function SummaryScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
-      <Text style={styles.heading}>Summary</Text>
+      <Text style={styles.heading}>{t('summary')}</Text>
 
       <View style={styles.statRow}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{taken}/{total}</Text>
-          <Text style={styles.statLabel}>Doses Today</Text>
+          <Text style={styles.statLabel}>{t('dosesToday')}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{streak}</Text>
-          <Text style={styles.statLabel}>Day Streak</Text>
+          <Text style={styles.statLabel}>{t('dayStreak')}</Text>
         </View>
       </View>
 
@@ -136,14 +137,14 @@ export default function SummaryScreen() {
       {adherenceScore > 0 && (
         <View style={styles.scoreCard}>
           <Text style={styles.scoreValue}>{adherenceScore.toFixed(1)}/8</Text>
-          <Text style={styles.scoreLabel}>Weighted Adherence</Text>
+          <Text style={styles.scoreLabel}>{t('weightedAdherence')}</Text>
           <Text style={styles.scoreSub}>14-day weighted score based on completeness and timing</Text>
         </View>
       )}
 
       {/* Compliance Ring Card */}
       <View style={styles.complianceCard}>
-        <Text style={styles.cardDayLabel}>Today</Text>
+        <Text style={styles.cardDayLabel}>{t('today')}</Text>
         <View style={styles.ringContainer}>
           <View style={[styles.ringOuter, { borderColor: '#D8CFC8' }]}>
             <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
@@ -153,7 +154,7 @@ export default function SummaryScreen() {
             </View>
           </View>
         </View>
-        <Text style={styles.complianceLabel}>Compliance</Text>
+        <Text style={styles.complianceLabel}>{t('compliance')}</Text>
         <View
           style={styles.barBg}
           onLayout={e => {
@@ -166,7 +167,7 @@ export default function SummaryScreen() {
       </View>
 
       {/* Mood Chart */}
-      <Text style={styles.chartSectionTitle}>MOOD (7 DAYS)</Text>
+      <Text style={styles.chartSectionTitle}>{t('mood7')}</Text>
       <View style={styles.barChartRow}>
         {moodWeek.map((m, i) => (
           <View key={m.day} style={styles.barCol}>
@@ -177,7 +178,7 @@ export default function SummaryScreen() {
       </View>
 
       {/* Water Chart */}
-      <Text style={styles.chartSectionTitle}>WATER (7 DAYS)</Text>
+      <Text style={styles.chartSectionTitle}>{t('water7')}</Text>
       <View style={styles.waterChartRow}>
         {waterWeek.map((w, i) => (
           <View key={w.day} style={styles.waterCol}>
@@ -193,7 +194,7 @@ export default function SummaryScreen() {
 
       {/* Share Button */}
       <TouchableOpacity style={styles.shareBtn} activeOpacity={0.8} accessibilityLabel="Share your progress" accessibilityRole="button">
-        <Text style={styles.shareBtnText}>Share Your Progress</Text>
+        <Text style={styles.shareBtnText}>{t('shareProgress')}</Text>
       </TouchableOpacity>
 
     </ScrollView>

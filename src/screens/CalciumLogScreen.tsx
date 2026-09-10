@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { saveCalciumLog } from '../db/queries';
+import { t } from '../i18n';
 
 export default function CalciumLogScreen() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -47,10 +48,10 @@ export default function CalciumLogScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heading}>Calcium Reintroduction Test</Text>
+        <Text style={styles.heading}>{t('calciumTest')}</Text>
 
 
-        <Text style={styles.inputLabel}>Test start date</Text>
+        <Text style={styles.inputLabel}>{t('testStartDate')}</Text>
         <TextInput
           style={styles.dateInput}
           placeholder="YYYY-MM-DD"
@@ -63,8 +64,7 @@ export default function CalciumLogScreen() {
         {DAYS.map((d, i) => (
           <View key={i} style={styles.dayCard}>
             <Text style={styles.dayLabel}>{d.label}</Text>
-            <Text style={styles.sliderLabel}>
-              Estimated calcium intake: <Text style={{ color: getCaColor(d.mg), fontWeight: '700' }}>{d.mg} mg</Text>
+            <Text style={styles.sliderLabel}>{t('estimatedCalcium')}<Text style={{ color: getCaColor(d.mg), fontWeight: '700' }}>{d.mg} mg</Text>
             </Text>
             <View style={styles.sliderRow}>
               {[0, 100, 200, 300, 400, 500, 600, 700, 800].map((val) => (
@@ -85,7 +85,7 @@ export default function CalciumLogScreen() {
             </View>
             <TextInput
               style={styles.notesInput}
-              placeholder="Symptom notes (optional)"
+              placeholder={t('symptomNotes')}
               placeholderTextColor="#B0A098"
               value={d.notes}
               onChangeText={d.setNotes}
@@ -95,7 +95,7 @@ export default function CalciumLogScreen() {
         ))}
 
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
-          <Text style={styles.submitBtnText}>Submit Test Log</Text>
+          <Text style={styles.submitBtnText}>{t('submitTestLog')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

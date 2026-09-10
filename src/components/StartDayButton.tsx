@@ -6,6 +6,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
+import { t } from '../i18n';
 
 interface Props {
   onPress: () => void;
@@ -49,7 +50,7 @@ export default function StartDayButton({ onPress, loading }: Props) {
         {loading ? (
           <ActivityIndicator color="#FAF7F4" size="small" />
         ) : (
-          <Text style={styles.text}>Start My Day</Text>
+          <Text style={styles.text}>{t('startDay')}</Text>
         )}
       </TouchableOpacity>
     </Animated.View>

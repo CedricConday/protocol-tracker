@@ -8,6 +8,7 @@ import {
 import * as Sharing from 'expo-sharing';
 import { generateComplianceReport } from '../components/ComplianceReport';
 import { getProfile, getScheduleRules } from '../db/queries';
+import { t } from '../i18n';
 
 export default function ReportScreen() {
   const [generating, setGenerating] = useState(false);
@@ -37,7 +38,7 @@ export default function ReportScreen() {
         <View style={styles.logoCircle}>
           <Text style={styles.logoLetter}>C</Text>
         </View>
-        <Text style={styles.title}>Share Report with Doctor</Text>
+        <Text style={styles.title}>{t('shareReport')}</Text>
         <Text style={styles.subtitle}>
           30-day compliance summary as PDF
         </Text>

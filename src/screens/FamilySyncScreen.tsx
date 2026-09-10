@@ -11,6 +11,7 @@ import {
 import * as Sharing from 'expo-sharing';
 import { getDb } from '../db/schema';
 import { getMiscFlag, setMiscFlag } from '../db/queries';
+import { t } from '../i18n';
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -83,19 +84,19 @@ export default function FamilySyncScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
-      <Text style={styles.heading}>Family Sync</Text>
+      <Text style={styles.heading}>{t('familySync')}</Text>
 
       <View style={styles.codeCard}>
-        <Text style={styles.codeLabel}>Share Code</Text>
+        <Text style={styles.codeLabel}>{t('shareCode')}</Text>
         <Text style={styles.codeValue}>{syncCode}</Text>
         <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
-          <Text style={styles.shareBtnText}>Share</Text>
+          <Text style={styles.shareBtnText}>{t('share')}</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>Connected Family Members</Text>
+      <Text style={styles.sectionTitle}>{t('connectedFamily')}</Text>
       {members.length === 0 ? (
-        <Text style={styles.emptyText}>No family members connected yet. Share your code to invite them.</Text>
+        <Text style={styles.emptyText}>{t('noFamilyYet')}</Text>
       ) : (
         members.map((m) => (
           <View key={m.id} style={styles.memberCard}>
@@ -104,7 +105,7 @@ export default function FamilySyncScreen() {
               <Text style={styles.memberDate}>Joined {new Date(m.joined_at).toLocaleDateString()}</Text>
             </View>
             <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemove(m.id, m.name)} activeOpacity={0.7}>
-              <Text style={styles.removeBtnText}>Remove</Text>
+              <Text style={styles.removeBtnText}>{t('remove')}</Text>
             </TouchableOpacity>
           </View>
         ))

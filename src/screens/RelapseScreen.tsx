@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { logRelapseEvent, getRelapseEvents, todayStr } from '../db/queries';
 import type { RelapseEvent } from '../types';
+import { t } from '../i18n';
 
 const TYPE_COLORS: Record<string, string> = {
   relapse: '#ef4444',
@@ -108,9 +109,9 @@ export default function RelapseScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />
       }
     >
-      <Text style={styles.heading}>Log Event</Text>
+      <Text style={styles.heading}>{t('logEvent')}</Text>
 
-      <Text style={styles.sectionTitle}>Date</Text>
+      <Text style={styles.sectionTitle}>{t('date')}</Text>
       <View style={styles.sectionCard}>
         <TextInput
           style={styles.input}
@@ -123,7 +124,7 @@ export default function RelapseScreen() {
         <Text style={styles.datePreview}>{formatDate(eventDate)}</Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Type</Text>
+      <Text style={styles.sectionTitle}>{t('type')}</Text>
       <View style={styles.typeRow}>
         {['relapse', 'cortisone', 'symptom', 'pain'].map((t) => {
           const selected = eventType === t;
@@ -155,7 +156,7 @@ export default function RelapseScreen() {
 
       {eventType === 'pain' ? (
         <>
-          <Text style={styles.sectionTitle}>Pain Type</Text>
+          <Text style={styles.sectionTitle}>{t('painType')}</Text>
           <View style={styles.painSubtypeContainer}>
             {PAIN_SUBTYPES.map((subtype) => {
               const selected = painSubtype === subtype;
@@ -178,7 +179,7 @@ export default function RelapseScreen() {
 
       {eventType === 'cortisone' ? (
         <>
-          <Text style={styles.sectionTitle}>Cortisone Dose (mg)</Text>
+          <Text style={styles.sectionTitle}>{t('cortisoneDose')}</Text>
           <View style={styles.sectionCard}>
             <TextInput
               style={[styles.input, styles.inputLast]}
@@ -237,7 +238,7 @@ export default function RelapseScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          <Text style={styles.sectionTitle}>Fever Present?</Text>
+          <Text style={styles.sectionTitle}>{t('feverPresent')}</Text>
           <View style={styles.yesNoRow}>
             {([true, false] as const).map((val) => (
               <TouchableOpacity
@@ -260,7 +261,7 @@ export default function RelapseScreen() {
         </>
       ) : null}
 
-      <Text style={styles.sectionTitle}>Notes</Text>
+      <Text style={styles.sectionTitle}>{t('notes')}</Text>
       <View style={styles.sectionCard}>
         <TextInput
           style={[styles.input, styles.inputMultiline, styles.inputLast]}
@@ -283,9 +284,9 @@ export default function RelapseScreen() {
         </Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Event History</Text>
+      <Text style={styles.sectionTitle}>{t('eventHistory')}</Text>
       {events.length === 0 ? (
-        <Text style={styles.emptyText}>No events logged. This is good news.</Text>
+        <Text style={styles.emptyText}>{t('noEvents')}</Text>
       ) : (
         events.map((e) => {
           const color = TYPE_COLORS[e.type] ?? '#888888';

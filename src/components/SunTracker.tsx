@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { t } from '../i18n';
 
 const GOAL_MIN = 30;
 
@@ -17,7 +18,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) 
       <View style={styles.header}>
         <View style={styles.labelRow}>
           <Text style={styles.icon}>☀️</Text>
-          <Text style={styles.label}>Sun Exposure</Text>
+          <Text style={styles.label}>{t('sunExposure')}</Text>
         </View>
         <Text style={[styles.amount, goalReached ? styles.amountDone : null]}>
           {sunMinutes}
@@ -31,7 +32,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) 
 
       {goalReached ? (
         <View style={styles.goalBanner}>
-          <Text style={styles.goalBannerText}>Goal reached ✓</Text>
+          <Text style={styles.goalBannerText}>{t('goalReached')}</Text>
         </View>
       ) : (
         <View style={styles.buttonRow}>

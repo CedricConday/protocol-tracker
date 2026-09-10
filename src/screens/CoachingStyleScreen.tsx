@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { getMiscFlag, setMiscFlag } from '../db/queries';
+import { t } from '../i18n';
 
 const STYLES = [
   { key: 'gentle', label: 'Gentle', desc: 'Soft reminders, positive framing, no pressure' },
@@ -44,8 +45,8 @@ export default function CoachingStyleScreen() {
       showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C96A50" />}
     >
-      <Text style={styles.heading}>Coaching Style</Text>
-      <Text style={styles.subtitle}>Choose how the app talks to you about your protocol.</Text>
+      <Text style={styles.heading}>{t('coachingStyle')}</Text>
+      <Text style={styles.subtitle}>{t('coachingStyleSub')}</Text>
 
       {STYLES.map((s) => (
         <TouchableOpacity
@@ -59,7 +60,7 @@ export default function CoachingStyleScreen() {
         </TouchableOpacity>
       ))}
 
-      <Text style={styles.note}>This affects how protocol tips and check-in messages are phrased throughout the app.</Text>
+      <Text style={styles.note}>{t('coachingStyleNote')}</Text>
     </ScrollView>
   );
 }

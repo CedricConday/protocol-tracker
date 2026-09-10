@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { t } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -43,7 +44,7 @@ export default function PermissionPrimingModal({ visible, onComplete, onSkip }: 
             <Text style={styles.iconText}>🔔</Text>
           </View>
 
-          <Text style={styles.title}>Stay on Track</Text>
+          <Text style={styles.title}>{t('stayOnTrack')}</Text>
           <Text style={styles.body}>
             Notifications help you remember every dose, track your water, and stay
             consistent with your Protocol.
@@ -69,7 +70,7 @@ export default function PermissionPrimingModal({ visible, onComplete, onSkip }: 
             onPress={onSkip}
             activeOpacity={0.7}
           >
-            <Text style={styles.skipText}>Not now</Text>
+            <Text style={styles.skipText}>{t('notNow')}</Text>
           </TouchableOpacity>
         </View>
       </View>

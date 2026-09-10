@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { getDaySummary, getStreak } from '../db/queries';
+import { t } from '../i18n';
 
 const MOOD_OPTIONS = [
   { emoji: '😄', label: 'Great', score: 5 },
@@ -93,8 +94,8 @@ export default function CaregiverScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text style={styles.heading}>Caregiver Mode</Text>
-      <Text style={styles.sub}>Supporting someone you care for</Text>
+      <Text style={styles.heading}>{t('caregiverMode')}</Text>
+      <Text style={styles.sub}>{t('caregiverSub')}</Text>
 
       {/* Sharing approval status */}
       <View style={[styles.sharingBanner, sharingApproved ? styles.sharingOn : styles.sharingOff]}>
@@ -108,29 +109,29 @@ export default function CaregiverScreen() {
       {/* Task 34: Dyad sync nudge */}
       {showNudge ? (
         <View style={styles.nudgeCard}>
-          <Text style={styles.nudgeTitle}>Time to Check In</Text>
+          <Text style={styles.nudgeTitle}>{t('timeToCheckIn')}</Text>
           <Text style={styles.nudgeText}>
             {lastSync
               ? `Your last dyad check-in was ${lastSync}. Regular check-ins help both patient and caregiver stay aligned.`
               : 'You haven\'t done a dyad check-in yet. Connecting regularly supports protocol adherence.'}
           </Text>
           <TouchableOpacity style={styles.syncBtn} onPress={handleSync} activeOpacity={0.8}>
-            <Text style={styles.syncBtnText}>Confirm Check-In</Text>
+            <Text style={styles.syncBtnText}>{t('confirmCheckIn')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
       {/* Patient status card */}
       <View style={styles.patientCard}>
-        <Text style={styles.cardLabel}>PATIENT STATUS TODAY</Text>
+        <Text style={styles.cardLabel}>{t('patientStatusToday')}</Text>
         <View style={styles.metricsRow}>
           <View style={styles.metric}>
             <Text style={[styles.metricValue, { color: complianceColor }]}>{patientCompliance}%</Text>
-            <Text style={styles.metricLabel}>Compliance</Text>
+            <Text style={styles.metricLabel}>{t('compliance')}</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricValue}>{streak}d</Text>
-            <Text style={styles.metricLabel}>Streak</Text>
+            <Text style={styles.metricLabel}>{t('streak')}</Text>
           </View>
         </View>
         <Text style={styles.patientNote}>
@@ -143,8 +144,8 @@ export default function CaregiverScreen() {
       </View>
 
       {/* Task 35: Caregiver wellness mood check-in */}
-      <Text style={styles.sectionTitle}>YOUR WELLBEING TODAY</Text>
-      <Text style={styles.sectionSub}>Caregiving is demanding. Your wellbeing matters too.</Text>
+      <Text style={styles.sectionTitle}>{t('yourWellbeingToday')}</Text>
+      <Text style={styles.sectionSub}>{t('caregivingDemanding')}</Text>
       <View style={styles.moodRow}>
         {MOOD_OPTIONS.map((m) => (
           <TouchableOpacity
@@ -160,12 +161,12 @@ export default function CaregiverScreen() {
       </View>
 
       {moodSaved ? (
-        <Text style={styles.savedText}>Mood saved ✓</Text>
+        <Text style={styles.savedText}>{t('moodSaved')}</Text>
       ) : null}
 
       {caregiverMoodScore > 0 && caregiverMoodScore <= 2 ? (
         <View style={styles.burnoutCard}>
-          <Text style={styles.burnoutTitle}>Caregiver Support</Text>
+          <Text style={styles.burnoutTitle}>{t('caregiverSupport')}</Text>
           <Text style={styles.burnoutText}>
             It looks like today has been hard. Caregiver burnout is real and common. Consider taking a short break, asking for support, or speaking with your doctor about caregiver resources.
           </Text>
@@ -173,7 +174,7 @@ export default function CaregiverScreen() {
       ) : null}
 
       {/* Tips */}
-      <Text style={styles.sectionTitle}>CAREGIVER TIPS</Text>
+      <Text style={styles.sectionTitle}>{t('caregiverTips')}</Text>
       {[
         'Set a shared reminder time — consistency reduces daily friction for both of you.',
         'Prepare supplements in advance for the week. Blister packs reduce missed doses.',

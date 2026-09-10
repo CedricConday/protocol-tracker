@@ -382,7 +382,7 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
         >
 
-          <Text style={styles.title}>Settings</Text>
+          <Text style={styles.title}>{t('settings')}</Text>
 
           {/* ── Profile Hero ──────────────────────────────────────────────── */}
           <View style={styles.hero}>
@@ -399,8 +399,8 @@ export default function SettingsScreen() {
           </View>
 
           {/* ── Protocol ──────────────────────────────────────────────────── */}
-          <Group label="Protocol">
-            <Row icon="person-outline" label="You" sub={name ? `${name}${weight ? ` · ${weight} kg` : ''}` : 'Name, weight, language'} onPress={() => toggleSection('profile')} />
+          <Group label={t('protocolGroup')}>
+            <Row icon="person-outline" label={t('you')} sub={name ? `${name}${weight ? ` · ${weight} kg` : ''}` : 'Name, weight, language'} onPress={() => toggleSection('profile')} />
             <Expand open={expandedSection === 'profile'}>
               <Text style={styles.inputLabel}>{t('yourName')}</Text>
               <TextInput style={styles.input} placeholder="Alex" placeholderTextColor={C.textMuted} value={name} onChangeText={setName} autoCapitalize="words" />
@@ -421,13 +421,13 @@ export default function SettingsScreen() {
               </View>
             </Expand>
 
-            <Row icon="list-outline" label="Manage supplements" sub={d3 ? `Daily D3 ${d3.dose} ${d3.unit} · add, edit, remove` : 'Set your daily D3 · add, edit, remove'} onPress={() => navigation.navigate('SupplementEditor')} />
+            <Row icon="list-outline" label={t('manageSupplements')} sub={d3 ? `Daily D3 ${d3.dose} ${d3.unit} · add, edit, remove` : 'Set your daily D3 · add, edit, remove'} onPress={() => navigation.navigate('SupplementEditor')} />
 
-            <Row icon="alarm-outline" label="Schedule & reminders" sub="Dose times relative to Start my day" onPress={() => navigation.navigate('Schedule')} />
+            <Row icon="alarm-outline" label={t('scheduleReminders')} sub={t('doseTimesSub')} onPress={() => navigation.navigate('Schedule')} />
 
-            <Row icon="chatbubble-ellipses-outline" label="Reminder tone" sub="Gentle · Direct · Motivational" onPress={() => navigation.navigate('CoachingStyle')} />
+            <Row icon="chatbubble-ellipses-outline" label={t('reminderTone')} sub={t('reminderToneSub')} onPress={() => navigation.navigate('CoachingStyle')} />
 
-            <Row icon="timer-outline" label="Timing windows" sub="Tolerance per supplement" onPress={() => toggleSection('timing')} />
+            <Row icon="timer-outline" label={t('timingWindowsRow')} sub={t('toleranceSub')} onPress={() => toggleSection('timing')} />
             <Expand open={expandedSection === 'timing'}>
               {toleranceRules.map((rule) => {
                 const val = getToleranceValue(rule.id);
@@ -449,13 +449,13 @@ export default function SettingsScreen() {
             </Expand>
 
             <Row
-              icon="moon-outline" label="Bedtime"
+              icon="moon-outline" label={t('bedtime')}
               sub={`${String(bedtimeHour).padStart(2, '0')}:${String(bedtimeMinute).padStart(2, '0')}`}
               onPress={() => toggleSection('bedtime')}
               last
             />
             <Expand open={expandedSection === 'bedtime'}>
-              <Text style={styles.miniLabel}>Hour</Text>
+              <Text style={styles.miniLabel}>{t('hour')}</Text>
               <View style={styles.chipWrap}>
                 {BEDTIME_HOURS.map((h) => (
                   <Pressable
@@ -470,7 +470,7 @@ export default function SettingsScreen() {
                   </Pressable>
                 ))}
               </View>
-              <Text style={styles.miniLabel}>Minutes</Text>
+              <Text style={styles.miniLabel}>{t('minutes')}</Text>
               <View style={styles.chipWrap}>
                 {BEDTIME_MINUTES.map((m) => (
                   <Pressable
@@ -493,8 +493,8 @@ export default function SettingsScreen() {
               re-expose them as a submenu when they are actually needed. */}
 
           {/* ── App ───────────────────────────────────────────────────────── */}
-          <Group label="App">
-            <Row icon="notifications-outline"     label="Notifications" sub="Topics, quiet hours" onPress={() => toggleSection('notif')} />
+          <Group label={t('appGroup')}>
+            <Row icon="notifications-outline"     label={t('notifications')} sub={t('notificationsSub')} onPress={() => toggleSection('notif')} />
             <Expand open={expandedSection === 'notif'}>
               {[
                 { key: 'supplements',    label: 'Supplement reminders' },
@@ -512,27 +512,27 @@ export default function SettingsScreen() {
                   />
                 </View>
               ))}
-              <Text style={[styles.miniLabel, { marginTop: space.md }]}>Quiet hours</Text>
+              <Text style={[styles.miniLabel, { marginTop: space.md }]}>{t('quietHours')}</Text>
               <View style={styles.quietRow}>
                 <TextInput style={[styles.input, { flex: 1 }]} placeholder="22:00" placeholderTextColor={C.textMuted} value={quietStart} onChangeText={setQuietStart} autoCapitalize="none" />
                 <Text style={styles.quietSep}>to</Text>
                 <TextInput style={[styles.input, { flex: 1 }]} placeholder="07:00" placeholderTextColor={C.textMuted} value={quietEnd} onChangeText={setQuietEnd} autoCapitalize="none" />
               </View>
             </Expand>
-            <Row icon="download-outline"            label="Export my data" onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
-            <Row icon="chatbox-ellipses-outline"    label="Send feedback"  onPress={() => navigation.navigate('Feedback')} />
-            <Row icon="information-circle-outline"  label="About"          onPress={() => navigation.navigate('About')} last />
+            <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
+            <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
+            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} last />
           </Group>
 
           {/* ── Support ───────────────────────────────────────────────────
               Opens the community page in the system browser. Nothing is
               collected in-app and nothing in the app unlocks from this —
               Apple 3.2.2(iv) and 3.2.1(vii). Do not add a supporter tier. */}
-          <Group label="Support">
+          <Group label={t('supportGroup')}>
             <Row
               icon="open-outline"
-              label="Support this app"
-              sub="Free forever · opens in your browser"
+              label={t('supportThisApp')}
+              sub={t('supportSub')}
               onPress={() => {
                 if (!/^https?:\/\//.test(SUPPORT_URL)) {
                   Alert.alert('Not set up yet', 'The support link is still a placeholder.');
@@ -548,25 +548,25 @@ export default function SettingsScreen() {
           <Text style={styles.disclaimer}>{MEDICAL_DISCLAIMER}</Text>
 
           {/* ── Danger ────────────────────────────────────────────────────── */}
-          <Text style={[styles.groupLabel, { color: C.danger }]}>Danger zone</Text>
+          <Text style={[styles.groupLabel, { color: C.danger }]}>{t('dangerZone')}</Text>
           <View style={[styles.group, styles.dangerGroup]}>
             <Pressable onPress={handleResetAll} accessibilityLabel="Reset tracking data" accessibilityRole="button">
               <View style={styles.dangerRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.dangerTitle}>Reset tracking data</Text>
-                  <Text style={styles.dangerSub}>Clears logs. Keeps schedule and profile.</Text>
+                  <Text style={styles.dangerTitle}>{t('resetTracking')}</Text>
+                  <Text style={styles.dangerSub}>{t('resetTrackingSub')}</Text>
                 </View>
-                <Text style={styles.dangerCta}>Reset</Text>
+                <Text style={styles.dangerCta}>{t('reset')}</Text>
               </View>
             </Pressable>
             <View style={styles.dangerSep} />
             <Pressable onPress={handleDeleteAccount} accessibilityLabel="Delete account" accessibilityRole="button">
               <View style={styles.dangerRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.dangerTitle, { color: C.danger }]}>Delete account</Text>
-                  <Text style={styles.dangerSub}>Wipes everything. Restarts setup.</Text>
+                  <Text style={[styles.dangerTitle, { color: C.danger }]}>{t('deleteAccount')}</Text>
+                  <Text style={styles.dangerSub}>{t('deleteAccountSub')}</Text>
                 </View>
-                <Text style={[styles.dangerCta, { color: C.danger }]}>Delete</Text>
+                <Text style={[styles.dangerCta, { color: C.danger }]}>{t('delete')}</Text>
               </View>
             </Pressable>
           </View>

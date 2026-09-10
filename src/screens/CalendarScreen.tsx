@@ -16,6 +16,7 @@ import * as Print from 'expo-print';
 import { getCalendarMonth, getDayDetail, localDateStr, todayStr, type CalendarDay, type DayDetail } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
 import Svg, { Circle } from 'react-native-svg';
+import { t } from '../i18n';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -197,7 +198,7 @@ export default function CalendarScreen() {
         .join('');
       const html = `<html><body style="background:#FAF7F4;color:#2C2420;font-family:sans-serif;padding:20px">
         <h1 style="color:#C96A50">${MONTH_NAMES[viewMonth]} ${viewYear}</h1>
-        <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows || '<tr><td>No data this month</td></tr>'}</tbody></table>
+        <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows || `<tr><td>${t('noDataThisMonth')}</td></tr>`}</tbody></table>
         </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, { mimeType: 'text/html' });
@@ -214,9 +215,9 @@ export default function CalendarScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ACCENT} />}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.heading}>History</Text>
+        <Text style={styles.heading}>{t('history')}</Text>
         <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8} accessibilityLabel="Share this month" accessibilityRole="button">
-          <Text style={styles.shareButtonText}>Share</Text>
+          <Text style={styles.shareButtonText}>{t('share')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -310,9 +311,9 @@ export default function CalendarScreen() {
           <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#C04040' }]} /><Text style={styles.legendLabel}>&lt;50%</Text></View>
         </View>
         <View style={styles.legendRow}>
-          <View style={styles.legendItem}><View style={styles.legendDiamond} /><Text style={styles.legendLabel}>Event</Text></View>
-          <View style={styles.legendItem}><View style={styles.legendSquare} /><Text style={styles.legendLabel}>Journal</Text></View>
-          <View style={styles.legendItem}><View style={styles.legendCircle} /><Text style={styles.legendLabel}>Water</Text></View>
+          <View style={styles.legendItem}><View style={styles.legendDiamond} /><Text style={styles.legendLabel}>{t('event')}</Text></View>
+          <View style={styles.legendItem}><View style={styles.legendSquare} /><Text style={styles.legendLabel}>{t('journal')}</Text></View>
+          <View style={styles.legendItem}><View style={styles.legendCircle} /><Text style={styles.legendLabel}>{t('water')}</Text></View>
         </View>
       </View>
 
@@ -332,11 +333,11 @@ export default function CalendarScreen() {
 
             <ScrollView style={styles.detailBody} contentContainerStyle={{ paddingBottom: 12 }}>
               {!detail ? (
-                <Text style={styles.detailMuted}>Loading…</Text>
+                <Text style={styles.detailMuted}>{t('loading')}</Text>
               ) : (
                 <>
                   <View style={styles.detailSectionRow}>
-                    <Text style={styles.detailSection}>Doses</Text>
+                    <Text style={styles.detailSection}>{t('doses')}</Text>
                     {detail.totalDoses > 0 && (
                       <Text style={[styles.detailSummary, { color: getComplianceColor(detail.compliancePct, detail.totalDoses) }]}>
                         {detail.takenDoses}/{detail.totalDoses} · {detail.compliancePct}%
@@ -344,7 +345,7 @@ export default function CalendarScreen() {
                     )}
                   </View>
                   {detail.totalDoses === 0 ? (
-                    <Text style={styles.detailMuted}>No doses logged this day.</Text>
+                    <Text style={styles.detailMuted}>{t('noDosesThisDay')}</Text>
                   ) : (
                     detail.doses.map((d, i) => (
                       <View key={i} style={styles.detailRow}>
@@ -355,19 +356,19 @@ export default function CalendarScreen() {
                     ))
                   )}
 
-                  <Text style={styles.detailSection}>Journal</Text>
+                  <Text style={styles.detailSection}>{t('journal')}</Text>
                   {detail.journal ? (
                     <View style={styles.journalCard}>
                       <Text style={styles.detailMood}>{detail.journal.mood}</Text>
                       <Text style={styles.journalNote}>{detail.journal.note || 'No note'}</Text>
                     </View>
                   ) : (
-                    <Text style={styles.detailMuted}>No journal entry.</Text>
+                    <Text style={styles.detailMuted}>{t('noJournalEntry')}</Text>
                   )}
 
-                  <Text style={styles.detailSection}>Events</Text>
+                  <Text style={styles.detailSection}>{t('events')}</Text>
                   {detail.events.length === 0 ? (
-                    <Text style={styles.detailMuted}>No events logged.</Text>
+                    <Text style={styles.detailMuted}>{t('noEventsShort')}</Text>
                   ) : (
                     detail.events.map((e) => (
                       <View key={e.id} style={styles.detailEvent}>
@@ -386,7 +387,7 @@ export default function CalendarScreen() {
             </ScrollView>
 
             <TouchableOpacity style={styles.detailClose} onPress={closeDay} accessibilityLabel="Close" accessibilityRole="button">
-              <Text style={styles.detailCloseText}>Close</Text>
+              <Text style={styles.detailCloseText}>{t('close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

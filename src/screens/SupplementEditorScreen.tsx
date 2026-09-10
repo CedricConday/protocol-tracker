@@ -21,6 +21,7 @@ import {
   updateSupplementAndRule,
   deleteSupplement,
 } from '../db/queries';
+import { t } from '../i18n';
 
 type SupRow = {
   id: string;
@@ -65,7 +66,7 @@ function FormFields({
 }) {
   return (
     <View style={styles.formBlock}>
-      <Text style={[styles.label, { marginTop: 0 }]}>Supplement name</Text>
+      <Text style={[styles.label, { marginTop: 0 }]}>{t('supplementName')}</Text>
       <TextInput
         style={styles.input}
         value={form.name}
@@ -75,7 +76,7 @@ function FormFields({
         autoCapitalize="words"
       />
 
-      <Text style={styles.label}>How you take it</Text>
+      <Text style={styles.label}>{t('howYouTakeIt')}</Text>
       <View style={styles.chipRow}>
         {FORMS.map((f) => (
           <TouchableOpacity
@@ -93,7 +94,7 @@ function FormFields({
 
       <View style={styles.row2}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.label}>Dose</Text>
+          <Text style={styles.label}>{t('dose')}</Text>
           <TextInput
             style={styles.input}
             value={form.dose_amount}
@@ -104,7 +105,7 @@ function FormFields({
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Unit</Text>
+          <Text style={styles.label}>{t('unit')}</Text>
           <TextInput
             style={styles.input}
             value={form.dose_unit}
@@ -118,7 +119,7 @@ function FormFields({
 
       <View style={styles.row2}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.label}>Minutes after first dose</Text>
+          <Text style={styles.label}>{t('minutesAfterFirst')}</Text>
           <TextInput
             style={styles.input}
             value={form.offset_minutes}
@@ -129,7 +130,7 @@ function FormFields({
           />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Flexibility (±min)</Text>
+          <Text style={styles.label}>{t('flexibility')}</Text>
           <TextInput
             style={styles.input}
             value={form.tolerance_window}
@@ -142,7 +143,7 @@ function FormFields({
       </View>
 
       <View style={[styles.row2, { alignItems: 'center', marginTop: 14, marginBottom: 4 }]}>
-        <Text style={[styles.label, { flex: 1, marginTop: 0, marginBottom: 0 }]}>Take with food</Text>
+        <Text style={[styles.label, { flex: 1, marginTop: 0, marginBottom: 0 }]}>{t('takeWithFood')}</Text>
         <Switch
           value={form.with_food}
           onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, with_food: v }); }}
@@ -254,7 +255,7 @@ export default function SupplementEditorScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <Text style={styles.title}>Supplements</Text>
+          <Text style={styles.title}>{t('supplements')}</Text>
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
@@ -268,7 +269,7 @@ export default function SupplementEditorScreen() {
 
           {showAddForm && (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>New Supplement</Text>
+              <Text style={styles.cardTitle}>{t('newSupplement')}</Text>
               <FormFields form={addForm} onChange={setAddForm} />
               <TouchableOpacity
                 style={[styles.saveBtn, saving === '__add__' && styles.saveBtnDisabled]}
@@ -284,8 +285,8 @@ export default function SupplementEditorScreen() {
           {supplements.length === 0 && !showAddForm && (
             <View style={styles.emptyState}>
               <Ionicons name="flask-outline" size={40} color={C.textMuted} />
-              <Text style={styles.emptyText}>Your protocol starts here</Text>
-              <Text style={styles.emptySub}>Tap + to add your first supplement.</Text>
+              <Text style={styles.emptyText}>{t('protocolStartsHere')}</Text>
+              <Text style={styles.emptySub}>{t('tapPlusToAdd')}</Text>
             </View>
           )}
 
@@ -327,7 +328,7 @@ export default function SupplementEditorScreen() {
                     <View style={styles.actionRow}>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleDelete(row); }} activeOpacity={0.7}>
                         <Ionicons name="trash-outline" size={16} color={C.danger} />
-                        <Text style={styles.deleteBtnText}>Delete</Text>
+                        <Text style={styles.deleteBtnText}>{t('delete')}</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.saveBtnInline, saving === row.id && styles.saveBtnDisabled]}

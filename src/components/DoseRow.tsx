@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScheduledDose } from '../types';
+import { t } from '../i18n';
 
 const statusBorderColors: Record<string, string> = {
   taken:    '#5A8A5A',
@@ -63,7 +64,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
   if (dose.status === 'taken') {
     rightEl = <Text style={styles.rightTaken}>✓</Text>;
   } else if (dose.status === 'due') {
-    rightEl = <Text style={styles.rightDue}>NOW</Text>;
+    rightEl = <Text style={styles.rightDue}>{t('nowUpper')}</Text>;
   } else if (dose.status === 'missed') {
     rightEl = <Text style={styles.rightMissed}>✕</Text>;
   } else {

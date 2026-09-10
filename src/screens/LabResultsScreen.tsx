@@ -15,6 +15,7 @@ import { enqueueAction } from '../db/actionQueue';
 import EmptyState from '../components/EmptyState';
 import { DISEASE_PROFILES, getProfileById, type DiseaseProfile } from '../data/diseaseProfiles';
 import { getMiscFlag } from '../db/queries';
+import { t } from '../i18n';
 
 interface LabResult {
   id: number;
@@ -182,9 +183,9 @@ export default function LabResultsScreen() {
         </TouchableOpacity>
       ) : (
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Enter Lab Values</Text>
+          <Text style={styles.formTitle}>{t('enterLabValues')}</Text>
 
-          <Text style={styles.label}>Date</Text>
+          <Text style={styles.label}>{t('date')}</Text>
           <TextInput style={styles.input} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor="#B0A098" />
 
           {(!profile || profile.keyMarkers.includes('VitD')) && (
@@ -203,29 +204,29 @@ export default function LabResultsScreen() {
 
           {(!profile || profile.keyMarkers.includes('Calcium')) && (
             <>
-              <Text style={styles.label}>Calcium Serum (mg/dL)</Text>
+              <Text style={styles.label}>{t('calciumSerum')}</Text>
               <TextInput style={styles.input} value={calciumSerum} onChangeText={setCalciumSerum} keyboardType="decimal-pad" placeholder="e.g. 9.4" placeholderTextColor="#B0A098" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Calcium')) && (
             <>
-              <Text style={styles.label}>Calcium Urine (mg/g Cr)</Text>
+              <Text style={styles.label}>{t('calciumUrine')}</Text>
               <TextInput style={styles.input} value={calciumUrine} onChangeText={setCalciumUrine} keyboardType="decimal-pad" placeholder="e.g. 210" placeholderTextColor="#B0A098" />
             </>
           )}
 
           {(!profile || profile.keyMarkers.includes('Creatinine')) && (
             <>
-              <Text style={styles.label}>Creatinine (mg/dL)</Text>
+              <Text style={styles.label}>{t('creatinine')}</Text>
               <TextInput style={styles.input} value={creatinine} onChangeText={setCreatinine} keyboardType="decimal-pad" placeholder="e.g. 0.8" placeholderTextColor="#B0A098" />
             </>
           )}
 
-          <Text style={styles.label}>NfL — Neurofilament Light Chain (pg/mL)</Text>
+          <Text style={styles.label}>{t('nfl')}</Text>
           <TextInput style={styles.input} value={nfl} onChangeText={setNfl} keyboardType="decimal-pad" placeholder="e.g. 7.4" placeholderTextColor="#B0A098" />
 
-          <Text style={styles.label}>Sulkowitch Test (urine calcium turbidity)</Text>
+          <Text style={styles.label}>{t('sulkowitch')}</Text>
           <View style={styles.chipRow}>
             {SULKOWITCH.map(s => (
               <TouchableOpacity
@@ -241,12 +242,12 @@ export default function LabResultsScreen() {
             ))}
           </View>
 
-          <Text style={styles.label}>Notes (optional)</Text>
+          <Text style={styles.label}>{t('notesOptional')}</Text>
           <TextInput
             style={[styles.input, styles.multiline]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Lab name, fasting status, doctor comments..."
+            placeholder={t('labNotesPlaceholder')}
             placeholderTextColor="#B0A098"
             multiline
             numberOfLines={2}
@@ -254,7 +255,7 @@ export default function LabResultsScreen() {
 
           <View style={styles.formActions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7} accessibilityLabel="Cancel" accessibilityRole="button">
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }} disabled={saving} activeOpacity={0.8} accessibilityLabel={saving ? 'Saving lab result' : 'Save lab result'} accessibilityRole="button">
               <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
@@ -298,15 +299,15 @@ export default function LabResultsScreen() {
           </View>
         </View>
       ) : results.length > 0 ? (
-        <Text style={styles.trendHint}>Add more results to see trends</Text>
+        <Text style={styles.trendHint}>{t('addMoreResults')}</Text>
       ) : null}
 
       {results.length === 0 && !showForm ? (
         <EmptyState
           icon="🧪"
-          title="No lab results yet"
-          subtitle="Add your Vitamin D, PTH, and Calcium readings to track trends over time."
-          actionLabel="Add First Result"
+          title={t('noLabResults')}
+          subtitle={t('labEmptySub')}
+          actionLabel={t('addFirstResult')}
           onAction={() => setShowForm(true)}
         />
       ) : (
@@ -323,12 +324,12 @@ export default function LabResultsScreen() {
               <Text style={styles.sulkowitch}>Sulkowitch: {r.sulkowitch}</Text>
             ) : null}
             {r.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{r.notes}</Text> : null}
-            <Text style={styles.cardHint}>Hold to delete</Text>
+            <Text style={styles.cardHint}>{t('holdToDelete')}</Text>
           </TouchableOpacity>
         ))
       )}
 
-      <Text style={styles.disclaimer}>Not medical advice. Discuss all results with your prescribing practitioner.</Text>
+      <Text style={styles.disclaimer}>{t('labDisclaimer')}</Text>
     </ScrollView>
   );
 }

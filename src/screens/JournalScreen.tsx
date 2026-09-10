@@ -119,7 +119,7 @@ export default function JournalScreen() {
       }
     >
       <View style={styles.headingRow}>
-        <Text style={styles.heading}>Journal</Text>
+        <Text style={styles.heading}>{t('journal')}</Text>
         <TouchableOpacity style={styles.logEventBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); navigation.navigate('Relapse'); }} activeOpacity={0.7} accessibilityLabel="Log a relapse or medical event" accessibilityRole="button">
           <Text style={styles.logEventBtnText}>+ Log Event</Text>
         </TouchableOpacity>
@@ -176,7 +176,7 @@ export default function JournalScreen() {
       <TextInput
         ref={noteRef}
         style={styles.noteInput}
-        placeholder="How are you feeling today?"
+        placeholder={t('howAreYouToday')}
         placeholderTextColor="#B0A098"
         multiline
         value={note}
@@ -186,7 +186,7 @@ export default function JournalScreen() {
 
       <TextInput
         style={styles.dietaryInput}
-        placeholder="Any dairy, calcium supplements, or protocol deviations today?"
+        placeholder={t('dairyPrompt')}
         placeholderTextColor="#B0A098"
         value={dietaryNote}
         onChangeText={setDietaryNote}
@@ -215,12 +215,12 @@ export default function JournalScreen() {
         </Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>This Week</Text>
+      <Text style={styles.sectionTitle}>{t('thisWeek')}</Text>
       {pastEntries.length === 0 ? (
         <EmptyState
           icon="📓"
-          title="No journal entries yet"
-          subtitle="Log your mood and how you feel each day. Patterns emerge over time."
+          title={t('noJournalYet')}
+          subtitle={t('journalEmptySub')}
         />
       ) : (
         pastEntries.map((entry) => {
