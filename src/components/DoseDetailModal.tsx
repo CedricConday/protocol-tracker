@@ -61,14 +61,13 @@ export default function DoseDetailModal({
   // onSkip are no-ops, so offering the buttons is worse than hiding them.
   const canAct = dose.logId != null && (dose.status === 'upcoming' || dose.status === 'due');
 
-  // "Skip" opens this picker rather than writing anything, so a single tap
-  // leaves the row `upcoming` — which is what the audit reports as "Skip does
-  // not persist" (PT-trio H1). The reason buttons below now carry accessible
-  // names, so the second step is at least reachable by name. Whether one tap
-  // should be able to skip without giving a reason is a product call, not a
-  // bug fix: TODO(cedric).
+  // One tap skips: the write happens here, with no reason, and the parent
+  // closes the sheet. The reason picker is an optional second step behind
+  // "Add a reason" and never gates the write — Cedric's call, 2026-09-13
+  // (PT-trio round 3, A1). It was the gate that made the audit read "Skip
+  // does not persist".
   const handleSkipPress = () => {
-    setShowSkipReasons(true);
+    onSkip(dose);
   };
 
   const handleReasonSelect = (reason: string) => {
@@ -164,22 +163,35 @@ export default function DoseDetailModal({
               </TouchableOpacity>
             </View>
           ) : canAct ? (
-            <View style={styles.actions}>
+            <View>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.tookButton}
+                  onPress={() => onTook(dose)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mark ${dose.supplementName} as taken`}
+                >
+                  <Text style={styles.tookButtonText}>✓ Took it</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  onPress={handleSkipPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Skip ${dose.supplementName}`}
+                >
+                  <Text style={styles.skipButtonText}>{t('skip')}</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Literal, not t() — i18n/ is nobody's lane this round, and the
+                  strings around it ("✓ Took it") are already literal. */}
               <TouchableOpacity
-                style={styles.tookButton}
-                onPress={() => onTook(dose)}
+                style={styles.addReasonButton}
+                onPress={() => setShowSkipReasons(true)}
+                activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`Mark ${dose.supplementName} as taken`}
+                accessibilityLabel={`Add a reason for skipping ${dose.supplementName}`}
               >
-                <Text style={styles.tookButtonText}>✓ Took it</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkipPress}
-                accessibilityRole="button"
-                accessibilityLabel={`Skip ${dose.supplementName}`}
-              >
-                <Text style={styles.skipButtonText}>{t('skip')}</Text>
+                <Text style={styles.addReasonText}>Add a reason</Text>
               </TouchableOpacity>
             </View>
           ) : isTaken ? (
@@ -364,6 +376,17 @@ const styles = StyleSheet.create({
     color: '#C0392B',
     fontSize: 16,
     fontWeight: '700',
+  },
+  addReasonButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addReasonText: {
+    color: '#5A6478',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   takenBanner: {
     backgroundColor: '#F0F7F0',
