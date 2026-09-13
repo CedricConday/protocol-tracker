@@ -77,7 +77,13 @@ async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
   };
 }
 
-export function useWeather() {
+/**
+ * @param enabled when false, this hook does nothing at all: no location
+ *   permission prompt, no request to open-meteo.com. That is the whole point of
+ *   the Settings switch — turning the card off has to stop the network call,
+ *   not just hide the result.
+ */
+export function useWeather(enabled: boolean = true) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +110,13 @@ export function useWeather() {
         }
 
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const data = await fetchWeather(loc.coords.latitude, loc.coords.longitude);
+        // Rounded to one decimal (~11 km) before it leaves the device. UV index
+        // and air quality are regional figures — the forecast is identical —
+        // but the coordinate stops being a street address.
+        const data = await fetchWeather(
+          Math.round(loc.coords.latitude * 10) / 10,
+          Math.round(loc.coords.longitude * 10) / 10,
+        );
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data));
         if (!cancelled) { setWeather(data); setLoading(false); }
       } catch {
@@ -112,9 +124,9 @@ export function useWeather() {
       }
     }
 
-    load();
+    if (enabled) load();
     return () => { cancelled = true; };
-  }, []);
+  }, [enabled]);
 
   return { weather, loading, error, aqiLabel };
 }

@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getProfile, updateProfile, getSupplementsWithRules,
-  getMiscFlag, setMiscFlag,
+  getMiscFlag, setMiscFlag, getWeatherEnabled, setWeatherEnabled,
 } from '../db/queries';
 import { getDb } from '../db/schema';
 import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
@@ -147,6 +147,7 @@ export default function SettingsScreen() {
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
     supplements: true, water: true, exercise: true, morning_checkin: true, weekly_summary: true,
   });
+  const [weatherOn, setWeatherOn] = useState(true);
   const [quietStart, setQuietStart] = useState('22:00');
   const [quietEnd, setQuietEnd] = useState('07:00');
   const [pulseDosing, setPulseDosing] = useState(false);
@@ -194,6 +195,7 @@ export default function SettingsScreen() {
       setNotifPrefs(loaded);
       const qs = await getMiscFlag('notif_quiet_start');
       if (qs) setQuietStart(qs);
+      setWeatherOn(await getWeatherEnabled());
       const qe = await getMiscFlag('notif_quiet_end');
       if (qe) setQuietEnd(qe);
       const pd = await getMiscFlag('pulse_dosing_enabled');
@@ -481,6 +483,21 @@ export default function SettingsScreen() {
                   />
                 </View>
               ))}
+              <View style={styles.notifRow}>
+                <Text style={styles.notifLabel}>Weather &amp; UV card</Text>
+                <Switch
+                  value={weatherOn}
+                  onValueChange={async (v) => { hSelect(); setWeatherOn(v); await setWeatherEnabled(v); }}
+                  trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
+                  accessibilityLabel="Show the weather and UV card on Today"
+                />
+              </View>
+              <Text style={styles.notifHint}>
+                On by default. It sends your approximate location — rounded to about 11 km, not
+                your address — to open-meteo.com to get the UV window. Turn it off and nothing
+                is sent.
+              </Text>
+
               <Text style={[styles.miniLabel, { marginTop: space.md }]}>{t('quietHours')}</Text>
               <View style={styles.quietRow}>
                 <TextInput style={[styles.input, { flex: 1 }]} placeholder="22:00" placeholderTextColor={C.textMuted} value={quietStart} onChangeText={setQuietStart} autoCapitalize="none" />
@@ -774,6 +791,7 @@ const styles = StyleSheet.create({
   // Notifications
   notifRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   notifLabel: { ...T.body, color: C.text, flex: 1 },
+  notifHint: { color: C.textMuted, fontSize: 12, lineHeight: 17, marginTop: 4, marginBottom: 4 },
   quietRow:  { flexDirection: 'row', gap: space.md, alignItems: 'center' },
   quietSep:  { ...T.body, color: C.textSub },
 

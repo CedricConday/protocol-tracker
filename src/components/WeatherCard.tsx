@@ -1,6 +1,8 @@
-import { memo } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useWeather, aqiLabel } from '../hooks/useWeather';
+import { getWeatherEnabled } from '../db/queries';
 import SkeletonCard from './SkeletonCard';
 import { C, space, radius, text as T } from '../theme';
 
@@ -30,7 +32,18 @@ function protocolInsight(temp: number, uv: number, peakStart: string | null, pea
 }
 
 function WeatherCard() {
-  const { weather, loading, error } = useWeather();
+  // `null` = not read yet. Render nothing until we know, so the card cannot
+  // flash on for a user who turned it off.
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    getWeatherEnabled().then((v) => { if (!cancelled) setEnabled(v); }).catch(() => { if (!cancelled) setEnabled(true); });
+    return () => { cancelled = true; };
+  }, []));
+
+  const { weather, loading, error } = useWeather(enabled === true);
+
+  if (enabled !== true) return null;
 
   if (loading) {
     return <SkeletonCard height={96} borderRadius={radius.lg} />;

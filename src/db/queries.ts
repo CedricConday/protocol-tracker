@@ -671,6 +671,27 @@ export async function getWeekSummary(): Promise<{ date: string; compliancePct: n
  * belongs next to the reader instead: the Today tab and the reminder scheduler
  * have no business importing a constant from a screen.
  */
+/**
+ * The weather card. ON by default, and switchable off in Settings.
+ *
+ * It is opt-OUT rather than opt-in because the UV window is the clinically
+ * useful part of a vitamin D protocol — buried behind a setting nobody finds,
+ * it may as well not exist. But it is the one thing in this app that sends
+ * anything anywhere on its own: `useWeather` asks the OS for coordinates and
+ * posts them to open-meteo.com. So it gets a switch, and the switch is honest
+ * about what it turns off.
+ */
+export const WEATHER_ENABLED_FLAG = 'weather_enabled';
+
+export async function getWeatherEnabled(): Promise<boolean> {
+  const stored = await getMiscFlag(WEATHER_ENABLED_FLAG);
+  return stored !== '0';   // unset = on
+}
+
+export async function setWeatherEnabled(on: boolean): Promise<void> {
+  await setMiscFlag(WEATHER_ENABLED_FLAG, on ? '1' : '0');
+}
+
 export const WATER_GOAL_FLAG = 'water_goal_ml';
 export const DEFAULT_WATER_GOAL_ML = 2500;
 

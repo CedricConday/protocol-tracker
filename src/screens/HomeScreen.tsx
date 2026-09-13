@@ -508,8 +508,8 @@ export default function HomeScreen() {
             <Text style={styles.wizardTitle}>Your First Day Started</Text>
             <Text style={styles.wizardStep}>1 — Your T=0 anchor is now set. All supplements are scheduled from this moment.</Text>
             <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
-            <Text style={styles.wizardStep}>3 — Track your water intake with the Water tracker below.</Text>
-            <Text style={styles.wizardStep}>4 — Log your sun exposure and exercise whenever you like.</Text>
+            <Text style={styles.wizardStep}>3 — Track water, sunlight, exercise and food on the Trackers tab.</Text>
+            <Text style={styles.wizardStep}>4 — History shows your compliance, streak and calendar.</Text>
             <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel="Dismiss wizard, start using the app" accessibilityRole="button">
               <Text style={styles.wizardBtnText}>Got it, let's start</Text>
             </TouchableOpacity>
@@ -521,7 +521,11 @@ export default function HomeScreen() {
             {doses.every((d) => d.status === 'taken') ? (
               <Text style={styles.allDoneLabel}>All done ✓</Text>
             ) : (
-              dosesExpanded ? (
+              // A single dose has nothing to collapse. The teaser read "0 more
+              // doses today — tap to view all" over an empty stack, and the
+              // one dose of the day was not on screen at all until it was
+              // tapped. Treat a one-dose day as already expanded.
+              (dosesExpanded || doses.length <= 1) ? (
                 // Expanded, the list is just a list. Keeping the outer touchable
                 // here nested DoseRow and Collapse inside a button, so the wrapper
                 // competed with them for the touch responder and a long-press
@@ -531,18 +535,20 @@ export default function HomeScreen() {
                   {doses.map((dose) => (
                     <DoseRow key={dose.id} dose={dose} onPress={() => handleDosePress(dose)} />
                   ))}
-                  <TouchableOpacity
-                    style={styles.collapseBtn}
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setDosesExpanded(false);
-                    }}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Collapse dose list"
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.collapseBtnText}>Collapse</Text>
-                  </TouchableOpacity>
+                  {doses.length > 1 ? (
+                    <TouchableOpacity
+                      style={styles.collapseBtn}
+                      onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setDosesExpanded(false);
+                      }}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Collapse dose list"
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.collapseBtnText}>Collapse</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : (
                 <TouchableOpacity
