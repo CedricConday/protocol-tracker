@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
+  Animated,
   Modal,
   RefreshControl,
   ScrollView,
@@ -16,6 +17,9 @@ import * as Print from 'expo-print';
 import { getCalendarMonth, getDayDetail, localDateStr, todayStr, type CalendarDay, type DayDetail } from '../db/queries';
 import SkeletonCard from '../components/SkeletonCard';
 import Svg, { Circle } from 'react-native-svg';
+import { useSummaryScreen } from '../hooks';
+import { getMiscFlag } from '../db/queries';
+import { getProfileById } from '../data/diseaseProfiles';
 import { t } from '../i18n';
 
 const MONTH_NAMES = [
@@ -48,6 +52,15 @@ const BG = '#F7F7F2';
 const ACCENT = '#1B58B8';
 const INK = '#14213D';
 const INK_MUTED = '#5A6478';
+
+// The moved compliance block keeps its own palette. It came off the Records tab
+// (2026-09-13): compliance is history, so it now sits under the history the
+// calendar is already showing, and the tab it left became Trackers.
+function getComplianceStatusColor(compliancePct: number) {
+  if (compliancePct >= 80) return '#22c55e';
+  if (compliancePct >= 50) return '#eab308';
+  return '#ef4444';
+}
 
 // Dose-compliance ring color.
 function getComplianceColor(compliancePct: number, totalDoses: number): string {
@@ -104,7 +117,21 @@ const EVENT_LABEL: Record<string, string> = {
 // One slot in the month grid — either a real day or a leading/trailing blank.
 type Slot = { date: string; day: number } | null;
 
+// How far forward the month pager may browse. Events, appointments and MRI dates
+// are routinely saved against a future date, and the grid used to stop dead at
+// the current month, so those days could not be reached to be opened at all.
+// Bounded rather than open-ended: an unbounded pager wanders into empty decades,
+// and a year covers every scheduled event this app writes.
+const FORWARD_MONTHS = 12;
+
 export default function CalendarScreen() {
+  const navigation = useNavigation<any>();
+  const {
+    summary, streak, adherenceScore, loadData: loadCompliance,
+  } = useSummaryScreen();
+  const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
+  const barContainerWidth = useRef(0);
+  const barAnim = useRef(new Animated.Value(0)).current;
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -113,6 +140,9 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [detail, setDetail] = useState<DayDetail | null>(null);
+  const horizon = new Date(now.getFullYear(), now.getMonth() + FORWARD_MONTHS, 1);
+  const horizonYear = horizon.getFullYear();
+  const horizonMonth = horizon.getMonth();
 
   const loadMonth = useCallback(async (year: number, month: number) => {
     const map = await getCalendarMonth(year, month);
@@ -120,11 +150,40 @@ export default function CalendarScreen() {
     setLoaded(true);
   }, []);
 
-  useFocusEffect(useCallback(() => { loadMonth(viewYear, viewMonth); }, [loadMonth, viewYear, viewMonth]));
+  useFocusEffect(useCallback(() => {
+    loadMonth(viewYear, viewMonth);
+    loadCompliance();
+  }, [loadMonth, viewYear, viewMonth, loadCompliance]));
+
+  useEffect(() => {
+    getMiscFlag('disease_profile').then((id) => {
+      if (!id) return;
+      const profile = getProfileById(id);
+      if (profile) setProfileBlurb(profile.patientDescription);
+    });
+  }, []);
+
+  const taken = summary?.takenDoses ?? 0;
+  const totalDosesToday = summary?.totalDoses ?? 0;
+  const compliancePct = summary?.compliancePct ?? 0;
+  const ringColor = getComplianceStatusColor(compliancePct);
+
+  // The bar animates to the live percentage; the ring's number is read straight
+  // off the data rather than off an Animated listener, because wherever that
+  // listener failed to fire the ring read 0 while the card above it read 100%.
+  const animateToCompliance = useCallback((pct: number) => {
+    Animated.timing(barAnim, {
+      toValue: (barContainerWidth.current * pct) / 100,
+      duration: 700,
+      useNativeDriver: false,
+    }).start();
+  }, [barAnim]);
+
+  useEffect(() => { animateToCompliance(compliancePct); }, [compliancePct, animateToCompliance]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMonth(viewYear, viewMonth);
+    await Promise.all([loadMonth(viewYear, viewMonth), loadCompliance()]);
     setRefreshing(false);
   };
 
@@ -134,12 +193,11 @@ export default function CalendarScreen() {
     let y = viewYear;
     if (m < 0) { m = 11; y -= 1; }
     else if (m > 11) { m = 0; y += 1; }
-    // Don't page past the current month (no future data).
-    if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return;
+    if (y > horizonYear || (y === horizonYear && m > horizonMonth)) return;
     setViewYear(y);
     setViewMonth(m);
   };
-  const canGoNext = !(viewYear === now.getFullYear() && viewMonth === now.getMonth());
+  const canGoNext = !(viewYear === horizonYear && viewMonth === horizonMonth);
 
   const openDay = useCallback(async (date: string) => {
     setDetailDate(date);
@@ -269,7 +327,9 @@ export default function CalendarScreen() {
                 const cellBorder = hasData ? '#EFE7DF' : 'transparent';
                 const textColor = hasData ? INK : (isFuture ? '#CFD2C6' : '#C3B7AD');
                 const awareness = getAwarenessDate(slot.date);
-                const disabled = isFuture || !hasData;
+                // Openability turns on data, not on the date. A future day holding a
+                // real saved event was previously as unopenable as an empty one.
+                const disabled = !hasData;
                 return (
                   <TouchableOpacity
                     key={slot.date}
@@ -317,6 +377,98 @@ export default function CalendarScreen() {
         </View>
       </View>
 
+      {/* ── Compliance ─────────────────────────────────────────────────────
+          Moved here from the Records tab on 2026-09-13. Records became
+          Trackers (water, sunlight, exercise, food), and these numbers are a
+          reading of history, so they belong beneath the history grid. */}
+      <View style={styles.statRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{taken}/{totalDosesToday}</Text>
+          <Text style={styles.statLabel}>{t('dosesToday')}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{streak}</Text>
+          <Text style={styles.statLabel}>{t('dayStreak')}</Text>
+        </View>
+      </View>
+
+      {adherenceScore > 0 && (
+        <View style={styles.scoreCard}>
+          <Text style={styles.scoreValue}>{Math.round(adherenceScore)}%</Text>
+          <Text style={styles.scoreLabel}>{t('weightedAdherence')}</Text>
+          <Text style={styles.scoreSub}>14-day weighted score based on completeness and timing</Text>
+        </View>
+      )}
+
+      <View style={styles.complianceCard}>
+        <Text style={styles.cardDayLabel}>{t('today')}</Text>
+        <View style={styles.ringContainer}>
+          <View style={[styles.ringOuter, { borderColor: '#CFD2C6' }]}>
+            <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
+            <View style={styles.ringCenter}>
+              <Text style={[styles.ringNumber, { color: ringColor }]}>{compliancePct}</Text>
+              <Text style={styles.ringPercent}>%</Text>
+            </View>
+          </View>
+        </View>
+        <Text style={styles.complianceLabel}>{t('compliance')}</Text>
+        <View
+          style={styles.barBg}
+          onLayout={(e) => {
+            barContainerWidth.current = e.nativeEvent.layout.width;
+            animateToCompliance(compliancePct);
+          }}
+        >
+          <Animated.View style={[styles.barFill, { width: barAnim, backgroundColor: ringColor }]} />
+        </View>
+      </View>
+
+      {profileBlurb ? (
+        <View style={styles.profileBlurbCard}>
+          <Text style={styles.profileBlurbText}>{profileBlurb}</Text>
+        </View>
+      ) : null}
+
+      {/* ── The protocol's clinical surfaces ───────────────────────────────
+          These came off the Records tab with the compliance block. They are
+          the ONLY tap path to lab monitoring, MRI history and the doctor
+          report: before they existed those three screens were registered in
+          the navigator and reachable by nothing, which is what the audit
+          reported as "no entry point on Records". They stay together with the
+          clinical record, not with the daily trackers. */}
+      <View style={styles.medicalRow}>
+        <TouchableOpacity
+          style={styles.medicalBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('LabResults')}
+          accessibilityLabel="Lab results"
+          accessibilityRole="button"
+        >
+          <Text style={styles.medicalBtnLabel}>Lab Results</Text>
+          <Text style={styles.medicalBtnSub}>Vitamin D · PTH · calcium</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.medicalBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('MriTracker')}
+          accessibilityLabel="MRI history"
+          accessibilityRole="button"
+        >
+          <Text style={styles.medicalBtnLabel}>MRI History</Text>
+          <Text style={styles.medicalBtnSub}>Scans and findings</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={styles.shareProgressBtn}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('Report')}
+        accessibilityLabel="Share your progress"
+        accessibilityRole="button"
+      >
+        <Text style={styles.shareProgressBtnText}>{t('shareProgress')}</Text>
+      </TouchableOpacity>
+
       <Modal visible={detailDate !== null} animationType="slide" transparent onRequestClose={closeDay}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -326,7 +478,7 @@ export default function CalendarScreen() {
                 <Text style={styles.detailArrow}>‹</Text>
               </TouchableOpacity>
               <Text style={styles.detailDate}>{detailDate ? formatFullDate(detailDate) : ''}</Text>
-              <TouchableOpacity onPress={() => stepDay(1)} disabled={detailDate === today} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Next day" accessibilityRole="button">
+              <TouchableOpacity onPress={() => stepDay(1)} disabled={detailDate === null || detailDate >= today} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Next day" accessibilityRole="button">
                 <Text style={[styles.detailArrow, detailDate === today && styles.navArrowDisabled]}>›</Text>
               </TouchableOpacity>
             </View>
@@ -426,6 +578,35 @@ const styles = StyleSheet.create({
   markerSquare: { width: 7, height: 7, borderRadius: 2, backgroundColor: JOURNAL_COLOR },
   markerCircle: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: WATER_COLOR },
   awarenessDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#F97316', position: 'absolute', top: 5, right: 5 },
+
+  // ── Compliance block, moved from SummaryScreen 2026-09-13 ──────────────
+  statRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  statCard: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
+  statValue: { color: '#14213D', fontSize: 22, fontWeight: '700' },
+  statLabel: { color: '#5A6478', fontSize: 12, marginTop: 2 },
+  scoreCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 12, alignItems: 'center', borderWidth: 1, borderColor: '#1B58B840' },
+  scoreValue: { color: '#1B58B8', fontSize: 26, fontWeight: '800' },
+  scoreLabel: { color: '#14213D', fontSize: 13, fontWeight: '700', marginTop: 2 },
+  scoreSub: { color: '#5A6478', fontSize: 11, marginTop: 4, textAlign: 'center' },
+  complianceCard: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 20, marginTop: 12, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
+  cardDayLabel: { color: '#5A6478', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  ringContainer: { marginVertical: 14 },
+  ringOuter: { width: 108, height: 108, borderRadius: 54, borderWidth: 8, alignItems: 'center', justifyContent: 'center' },
+  ringInnerAccent: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 54, borderWidth: 3, opacity: 0.85 },
+  ringCenter: { flexDirection: 'row', alignItems: 'baseline' },
+  ringNumber: { fontSize: 30, fontWeight: '800' },
+  ringPercent: { color: '#5A6478', fontSize: 14, fontWeight: '700', marginLeft: 1 },
+  complianceLabel: { color: '#5A6478', fontSize: 12, marginBottom: 10 },
+  barBg: { width: '100%', height: 8, borderRadius: 4, backgroundColor: '#DBDDD3', overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 4 },
+  profileBlurbCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
+  profileBlurbText: { color: '#5A6478', fontSize: 13, lineHeight: 20 },
+  medicalRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  medicalBtn: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
+  medicalBtnLabel: { color: '#14213D', fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  medicalBtnSub: { color: '#5A6478', fontSize: 11 },
+  shareProgressBtn: { backgroundColor: '#1B58B8', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12 },
+  shareProgressBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
 
   legend: { paddingTop: 18, marginTop: 4, gap: 10 },
   legendRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 16 },

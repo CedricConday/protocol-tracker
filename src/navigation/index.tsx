@@ -2,10 +2,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
+import { t } from '../i18n';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
@@ -69,6 +70,36 @@ function JournalNavigator() {
   );
 }
 
+/**
+ * Placeholder for the four tracker screens (PT-trio round 2, Lane B).
+ *
+ * The route names `Water`, `Sunlight`, `Exercise` and `Food` were agreed before
+ * either lane started, so the Trackers tab is navigable end to end now and Lane
+ * B only has to swap the `component` below when each screen lands. A loud empty
+ * state rather than a silent dead card: a tab that opens onto nothing with no
+ * explanation reads as a bug.
+ *
+ * TODO(lane-b): replace each `component={TrackerPlaceholder}` with the real
+ * screen. Nothing else in this file needs to change.
+ */
+function TrackerPlaceholder() {
+  return (
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderTitle}>Not built yet</Text>
+      <Text style={styles.placeholderBody}>
+        This tracker has a data layer but no screen. It is next on the list.
+      </Text>
+    </View>
+  );
+}
+
+const TRACKER_ROUTES: { name: string; title: string }[] = [
+  { name: 'Water', title: 'Water' },
+  { name: 'Sunlight', title: 'Sunlight' },
+  { name: 'Exercise', title: 'Exercise' },
+  { name: 'Food', title: 'Food' },
+];
+
 function SummaryNavigator() {
   return (
     <SummaryNav.Navigator screenOptions={{ headerShown: false }}>
@@ -88,6 +119,14 @@ function SummaryNavigator() {
         component={LabResultsScreen}
         options={{ ...SUB_HEADER, title: 'Lab Results', animation: 'slide_from_right' }}
       />
+      {TRACKER_ROUTES.map((route) => (
+        <SummaryNav.Screen
+          key={route.name}
+          name={route.name}
+          component={TrackerPlaceholder}
+          options={{ ...SUB_HEADER, title: route.title, animation: 'slide_from_right' }}
+        />
+      ))}
     </SummaryNav.Navigator>
   );
 }
@@ -191,11 +230,16 @@ function TabNavigator() {
       >
         {() => <ErrorBoundary><HomeNavigator /></ErrorBoundary>}
       </Tab.Screen>
+      {/* Route id stays `Summary` on purpose: every existing navigate('Summary', …)
+          and the three medical sub-routes below keep working, and the rename is
+          one line instead of a sweep. The tab stopped being a summary on
+          2026-09-13 — compliance moved under the calendar and this became the
+          home of the four daily trackers. */}
       <Tab.Screen
         name="Summary"
         options={{
-          tabBarLabel: 'Records',
-          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={size} color={color} />,
+          tabBarLabel: t('trackers'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="leaf-outline" size={size} color={color} />,
         }}
       >
         {() => <ErrorBoundary><SummaryNavigator /></ErrorBoundary>}
@@ -257,5 +301,8 @@ export default function Navigation({ onReady }: NavigationProps) {
 }
 
 const styles = StyleSheet.create({
+  placeholder: { flex: 1, backgroundColor: '#F7F7F2', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  placeholderTitle: { color: '#14213D', fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  placeholderBody: { color: '#5A6478', fontSize: 14, lineHeight: 20, textAlign: 'center' },
   root: { flex: 1 },
 });

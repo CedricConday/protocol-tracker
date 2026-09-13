@@ -61,6 +61,12 @@ export default function DoseDetailModal({
   // onSkip are no-ops, so offering the buttons is worse than hiding them.
   const canAct = dose.logId != null && (dose.status === 'upcoming' || dose.status === 'due');
 
+  // "Skip" opens this picker rather than writing anything, so a single tap
+  // leaves the row `upcoming` — which is what the audit reports as "Skip does
+  // not persist" (PT-trio H1). The reason buttons below now carry accessible
+  // names, so the second step is at least reachable by name. Whether one tap
+  // should be able to skip without giving a reason is a product call, not a
+  // bug fix: TODO(cedric).
   const handleSkipPress = () => {
     setShowSkipReasons(true);
   };
@@ -141,6 +147,8 @@ export default function DoseDetailModal({
                   style={styles.skipReasonButton}
                   onPress={() => handleReasonSelect(reason)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Skip this dose: ${reason}`}
                 >
                   <Text style={styles.skipReasonText}>{reason}</Text>
                 </TouchableOpacity>
@@ -149,6 +157,8 @@ export default function DoseDetailModal({
                 style={styles.cancelReasonButton}
                 onPress={() => setShowSkipReasons(false)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel skipping this dose"
               >
                 <Text style={styles.cancelReasonText}>{t('cancel')}</Text>
               </TouchableOpacity>

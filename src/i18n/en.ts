@@ -11,6 +11,8 @@ export const en: Record<string, string> = {
   journal: 'Journal',
   schedule: 'Schedule',
   summary: 'Summary',
+  trackers: 'Trackers',
+  trackersIntro: 'What you log each day. Compliance and clinical records now live under the calendar.',
   history: 'History',
   guide: 'Guide',
   awareness: 'Awareness',
