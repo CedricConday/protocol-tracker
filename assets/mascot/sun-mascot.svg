@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Protocol Tracker mascot.
+       Amber body, ink face. The face is PAINTED, not knocked out: a knockout
+       takes the colour of whatever is behind it, which meant a white face on
+       the app's cream ground. Ink is the app's own text colour, so the face
+       reads as a face on any background and the mark survives being placed on
+       something other than cream.
+       #rays / #body / #eyes / #mouth are separate so each animates alone. -->
+  
+  <g transform="translate(512.0,512.0)">
+    <g id="rays" fill="#E9A23C">
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(-90.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(-45.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(0.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(45.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(90.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(135.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(180.00)"/>
+        <path d="M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z" transform="rotate(225.00)"/>
+    </g>
+    <circle id="body" cx="0" cy="0" r="215.0" fill="#E9A23C"/>
+    <g fill="none" stroke="#14213D" stroke-linecap="round">
+      <g id="eyes" stroke-width="24.0"><path d="M -114.0 -38.0 Q -76.0 -92.0 -38.0 -38.0"/><path d="M 38.0 -38.0 Q 76.0 -92.0 114.0 -38.0"/></g>
+      <g id="mouth" stroke-width="26.0"><path d="M -62.0 46.0 Q 0 116.0 62.0 46.0"/></g>
+    </g>
+  </g>
+</svg>

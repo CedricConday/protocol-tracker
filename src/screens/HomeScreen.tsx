@@ -19,6 +19,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import DoseDetailModal from '../components/DoseDetailModal';
+import SunMascot from '../components/SunMascot';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
@@ -344,6 +345,11 @@ export default function HomeScreen() {
   const renderHeader = () => (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingTop: 12 }}>
       <View style={{ flex: 1 }}>
+        {/* The mascot crowns the greeting. It sits in space the header was
+            already leaving empty, so nothing below it moves. */}
+        <View style={styles.mascotRow}>
+          <SunMascot size={66} />
+        </View>
         <Text style={[styles.greeting, { textAlign: 'center' }]}>
           {isCaregiver
             ? (caregiverPatientName ? `Tracking ${caregiverPatientName.split(' ')[0]}` : 'Caregiver View')
@@ -778,6 +784,10 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     justifyContent: 'center',
     paddingHorizontal: 32,
+  },
+  mascotRow: {
+    alignItems: 'center',
+    marginBottom: 6,
   },
   greeting: {
     color: '#14213D',
