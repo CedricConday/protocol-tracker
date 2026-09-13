@@ -5,7 +5,7 @@ import {
   getProfile, getTodayExercise, getTodaySunLog, getFirstMealTime,
   getJournalEntry, getLatestJournalEntry, getTodayMeals,
   getNextMedicalEvent, getLatestLabResult, getSupplementsLowStock,
-  todayStr,
+  todayStr, getWaterGoalMl, DEFAULT_WATER_GOAL_ML,
 } from '../db/queries';
 import { getTodaySchedule } from '../engine/scheduler';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
@@ -20,6 +20,9 @@ export function useHomeScreen(navigation: any) {
   const [dayLoaded, setDayLoaded] = useState(false);
   const [doses, setDoses] = useState<any[]>([]);
   const [waterMl, setWaterMl] = useState(0);
+  // The goal the user set on the Water screen. Hardcoded 2500 in the card until
+  // 2026-09-13, so Today contradicted the Water screen.
+  const [waterGoalMl, setWaterGoalMl] = useState(DEFAULT_WATER_GOAL_ML);
   const [firstMealTime, setFirstMealTimeState] = useState<string | null>(null);
   const [exerciseMinutes, setExerciseMinutes] = useState(0);
   const [exerciseType, setExerciseType] = useState('walk');
@@ -69,6 +72,7 @@ export function useHomeScreen(navigation: any) {
     setDayLoaded(true);
 
     setWaterMl(anchor?.water_ml ?? 0);
+    setWaterGoalMl(await getWaterGoalMl());
     const ex = await getTodayExercise();
     const profile = await getProfile();
     setPatientName(profile?.name ?? '');
@@ -185,7 +189,7 @@ export function useHomeScreen(navigation: any) {
   }, []);
 
   return {
-    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, waterGoalMl, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
     todayMeals, setTodayMeals,

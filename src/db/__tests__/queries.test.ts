@@ -17,6 +17,7 @@ import {
   getDaySummary,
   getStreak,
   getWaterProgress,
+  getWaterGoalMl,
   getWeekSummary,
   addSupplement,
   undoLastWater,
@@ -597,5 +598,38 @@ describe('exercise entries', () => {
     expect(sql).toMatch(/GROUP BY date/);
     expect(sql).toMatch(/ORDER BY date DESC/);
     expect(params).toEqual(['2026-09-13', 30]);
+  });
+});
+
+
+// ── the water goal is the one the user set ────────────────────────────────────
+
+describe('getWaterGoalMl', () => {
+  it('returns the stored goal', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ value: '3200' });
+    expect(await getWaterGoalMl()).toBe(3200);
+  });
+
+  it('falls back to 2500 when nothing is stored', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await getWaterGoalMl()).toBe(2500);
+  });
+
+  it('falls back rather than trusting a junk or zero value', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ value: 'nonsense' });
+    expect(await getWaterGoalMl()).toBe(2500);
+    mockDb.getFirstAsync.mockResolvedValue({ value: '0' });
+    expect(await getWaterGoalMl()).toBe(2500);
+  });
+});
+
+describe('getWaterProgress honours the stored goal', () => {
+  it('reports the goal the user set, not a hardcoded 2500', async () => {
+    // getAnchor first, then the goal flag.
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ water_ml: 900 })
+      .mockResolvedValueOnce({ value: '3200' });
+    const r = await getWaterProgress('2026-09-13');
+    expect(r).toEqual({ waterMl: 900, goalMl: 3200 });
   });
 });

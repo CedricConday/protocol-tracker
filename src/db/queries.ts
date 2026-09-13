@@ -663,9 +663,31 @@ export async function getWeekSummary(): Promise<{ date: string; compliancePct: n
   return days;
 }
 
+/**
+ * The daily water goal, as the user set it.
+ *
+ * The key was declared in WaterScreen.tsx, so the only things that honoured an
+ * edited goal were the screens that happened to import it from there. It
+ * belongs next to the reader instead: the Today tab and the reminder scheduler
+ * have no business importing a constant from a screen.
+ */
+export const WATER_GOAL_FLAG = 'water_goal_ml';
+export const DEFAULT_WATER_GOAL_ML = 2500;
+
+export async function getWaterGoalMl(): Promise<number> {
+  const stored = await getMiscFlag(WATER_GOAL_FLAG);
+  const parsed = stored === null ? NaN : parseInt(stored, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_WATER_GOAL_ML;
+}
+
+/**
+ * `goalMl` was hardcoded 2500, so a goal edited on the Water screen moved that
+ * screen and nothing else — the Today tab kept saying 2.5 L, and the water
+ * reminder decided whether you were behind against a number you had replaced.
+ */
 export async function getWaterProgress(date: string = todayStr()): Promise<{ waterMl: number; goalMl: number }> {
   const anchor = await getAnchor(date);
-  return { waterMl: anchor?.water_ml ?? 0, goalMl: 2500 };
+  return { waterMl: anchor?.water_ml ?? 0, goalMl: await getWaterGoalMl() };
 }
 
 // ── Streak ────────────────────────────────────────────────────────────────────

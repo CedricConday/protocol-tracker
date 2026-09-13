@@ -6,8 +6,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import WaterTracker, { DEFAULT_GOAL_ML } from '../components/WaterTracker';
 import {
-  addWater, correctWaterLog, deleteWaterLog, getAnchor, getMiscFlag, getWaterLogs,
-  localDateStr, setMiscFlag, todayStr,
+  addWater, correctWaterLog, deleteWaterLog, getAnchor, getWaterGoalMl, getWaterLogs,
+  localDateStr, setMiscFlag, todayStr, WATER_GOAL_FLAG,
 } from '../db/queries';
 
 /**
@@ -18,12 +18,10 @@ import {
  * `logSunExposure` were the only writers against their tables anywhere in src/,
  * so until now a mis-tap was permanent for that day.
  *
- * WHY THE GOAL LIVES IN `misc_flags`. `getWaterProgress` returns a hardcoded
- * 2500 and is what the Today tab reads, so a goal edited here moves this screen
- * and not that one. Storing it as a flag is the part this lane can do without
- * touching `src/db/**` (Build A's in round 3); making `getWaterProgress` read
- * the flag is filed as a handoff. Until that lands, Today keeps saying 2.5 L —
- * which is wrong, but visibly wrong rather than silently so.
+ * THE GOAL LIVES IN `misc_flags` and `getWaterProgress` now reads it, so the
+ * number set here is the number the Today tab and the water reminder use. It
+ * was hardcoded 2500 in the data layer until 2026-09-13, which meant a goal
+ * edited here moved this screen and nothing else.
  *
  * EVERY ROW CAN BE REMOVED. It could not until `deleteWaterLog` existed: the
  * only remover was `undoLastWater`, which deletes the day's NEWEST row — the
@@ -35,7 +33,7 @@ import {
  * 2026-09-13.
  */
 
-export const WATER_GOAL_FLAG = 'water_goal_ml';
+export { WATER_GOAL_FLAG };
 
 const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const GOAL_STEP = 250;
@@ -70,9 +68,7 @@ export default function WaterScreen() {
       setWaterMl(anchor?.water_ml ?? 0);
       setEntries(await getWaterLogs(today));
 
-      const stored = await getMiscFlag(WATER_GOAL_FLAG);
-      const parsed = stored === null ? NaN : parseInt(stored, 10);
-      const goal = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_GOAL_ML;
+      const goal = await getWaterGoalMl();
       setGoalMl(goal);
       setGoalDraft(String(goal));
 
@@ -207,10 +203,6 @@ export default function WaterScreen() {
             <Text style={styles.goalBtnText}>+</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.note}>
-          The Today tab still shows the 2.5 L default until `getWaterProgress` reads this
-          goal — see handoff H12.
-        </Text>
       </View>
 
       <View style={styles.section}>

@@ -172,7 +172,7 @@ const headerStyles = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const {
-    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, waterGoalMl, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
     todayMeals, setTodayMeals, patientName, isCaregiver, caregiverPatientName,
@@ -602,7 +602,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
+        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} goalMl={waterGoalMl} />
 
         <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
 
