@@ -361,9 +361,10 @@ export async function getStreak(date: string = todayStr()): Promise<number> {
   startDate.setDate(startDate.getDate() - 60);
   const start = localDateStr(startDate);
 
-  const rows = await db.getAllAsync<{ date: string; total: number; taken: number }>(
+  const rows = await db.getAllAsync<{ date: string; total: number; taken: number; upcoming: number }>(
     `SELECT date, COUNT(*) as total,
-            SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken
+            SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken,
+            SUM(CASE WHEN status = 'upcoming' THEN 1 ELSE 0 END) as upcoming
      FROM dose_logs
      WHERE date >= ? AND date <= ?
      GROUP BY date
@@ -375,9 +376,14 @@ export async function getStreak(date: string = todayStr()): Promise<number> {
   for (const row of rows) {
     if (row.total > 0 && row.total === row.taken) {
       streak++;
-    } else {
-      break;
+      continue;
     }
+    // Today is still in progress. Its doses are not missed, they simply have
+    // not come round yet, so it is not a broken day — skip it without counting
+    // and keep walking backwards. Without this the streak read 0 for most of
+    // every day, however perfect the preceding weeks had been.
+    if (row.date === date && row.upcoming > 0) continue;
+    break;
   }
   return streak;
 }
