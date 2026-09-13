@@ -63,6 +63,17 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
+    // protocol60 and thirtyday both pin Europe/Berlin; openApp did not, so every
+    // flow ran in the box's UTC. Two consequences, both bad: no flow could ever
+    // exercise a day-key or dose-time bug that only appears when local and UTC
+    // dates disagree, and a flow's result was not comparable with the same
+    // screen's result in the 60-day pass. Pinned here so all three agree.
+    //
+    // Node still runs in UTC, so a flow must NOT derive "today" with `new Date()`
+    // and compare it to the screen — near midnight Berlin they are different
+    // days. Use browserToday() below.
+    timezoneId: 'Europe/Berlin',
+    locale: 'en-US',
   });
   const page = await context.newPage();
   if (stubNotificationScheduler) await installNotificationSchedulerStub(page);
@@ -146,6 +157,17 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
 
     async sees(needle) {
       return (await page.innerText('body')).includes(needle);
+    },
+
+    /** Today's date as the BROWSER sees it, YYYY-MM-DD. The context is pinned to
+     *  Europe/Berlin while node runs in UTC, so anything comparing a date
+     *  against the screen has to ask the page, not the process. */
+    async today() {
+      return page.evaluate(() => {
+        const d = new Date();
+        const p = (x) => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      });
     },
 
     /** Read the app's own database. Throws if the registry did not capture the

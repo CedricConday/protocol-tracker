@@ -301,6 +301,82 @@ function doseIsSkipped(rows) {
   return status === 'missed' && r.logged_time !== null && r.logged_time !== undefined;
 }
 
+// ── day-key drift: which rows were written DURING the crossing window ──────
+//
+// The previous check scanned every table at the end of the run and filed a
+// finding for any row whose `date` equalled the day before a timezone-crossing
+// day. Those rows exist because that day happened: the harness ran day 19 and
+// day 50 normally and wrote real rows dated accordingly. So the check fired on
+// every run no matter what the app did, which is not a test — it is a constant.
+// It also cited `src/screens/HomeScreen.tsx:260/:275` as the culprit; that code
+// is gone (`grep -rn "toISOString().split" src/` returns nothing, and
+// `todayStr()` goes through `localDateStr`), so the finding named a line that
+// does not exist.
+//
+// What is actually falsifiable: a row written WHILE the simulated clock stands
+// between local midnight and 02:00 on the crossing day must carry that day's
+// local date. In Europe/Berlin that window is the previous day in UTC, so a day
+// key derived from toISOString() lands on `prev` and a local one lands on
+// `tzDate`. Isolating "written during the window" is what the old check never
+// did, so it is done here by rowid: snapshot the high-water mark per table
+// before the day opens, and afterwards look only at rows added since.
+//
+// Limit, stated rather than hidden: this sees INSERTs. A row UPDATEd during the
+// window onto a wrong date keeps its rowid and is invisible here. Catching that
+// needs a column recording when the write happened, which the schema does not
+// have; a false negative is the honest cost, and it beats a finding that cannot
+// fail.
+async function dateColumnTables() {
+  const names = await sql("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").catch(() => []);
+  const out = [];
+  for (const { name } of names) {
+    const cols = await sql(`PRAGMA table_info("${name}")`).catch(() => []);
+    if (cols.some((c) => c.name === 'date')) out.push(name);
+  }
+  return out;
+}
+
+async function rowidHighWater() {
+  const mark = {};
+  for (const name of await dateColumnTables()) {
+    const r = await sql(`SELECT COALESCE(MAX(rowid), 0) AS hi FROM "${name}"`).catch(() => []);
+    mark[name] = Number(r[0]?.hi ?? 0);
+  }
+  return mark;
+}
+
+async function checkDayKeyDrift(n, mark) {
+  const tzDate = dayDate(n);
+  const prev = dayDate(n - 1);
+  const drifted = [];
+  const written = [];
+  for (const [name, hi] of Object.entries(mark)) {
+    const rows = await sql(`SELECT rowid AS rid, date FROM "${name}" WHERE rowid > ?`, [hi]).catch(() => []);
+    for (const r of rows) {
+      if (typeof r.date !== 'string') continue;
+      written.push(`${name}#${r.rid}=${r.date}`);
+      if (r.date !== tzDate) drifted.push(`${name}#${r.rid}.date=${r.date}`);
+    }
+  }
+
+  if (drifted.length) {
+    const utc = drifted.filter((d) => d.endsWith(prev));
+    note('high', 'Today (timezone-crossing)',
+      `Rows written between 00:20 and 01:40 local on ${tzDate} were stored under another date. ${utc.length ? `${utc.length} of them landed on ${prev}, which is the UTC date during that window — a day key computed from toISOString() rather than the local calendar date. ` : ''}Affected: ${drifted.join(', ')}`,
+      `set the device clock to ${tzDate} 00:20 Europe/Berlin and log the day normally`,
+      'src/db/queries.ts todayStr() / localDateStr(), and any screen computing its own day key');
+    return;
+  }
+
+  if (!written.length) {
+    // Nothing was inserted at all, so nothing was proved. Say that, rather than
+    // letting an empty set read as a pass.
+    note('low', 'Today (timezone-crossing)',
+      `The day-key check on ${tzDate} proved nothing: no rows were inserted into any date-bearing table while the clock stood just after local midnight. Either the day's writes are UPDATEs (invisible to a rowid check) or the day did not run.`,
+      `day ${n}`, 'e2e/protocol60.mjs checkDayKeyDrift');
+  }
+}
+
 // ── navigate through the app's own navigation API ────────────────────────────
 // Four registered screens (Report, MriTracker, LabResults, FamilySync) have no
 // navigate() call anywhere in src/, so no tap sequence reaches them and the app
@@ -788,6 +864,11 @@ async function runDay(n) {
   const openAt = plan.shape === 'timezone-crossing' ? '00:20' : '07:30';
   await setMoment(n, openAt);
 
+  // High-water rowid per date-bearing table, taken before the day writes
+  // anything, so the day-key check at the bottom can look at this day's rows
+  // alone instead of at every row in the database. See checkDayKeyDrift.
+  const rowidMark = plan.shape === 'timezone-crossing' ? await rowidHighWater().catch(() => null) : null;
+
   // Every fifth day is a cold boot (reload); the rest re-enter through the tab
   // bar, which is what a phone does when the app is resumed the next morning.
   if (n === 1 || n % 5 === 0) {
@@ -1170,6 +1251,10 @@ async function runDay(n) {
     await gotoTab('Today');
   }
 
+  if (rowidMark) {
+    await step('day-key drift', async () => { await checkDayKeyDrift(n, rowidMark); });
+  }
+
   await shot('day-end');
   return { day: n, date, shape: plan.shape };
 }
@@ -1306,27 +1391,8 @@ await step('dump tables', async () => {
   }
 });
 
-// Day keys must all be local calendar dates. A row whose date is the day before
-// the day it was written on is the toISOString() drift.
-await step('day-key drift check', async () => {
-  for (const tzDay of TZ_CROSS_DAYS) {
-    const tzDate = dayDate(tzDay);
-    const prev = dayDate(tzDay - 1);
-    const suspects = [];
-    for (const [t, rows] of Object.entries(tables)) {
-      if (!Array.isArray(rows)) continue;
-      for (const r of rows) {
-        if (r && typeof r.date === 'string' && r.date === prev) suspects.push(`${t}.date=${r.date}`);
-      }
-    }
-    if (suspects.length) {
-      note('high', 'Today (timezone-crossing)',
-        `Rows written just after local midnight on ${tzDate} were stored under ${prev} — the day key came from UTC, not the local calendar date. Affected: ${[...new Set(suspects)].join(', ')}`,
-        `set the device clock to ${tzDate} 00:20 Europe/Berlin, log exercise and a meal from Today`,
-        'src/screens/HomeScreen.tsx:260 / :275 (new Date().toISOString().split("T")[0])');
-    }
-  }
-});
+// The day-key drift check now runs inside runDay() for each crossing day, on
+// the rows that day actually inserted. See checkDayKeyDrift.
 
 // Adherence/streak surfaces should reflect 30 days of history, not zero.
 await step('compliance sanity', async () => {

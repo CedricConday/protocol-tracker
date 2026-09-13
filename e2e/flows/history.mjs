@@ -55,7 +55,10 @@ export default {
     const hist = await screenText(ctx);
     check(!/went wrong/i.test(hist), 'History crashed into the error boundary', hist.slice(0, 400));
 
-    const month = new Date().toLocaleDateString('en-US', { month: 'long' });
+    // Derived from the browser, not from node: the context is Europe/Berlin
+    // while this process is UTC, so near midnight they are different days.
+    const todayIso = await ctx.today();
+    const month = new Date(`${todayIso}T12:00:00`).toLocaleDateString('en-US', { month: 'long' });
     check(hist.includes(month) || /\d{4}/.test(hist),
       'History does not show the current month', hist.slice(0, 400));
 
@@ -84,7 +87,7 @@ export default {
       scoreLine ?? '(no /8 line found)');
 
     // Today's cell should be marked as having activity now that a dose is taken.
-    const dayNum = String(new Date().getDate());
+    const dayNum = String(Number(todayIso.slice(8, 10)));
     check(hist.includes(dayNum), `History grid does not contain today's date (${dayNum})`, hist.slice(0, 500));
 
     // The three clinical entry points. They are registered under the Summary
