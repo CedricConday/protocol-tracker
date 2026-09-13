@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAnchor, getDaySummary, getStreak, getMiscFlag, setMiscFlag,
-  getProfile, getTodayExercise, getTodaySunLog, getFirstMealTime,
+  getProfile, getTodayExercise, getFirstMealTime,
   getJournalEntry, getLatestJournalEntry, getTodayMeals,
   getNextMedicalEvent, getLatestLabResult, getSupplementsLowStock,
-  todayStr, getWaterGoalMl, DEFAULT_WATER_GOAL_ML,
+  todayStr,
 } from '../db/queries';
 import { getTodaySchedule } from '../engine/scheduler';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
@@ -19,15 +19,15 @@ export function useHomeScreen(navigation: any) {
   // not started".
   const [dayLoaded, setDayLoaded] = useState(false);
   const [doses, setDoses] = useState<any[]>([]);
+  // Water and sun moved off Today on 2026-09-13 — they have their own screens
+  // under Trackers, with entry lists, goals and history that a card on Today
+  // could never carry. The state and the two queries that fed them went with
+  // them; getWaterProgress still reads the goal for the reminder scheduler.
   const [waterMl, setWaterMl] = useState(0);
-  // The goal the user set on the Water screen. Hardcoded 2500 in the card until
-  // 2026-09-13, so Today contradicted the Water screen.
-  const [waterGoalMl, setWaterGoalMl] = useState(DEFAULT_WATER_GOAL_ML);
   const [firstMealTime, setFirstMealTimeState] = useState<string | null>(null);
   const [exerciseMinutes, setExerciseMinutes] = useState(0);
   const [exerciseType, setExerciseType] = useState('walk');
   const [exerciseIntensity, setExerciseIntensity] = useState('moderate');
-  const [sunMinutes, setSunMinutes] = useState(0);
   const [todayMeals, setTodayMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
   const [patientName, setPatientName] = useState('');
   const [isCaregiver, setIsCaregiver] = useState(false);
@@ -72,15 +72,12 @@ export function useHomeScreen(navigation: any) {
     setDayLoaded(true);
 
     setWaterMl(anchor?.water_ml ?? 0);
-    setWaterGoalMl(await getWaterGoalMl());
     const ex = await getTodayExercise();
     const profile = await getProfile();
     setPatientName(profile?.name ?? '');
     setExerciseMinutes(ex.totalMinutes);
     setExerciseType(ex.type);
     setExerciseIntensity(ex.intensity);
-    const sun = await getTodaySunLog();
-    setSunMinutes(sun?.minutes ?? 0);
     const mealTime = await getFirstMealTime();
     setFirstMealTimeState(mealTime);
     const journal = await getJournalEntry(todayStr());
@@ -189,9 +186,9 @@ export function useHomeScreen(navigation: any) {
   }, []);
 
   return {
-    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, waterGoalMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
-    exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
+    exerciseIntensity, setExerciseIntensity,
     todayMeals, setTodayMeals,
     patientName, isCaregiver, caregiverPatientName,
     showFatigueAlert, setShowFatigueAlert,

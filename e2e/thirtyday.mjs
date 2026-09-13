@@ -334,6 +334,29 @@ async function gotoTab(label) {
   return true;
 }
 
+// Water and sun were logged from Today until 2026-09-13; both moved to their own
+// screens under Trackers. Same components, same accessible names — only the
+// route changed.
+async function gotoTracker(name) {
+  if (!(await gotoTab('Trackers'))) return false;
+  await wait(600);
+  const opened = await page.evaluate((n) => {
+    const el = [...document.querySelectorAll('[aria-label]')]
+      .find((e) => (e.getAttribute('aria-label') || '').startsWith(`${n} tracker`));
+    if (!el) return false;
+    el.click();
+    return true;
+  }, name);
+  if (!opened) {
+    note('high', 'Trackers', `No ${name} card on the Trackers tab — ${name} cannot be logged`, `day ${currentDay}`, 'src/screens/SummaryScreen.tsx');
+    return false;
+  }
+  await wait(1400);
+  currentScreen = name;
+  screensHit.add(name);
+  return true;
+}
+
 // ── set the simulated moment ─────────────────────────────────────────────────
 async function setMoment(n, hhmm) {
   await page.clock.setFixedTime(at(n, hhmm));
@@ -476,15 +499,19 @@ async function runDay(n) {
   // ── supplements: water + sun ───────────────────────────────────────────────
   await step('water', async () => {
     const taps = plan.shape === 'max-values' ? 14 : plan.shape === 'partial' ? 1 : 4;
+    if (!(await gotoTracker('Water'))) return;
     for (let i = 0; i < taps; i++) { await clickText('+ 250 ml'); await wait(260); }
     await shot('water');
   });
   await step('sun', async () => {
-    if (plan.shape === 'partial') return;
+    if (plan.shape === 'partial') { await gotoTab('Today'); return; }
     const btn = plan.shape === 'max-values' ? '+30' : '+20';
     const reps = plan.shape === 'max-values' ? 6 : 1;
+    if (!(await gotoTracker('Sunlight'))) return;
     for (let i = 0; i < reps; i++) { await clickText(btn); await wait(300); }
     await shot('sun');
+    // Back to Today: the rest of the day's steps assume it.
+    await gotoTab('Today');
   });
 
   if (plan.shape === 'partial') {

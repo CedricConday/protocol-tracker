@@ -23,13 +23,11 @@ import SunMascot from '../components/SunMascot';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
-import SunTracker from '../components/SunTracker';
 import { MEDICAL_DISCLAIMER } from '../config/links';
-import WaterTracker from '../components/WaterTracker';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
+import { confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { ScheduledDose, MedicalEvent } from '../types';
@@ -172,9 +170,9 @@ const headerStyles = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const {
-    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, waterGoalMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
-    exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
+    exerciseIntensity, setExerciseIntensity,
     todayMeals, setTodayMeals, patientName, isCaregiver, caregiverPatientName,
     showFatigueAlert, setShowFatigueAlert, showSurveyPrompt, setShowSurveyPrompt,
     showMagnesiumHint, setShowMagnesiumHint, showD3MealHint, setShowD3MealHint,
@@ -250,30 +248,12 @@ export default function HomeScreen() {
      }
    };
 
-  const handleAddWater = async (amountMl: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await addWater(amountMl);
-    // Read the day back rather than assuming the increment landed, so the screen
-    // and daily_anchors can never disagree.
-    const anchor = await getAnchor();
-    setWaterMl(anchor?.water_ml ?? 0);
-  };
-
   const handleLogExercise = async (minutes: number = 30, type: string = 'walk', intensity: string = 'moderate') => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await logExercise(minutes, type, todayStr(), intensity);
     setExerciseMinutes(prev => prev + minutes);
     setExerciseType(type);
     setExerciseIntensity(intensity);
-  };
-
-  const handleLogSun = async (minutes: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await logSunExposure(minutes);
-    // Read the day back rather than assuming the increment landed — the screen and
-    // the sun_log row used to drift apart and only agree again after a reload.
-    const today = await getTodaySunLog();
-    setSunMinutes(today?.minutes ?? 0);
   };
 
   const handleLogMeal = async () => {
@@ -601,10 +581,6 @@ export default function HomeScreen() {
             <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your protocol supplements.</Text>
         </View>
       )}
-
-        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} goalMl={waterGoalMl} />
-
-        <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
 
         <Text style={styles.homeDisclaimer}>{MEDICAL_DISCLAIMER}</Text>
 

@@ -540,6 +540,34 @@ async function gotoTab(label) {
   return true;
 }
 
+/**
+ * Open one of the four tracker screens from the Trackers tab.
+ *
+ * Water and sun were logged from Today until 2026-09-13; both cards moved to
+ * their own screens, which carry the entry list, goal and history a card could
+ * not. The log controls themselves are the same components with the same
+ * accessible names, so only the route changed.
+ */
+async function gotoTracker(name) {
+  if (!(await gotoTab('Trackers'))) return false;
+  await wait(600);
+  const opened = await page.evaluate((n) => {
+    const el = [...document.querySelectorAll('[aria-label]')]
+      .find((e) => (e.getAttribute('aria-label') || '').startsWith(`${n} tracker`));
+    if (!el) return false;
+    el.click();
+    return true;
+  }, name);
+  if (!opened) {
+    note('high', 'Trackers', `No ${name} card on the Trackers tab — ${name} cannot be logged`, `day ${currentDay}`, 'src/screens/SummaryScreen.tsx');
+    return false;
+  }
+  await wait(1400);
+  currentScreen = name;
+  screensHit.add(name);
+  return true;
+}
+
 // ── set the simulated moment ─────────────────────────────────────────────────
 async function setMoment(n, hhmm) {
   await page.clock.setFixedTime(at(n, hhmm));
@@ -1076,14 +1104,15 @@ async function runDay(n) {
   await step('water', async () => {
     const ml = plan.shape === 'max-values' ? 750 : 250;
     const reps = plan.shape === 'max-values' ? 6 : plan.shape === 'partial' ? 1 : 4;
+    if (!(await gotoTracker('Water'))) return;
     for (let i = 0; i < reps; i++) {
       if (!(await clickLabel(`Set ${ml} millilitres`))) {
-        note('medium', 'Today', `Water preset "Set ${ml} millilitres" not found — water cannot be logged`, `day ${n}`, 'src/components/WaterTracker.tsx:116');
+        note('medium', 'Water', `Water preset "Set ${ml} millilitres" not found — water cannot be logged`, `day ${n}`, 'src/components/WaterTracker.tsx:116');
         return;
       }
       await wait(200);
       if (!(await clickLabel(`Log ${ml} millilitres of water`))) {
-        note('medium', 'Today', `Water commit button "Log ${ml} ml" not found`, `day ${n}`, 'src/components/WaterTracker.tsx:128');
+        note('medium', 'Water', `Water commit button "Log ${ml} ml" not found`, `day ${n}`, 'src/components/WaterTracker.tsx:128');
         return;
       }
       await wait(450);
@@ -1094,19 +1123,22 @@ async function runDay(n) {
     if (plan.shape === 'partial') return;
     const min = plan.shape === 'max-values' ? 60 : 20;
     const reps = plan.shape === 'max-values' ? 3 : 1;
+    if (!(await gotoTracker('Sunlight'))) return;
     for (let i = 0; i < reps; i++) {
       if (!(await clickLabel(`Set ${min} minutes`))) {
-        note('medium', 'Today', `Sun preset "Set ${min} minutes" not found — sun exposure cannot be logged`, `day ${n}`, 'src/components/SunTracker.tsx:96');
+        note('medium', 'Sunlight', `Sun preset "Set ${min} minutes" not found — sun exposure cannot be logged`, `day ${n}`, 'src/components/SunTracker.tsx:96');
         return;
       }
       await wait(200);
       if (!(await clickLabel(`Log ${min} minutes of sun`))) {
-        note('medium', 'Today', `Sun commit button "Log ${min} min" not found`, `day ${n}`, 'src/components/SunTracker.tsx:108');
+        note('medium', 'Sunlight', `Sun commit button "Log ${min} min" not found`, `day ${n}`, 'src/components/SunTracker.tsx:108');
         return;
       }
       await wait(450);
     }
     await shot('sun');
+    // Back to Today: the rest of the day's steps assume it.
+    await gotoTab('Today');
   });
 
   if (plan.shape === 'partial') {

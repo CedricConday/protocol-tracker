@@ -96,32 +96,19 @@ export default {
       }
     }
 
-    // --- Water tracker ---
-    const water = ctx.page.getByText('+ 250 ml').first();
-    check(await water.count() > 0, 'Water tracker "+ 250 ml" button not found on Today');
-    if (await water.count()) {
-      await water.click({ force: true });
-      await ctx.page.waitForTimeout(1000);
-      const afterWater = await screenText(ctx);
-      check(/250ml \/ 2\.5L/.test(afterWater) || /2250 ml to go/.test(afterWater),
-        'Adding 250 ml did not move the water total on Today',
-        afterWater.split('\n').filter((l) => /ml|L/.test(l)).slice(0, 8).join(' | '));
-      await ctx.shot('after-water');
-    }
-
-    // --- Sun tracker ---
-    const sunLine = async () =>
-      (await screenText(ctx)).split('\n').find((l) => /\/ 30 min/.test(l)) ?? '(no sun line)';
-    const sun = ctx.page.getByText('+20', { exact: true }).first();
-    check(await sun.count() > 0, 'Sun tracker quick-log buttons not found on Today');
-    if (await sun.count()) {
-      const before = await sunLine();
-      await sun.click({ force: true });
-      await ctx.page.waitForTimeout(1400);
-      const after = await sunLine();
-      check(after !== before && /^20/.test(after.trim()),
-        'Logging 20 minutes of sun did not change the sun tracker', `${before} → ${after}`);
-    }
+    // --- Water and sun are NOT on Today any more ---
+    // Both moved to their own screens under Trackers on 2026-09-13, where they
+    // have entry lists, editable goals and history. Asserted as an absence so a
+    // regression that puts the cards back is visible here rather than only as a
+    // surprise on the device; the logging itself is covered by the `trackers`
+    // flow, against the screens that now own it.
+    const todayBody = await screenText(ctx);
+    check(!/\+ 250 ml/.test(todayBody),
+      'The water tracker is back on Today — it belongs on the Water screen',
+      todayBody.slice(0, 400));
+    check(!/goal 30|\/ 30 min/.test(todayBody),
+      'The sun tracker is back on Today — it belongs on the Sunlight screen',
+      todayBody.slice(0, 400));
 
     // --- Quick log links ---
     const body = await screenText(ctx);
