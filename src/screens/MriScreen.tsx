@@ -51,13 +51,27 @@ export default function MriScreen() {
 
   useEffect(() => {
     const check = async () => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 5000);
       try {
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), 5000);
-        await fetch('https://clients3.google.com/generate_204', { method: 'HEAD', signal: controller.signal });
-        clearTimeout(id);
+        // `no-cors` because the browser blocks a readable response from this
+        // endpoint and logged a CORS error every 30 seconds on the web build —
+        // 342 console errors across a 60-day run. We only care whether the
+        // request completes, never what it returns, so an opaque response is
+        // exactly as useful as a readable one.
+        await fetch('https://clients3.google.com/generate_204', {
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: controller.signal,
+        });
         setIsOffline(false);
-      } catch { setIsOffline(true); }
+      } catch {
+        setIsOffline(true);
+      } finally {
+        // Previously only cleared on the success path, so every failed check
+        // left a live 5s abort timer behind — one per poll, every 30s.
+        clearTimeout(id);
+      }
     };
     check();
     const interval = setInterval(check, 30000);
