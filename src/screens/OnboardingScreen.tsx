@@ -186,8 +186,20 @@ export default function OnboardingScreen({ onComplete }: Props) {
             { transform: [{ translateX }] },
           ]}
         >
-          {/* Step 0: Profile */}
-          <View style={[styles.page, { justifyContent: 'flex-start', paddingTop: 32 }]}>
+          {/* Step 0: Profile
+              A ScrollView, not a View. It was the only step that could not
+              scroll while step 1 could, and with the iOS keyboard up
+              KeyboardAvoidingView shrinks the area under it: the form then had
+              nowhere to go, overflowed its page, and painted through the
+              footer — the Next button landing on top of the weight label, and
+              the footer's top border cutting across the form. The D3 field was
+              unreachable at the same time. */}
+          <ScrollView
+            style={{ width }}
+            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <Text style={styles.icon}>👤</Text>
             <Text style={styles.title}>Set Up Your Profile</Text>
             <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
@@ -242,13 +254,19 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   Enter the dose your doctor prescribed.
                 </Text>
             </View>
-          </View>
+          </ScrollView>
 
           {/* Step 1: Condition (disease profile) */}
+          {/* Nine conditions do not fit on one screen. The scroll indicator was
+              hidden, so the last card was sliced by the footer with nothing to
+              say more existed — someone with Crohn's, type 1 diabetes or
+              "Other" would have concluded their condition was not supported.
+              Indicator on, and enough bottom padding that the final card clears
+              the footer instead of being cut in half. */}
           <ScrollView
             style={{ width }}
-            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 40 }]}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
+            showsVerticalScrollIndicator={true}
           >
             <Text style={styles.icon}>🏥</Text>
             <Text style={styles.title}>Your Condition</Text>
@@ -265,8 +283,25 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 >
                   <Text style={{ fontSize: 24 }}>{CONDITION_ICONS[p.id] || '🏥'}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.trackTitle, selectedProfile === p.id && styles.trackTitleActive]}>{p.name}</Text>
-                    <Text style={styles.trackDesc}>{p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}</Text>
+                    {/* `patientDescription` is deliberately '' — this build
+                        authors no medical descriptions — so a second <Text>
+                        rendered empty on every card: dead height, and the same
+                        empty-string-child the audit chased for seven screens.
+                        The ICD-10 code goes INLINE rather than on its own line:
+                        as a second line it grew every card and cut the number
+                        of conditions visible without scrolling from six to
+                        five, which works against the very problem being fixed
+                        here. Nine conditions and a short screen means density
+                        is the point. */}
+                    <Text style={[styles.trackTitle, selectedProfile === p.id && styles.trackTitleActive]}>
+                      {p.name}
+                      {p.icd10 ? <Text style={styles.trackCode}>  ICD-10 {p.icd10}</Text> : null}
+                    </Text>
+                    {p.patientDescription ? (
+                      <Text style={styles.trackDesc}>
+                        {p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}
+                      </Text>
+                    ) : null}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -288,8 +323,18 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
         </Animated.View>
 
-        {/* Bottom buttons */}
+        {/* Bottom buttons.
+            The hint gets its own full-width line ABOVE the button row. Dropped
+            into the row itself it became a third flex child and squeezed the
+            button sideways — visible in the first screenshot of it. */}
         <View style={styles.footer}>
+          {hint.length ? (
+            <Text style={styles.missingHint} accessibilityLiveRegion="polite">
+              Still needed: {hint.map((h) => h.label).join(' and ')}.
+            </Text>
+          ) : null}
+
+          <View style={styles.footerRow}>
           {step > 0 ? (
             <TouchableOpacity
               style={styles.backButton}
@@ -300,12 +345,6 @@ export default function OnboardingScreen({ onComplete }: Props) {
             >
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
-          ) : null}
-
-          {hint.length ? (
-            <Text style={styles.missingHint} accessibilityLiveRegion="polite">
-              Still needed: {hint.map((h) => h.label).join(' and ')}.
-            </Text>
           ) : null}
 
           <TouchableOpacity
@@ -338,6 +377,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : "Let's begin →"}
             </Text>
           </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -462,13 +502,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: '#CFD2C6',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   backButton: {
     paddingVertical: 12,
@@ -504,4 +546,5 @@ const styles = StyleSheet.create({
   trackTitle: { color: '#5A6478', fontSize: 15, fontWeight: '700' },
   trackTitleActive: { color: '#1B58B8' },
   trackDesc: { color: '#9AA3B2', fontSize: 13, marginTop: 2 },
+  trackCode: { color: '#9AA3B2', fontSize: 12, fontWeight: '500' },
 });
