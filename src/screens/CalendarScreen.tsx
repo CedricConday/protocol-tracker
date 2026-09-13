@@ -476,7 +476,12 @@ export default function CalendarScreen() {
         <TouchableOpacity
           style={styles.medicalBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('LabResults')}
+          // Nested target, not a bare route name: these three screens live in
+          // SummaryNavigator (the Trackers tab's stack) while this screen renders
+          // in CalendarTabNavigator. react-navigation resolves the current
+          // navigator and its parents, never a sibling's nested stack, so the
+          // bare form rendered a button that did nothing (H9, Build B).
+          onPress={() => navigation.navigate('Summary', { screen: 'LabResults' })}
           accessibilityLabel="Lab results"
           accessibilityRole="button"
         >
@@ -486,7 +491,7 @@ export default function CalendarScreen() {
         <TouchableOpacity
           style={styles.medicalBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('MriTracker')}
+          onPress={() => navigation.navigate('Summary', { screen: 'MriTracker' })}
           accessibilityLabel="MRI history"
           accessibilityRole="button"
         >
@@ -498,7 +503,7 @@ export default function CalendarScreen() {
       <TouchableOpacity
         style={styles.shareProgressBtn}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('Report')}
+        onPress={() => navigation.navigate('Summary', { screen: 'Report' })}
         accessibilityLabel="Share your progress"
         accessibilityRole="button"
       >
