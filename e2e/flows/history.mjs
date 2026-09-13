@@ -89,30 +89,40 @@ export default {
 
     // The three clinical entry points. They are registered under the Summary
     // stack but they are tapped from here, so this is the only place the tap
-    // path can be checked.
-    check(/Lab Results/i.test(hist), 'History offers no way to reach Lab Results', hist.slice(0, 900));
-    check(/MRI History/i.test(hist), 'History offers no way to reach MRI History', hist.slice(0, 900));
-
-    // The Share button. Its visible text is `shareProgress` — "Share Your
-    // Progress", capitalised — while its accessibility name is "Share your
-    // progress". Matching case-insensitively so a copy tweak does not read as
-    // a missing button.
-    const share = ctx.page.getByText(/Share Your Progress/i).first();
-    check(await share.count() > 0, 'History has no Share Your Progress button');
-    if (await share.count()) {
-      const before = await screenText(ctx);
-      const urlBefore = ctx.page.url();
-      await share.click({ force: true });
-      await ctx.page.waitForTimeout(1400);
-      const after = await screenText(ctx);
-      await ctx.shot('history-share-tapped');
-      check(after !== before || ctx.page.url() !== urlBefore,
-        'Tapping "Share Your Progress" does nothing — no sheet, no navigation, no state change',
-        'Screen text is byte-identical before and after the tap.');
-      // Back to History for the day-cell check below.
+    // path can be checked — and a label on screen is not a tap path. Tap each
+    // one by its accessible name and assert the app landed on the target
+    // screen, identified by body text History itself never renders.
+    const CLINICAL = [
+      { name: 'Lab Results', label: 'Lab results', landed: /add lab result|no lab results|creatinine|sulkowitch/i },
+      { name: 'MRI History', label: 'MRI history', landed: /log mri scan|log first scan|save scan|lesion/i },
+      { name: 'Share with Doctor', label: 'Share your progress', landed: /generate report|could not create the report/i },
+    ];
+    for (const target of CLINICAL) {
       await gotoTab(ctx, 'History');
-      await ctx.page.waitForTimeout(1200);
+      await ctx.page.waitForTimeout(1000);
+      const control = ctx.page.locator(`[aria-label="${target.label}"]`).first();
+      if (!(await control.count())) {
+        check(false, `History has no control named "${target.label}" — ${target.name} has no tap path`);
+        continue;
+      }
+      const before = await screenText(ctx);
+      await control.click({ force: true });
+      await ctx.page.waitForTimeout(1600);
+      const after = await screenText(ctx);
+      await ctx.shot(`clinical-${target.name.toLowerCase().replace(/\W+/g, '-')}`);
+      check(target.landed.test(after),
+        `Tapping "${target.label}" on History does not open ${target.name}`,
+        `screen ${after === before ? 'is byte-identical after the tap' : 'changed but is not the target'}: ${after.replace(/\n/g, ' | ').slice(0, 300)}`);
     }
+
+    // The Share button's visible text is `shareProgress` — "Share Your
+    // Progress", capitalised — while its accessibility name is "Share your
+    // progress". Both are asserted: the visible one is what the user looks for,
+    // the accessible one is what the loop above taps.
+    await gotoTab(ctx, 'History');
+    await ctx.page.waitForTimeout(1200);
+    check(await ctx.page.getByText(/Share Your Progress/i).first().count() > 0,
+      'History has no Share Your Progress button');
 
     // Tap today's cell — a day with data should open a detail view.
     const cell = ctx.page.getByText(dayNum, { exact: true }).last();

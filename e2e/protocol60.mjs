@@ -461,25 +461,93 @@ async function onboard() {
 }
 
 // ── reachability: is there any tap path to the protocol's own surfaces? ──────
+//
+// This used to grep the screen for /share with doctor|report/i and call the job
+// done. Three things were wrong with that. The regex matched text the app has
+// never rendered — the button's visible label is `shareProgress`, "Share Your
+// Progress", and its accessibility name is "Share your progress"; neither
+// contains "share with doctor", and "report" appears nowhere on the screen. The
+// finding it emitted was hardcoded prose naming SummaryScreen as having no
+// navigation, which stopped being true two rounds ago. And a string on a screen
+// is not a tap path: a button can render perfectly and go nowhere.
+//
+// So: tap each control by its accessible name and assert the app actually
+// landed on the target screen, then come back. "No control" and "control that
+// does nothing" are different defects and get reported as different findings,
+// because they have different fixes.
+const CLINICAL = [
+  {
+    name: 'Lab Results',
+    label: 'Lab results',
+    route: 'LabResults',
+    // Body text of the destination that History itself never renders.
+    landed: /add lab result|no lab results|creatinine|sulkowitch/i,
+  },
+  {
+    name: 'MRI History',
+    label: 'MRI history',
+    route: 'MriTracker',
+    landed: /log mri scan|log first scan|save scan|lesion/i,
+  },
+  {
+    name: 'Share with Doctor',
+    label: 'Share your progress',
+    route: 'Report',
+    landed: /generate report|could not create the report/i,
+  },
+];
+
 let reachabilityChecked = false;
 async function checkReachability() {
   if (reachabilityChecked) return;
   reachabilityChecked = true;
-  await gotoTab('History');
-  await wait(900);
-  const txt = await flat();
-  const WANTED = [
-    ['Lab Results', /lab result|laborwert/i],
-    ['MRI History', /mri|mrt/i],
-    ['Share with Doctor', /share with doctor|report/i],
-  ];
-  const missing = WANTED.filter(([, re]) => !re.test(txt)).map(([n]) => n);
-  if (missing.length) {
+
+  for (const target of CLINICAL) {
+    await gotoTab('History');
+    await wait(900);
+    const before = await flat();
+
+    // The control itself. Match the accessible name, which is what a screen
+    // reader and a harness both have to work with.
+    const tapped = await clickLabel(target.label);
+    if (!tapped) {
+      note('high', 'History',
+        `No control named "${target.label}" on History — ${target.name} has no tap path. The route is registered in src/navigation/index.tsx under the Summary stack, so the screen exists and the code runs; nothing reaches it.`,
+        `open History, scroll below the month grid, look for ${target.name}`,
+        `src/screens/CalendarScreen.tsx (clinical row) vs src/navigation/index.tsx (${target.route} registered under SummaryNavigator)`);
+      continue;
+    }
+
+    await wait(1800);
+    const after = await flat();
+    if (target.landed.test(after)) {
+      await shot(`reach-${target.route.toLowerCase()}`);
+      continue;
+    }
+
+    // The control is there and the tap changed nothing that matters. Say which
+    // of the two it is, because a tap that navigates somewhere wrong and a tap
+    // that is inert are not the same bug.
+    const moved = after !== before;
+    // Prove the screen is reachable at all before blaming the tap: if the app's
+    // own navigate() gets there, the route is fine and the tap path is the
+    // defect. If it does not, the route registration is.
+    const viaApp = await navViaApp('Summary', target.route);
+    const afterBridge = await flat();
+    const bridgeLanded = viaApp === 'ok' && target.landed.test(afterBridge);
+
     note('high', 'History',
-      `No entry point on History for: ${missing.join(', ')}. These screens are registered in src/navigation/index.tsx but src/ contains no navigate() call for Report, MriTracker, LabResults or FamilySync, and the app sets no linking config — so a user cannot open them by tapping or by URL. The protocol's lab monitoring, MRI history and doctor report are unreachable in the shipped build.`,
-      'open History and look for Lab Results / MRI / Share with Doctor',
-      'src/navigation/index.tsx:77-90 (registered) vs src/screens/SummaryScreen.tsx (no navigation)');
+      bridgeLanded
+        ? `Tapping "${target.label}" on History does not open ${target.name}, but the app's own navigate('Summary', { screen: '${target.route}' }) does. The control renders and is accessible; the navigation call behind it cannot resolve the route. ${target.route} is registered inside SummaryNavigator (the Trackers tab's stack) while the button now lives on CalendarScreen, and a bare navigate('${target.route}') from a sibling tab's stack is not resolved by react-navigation — it only searches the current navigator and its parents. Screen ${moved ? 'changed but is not the target' : 'is byte-identical after the tap'}.`
+        : `${target.name} cannot be reached at all: tapping "${target.label}" on History does nothing, and the app's own navigate('Summary', { screen: '${target.route}' }) did not land either (bridge said "${viaApp}").`,
+      `open History, scroll below the month grid, tap ${target.name}`,
+      `src/screens/CalendarScreen.tsx (navigate('${target.route}')) vs src/navigation/index.tsx (${target.route} registered under SummaryNavigator)`);
+
+    await shot(`reach-${target.route.toLowerCase()}-failed`);
   }
+
+  await gotoTab('History');
+  await wait(600);
 }
 
 // ── the protocol's clinical milestones ───────────────────────────────────────
