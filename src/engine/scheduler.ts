@@ -66,7 +66,13 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   scheduleEndOfDaySummary(t0).catch(() => {});
   scheduleMorningReminder().catch(() => {});
 
-  return buildScheduledDoses(rules, t0Ms);
+  // Read the schedule back out of the rows we just created, rather than
+  // rebuilding it from the rules. The rebuild produced objects with a
+  // positional `id` and no `logId` at all, so for the whole first session after
+  // "Start My Day" every dose in state was unactionable: HomeScreen's
+  // handleTook/handleSkip are gated on `dose.logId`, so tapping "✓ Took it"
+  // silently did nothing and the dose later aged out to "missed".
+  return getTodaySchedule();
 }
 
 /**
@@ -157,34 +163,3 @@ export function formatDoseTime(scheduledTime: Date): string {
   return scheduledTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function buildScheduledDoses(
-  rules: Awaited<ReturnType<typeof getScheduleRules>>,
-  t0Ms: number
-): ScheduledDose[] {
-  const now = Date.now();
-
-  return rules.map((rule, idx) => {
-    const scheduledMs = t0Ms + rule.offset_minutes * 60 * 1000;
-    const toleranceMs = rule.tolerance_window * 60 * 1000;
-    const scheduledTime = new Date(scheduledMs);
-
-    const minsUntil = (scheduledMs - now) / 60000;
-    let status: DoseStatus = 'upcoming';
-    if (minsUntil <= 10 && minsUntil > -rule.tolerance_window) status = 'due';
-
-    return {
-      id: idx + 1,
-      supplement_id: rule.supplement_id,
-      supplementName: rule.supplement_name,
-      form: rule.supplement_form,
-      scheduledTime,
-      earliestTime: new Date(scheduledMs - toleranceMs),
-      latestTime: new Date(scheduledMs + toleranceMs),
-      status,
-      toleranceMinutes: rule.tolerance_window,
-      doseAmount: rule.dose_amount,
-      withFood: Boolean(rule.with_food),
-      notes: '',
-    };
-  });
-}

@@ -286,7 +286,11 @@ export default function HomeScreen() {
     const handleTook = async (dose: ScheduledDose) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       try {
-        if (dose.logId) {
+        if (!dose.logId) {
+          Alert.alert('Error', 'Could not log dose. Please try again.');
+          return;
+        }
+        {
           await confirmDose(dose.logId);
 
           const reviewPrompted = await AsyncStorage.getItem('review_prompted');
@@ -312,7 +316,11 @@ export default function HomeScreen() {
   const handleSkip = async (dose: ScheduledDose, reason?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      if (dose.logId) {
+      if (!dose.logId) {
+        Alert.alert('Error', 'Could not skip dose. Please try again.');
+        return;
+      }
+      {
         if (reason) {
           await skipDoseWithReason(dose.logId, reason);
         } else {

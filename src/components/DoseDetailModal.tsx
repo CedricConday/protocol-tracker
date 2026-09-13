@@ -57,7 +57,9 @@ export default function DoseDetailModal({
   const accentColor = getStatusAccentColor(dose.status);
   const isTaken = dose.status === 'taken';
   const isMissed = dose.status === 'missed';
-  const canAct = (dose.logId != null && dose.status === 'upcoming') || dose.status === 'due';
+  // Every actionable path needs a real dose_logs row id. Without it onTook and
+  // onSkip are no-ops, so offering the buttons is worse than hiding them.
+  const canAct = dose.logId != null && (dose.status === 'upcoming' || dose.status === 'due');
 
   const handleSkipPress = () => {
     setShowSkipReasons(true);
