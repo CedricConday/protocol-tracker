@@ -24,6 +24,7 @@ import {
   clearSunLog,
   confirmDose,
   skipDose,
+  correctSunLog,
 } from '../queries';
 
 const mockDb = {
@@ -382,5 +383,44 @@ describe('clearSunLog', () => {
   it('deletes the day row', async () => {
     await clearSunLog('2026-09-13');
     expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM sun_log WHERE date = ?', ['2026-09-13']);
+  });
+});
+
+describe('correctSunLog', () => {
+  it('sets the day total outright instead of adding to it', async () => {
+    await correctSunLog(20, '2026-09-13');
+    const [sqlText, params] = mockDb.runAsync.mock.calls[0];
+    // logSunExposure accumulates (`sun_log.minutes + excluded.minutes`); a
+    // correction must not, or fixing 30 to 20 would store 50.
+    expect(String(sqlText)).toContain('minutes = excluded.minutes');
+    expect(String(sqlText)).not.toContain('sun_log.minutes + excluded.minutes');
+    expect(params).toEqual(['2026-09-13', 20]);
+  });
+
+  it('corrects a past day, which is the reason it exists', async () => {
+    await correctSunLog(15, '2026-09-01');
+    expect(mockDb.runAsync.mock.calls[0][1][0]).toBe('2026-09-01');
+  });
+
+  it('leaves the existing note alone when none is given', async () => {
+    await correctSunLog(20, '2026-09-13');
+    expect(String(mockDb.runAsync.mock.calls[0][0])).not.toContain('notes = excluded.notes');
+  });
+
+  it('replaces the note when one is given, including an empty one', async () => {
+    await correctSunLog(20, '2026-09-13', '');
+    const [sqlText, params] = mockDb.runAsync.mock.calls[0];
+    expect(String(sqlText)).toContain('notes = excluded.notes');
+    expect(params).toEqual(['2026-09-13', 20, '']);
+  });
+
+  it('floors a negative correction at zero', async () => {
+    await correctSunLog(-5, '2026-09-13');
+    expect(mockDb.runAsync.mock.calls[0][1][1]).toBe(0);
+  });
+
+  it('rounds fractional minutes', async () => {
+    await correctSunLog(12.6, '2026-09-13');
+    expect(mockDb.runAsync.mock.calls[0][1][1]).toBe(13);
   });
 });

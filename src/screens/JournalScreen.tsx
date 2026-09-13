@@ -143,31 +143,50 @@ export default function JournalScreen() {
     setRefreshing(false);
   };
 
-  // `moodOverride` exists because a blur and a mood tap can belong to the same
-  // gesture: on web the note field blurs on mousedown, before the tap is
-  // processed, so the blur-save's closure still holds the PRE-tap mood. Passing
-  // the mood explicitly lets the tap write the value it actually selected
-  // instead of whatever the last render captured.
-  const handleSave = useCallback(async (moodOverride?: string) => {
-    const mood = moodOverride ?? selectedMood;
-    if (!mood) return;
-    await upsertJournalEntry({
-      date: today,
-      mood,
-      note,
-      dietary_note: dietaryNote || undefined,
-      compliance_pct: summary.totalDoses > 0
-        ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
-        : 0,
-      doses_taken: summary.takenDoses,
-      doses_total: summary.totalDoses,
+  // Writes are queued rather than fired straight at the database. Tapping a mood
+  // while a note field has focus produces TWO writes from one gesture - blur
+  // fires `handleSave` with the mood as it was BEFORE the tap, then the tap
+  // itself writes the new one - and unqueued they race, so the pre-tap value
+  // could land last and win. Chaining them keeps the stored row in the order the
+  // user acted. The chain is deliberately never rejected: one failed write must
+  // not wedge every later one.
+  const writeChain = useRef<Promise<void>>(Promise.resolve());
+
+  const persist = useCallback((mood: string, { flash }: { flash: boolean }) => {
+    const next = writeChain.current.then(async () => {
+      await upsertJournalEntry({
+        date: today,
+        mood,
+        note,
+        dietary_note: dietaryNote || undefined,
+        compliance_pct: summary.totalDoses > 0
+          ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
+          : 0,
+        doses_taken: summary.takenDoses,
+        doses_total: summary.totalDoses,
+      });
+      // Pure-tracker build: fatigue-spike detection and the micro-CBT coping
+      // module were removed (see ROADMAP). Journaling stays; the app just saves.
+      //
+      // Only an explicit save flashes "Saved ✓". An autosave must not, because
+      // the confirmation doubles as the button's accessibility name
+      // (`saved ? 'Journal entry saved' : 'Save journal entry'`, below) - so
+      // flashing it on every mood tap would rename the control out from under
+      // anyone looking for it by name, screen reader or harness alike.
+      if (flash) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+      await loadData();
     });
-    // Pure-tracker build: fatigue-spike detection and the micro-CBT coping
-    // module were removed (see ROADMAP). Journaling stays; the app just saves.
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-    await loadData();
-  }, [selectedMood, note, dietaryNote, summary, today, loadData]);
+    writeChain.current = next.catch(() => {});
+    return next;
+  }, [note, dietaryNote, summary, today, loadData]);
+
+  const handleSave = useCallback(async () => {
+    if (!selectedMood) return;
+    await persist(selectedMood, { flash: true });
+  }, [selectedMood, persist]);
 
   const handleBlur = useCallback(() => {
     if (selectedMood) {
@@ -175,15 +194,16 @@ export default function JournalScreen() {
     }
   }, [selectedMood, handleSave]);
 
-  // Tapping a mood is the whole intention, so it is written through rather than
-  // held until Save. Before this the tap lived only in component state: the
-  // blur-save fired in the same gesture with the pre-tap mood, so the row kept
-  // the OLD value while the screen showed the new one, and a user who never
-  // pressed Save lost the tap entirely. Over 60 simulated days that stored two
-  // distinct moods out of five and left sixteen days with no row at all.
   const handleMoodSelect = (mood: string) => {
     setMoodEntry({ date: today, mood });
-    handleSave(mood).catch((e) => console.warn('[Journal] mood write-through failed:', e));
+    // A tap is an explicit choice, so it is persisted immediately instead of
+    // waiting for Save. Previously it lived only in component state: if the tap
+    // blurred a focused note field, that blur saved the PREVIOUS mood and the
+    // new one was never written, leaving the screen showing something the row
+    // did not have. It survived a tab switch, so the divergence was invisible
+    // until a remount silently reverted the user's last tap.
+    // Evidence: e2e/report/mood3-B1-fixed/mood3.md Check 2, seq 18/36/54.
+    persist(mood, { flash: false }).catch(() => {});
   };
 
   const handleLogEvent = useCallback(async () => {
