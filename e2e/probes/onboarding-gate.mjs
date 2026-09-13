@@ -29,7 +29,7 @@ console.log('step before       :', await activeStep());
 await page.getByPlaceholder('e.g. Alex').first().fill('Cedric');
 await page.waitForTimeout(400);
 
-const next = page.locator('[aria-label="Next step"]').first();
+const next = page.locator('[aria-label="Continue"]').first();
 const pe = await next.evaluate((e) => getComputedStyle(e).pointerEvents);
 console.log('Next pointerEvents:', pe, pe === 'none' ? '(INERT — the bug)' : '(tappable)');
 
@@ -44,7 +44,7 @@ console.log('step after tap    :', await activeStep(), '<- must still be step 0'
 await page.getByPlaceholder('e.g. 70').first().fill('70,5');
 await page.waitForTimeout(800);
 console.log('hint auto-cleared :', /Still needed/.test(await text()) ? 'NO' : 'yes');
-await page.locator('[aria-label="Next step"]').first().click({ force: true });
+await page.locator('[aria-label="Continue"]').first().click({ force: true });
 await page.waitForTimeout(1400);
 console.log('step after 70,5   :', await activeStep(), '<- must have moved on');
 await ctx.close();

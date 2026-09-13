@@ -378,14 +378,14 @@ async function onboard() {
   await page.getByPlaceholder('e.g. 5000').first().fill('10000');
   await wait(400);
   await shot('profile-filled');
-  await clickLabel('Next step'); await wait(1500);
+  await clickLabel('Continue'); await wait(1500);
   await auditScreen('onboarding/condition');
   if (!(await clickLabel('Select condition: Multiple Sclerosis'))) {
     note('high', 'onboarding', 'Condition card not selectable', 'onboarding step 2', 'src/screens/OnboardingScreen.tsx:223');
   }
   await wait(800);
   await shot('condition');
-  await clickLabel('Next step'); await wait(1500);
+  await clickLabel('Continue'); await wait(1500);
   await auditScreen('onboarding/almost-ready');
   await shot('almost-ready');
   if (!(await clickLabel("Let's begin"))) {

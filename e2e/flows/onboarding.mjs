@@ -24,7 +24,7 @@ export default {
       (await ctx.text()).slice(0, 400));
 
     // Next must be blocked while the required fields are empty.
-    await ctx.tap('Next').catch(() => {});
+    await ctx.tap('Continue').catch(() => {});
     check(await ctx.sees('Set Up Your Profile'),
       'Next advanced past the profile step with name and weight empty');
 
@@ -33,7 +33,7 @@ export default {
     await ctx.fill('e.g. 5000', '10000');
     await ctx.shot('profile-filled');
 
-    await ctx.tap('Next');
+    await ctx.tap('Continue');
 
     // --- Step 1: condition ---
     check(await ctx.sees('Your Condition'),
@@ -48,7 +48,7 @@ export default {
       const first = ctx.page.locator('div[role="button"]').nth(0);
       await first.click();
     });
-    await ctx.tap('Next');
+    await ctx.tap('Continue');
 
     // --- Step 2: notifications / done ---
     check(await ctx.sees('Almost Ready'),

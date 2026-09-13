@@ -105,13 +105,13 @@ export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = 
   await ctx.fill('e.g. Alex', name);
   await ctx.fill('e.g. 70', weight);
   if (d3Dose) await ctx.fill('e.g. 5000', d3Dose);
-  await ctx.tap('Next');
+  await ctx.tap('Continue');
 
   if (!(await ctx.sees('Your Condition'))) {
     throw new Error('prelude: profile step did not advance to Your Condition');
   }
   await ctx.tap(condition);
-  await ctx.tap('Next');
+  await ctx.tap('Continue');
 
   if (!(await ctx.sees('Almost Ready'))) {
     throw new Error('prelude: condition step did not advance to Almost Ready');

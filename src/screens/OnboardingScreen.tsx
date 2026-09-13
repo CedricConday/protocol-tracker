@@ -19,6 +19,7 @@ import { getSupplementsWithRules, addSupplement, updateRuleDose, setMiscFlag } f
 import { createDefaultProfile } from '../db/seed';
 import * as Notifications from 'expo-notifications';
 import { DISEASE_PROFILES } from '../data/diseaseProfiles';
+import SunMascot from '../components/SunMascot';
 
 const { width } = Dimensions.get('window');
 
@@ -37,7 +38,7 @@ const STEPS = [
   {
     title: 'Set Up Your Profile',
     icon: '👤',
-    body: 'Your information stays on your device — nothing is shared without your consent.',
+    body: 'Your health data stays on your device. None of it reaches our servers — we do not run one.',
   },
   {
     title: 'Your Condition',
@@ -200,9 +201,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.icon}>👤</Text>
+            <View style={styles.icon}><SunMascot size={72} /></View>
             <Text style={styles.title}>Set Up Your Profile</Text>
-            <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
+            <Text style={styles.body}>Your health data stays on your device. None of it reaches our servers — we do not run one.</Text>
 
             <View style={styles.form}>
               <Text style={styles.inputLabel}>
@@ -377,11 +378,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
             }}
             disabled={saving}
             activeOpacity={0.8}
-            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Next step' : "Let's begin"}
+            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Continue' : "Let's begin"}
             accessibilityRole="button"
           >
             <Text style={styles.nextText}>
-              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : "Let's begin →"}
+              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Continue' : "Let's begin →"}
             </Text>
           </TouchableOpacity>
           </View>
@@ -434,6 +435,8 @@ const styles = StyleSheet.create({
   icon: {
     fontSize: 48,
     marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     color: '#14213D',
