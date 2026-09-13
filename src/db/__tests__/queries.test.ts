@@ -22,6 +22,8 @@ import {
   undoLastWater,
   correctWaterLog,
   clearSunLog,
+  confirmDose,
+  skipDose,
 } from '../queries';
 
 const mockDb = {
@@ -146,6 +148,73 @@ describe('getDaySummary', () => {
     expect(result.totalDoses).toBe(0);
     expect(result.compliancePct).toBe(0);
     expect(result.t0).toBeNull();
+  });
+});
+
+// ── confirmDose / skipDose ────────────────────────────────────────────────────
+// Both run through applyDoseStatus, which owns the two rules a correction made
+// necessary: when `logged_time` may be stamped "now", and when a pill leaves or
+// returns to the bottle.
+
+describe('confirmDose and skipDose', () => {
+  const sqlOf = (call: unknown[]) => String(call[0]);
+  const runSql = () => mockDb.runAsync.mock.calls.map(sqlOf);
+  const statusUpdate = () =>
+    mockDb.runAsync.mock.calls.find((c) => sqlOf(c).includes('UPDATE dose_logs SET status'));
+
+  it('stamps a past dose with its scheduled time, not the moment of the correction', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: '2026-09-01', status: 'missed', scheduled_time: 1_756_700_000_000,
+    });
+
+    await confirmDose(7);
+
+    // ['taken', logged_time, logId] — a correction three weeks later cannot
+    // claim the dose was swallowed at this minute.
+    expect(statusUpdate()?.[1]).toEqual(['taken', 1_756_700_000_000, 7]);
+  });
+
+  it("stamps today's dose with the current time", async () => {
+    const before = Date.now();
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'due', scheduled_time: 1_000,
+    });
+
+    await confirmDose(3);
+
+    const stamped = (statusUpdate()?.[1] as unknown[])[1] as number;
+    expect(stamped).toBeGreaterThanOrEqual(before);
+  });
+
+  it('takes a pill out of the bottle once, however often the dose is re-confirmed', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'taken', scheduled_time: 1_000,
+    });
+
+    await confirmDose(3);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand - 1'))).toBe(false);
+  });
+
+  it('puts the pill back when a taken dose is corrected to skipped', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: '2026-09-01', status: 'taken', scheduled_time: 1_756_700_000_000,
+    });
+
+    await skipDose(7);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand + 1'))).toBe(true);
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand - 1'))).toBe(false);
+  });
+
+  it('does not consume a pill for a dose that was never taken', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'due', scheduled_time: 1_000,
+    });
+
+    await skipDose(3);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand'))).toBe(false);
   });
 });
 

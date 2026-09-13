@@ -16,6 +16,10 @@ interface Props {
   onClose: () => void;
   onTook: (dose: ScheduledDose) => void;
   onSkip: (dose: ScheduledDose, reason?: string) => void;
+  /** Offer the actions whatever the dose's status is — the calendar opens this
+   *  sheet against a day that is already over, where the point is to correct
+   *  what was recorded rather than to act on a dose that is still live. */
+  correctable?: boolean;
 }
 
 const SKIP_REASONS = ['Forgot', 'Felt unwell', 'No food available', 'Other'];
@@ -37,6 +41,7 @@ export default function DoseDetailModal({
   onClose,
   onTook,
   onSkip,
+  correctable = false,
 }: Props) {
   const [showSkipReasons, setShowSkipReasons] = useState(false);
 
@@ -62,6 +67,10 @@ export default function DoseDetailModal({
   // Every actionable path needs a real dose_logs row id. Without it onTook and
   // onSkip are no-ops, so offering the buttons is worse than hiding them.
   const canAct = dose.logId != null && (dose.status === 'upcoming' || dose.status === 'due');
+  // Correcting needs the same row id and nothing else: confirmDose/skipDose have
+  // never had a date guard, so the data layer was always willing — the id simply
+  // never reached this sheet from a past day (round 3, A4).
+  const canCorrect = correctable && dose.logId != null;
 
   // One tap skips: the write happens here, with no reason, and the parent
   // closes the sheet. The reason picker is an optional second step behind
@@ -164,8 +173,13 @@ export default function DoseDetailModal({
                 <Text style={styles.cancelReasonText}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>
-          ) : canAct ? (
+          ) : canAct || canCorrect ? (
             <View>
+              {canCorrect && !canAct ? (
+                <Text style={styles.correctionHint}>
+                  Recorded as {dose.status}{dose.skipReason ? ` (${dose.skipReason})` : ''}. Tap what actually happened.
+                </Text>
+              ) : null}
               <View style={styles.actions}>
                 <TouchableOpacity
                   style={styles.tookButton}
@@ -384,6 +398,13 @@ const styles = StyleSheet.create({
     color: '#C0392B',
     fontSize: 16,
     fontWeight: '700',
+  },
+  correctionHint: {
+    color: '#5A6478',
+    fontSize: 13,
+    marginTop: 20,
+    marginBottom: -8,
+    textAlign: 'center',
   },
   addReasonButton: {
     marginTop: 12,

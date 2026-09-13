@@ -1,6 +1,6 @@
 import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
-import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
+import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 
 export function localDateStr(d: Date): string {
   // Local calendar date (YYYY-MM-DD). Used everywhere data is keyed by day so
@@ -221,37 +221,64 @@ export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog &
   );
 }
 
-export async function confirmDose(logId: number): Promise<void> {
+/**
+ * The row a dose action is about to change, plus the two things every one of
+ * them needs to get right: the pill count and the timestamp.
+ *
+ * A dose can now be corrected long after the fact (round 3, A4), so an action
+ * is no longer the first thing that ever happened to the row. Two rules follow:
+ *
+ *  - Stock follows 'taken', and only 'taken'. Entering it takes a pill out of
+ *    the bottle, leaving it puts one back, and re-confirming an already-taken
+ *    dose changes nothing. Before this, skipping a dose decremented stock as if
+ *    it had been swallowed, and correcting a dose back and forth drained the
+ *    bottle a pill per tap.
+ *  - `logged_time` is stamped now only while the dose's own day is still today.
+ *    Correcting a dose from three weeks ago cannot claim it was taken at this
+ *    minute; the scheduled time is the only defensible answer, and it is what
+ *    the calendar's day detail renders.
+ */
+async function applyDoseStatus(
+  logId: number,
+  status: 'taken' | 'skipped',
+  reason?: string,
+): Promise<{ supplement_id: string; date: string } | null> {
   const db = await getDb();
-  const log = await db.getFirstAsync<{ supplement_id: string; date: string }>('SELECT supplement_id, date FROM dose_logs WHERE id = ?', [logId]);
-  await db.runAsync(
-    "UPDATE dose_logs SET status = 'taken', logged_time = ? WHERE id = ?",
-    [Date.now(), logId]
+  const log = await db.getFirstAsync<{ supplement_id: string; date: string; status: string; scheduled_time: number }>(
+    'SELECT supplement_id, date, status, scheduled_time FROM dose_logs WHERE id = ?',
+    [logId],
   );
-  if (log?.supplement_id) {
-    await decrementQuantity(log.supplement_id);
+  if (!log) return null;
+
+  const loggedTime = log.date === todayStr() ? Date.now() : log.scheduled_time;
+  if (reason === undefined) {
+    await db.runAsync('UPDATE dose_logs SET status = ?, logged_time = ? WHERE id = ?', [status, loggedTime, logId]);
+  } else {
+    await db.runAsync(
+      'UPDATE dose_logs SET status = ?, logged_time = ?, skip_reason = ? WHERE id = ?',
+      [status, loggedTime, reason, logId],
+    );
   }
+
+  const wasTaken = log.status === 'taken';
+  if (status === 'taken' && !wasTaken) await decrementQuantity(log.supplement_id);
+  if (status !== 'taken' && wasTaken) await incrementQuantity(log.supplement_id);
+
+  return { supplement_id: log.supplement_id, date: log.date };
+}
+
+export async function confirmDose(logId: number): Promise<void> {
+  const log = await applyDoseStatus(logId, 'taken');
   if (log) await enqueueAction('dose_confirmed', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
 }
 
 export async function skipDose(logId: number): Promise<void> {
-  const db = await getDb();
-  const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
-  await db.runAsync(
-    "UPDATE dose_logs SET status = 'skipped', logged_time = ? WHERE id = ?",
-    [Date.now(), logId]
-  );
-  if (log?.supplement_id) await decrementQuantity(log.supplement_id);
+  const log = await applyDoseStatus(logId, 'skipped');
   if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
 }
 
 export async function skipDoseWithReason(logId: number, reason: string): Promise<void> {
-  const db = await getDb();
-  const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
-  await db.runAsync(
-    "UPDATE dose_logs SET status = 'skipped', logged_time = ?, skip_reason = ? WHERE id = ?",
-    [Date.now(), reason, logId]
-  );
+  const log = await applyDoseStatus(logId, 'skipped', reason);
   if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString(), reason });
 }
 
@@ -373,9 +400,14 @@ export async function getCalendarMonth(year: number, month: number): Promise<Map
   return map;
 }
 
+/** A day-detail dose row. It is a full `ScheduledDose` — carrying `logId` above
+ *  all — because the calendar now opens the dose sheet against it: without the
+ *  row id nothing in the app could correct a past dose, ever (round 3, A4). */
+export type DayDetailDose = ScheduledDose & { loggedTime: number | null };
+
 export interface DayDetail {
   date: string;
-  doses: { name: string; status: string; scheduled_time: number; logged_time: number | null }[];
+  doses: DayDetailDose[];
   takenDoses: number;
   totalDoses: number;
   missedDoses: number;
@@ -397,11 +429,25 @@ export async function getDayDetail(date: string): Promise<DayDetail> {
   );
   return {
     date,
+    // Status is read straight from the row: on a past day the clock has nothing
+    // left to say about it, so none of the live 'upcoming' → 'due' derivation
+    // that getTodaySchedule does applies here.
     doses: doseLogs.map((d) => ({
-      name: d.supplement_name,
+      id: d.id,
+      supplement_id: d.supplement_id,
+      supplementName: d.supplement_name,
+      form: d.supplement_form,
+      scheduledTime: new Date(d.scheduled_time),
+      earliestTime: new Date(d.scheduled_time - d.tolerance_window * 60 * 1000),
+      latestTime: new Date(d.scheduled_time + d.tolerance_window * 60 * 1000),
       status: d.status,
-      scheduled_time: d.scheduled_time,
-      logged_time: d.logged_time,
+      toleranceMinutes: d.tolerance_window,
+      doseAmount: d.dose_amount,
+      withFood: d.with_food === 1,
+      notes: d.supplement_notes ?? '',
+      logId: d.id,
+      skipReason: d.skip_reason ?? undefined,
+      loggedTime: d.logged_time,
     })),
     takenDoses: summary.takenDoses,
     totalDoses: summary.totalDoses,
@@ -687,6 +733,17 @@ export async function decrementQuantity(supplementId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     "UPDATE supplements SET quantity_on_hand = quantity_on_hand - 1 WHERE id = ? AND quantity_on_hand > 0",
+    [supplementId]
+  );
+}
+
+/** The other half of decrementQuantity: a dose corrected away from 'taken' puts
+ *  its pill back. NULL means the user never told us a count, so leave it NULL
+ *  rather than inventing a bottle with one pill in it. */
+export async function incrementQuantity(supplementId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE supplements SET quantity_on_hand = quantity_on_hand + 1 WHERE id = ? AND quantity_on_hand IS NOT NULL',
     [supplementId]
   );
 }
