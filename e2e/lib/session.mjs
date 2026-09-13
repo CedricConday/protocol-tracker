@@ -67,6 +67,29 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
   const page = await context.newPage();
   if (stubNotificationScheduler) await installNotificationSchedulerStub(page);
 
+  // Resolve app modules by source path at runtime, so a flow can read the app's
+  // own SQLite handle. Metro's dev bundle passes a verboseName as __d's 4th
+  // argument; capturing the registrations gets us the real database without
+  // adding a test-only export to src/. Same mechanism protocol60.mjs uses —
+  // lifted here because a flow that only reads the screen cannot tell "the tap
+  // did nothing" from "the tap worked and the screen does not show it", and
+  // that distinction is the whole content of several findings.
+  await page.addInitScript(() => {
+    window.__PT_MODS = {};
+    let real, wrapped;
+    Object.defineProperty(window, '__d', {
+      configurable: true,
+      get() { return real ? wrapped : undefined; },
+      set(fn) {
+        real = fn;
+        wrapped = function (factory, moduleId, deps, verboseName) {
+          if (verboseName) window.__PT_MODS[verboseName] = moduleId;
+          return real.apply(this, arguments);
+        };
+      },
+    });
+  });
+
   const errors = [];
   const console_ = [];
   page.on('console', (m) => {
@@ -123,6 +146,17 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
 
     async sees(needle) {
       return (await page.innerText('body')).includes(needle);
+    },
+
+    /** Read the app's own database. Throws if the registry did not capture the
+     *  schema module, rather than returning [] and reading as "no rows". */
+    async sql(query, params = []) {
+      return page.evaluate(async ({ query, params }) => {
+        const id = window.__PT_MODS?.['src/db/schema.ts'];
+        if (id === undefined) throw new Error('schema module not registered — module registry did not capture the dev bundle');
+        const db = await window.__r(id).getDb();
+        return db.getAllAsync(query, params);
+      }, { query, params });
     },
 
     shots,

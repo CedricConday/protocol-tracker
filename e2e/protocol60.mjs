@@ -278,6 +278,29 @@ async function sql(query, params = []) {
   }, { query, params });
 }
 
+/**
+ * Has this dose been deliberately skipped?
+ *
+ * `DoseStatus` has no 'skipped' member yet (src/types/index.ts:1, frozen until
+ * round 3 A2), so skipDose and skipDoseWithReason both write status='missed'
+ * and stamp logged_time. markOverdueDoses also writes 'missed', but leaves
+ * logged_time null — so logged_time is the only thing separating a dose the
+ * patient skipped from one they never touched. Asserting on /skip/i against
+ * status, as this harness did for sixty days, could therefore never pass: a
+ * working skip stored the string "missed".
+ *
+ * A2 makes 'skipped' real. Both readings are accepted so the check keeps
+ * meaning the same thing on either side of that change, and neither reading is
+ * satisfied by an untouched dose.
+ */
+function doseIsSkipped(rows) {
+  const r = rows && rows[0];
+  if (!r) return false;
+  const status = String(r.status ?? '');
+  if (/^skipped$/i.test(status)) return true;
+  return status === 'missed' && r.logged_time !== null && r.logged_time !== undefined;
+}
+
 // ── navigate through the app's own navigation API ────────────────────────────
 // Four registered screens (Report, MriTracker, LabResults, FamilySync) have no
 // navigate() call anywhere in src/, so no tap sequence reaches them and the app
@@ -850,16 +873,19 @@ async function runDay(n) {
     await clickLabel(rows[0]); await wait(1200);
     await auditScreen('DoseDetailModal');
     await shot('dose-modal');
-    // DoseDetailModal.tsx:160 / :166 — "✓ Took it" and the translated "Skip".
-    const takeLabel = plan.shape === 'max-values' ? 'Skip' : 'Took it';
-    const wantPrefix = plan.shape === 'max-values' ? 'Skip ' : 'Mark ';
-    const acted = await page.evaluate((pref) => {
+    // DoseDetailModal.tsx:172 / :180 — "✓ Took it" and the translated "Skip".
+    const skipping = plan.shape === 'max-values';
+    const takeLabel = skipping ? 'Skip' : 'Took it';
+    const wantPrefix = skipping ? 'Skip ' : 'Mark ';
+    const clickPrefix = (pref) => page.evaluate((p) => {
       const el = [...document.querySelectorAll('[aria-label]')]
-        .find((e) => (e.getAttribute('aria-label') || '').startsWith(pref));
+        .find((e) => (e.getAttribute('aria-label') || '').startsWith(p));
       if (!el) return false;
       el.click();
       return true;
-    }, wantPrefix) || await clickText(takeLabel);
+    }, pref);
+
+    const acted = await clickPrefix(wantPrefix) || await clickText(takeLabel);
     if (!acted) {
       note('medium', 'DoseDetailModal', `No control matching "${takeLabel}" in the dose sheet — dose cannot be logged`,
         `day ${n}: Today > expand doses > tap a dose`, 'src/components/DoseDetailModal.tsx');
@@ -867,9 +893,55 @@ async function runDay(n) {
       // Read the row back rather than trusting the tap. status/logged_time is
       // the only proof the action reached the database.
       await wait(1400);
-      const after = await sql('SELECT status, logged_time FROM dose_logs WHERE date = ?', [date]).catch(() => []);
-      const want = plan.shape === 'max-values' ? /skip/i : /taken|took/i;
-      if (after.length && !want.test(String(after[0].status))) {
+      const read = () => sql('SELECT status, logged_time, skip_reason FROM dose_logs WHERE date = ?', [date]).catch(() => []);
+      let after = await read();
+
+      // ── the skip is a two-step flow, and it is mid-change ──────────────────
+      // "Skip" opened a reason picker and wrote nothing; only tapping a reason
+      // reached the database (handleSkipPress vs handleReasonSelect,
+      // DoseDetailModal.tsx:64/:68). The audit recorded that as "Skip does not
+      // persist" for sixty days because the harness tapped Skip, waited, and
+      // read back a row that was still upcoming — it never tapped a reason, and
+      // the reason buttons had no accessible name to tap by. They do now
+      // (`Skip this dose: <reason>`, landed with H1 on fix/lane-ui).
+      //
+      // Round 3 A1 makes one tap skip outright, with the reason as an optional
+      // second step. So this handles both shapes rather than either: if the
+      // first tap already moved the row, stop; otherwise look for the picker
+      // and complete it. When A1 lands, the `reasonNeeded` branch simply stops
+      // being taken, and the difference is visible in the report instead of
+      // silently changing what "skip works" means.
+      let usedReason = null;
+      if (skipping && !doseIsSkipped(after)) {
+        const reasons = await page.evaluate(() => [...document.querySelectorAll('[aria-label]')]
+          .map((e) => e.getAttribute('aria-label') || '')
+          .filter((l) => l.startsWith('Skip this dose: ')));
+        if (reasons.length) {
+          usedReason = reasons[0];
+          await clickLabel(usedReason);
+          await wait(1400);
+          after = await read();
+        } else {
+          note('high', 'DoseDetailModal',
+            `Tapping "Skip" wrote nothing and the sheet offers no reason control to finish with. dose_logs.status is "${after[0]?.status}", logged_time ${after[0]?.logged_time ?? 'null'}. Either the single tap should write (round 3 A1) or the reason buttons need accessible names — as written the skip is unreachable by name.`,
+            `day ${n}: Today > expand doses > tap the dose > "Skip"`,
+            'src/components/DoseDetailModal.tsx:64 handleSkipPress');
+        }
+      }
+
+      if (skipping) {
+        if (!doseIsSkipped(after) && after.length) {
+          note('high', 'DoseDetailModal',
+            `The dose was not skipped${usedReason ? ` even after tapping "${usedReason}"` : ' on a single tap'}: dose_logs.status is "${after[0].status}", logged_time ${after[0].logged_time === null ? 'null' : after[0].logged_time}, skip_reason ${after[0].skip_reason === null || after[0].skip_reason === undefined ? 'null' : `"${after[0].skip_reason}"`}.`,
+            `day ${n}: start the day, open Today > expand doses > tap the dose > "Skip"${usedReason ? ' > a reason' : ''}`,
+            'src/components/DoseDetailModal.tsx handleSkipPress/handleReasonSelect -> src/db/queries.ts skipDose');
+        } else if (usedReason && (after[0]?.skip_reason === null || after[0]?.skip_reason === undefined)) {
+          note('medium', 'DoseDetailModal',
+            `A reason was tapped ("${usedReason}") but dose_logs.skip_reason is null — the reason was discarded even though the skip landed.`,
+            `day ${n}: Today > expand doses > tap the dose > "Skip" > a reason`,
+            'src/db/queries.ts skipDoseWithReason');
+        }
+      } else if (after.length && !/taken|took/i.test(String(after[0].status))) {
         note('high', 'DoseDetailModal',
           `Tapping "${takeLabel}" in the dose sheet did not change the stored dose: dose_logs.status is "${after[0].status}", logged_time ${after[0].logged_time === null ? 'null' : after[0].logged_time} — inside the 30-minute tolerance window (offset 0, scheduled ${new Date(Number((await sql('SELECT scheduled_time FROM dose_logs WHERE date = ?', [date]))[0].scheduled_time)).toISOString()})`,
           `day ${n}: start the day, open Today > expand doses > tap the dose > "${takeLabel}"`,
