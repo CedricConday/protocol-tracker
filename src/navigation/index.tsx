@@ -2,7 +2,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import type { ComponentType } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
@@ -25,6 +26,10 @@ import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
 import SummaryScreen from '../screens/SummaryScreen';
+import WaterScreen from '../screens/WaterScreen';
+import SunlightScreen from '../screens/SunlightScreen';
+import ExerciseScreen from '../screens/ExerciseScreen';
+import FoodScreen from '../screens/FoodScreen';
 
 const Tab = createBottomTabNavigator();
 const CalendarTabNav = createNativeStackNavigator();
@@ -71,33 +76,18 @@ function JournalNavigator() {
 }
 
 /**
- * Placeholder for the four tracker screens (PT-trio round 2, Lane B).
+ * The four tracker screens (PT-trio round 3, C5).
  *
- * The route names `Water`, `Sunlight`, `Exercise` and `Food` were agreed before
- * either lane started, so the Trackers tab is navigable end to end now and Lane
- * B only has to swap the `component` below when each screen lands. A loud empty
- * state rather than a silent dead card: a tab that opens onto nothing with no
- * explanation reads as a bug.
- *
- * TODO(lane-b): replace each `component={TrackerPlaceholder}` with the real
- * screen. Nothing else in this file needs to change.
+ * The route names were agreed before either round-2 lane started and registered
+ * against a placeholder, so the Trackers tab has been navigable end to end since
+ * the shell landed and this round only swapped `component`. Nothing else in this
+ * file changed, which was the point of agreeing the names up front.
  */
-function TrackerPlaceholder() {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderTitle}>Not built yet</Text>
-      <Text style={styles.placeholderBody}>
-        This tracker has a data layer but no screen. It is next on the list.
-      </Text>
-    </View>
-  );
-}
-
-const TRACKER_ROUTES: { name: string; title: string }[] = [
-  { name: 'Water', title: 'Water' },
-  { name: 'Sunlight', title: 'Sunlight' },
-  { name: 'Exercise', title: 'Exercise' },
-  { name: 'Food', title: 'Food' },
+const TRACKER_ROUTES: { name: string; title: string; component: ComponentType<any> }[] = [
+  { name: 'Water', title: 'Water', component: WaterScreen },
+  { name: 'Sunlight', title: 'Sunlight', component: SunlightScreen },
+  { name: 'Exercise', title: 'Exercise', component: ExerciseScreen },
+  { name: 'Food', title: 'Food', component: FoodScreen },
 ];
 
 function SummaryNavigator() {
@@ -123,7 +113,7 @@ function SummaryNavigator() {
         <SummaryNav.Screen
           key={route.name}
           name={route.name}
-          component={TrackerPlaceholder}
+          component={route.component}
           options={{ ...SUB_HEADER, title: route.title, animation: 'slide_from_right' }}
         />
       ))}
@@ -301,8 +291,5 @@ export default function Navigation({ onReady }: NavigationProps) {
 }
 
 const styles = StyleSheet.create({
-  placeholder: { flex: 1, backgroundColor: '#F7F7F2', alignItems: 'center', justifyContent: 'center', padding: 32 },
-  placeholderTitle: { color: '#14213D', fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  placeholderBody: { color: '#5A6478', fontSize: 14, lineHeight: 20, textAlign: 'center' },
   root: { flex: 1 },
 });

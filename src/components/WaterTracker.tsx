@@ -6,24 +6,32 @@ import { t } from '../i18n';
 // above 2.5 L, and the old card swapped its button for a "goal reached" banner at
 // exactly that point — so the litres that matter most were the ones it refused to
 // record.
-const GOAL_ML = 2500;
-const SEGMENT_ML = 500;
-const SEGMENTS = GOAL_ML / SEGMENT_ML;
+export const DEFAULT_GOAL_ML = 2500;
+// Always five segments, whatever the goal. Dividing by a fixed 500 ml meant a
+// 4 L goal drew eight slivers and a 1 L goal drew two fat ones; dividing the
+// goal instead keeps the bar reading the same at any target, and at the 2.5 L
+// default it is the same five-by-500 bar it has always been.
+const SEGMENTS = 5;
 const PRESETS = [150, 250, 500, 750];
 const STEP = 50;
 
 interface Props {
   waterMl: number;
   onAdd: (amountMl: number) => void;
+  /** The day's target. Callers that do not set one get the protocol default. */
+  goalMl?: number;
 }
 
-const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props) {
+const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl = DEFAULT_GOAL_ML }: Props) {
   const [amount, setAmount] = useState(250);
   const [draft, setDraft] = useState('250');
 
-  const goalReached = waterMl >= GOAL_ML;
-  const fullSegments = Math.floor(waterMl / SEGMENT_ML);
-  const partialRatio = (waterMl % SEGMENT_ML) / SEGMENT_ML;
+  // A goal of 0 would divide by zero and render NaN-wide bars, so the segment
+  // size floors at 1 ml: the bar simply reads full, which is the truth.
+  const segmentMl = Math.max(1, goalMl / SEGMENTS);
+  const goalReached = waterMl >= goalMl;
+  const fullSegments = Math.floor(waterMl / segmentMl);
+  const partialRatio = (waterMl % segmentMl) / segmentMl;
 
   const setBoth = (next: number) => {
     const clamped = Math.max(STEP, Math.min(5000, next));
@@ -45,7 +53,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd }: Props)
         </View>
         <Text style={[styles.amount, goalReached ? styles.amountDone : null]}>
           {waterMl >= 1000 ? `${(waterMl / 1000).toFixed(1)}L` : `${waterMl}ml`}
-          <Text style={styles.goal}> · goal 2.5L</Text>
+          <Text style={styles.goal}> · goal {goalMl >= 1000 ? `${(goalMl / 1000).toFixed(1)}L` : `${goalMl}ml`}</Text>
         </Text>
       </View>
 

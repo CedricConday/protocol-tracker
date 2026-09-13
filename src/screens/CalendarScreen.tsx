@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getCalendarMonth, getDayDetail, localDateStr, todayStr, type CalendarDay, type DayDetail } from '../db/queries';
+import { confirmDose, getCalendarMonth, getDayDetail, localDateStr, skipDose, skipDoseWithReason, todayStr, type CalendarDay, type DayDetail, type DayDetailDose } from '../db/queries';
+import DoseDetailModal from '../components/DoseDetailModal';
+import type { ScheduledDose } from '../types';
 import SkeletonCard from '../components/SkeletonCard';
 import Svg, { Circle } from 'react-native-svg';
 import { useSummaryScreen } from '../hooks';
@@ -108,7 +110,7 @@ function fmtTime(ts: number | null): string {
 }
 
 const DOSE_STATUS_COLOR: Record<string, string> = {
-  taken: '#2F8F5B', missed: '#C0392B', due: '#F2B233', upcoming: '#5A6478',
+  taken: '#2F8F5B', missed: '#C0392B', skipped: '#9AA3B2', due: '#F2B233', upcoming: '#5A6478',
 };
 const EVENT_LABEL: Record<string, string> = {
   relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',
@@ -140,6 +142,7 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [detail, setDetail] = useState<DayDetail | null>(null);
+  const [selectedDose, setSelectedDose] = useState<DayDetailDose | null>(null);
   const horizon = new Date(now.getFullYear(), now.getMonth() + FORWARD_MONTHS, 1);
   const horizonYear = horizon.getFullYear();
   const horizonMonth = horizon.getMonth();
@@ -204,7 +207,40 @@ export default function CalendarScreen() {
     setDetail(null);
     try { setDetail(await getDayDetail(date)); } catch { setDetail(null); }
   }, []);
-  const closeDay = useCallback(() => { setDetailDate(null); setDetail(null); }, []);
+  const closeDay = useCallback(() => { setDetailDate(null); setDetail(null); setSelectedDose(null); }, []);
+
+  // A correction moves the day's compliance, so the month grid behind the sheet
+  // and the header's own numbers have to be re-read, not just this day's rows.
+  const afterCorrection = useCallback(async () => {
+    setSelectedDose(null);
+    if (detailDate) {
+      try { setDetail(await getDayDetail(detailDate)); } catch { setDetail(null); }
+    }
+    await Promise.all([loadMonth(viewYear, viewMonth), loadCompliance()]);
+  }, [detailDate, loadMonth, viewYear, viewMonth, loadCompliance]);
+
+  const correctTook = useCallback(async (dose: ScheduledDose) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (dose.logId == null) return;
+    try {
+      await confirmDose(dose.logId);
+    } catch {
+      Alert.alert('Error', 'Could not update this dose. Please try again.');
+    }
+    await afterCorrection();
+  }, [afterCorrection]);
+
+  const correctSkip = useCallback(async (dose: ScheduledDose, reason?: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (dose.logId == null) return;
+    try {
+      if (reason) await skipDoseWithReason(dose.logId, reason);
+      else await skipDose(dose.logId);
+    } catch {
+      Alert.alert('Error', 'Could not update this dose. Please try again.');
+    }
+    await afterCorrection();
+  }, [afterCorrection]);
   const stepDay = useCallback((delta: number) => {
     if (!detailDate) return;
     const d = new Date(detailDate + 'T00:00:00');
@@ -440,7 +476,12 @@ export default function CalendarScreen() {
         <TouchableOpacity
           style={styles.medicalBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('LabResults')}
+          // Nested target, not a bare route name: these three screens live in
+          // SummaryNavigator (the Trackers tab's stack) while this screen renders
+          // in CalendarTabNavigator. react-navigation resolves the current
+          // navigator and its parents, never a sibling's nested stack, so the
+          // bare form rendered a button that did nothing (H9, Build B).
+          onPress={() => navigation.navigate('Summary', { screen: 'LabResults' })}
           accessibilityLabel="Lab results"
           accessibilityRole="button"
         >
@@ -450,7 +491,7 @@ export default function CalendarScreen() {
         <TouchableOpacity
           style={styles.medicalBtn}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('MriTracker')}
+          onPress={() => navigation.navigate('Summary', { screen: 'MriTracker' })}
           accessibilityLabel="MRI history"
           accessibilityRole="button"
         >
@@ -462,7 +503,7 @@ export default function CalendarScreen() {
       <TouchableOpacity
         style={styles.shareProgressBtn}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('Report')}
+        onPress={() => navigation.navigate('Summary', { screen: 'Report' })}
         accessibilityLabel="Share your progress"
         accessibilityRole="button"
       >
@@ -500,11 +541,19 @@ export default function CalendarScreen() {
                     <Text style={styles.detailMuted}>{t('noDosesThisDay')}</Text>
                   ) : (
                     detail.doses.map((d, i) => (
-                      <View key={i} style={styles.detailRow}>
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.detailRow}
+                        onPress={() => setSelectedDose(d)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${d.supplementName}, ${d.status} — correct this dose`}
+                      >
                         <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#5A6478' }]} />
-                        <Text style={styles.detailRowText}>{d.name}</Text>
-                        <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.logged_time ? fmtTime(d.logged_time) : d.status}</Text>
-                      </View>
+                        <Text style={styles.detailRowText}>{d.supplementName}</Text>
+                        <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.loggedTime ? fmtTime(d.loggedTime) : d.status}</Text>
+                        <Text style={styles.detailRowChevron}>›</Text>
+                      </TouchableOpacity>
                     ))
                   )}
 
@@ -543,6 +592,18 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Nested inside the day sheet so it draws above it. `correctable` is
+            what makes the actions appear for a dose that is already taken,
+            missed or skipped. */}
+        <DoseDetailModal
+          visible={selectedDose !== null}
+          dose={selectedDose}
+          correctable
+          onClose={() => setSelectedDose(null)}
+          onTook={correctTook}
+          onSkip={correctSkip}
+        />
       </Modal>
     </ScrollView>
   );
@@ -631,6 +692,7 @@ const styles = StyleSheet.create({
   detailDot: { width: 9, height: 9, borderRadius: 4.5 },
   detailRowText: { color: INK, fontSize: 14, fontWeight: '600', flex: 1 },
   detailRowMeta: { color: '#9A8A80', fontSize: 13, fontWeight: '600' },
+  detailRowChevron: { color: '#C3B6AD', fontSize: 16, fontWeight: '700' },
   journalCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#F5EEE7', borderRadius: 14, padding: 13 },
   detailMood: { fontSize: 24, lineHeight: 26 },
   journalNote: { color: '#3A302A', fontSize: 14, flex: 1, lineHeight: 20 },

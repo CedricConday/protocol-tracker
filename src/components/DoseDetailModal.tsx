@@ -16,6 +16,10 @@ interface Props {
   onClose: () => void;
   onTook: (dose: ScheduledDose) => void;
   onSkip: (dose: ScheduledDose, reason?: string) => void;
+  /** Offer the actions whatever the dose's status is — the calendar opens this
+   *  sheet against a day that is already over, where the point is to correct
+   *  what was recorded rather than to act on a dose that is still live. */
+  correctable?: boolean;
 }
 
 const SKIP_REASONS = ['Forgot', 'Felt unwell', 'No food available', 'Other'];
@@ -26,6 +30,7 @@ function getStatusAccentColor(status: ScheduledDose['status']): string {
     case 'due': return '#f97316';
     case 'upcoming': return '#3b82f6';
     case 'missed': return '#ef4444';
+    case 'skipped': return '#94a3b8';
     default: return '#555555';
   }
 }
@@ -36,6 +41,7 @@ export default function DoseDetailModal({
   onClose,
   onTook,
   onSkip,
+  correctable = false,
 }: Props) {
   const [showSkipReasons, setShowSkipReasons] = useState(false);
 
@@ -57,18 +63,22 @@ export default function DoseDetailModal({
   const accentColor = getStatusAccentColor(dose.status);
   const isTaken = dose.status === 'taken';
   const isMissed = dose.status === 'missed';
+  const isSkipped = dose.status === 'skipped';
   // Every actionable path needs a real dose_logs row id. Without it onTook and
   // onSkip are no-ops, so offering the buttons is worse than hiding them.
   const canAct = dose.logId != null && (dose.status === 'upcoming' || dose.status === 'due');
+  // Correcting needs the same row id and nothing else: confirmDose/skipDose have
+  // never had a date guard, so the data layer was always willing — the id simply
+  // never reached this sheet from a past day (round 3, A4).
+  const canCorrect = correctable && dose.logId != null;
 
-  // "Skip" opens this picker rather than writing anything, so a single tap
-  // leaves the row `upcoming` — which is what the audit reports as "Skip does
-  // not persist" (PT-trio H1). The reason buttons below now carry accessible
-  // names, so the second step is at least reachable by name. Whether one tap
-  // should be able to skip without giving a reason is a product call, not a
-  // bug fix: TODO(cedric).
+  // One tap skips: the write happens here, with no reason, and the parent
+  // closes the sheet. The reason picker is an optional second step behind
+  // "Add a reason" and never gates the write — Cedric's call, 2026-09-13
+  // (PT-trio round 3, A1). It was the gate that made the audit read "Skip
+  // does not persist".
   const handleSkipPress = () => {
-    setShowSkipReasons(true);
+    onSkip(dose);
   };
 
   const handleReasonSelect = (reason: string) => {
@@ -163,23 +173,41 @@ export default function DoseDetailModal({
                 <Text style={styles.cancelReasonText}>{t('cancel')}</Text>
               </TouchableOpacity>
             </View>
-          ) : canAct ? (
-            <View style={styles.actions}>
+          ) : canAct || canCorrect ? (
+            <View>
+              {canCorrect && !canAct ? (
+                <Text style={styles.correctionHint}>
+                  Recorded as {dose.status}{dose.skipReason ? ` (${dose.skipReason})` : ''}. Tap what actually happened.
+                </Text>
+              ) : null}
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.tookButton}
+                  onPress={() => onTook(dose)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mark ${dose.supplementName} as taken`}
+                >
+                  <Text style={styles.tookButtonText}>✓ Took it</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.skipButton}
+                  onPress={handleSkipPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Skip ${dose.supplementName}`}
+                >
+                  <Text style={styles.skipButtonText}>{t('skip')}</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Literal, not t() — i18n/ is nobody's lane this round, and the
+                  strings around it ("✓ Took it") are already literal. */}
               <TouchableOpacity
-                style={styles.tookButton}
-                onPress={() => onTook(dose)}
+                style={styles.addReasonButton}
+                onPress={() => setShowSkipReasons(true)}
+                activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`Mark ${dose.supplementName} as taken`}
+                accessibilityLabel={`Add a reason for skipping ${dose.supplementName}`}
               >
-                <Text style={styles.tookButtonText}>✓ Took it</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkipPress}
-                accessibilityRole="button"
-                accessibilityLabel={`Skip ${dose.supplementName}`}
-              >
-                <Text style={styles.skipButtonText}>{t('skip')}</Text>
+                <Text style={styles.addReasonText}>Add a reason</Text>
               </TouchableOpacity>
             </View>
           ) : isTaken ? (
@@ -189,6 +217,12 @@ export default function DoseDetailModal({
           ) : isMissed ? (
             <View style={styles.missedBanner}>
               <Text style={styles.missedBannerText}>✕ Marked as missed</Text>
+            </View>
+          ) : isSkipped ? (
+            <View style={styles.skippedBanner}>
+              <Text style={styles.skippedBannerText}>
+                — {t('skipped')}{dose.skipReason ? `: ${dose.skipReason}` : ''}
+              </Text>
             </View>
           ) : (
             <Text style={styles.statusText}>
@@ -363,6 +397,38 @@ const styles = StyleSheet.create({
   skipButtonText: {
     color: '#C0392B',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  correctionHint: {
+    color: '#5A6478',
+    fontSize: 13,
+    marginTop: 20,
+    marginBottom: -8,
+    textAlign: 'center',
+  },
+  addReasonButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  addReasonText: {
+    color: '#5A6478',
+    fontSize: 14,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  skippedBanner: {
+    backgroundColor: '#ECEDE6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#CFD2C6',
+  },
+  skippedBannerText: {
+    color: '#5A6478',
+    fontSize: 15,
     fontWeight: '700',
   },
   takenBanner: {

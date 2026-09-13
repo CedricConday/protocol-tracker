@@ -1,6 +1,6 @@
 import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
-import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
+import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 
 export function localDateStr(d: Date): string {
   // Local calendar date (YYYY-MM-DD). Used everywhere data is keyed by day so
@@ -138,12 +138,50 @@ export async function getWaterLogs(
 
 /**
  * Sun is stored as one aggregated row per day (`sun_log.date` is UNIQUE), so
- * there is no last entry to remove — `setSunExposure` already corrects the total
- * outright, and this clears the day back to nothing.
+ * there is no last entry to remove the way there is for water — correcting sun
+ * means setting the day's total. This clears the day back to nothing.
  */
 export async function clearSunLog(date: string = todayStr()): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM sun_log WHERE date = ?', [date]);
+}
+
+/**
+ * Set a day's sun total, including a day that is not today.
+ *
+ * `setSunExposure` already writes the total outright, but it computes its own
+ * `todayStr()` and takes no date — so yesterday's mis-tap could not be corrected
+ * at all, only today's. That is the whole gap this fills: the same write, against
+ * a named date. Water gets `correctWaterLog(logId, …)` because it keeps one row
+ * per entry; sun keeps one row per day, so the day *is* the unit of correction
+ * and there is no id to address.
+ *
+ * `notes` left undefined keeps whatever the row already says; passing `''` is a
+ * deliberate erase. The two must not collapse into each other — correcting the
+ * minutes should not silently wipe the note explaining the day.
+ */
+export async function correctSunLog(
+  minutes: number,
+  date: string = todayStr(),
+  notes?: string
+): Promise<void> {
+  const db = await getDb();
+  const next = Math.max(0, Math.round(minutes));
+  if (notes === undefined) {
+    await db.runAsync(
+      `INSERT INTO sun_log (date, minutes, uv_index, notes)
+       VALUES (?, ?, NULL, '')
+       ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes`,
+      [date, next]
+    );
+    return;
+  }
+  await db.runAsync(
+    `INSERT INTO sun_log (date, minutes, uv_index, notes)
+     VALUES (?, ?, NULL, ?)
+     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, notes = excluded.notes`,
+    [date, next, notes]
+  );
 }
 
 // ── Schedule Rules ────────────────────────────────────────────────────────────
@@ -221,37 +259,64 @@ export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog &
   );
 }
 
-export async function confirmDose(logId: number): Promise<void> {
+/**
+ * The row a dose action is about to change, plus the two things every one of
+ * them needs to get right: the pill count and the timestamp.
+ *
+ * A dose can now be corrected long after the fact (round 3, A4), so an action
+ * is no longer the first thing that ever happened to the row. Two rules follow:
+ *
+ *  - Stock follows 'taken', and only 'taken'. Entering it takes a pill out of
+ *    the bottle, leaving it puts one back, and re-confirming an already-taken
+ *    dose changes nothing. Before this, skipping a dose decremented stock as if
+ *    it had been swallowed, and correcting a dose back and forth drained the
+ *    bottle a pill per tap.
+ *  - `logged_time` is stamped now only while the dose's own day is still today.
+ *    Correcting a dose from three weeks ago cannot claim it was taken at this
+ *    minute; the scheduled time is the only defensible answer, and it is what
+ *    the calendar's day detail renders.
+ */
+async function applyDoseStatus(
+  logId: number,
+  status: 'taken' | 'skipped',
+  reason?: string,
+): Promise<{ supplement_id: string; date: string } | null> {
   const db = await getDb();
-  const log = await db.getFirstAsync<{ supplement_id: string; date: string }>('SELECT supplement_id, date FROM dose_logs WHERE id = ?', [logId]);
-  await db.runAsync(
-    "UPDATE dose_logs SET status = 'taken', logged_time = ? WHERE id = ?",
-    [Date.now(), logId]
+  const log = await db.getFirstAsync<{ supplement_id: string; date: string; status: string; scheduled_time: number }>(
+    'SELECT supplement_id, date, status, scheduled_time FROM dose_logs WHERE id = ?',
+    [logId],
   );
-  if (log?.supplement_id) {
-    await decrementQuantity(log.supplement_id);
+  if (!log) return null;
+
+  const loggedTime = log.date === todayStr() ? Date.now() : log.scheduled_time;
+  if (reason === undefined) {
+    await db.runAsync('UPDATE dose_logs SET status = ?, logged_time = ? WHERE id = ?', [status, loggedTime, logId]);
+  } else {
+    await db.runAsync(
+      'UPDATE dose_logs SET status = ?, logged_time = ?, skip_reason = ? WHERE id = ?',
+      [status, loggedTime, reason, logId],
+    );
   }
+
+  const wasTaken = log.status === 'taken';
+  if (status === 'taken' && !wasTaken) await decrementQuantity(log.supplement_id);
+  if (status !== 'taken' && wasTaken) await incrementQuantity(log.supplement_id);
+
+  return { supplement_id: log.supplement_id, date: log.date };
+}
+
+export async function confirmDose(logId: number): Promise<void> {
+  const log = await applyDoseStatus(logId, 'taken');
   if (log) await enqueueAction('dose_confirmed', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
 }
 
 export async function skipDose(logId: number): Promise<void> {
-  const db = await getDb();
-  const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
-  await db.runAsync(
-    "UPDATE dose_logs SET status = 'missed', logged_time = ? WHERE id = ?",
-    [Date.now(), logId]
-  );
-  if (log?.supplement_id) await decrementQuantity(log.supplement_id);
+  const log = await applyDoseStatus(logId, 'skipped');
   if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
 }
 
 export async function skipDoseWithReason(logId: number, reason: string): Promise<void> {
-  const db = await getDb();
-  const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
-  await db.runAsync(
-    "UPDATE dose_logs SET status = 'missed', logged_time = ?, skip_reason = ? WHERE id = ?",
-    [Date.now(), reason, logId]
-  );
+  const log = await applyDoseStatus(logId, 'skipped', reason);
   if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString(), reason });
 }
 
@@ -277,18 +342,26 @@ export async function getDaySummary(date: string = todayStr()): Promise<DaySumma
     [date]
   );
 
-  const counts = { taken: 0, missed: 0, upcoming: 0, due: 0 };
+  // Every status the table can hold has to be listed here: the total is summed
+  // from these keys, so a status missing from the object silently leaves the
+  // denominator and moves compliance. The other aggregates (getCalendarRange,
+  // getStreak, getWeightedAdherenceScore) count rows, so they needed nothing.
+  const counts = { taken: 0, missed: 0, skipped: 0, upcoming: 0, due: 0 };
   for (const row of logs) {
     counts[row.status as keyof typeof counts] = row.count;
   }
 
-  const total = counts.taken + counts.missed + counts.upcoming + counts.due;
+  const total = counts.taken + counts.missed + counts.skipped + counts.upcoming + counts.due;
+  // A deliberate skip still counts against adherence, exactly as it did when it
+  // was stored as 'missed' — Cedric's call, 2026-09-13. Moving it out of the
+  // denominator is a one-line change here and a re-read of every chart.
   const compliancePct = total > 0 ? Math.round((counts.taken / total) * 100) : 0;
 
   return {
     totalDoses: total,
     takenDoses: counts.taken,
-    missedDoses: counts.missed,
+    missedDoses: counts.missed + counts.skipped,
+    skippedDoses: counts.skipped,
     compliancePct,
     waterMl: anchor?.water_ml ?? 0,
     t0: anchor?.t0_timestamp ? new Date(anchor.t0_timestamp) : null,
@@ -365,9 +438,14 @@ export async function getCalendarMonth(year: number, month: number): Promise<Map
   return map;
 }
 
+/** A day-detail dose row. It is a full `ScheduledDose` — carrying `logId` above
+ *  all — because the calendar now opens the dose sheet against it: without the
+ *  row id nothing in the app could correct a past dose, ever (round 3, A4). */
+export type DayDetailDose = ScheduledDose & { loggedTime: number | null };
+
 export interface DayDetail {
   date: string;
-  doses: { name: string; status: string; scheduled_time: number; logged_time: number | null }[];
+  doses: DayDetailDose[];
   takenDoses: number;
   totalDoses: number;
   missedDoses: number;
@@ -389,11 +467,25 @@ export async function getDayDetail(date: string): Promise<DayDetail> {
   );
   return {
     date,
+    // Status is read straight from the row: on a past day the clock has nothing
+    // left to say about it, so none of the live 'upcoming' → 'due' derivation
+    // that getTodaySchedule does applies here.
     doses: doseLogs.map((d) => ({
-      name: d.supplement_name,
+      id: d.id,
+      supplement_id: d.supplement_id,
+      supplementName: d.supplement_name,
+      form: d.supplement_form,
+      scheduledTime: new Date(d.scheduled_time),
+      earliestTime: new Date(d.scheduled_time - d.tolerance_window * 60 * 1000),
+      latestTime: new Date(d.scheduled_time + d.tolerance_window * 60 * 1000),
       status: d.status,
-      scheduled_time: d.scheduled_time,
-      logged_time: d.logged_time,
+      toleranceMinutes: d.tolerance_window,
+      doseAmount: d.dose_amount,
+      withFood: d.with_food === 1,
+      notes: d.supplement_notes ?? '',
+      logId: d.id,
+      skipReason: d.skip_reason ?? undefined,
+      loggedTime: d.logged_time,
     })),
     takenDoses: summary.takenDoses,
     totalDoses: summary.totalDoses,
@@ -683,6 +775,17 @@ export async function decrementQuantity(supplementId: string): Promise<void> {
   );
 }
 
+/** The other half of decrementQuantity: a dose corrected away from 'taken' puts
+ *  its pill back. NULL means the user never told us a count, so leave it NULL
+ *  rather than inventing a bottle with one pill in it. */
+export async function incrementQuantity(supplementId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE supplements SET quantity_on_hand = quantity_on_hand + 1 WHERE id = ? AND quantity_on_hand IS NOT NULL',
+    [supplementId]
+  );
+}
+
 export async function getSupplementsLowStock(): Promise<Supplement[]> {
   const db = await getDb();
   return db.getAllAsync<Supplement>(
@@ -760,14 +863,12 @@ async function createDoseLogForNewRule(
 
   const scheduledTime = anchor.t0_timestamp + offsetMinutes * 60 * 1000;
 
-  // TODO(cedric): DECISION NEEDED — a dose added when its own t0 + offset has
-  // already passed. Three defensible answers and this is your call, not mine:
-  //   'due'     — actionable now, the user just added it and can take it late
-  //   'missed'  — honest about the clock, but marks a dose the user never had
-  //   tomorrow  — skip today entirely, first dose lands at the next start
-  // Stubbed as 'due' so the dose is at least actionable and cannot be silently
-  // aged out: markOverdueDoses() only rewrites 'upcoming', so a 'due' row
-  // survives until the user acts on it.
+  // A dose added after its own t0 + offset has passed is created 'due', not
+  // 'missed' and not deferred to tomorrow — Cedric's call, 2026-09-13, closing
+  // round 1's 2.4. The user added it just now and can still take it late;
+  // marking a dose missed that they never had the chance to take is a lie the
+  // compliance numbers then carry forever. 'due' also cannot be aged out behind
+  // their back: markOverdueDoses() only rewrites 'upcoming'.
   const status = scheduledTime <= Date.now() ? 'due' : 'upcoming';
 
   await db.runAsync(

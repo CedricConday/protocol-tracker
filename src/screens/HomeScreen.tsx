@@ -213,7 +213,7 @@ export default function HomeScreen() {
 
   const energyCredits = doses.reduce((acc, d) => {
     if (d.status === 'taken') return acc + 1;
-    if (d.status === 'missed') return acc - 1;
+    if (d.status === 'missed' || d.status === 'skipped') return acc - 1;
     return acc;
   }, 10);
   const clampedCredits = Math.max(0, Math.min(10, energyCredits));

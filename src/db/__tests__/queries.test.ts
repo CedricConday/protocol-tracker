@@ -22,6 +22,9 @@ import {
   undoLastWater,
   correctWaterLog,
   clearSunLog,
+  confirmDose,
+  skipDose,
+  correctSunLog,
 } from '../queries';
 
 const mockDb = {
@@ -106,6 +109,38 @@ describe('getDaySummary', () => {
     expect(result.compliancePct).toBe(75);
   });
 
+  it('keeps a skipped dose in the denominator, exactly where missed put it', async () => {
+    mockDb.getAllAsync.mockResolvedValueOnce([
+      { status: 'taken', count: 3 },
+      { status: 'skipped', count: 1 },
+    ]);
+    mockDb.getFirstAsync.mockResolvedValueOnce({ water_ml: 500, t0_timestamp: Date.now() });
+
+    const result = await getDaySummary();
+    // Same four doses, same 75% the row produced when a skip was stored as
+    // 'missed'. A status left out of the counts object drops out of the total
+    // instead, and compliance silently rises to 100%.
+    expect(result.totalDoses).toBe(4);
+    expect(result.compliancePct).toBe(75);
+    expect(result.skippedDoses).toBe(1);
+    expect(result.missedDoses).toBe(1);
+  });
+
+  it('separates a deliberate skip from an untouched missed dose', async () => {
+    mockDb.getAllAsync.mockResolvedValueOnce([
+      { status: 'taken', count: 2 },
+      { status: 'missed', count: 1 },
+      { status: 'skipped', count: 1 },
+    ]);
+    mockDb.getFirstAsync.mockResolvedValueOnce({ water_ml: 0, t0_timestamp: Date.now() });
+
+    const result = await getDaySummary();
+    expect(result.totalDoses).toBe(4);
+    expect(result.skippedDoses).toBe(1);
+    expect(result.missedDoses).toBe(2); // not taken, either way — the doctor report totals this
+    expect(result.compliancePct).toBe(50);
+  });
+
   it('handles an empty dose list gracefully', async () => {
     mockDb.getAllAsync.mockResolvedValueOnce([]);
     mockDb.getFirstAsync.mockResolvedValueOnce(null);
@@ -114,6 +149,73 @@ describe('getDaySummary', () => {
     expect(result.totalDoses).toBe(0);
     expect(result.compliancePct).toBe(0);
     expect(result.t0).toBeNull();
+  });
+});
+
+// ── confirmDose / skipDose ────────────────────────────────────────────────────
+// Both run through applyDoseStatus, which owns the two rules a correction made
+// necessary: when `logged_time` may be stamped "now", and when a pill leaves or
+// returns to the bottle.
+
+describe('confirmDose and skipDose', () => {
+  const sqlOf = (call: unknown[]) => String(call[0]);
+  const runSql = () => mockDb.runAsync.mock.calls.map(sqlOf);
+  const statusUpdate = () =>
+    mockDb.runAsync.mock.calls.find((c) => sqlOf(c).includes('UPDATE dose_logs SET status'));
+
+  it('stamps a past dose with its scheduled time, not the moment of the correction', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: '2026-09-01', status: 'missed', scheduled_time: 1_756_700_000_000,
+    });
+
+    await confirmDose(7);
+
+    // ['taken', logged_time, logId] — a correction three weeks later cannot
+    // claim the dose was swallowed at this minute.
+    expect(statusUpdate()?.[1]).toEqual(['taken', 1_756_700_000_000, 7]);
+  });
+
+  it("stamps today's dose with the current time", async () => {
+    const before = Date.now();
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'due', scheduled_time: 1_000,
+    });
+
+    await confirmDose(3);
+
+    const stamped = (statusUpdate()?.[1] as unknown[])[1] as number;
+    expect(stamped).toBeGreaterThanOrEqual(before);
+  });
+
+  it('takes a pill out of the bottle once, however often the dose is re-confirmed', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'taken', scheduled_time: 1_000,
+    });
+
+    await confirmDose(3);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand - 1'))).toBe(false);
+  });
+
+  it('puts the pill back when a taken dose is corrected to skipped', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: '2026-09-01', status: 'taken', scheduled_time: 1_756_700_000_000,
+    });
+
+    await skipDose(7);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand + 1'))).toBe(true);
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand - 1'))).toBe(false);
+  });
+
+  it('does not consume a pill for a dose that was never taken', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'due', scheduled_time: 1_000,
+    });
+
+    await skipDose(3);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand'))).toBe(false);
   });
 });
 
@@ -281,5 +383,44 @@ describe('clearSunLog', () => {
   it('deletes the day row', async () => {
     await clearSunLog('2026-09-13');
     expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM sun_log WHERE date = ?', ['2026-09-13']);
+  });
+});
+
+describe('correctSunLog', () => {
+  it('sets the day total outright instead of adding to it', async () => {
+    await correctSunLog(20, '2026-09-13');
+    const [sqlText, params] = mockDb.runAsync.mock.calls[0];
+    // logSunExposure accumulates (`sun_log.minutes + excluded.minutes`); a
+    // correction must not, or fixing 30 to 20 would store 50.
+    expect(String(sqlText)).toContain('minutes = excluded.minutes');
+    expect(String(sqlText)).not.toContain('sun_log.minutes + excluded.minutes');
+    expect(params).toEqual(['2026-09-13', 20]);
+  });
+
+  it('corrects a past day, which is the reason it exists', async () => {
+    await correctSunLog(15, '2026-09-01');
+    expect(mockDb.runAsync.mock.calls[0][1][0]).toBe('2026-09-01');
+  });
+
+  it('leaves the existing note alone when none is given', async () => {
+    await correctSunLog(20, '2026-09-13');
+    expect(String(mockDb.runAsync.mock.calls[0][0])).not.toContain('notes = excluded.notes');
+  });
+
+  it('replaces the note when one is given, including an empty one', async () => {
+    await correctSunLog(20, '2026-09-13', '');
+    const [sqlText, params] = mockDb.runAsync.mock.calls[0];
+    expect(String(sqlText)).toContain('notes = excluded.notes');
+    expect(params).toEqual(['2026-09-13', 20, '']);
+  });
+
+  it('floors a negative correction at zero', async () => {
+    await correctSunLog(-5, '2026-09-13');
+    expect(mockDb.runAsync.mock.calls[0][1][1]).toBe(0);
+  });
+
+  it('rounds fractional minutes', async () => {
+    await correctSunLog(12.6, '2026-09-13');
+    expect(mockDb.runAsync.mock.calls[0][1][1]).toBe(13);
   });
 });
