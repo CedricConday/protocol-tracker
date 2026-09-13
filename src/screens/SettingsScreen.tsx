@@ -402,14 +402,27 @@ export default function SettingsScreen() {
 
             <Row icon="list-outline" label={t('manageSupplements')} sub={d3 ? `Daily D3 ${d3.dose} ${d3.unit} · add, edit, remove` : 'Set your daily D3 · add, edit, remove'} onPress={() => navigation.navigate('SupplementEditor')} />
 
-            {/* FamilySync is registered in the navigator but nothing navigated
-                to it, so invite-code sharing was unreachable in the shipped
-                build. Settings is where the other account-level rows live. */}
+            {/* Entry points for screens that are registered in the navigator.
+                A route with no navigate() call anywhere is dead in the shipped
+                build — the app sets no linking config, so there is no URL to
+                reach it by either. If one of these features is meant to go, the
+                screen and its registration should go with it. */}
+            <Row icon="alarm-outline" label={t('scheduleReminders')} sub={t('doseTimesSub')} onPress={() => navigation.navigate('Schedule')} />
+
+            <Row icon="chatbubble-ellipses-outline" label={t('reminderTone')} sub={t('reminderToneSub')} onPress={() => navigation.navigate('CoachingStyle')} />
+
             <Row
               icon="people-outline"
               label="Family Sync"
               sub="Share your progress with family or a caregiver"
               onPress={() => navigation.navigate('FamilySync')}
+            />
+
+            <Row
+              icon="heart-outline"
+              label={t('caregiverMode')}
+              sub={t('caregiverSub')}
+              onPress={() => navigation.navigate('Caregiver')}
             />
 
             <Row
