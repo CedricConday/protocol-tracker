@@ -143,11 +143,17 @@ export default function JournalScreen() {
     setRefreshing(false);
   };
 
-  const handleSave = useCallback(async () => {
-    if (!selectedMood) return;
+  // `moodOverride` exists because a blur and a mood tap can belong to the same
+  // gesture: on web the note field blurs on mousedown, before the tap is
+  // processed, so the blur-save's closure still holds the PRE-tap mood. Passing
+  // the mood explicitly lets the tap write the value it actually selected
+  // instead of whatever the last render captured.
+  const handleSave = useCallback(async (moodOverride?: string) => {
+    const mood = moodOverride ?? selectedMood;
+    if (!mood) return;
     await upsertJournalEntry({
       date: today,
-      mood: selectedMood,
+      mood,
       note,
       dietary_note: dietaryNote || undefined,
       compliance_pct: summary.totalDoses > 0
@@ -169,8 +175,15 @@ export default function JournalScreen() {
     }
   }, [selectedMood, handleSave]);
 
+  // Tapping a mood is the whole intention, so it is written through rather than
+  // held until Save. Before this the tap lived only in component state: the
+  // blur-save fired in the same gesture with the pre-tap mood, so the row kept
+  // the OLD value while the screen showed the new one, and a user who never
+  // pressed Save lost the tap entirely. Over 60 simulated days that stored two
+  // distinct moods out of five and left sixteen days with no row at all.
   const handleMoodSelect = (mood: string) => {
     setMoodEntry({ date: today, mood });
+    handleSave(mood).catch((e) => console.warn('[Journal] mood write-through failed:', e));
   };
 
   const handleLogEvent = useCallback(async () => {

@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getProfile, updateProfile, getSupplementsWithRules,
-  updateRuleTolerance, getMiscFlag, setMiscFlag,
+  getMiscFlag, setMiscFlag,
 } from '../db/queries';
 import { getDb } from '../db/schema';
 import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
@@ -28,7 +28,6 @@ import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 
-type ToleranceRule = { id: number; supplement_name: string; tolerance_window: number };
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 // Module scope on purpose: as inner functions these were a fresh component type
@@ -89,10 +88,37 @@ async function readD3Display(): Promise<D3Display> {
   return { dose: row.dose_amount.trim(), unit: row.dose_unit.trim() || 'IU' };
 }
 
+
+// expo-secure-store has no web implementation: the module's default export has
+// no `getValueWithKeyAsync`, so every call throws there and the rejection
+// escapes as an uncaught error — the audit sees it on day 3, from Settings.
+// `await` sits INSIDE the try on purpose; returning a promise from a try block
+// does not bring that promise's rejection into the catch. Same stance as
+// `syncClient.getPatientJwt`.
+async function readSecret(key: string): Promise<string | null> {
+  try {
+    const { getItemAsync } = await import('expo-secure-store');
+    return await getItemAsync(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Store or clear a secret. A platform without secure storage keeps neither. */
+async function writeSecret(key: string, value: string | null): Promise<void> {
+  try {
+    const { setItemAsync, deleteItemAsync } = await import('expo-secure-store');
+    if (value) await setItemAsync(key, value);
+    else await deleteItemAsync(key);
+  } catch {
+    /* no secure store on this platform — nothing was written, nothing to clear */
+  }
+}
+
 const NOTIF_TOPICS = ['supplements', 'water', 'exercise', 'morning_checkin', 'weekly_summary'];
 
 /** The fields handleSave writes. Compared against live state to decide whether
- *  there is anything to save; the tolerance Map tracks itself. */
+ *  there is anything to save. */
 type SavedFields = {
   name: string;
   weight: string;
@@ -112,8 +138,6 @@ export default function SettingsScreen() {
   const [d3, setD3] = useState<D3Display>(null);
   const [bedtimeHour, setBedtimeHour] = useState(22);
   const [bedtimeMinute, setBedtimeMinute] = useState(0);
-  const [toleranceRules, setToleranceRules] = useState<ToleranceRule[]>([]);
-  const [toleranceChanges, setToleranceChanges] = useState<Map<number, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('en');
@@ -154,21 +178,11 @@ export default function SettingsScreen() {
       }
       setD3(await readD3Display());
 
-      const db = await getDb();
-      const toleranceRulesData = await db.getAllAsync(`
-        SELECT sr.id, s.name as supplement_name, sr.tolerance_window
-        FROM schedule_rules sr
-        JOIN supplements s ON sr.supplement_id = s.id
-        ORDER BY sr.display_order ASC
-      `) as ToleranceRule[];
-      setToleranceRules(toleranceRulesData);
-
       const lang = await getLanguage();
       setCurrentLanguage(lang);
 
-      const { getItemAsync } = await import('expo-secure-store');
       const savedAiProvider = await AsyncStorage.getItem('ai_provider');
-      const savedAiApiKey = await getItemAsync('ai_api_key');
+      const savedAiApiKey = await readSecret('ai_api_key');
       if (savedAiProvider) setAiProvider(savedAiProvider);
       if (savedAiApiKey) setAiApiKey(savedAiApiKey);
 
@@ -221,14 +235,8 @@ export default function SettingsScreen() {
         bedtime_hour: bedtimeHour,
         bedtime_minute: bedtimeMinute,
       });
-      for (const [ruleId, value] of toleranceChanges) {
-        await updateRuleTolerance(ruleId, value);
-      }
-      setToleranceChanges(new Map());
       await AsyncStorage.setItem('ai_provider', aiProvider);
-      const { setItemAsync, deleteItemAsync } = await import('expo-secure-store');
-      if (aiApiKey) await setItemAsync('ai_api_key', aiApiKey);
-      else await deleteItemAsync('ai_api_key');
+      await writeSecret('ai_api_key', aiApiKey || null);
       for (const [key, val] of Object.entries(notifPrefs)) {
         await setMiscFlag(`notif_pref_${key}`, val ? 'true' : 'false');
       }
@@ -248,11 +256,10 @@ export default function SettingsScreen() {
     } finally {
       setSaving(false);
     }
-  }, [name, weight, bedtimeHour, bedtimeMinute, toleranceChanges, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
+  }, [name, weight, bedtimeHour, bedtimeMinute, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
 
   const isDirty = useMemo(() => {
     if (!baseline) return false;
-    if (toleranceChanges.size > 0) return true;
     return (
       name !== baseline.name ||
       weight !== baseline.weight ||
@@ -265,7 +272,7 @@ export default function SettingsScreen() {
       NOTIF_TOPICS.some((k) => (notifPrefs[k] ?? true) !== (baseline.notifPrefs[k] ?? true))
     );
   }, [
-    baseline, toleranceChanges, name, weight, bedtimeHour, bedtimeMinute,
+    baseline, name, weight, bedtimeHour, bedtimeMinute,
     aiProvider, aiApiKey, quietStart, quietEnd, notifPrefs,
   ]);
 
@@ -315,27 +322,12 @@ export default function SettingsScreen() {
               `);
             });
             await AsyncStorage.clear();
-            const { deleteItemAsync } = await import('expo-secure-store');
-            await deleteItemAsync('ai_api_key');
+            await writeSecret('ai_api_key', null);
             resetToOnboarding();
           },
         },
       ],
     );
-  };
-
-  const handleToleranceChange = (ruleId: number, delta: number) => {
-    const current = toleranceChanges.get(ruleId) ?? toleranceRules.find((r) => r.id === ruleId)?.tolerance_window ?? 30;
-    const next = Math.min(120, Math.max(15, current + delta));
-    setToleranceChanges((prev) => {
-      const m = new Map(prev); m.set(ruleId, next); return m;
-    });
-  };
-
-  const getToleranceValue = (ruleId: number): number => {
-    if (toleranceChanges.has(ruleId)) return toleranceChanges.get(ruleId)!;
-    const rule = toleranceRules.find((r) => r.id === ruleId);
-    return rule?.tolerance_window ?? 30;
   };
 
   const handleLanguageSwitch = async (lang: string) => {
@@ -778,14 +770,6 @@ const styles = StyleSheet.create({
   chipText:      { ...T.body, color: C.textSub, fontWeight: '600' },
   chipTextActive:{ color: C.primary, fontWeight: '700' },
 
-  // Tolerance stepper
-  toleranceRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: space.sm },
-  toleranceName:   { ...T.body, color: C.textSub, fontWeight: '600', flex: 1 },
-  stepper:         { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  stepperBtn:      { width: 36, height: 36, borderRadius: radius.md, backgroundColor: C.surface, alignItems: 'center', justifyContent: 'center' },
-  stepperBtnDisabled: { opacity: 0.3 },
-  stepperBtnText:  { color: C.text, fontSize: 18, fontWeight: '700' },
-  stepperValue:    { color: C.text, fontSize: 15, fontWeight: '700', minWidth: 44, textAlign: 'center' },
 
   // Notifications
   notifRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
