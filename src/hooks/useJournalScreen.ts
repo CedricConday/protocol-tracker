@@ -22,6 +22,15 @@ export function useJournalScreen() {
     if (existing) {
       setLoadedMood(existing.mood);
       setExistingNote(existing.note);
+    } else {
+      // Without this else the two values survived from the previous load, so a
+      // date with no journal row opened holding yesterday's mood and note.
+      // JournalScreen then stamped that mood with today's date and enabled Save
+      // against a row the user never wrote — which is why the 60-day run shows
+      // days opening pre-selected at 🙂 with no DB row for that date
+      // (e2e/report/mood3/mood3.md, Check 1, seq 19 and 37).
+      setLoadedMood(null);
+      setExistingNote('');
     }
 
     const all = await getRecentJournalEntries(7);
