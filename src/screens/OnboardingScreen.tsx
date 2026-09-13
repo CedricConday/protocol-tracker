@@ -351,7 +351,14 @@ export default function OnboardingScreen({ onComplete }: Props) {
             style={[
               styles.nextButton,
               step === 0 && styles.nextButtonWide,
-              !canProceed() ? styles.buttonDisabled : null,
+              // NOT greyed out when a field is missing. The button works in
+              // that state — it tells you what is still needed — and a control
+              // that looks dead while being live is worse than one that is
+              // honestly either. Reported from the device: "stays greyed out
+              // even when I finished my name, pressing it did submit it."
+              // `saving` is the only state where it really is inert, so that
+              // is the only state that looks it.
+              saving ? styles.buttonDisabled : null,
             ]}
             onPress={() => {
               const missing = missingFields();
@@ -536,6 +543,7 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.4,
   },
+  // Full strength, because the button is tappable whatever is missing.
   nextText: {
     color: '#F7F7F2',
     fontSize: 16,
