@@ -75,7 +75,13 @@ export default function JournalScreen() {
 
   const [note, setNote] = useState('');
   const [dietaryNote, setDietaryNote] = useState('');
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  // Mood and note are stored together with the date they belong to. Keeping the
+  // date in the value is what makes this race-free: a clock roll or a reload can
+  // change `today` at any point, and a plain `selectedMood` string left the
+  // screen unable to tell "the user picked this for today" from "this is left
+  // over from yesterday" — so a refresh could overwrite a fresh tap, and a day
+  // boundary could carry a stale mood into the next day's entry.
+  const [moodEntry, setMoodEntry] = useState<{ date: string; mood: string } | null>(null);
   const [saved, setSaved] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const noteRef = useRef<TextInput>(null);
@@ -95,12 +101,34 @@ export default function JournalScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
+  const selectedMood = moodEntry && moodEntry.date === today ? moodEntry.mood : null;
+
+  // Seed the form from the stored entry for THIS date only, and never on top of
+  // a value already held for it. handleSave ends with loadData(), so without
+  // this the freshly-written row was pushed straight back through here; since
+  // the blur-autosave writes first, the value coming back was the stale mood and
+  // it replaced the tap the user had just made. That is why a 60-day run stored
+  // the same mood on every single day.
   useEffect(() => {
+    if (moodEntry?.date === today) return;
     if (loadedMood !== null) {
-      setSelectedMood(loadedMood);
+      setMoodEntry({ date: today, mood: loadedMood });
       setNote(existingNote);
     }
-  }, [loadedMood, existingNote]);
+  }, [loadedMood, existingNote, today, moodEntry]);
+
+  // When the calendar day rolls over and the new day has no stored entry yet,
+  // clear the text boxes. Without this, yesterday's note stayed in the field and
+  // was saved onto today's entry.
+  const noteDate = useRef(today);
+  useEffect(() => {
+    if (noteDate.current === today) return;
+    noteDate.current = today;
+    if (loadedMood === null) {
+      setNote('');
+      setDietaryNote('');
+    }
+  }, [today, loadedMood]);
 
   useEffect(() => {
     getDb().then(async (db) => {
@@ -142,7 +170,7 @@ export default function JournalScreen() {
   }, [selectedMood, handleSave]);
 
   const handleMoodSelect = (mood: string) => {
-    setSelectedMood(mood);
+    setMoodEntry({ date: today, mood });
   };
 
   const handleLogEvent = useCallback(async () => {
