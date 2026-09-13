@@ -1,4 +1,7 @@
-export type DoseStatus = 'upcoming' | 'due' | 'taken' | 'missed';
+// 'missed' is the clock's verdict on a dose the user never touched; 'skipped'
+// is the user's own decision. markOverdueDoses only ever writes the first, the
+// skip paths only ever the second (round 3, A2).
+export type DoseStatus = 'upcoming' | 'due' | 'taken' | 'missed' | 'skipped';
 export type AnchorType = 't0' | 'meal' | 'fixed';
 export type MedicalEventType = 'bloodwork' | 'mri' | 'appointment' | 'urine';
 
@@ -85,7 +88,11 @@ export interface DoseLog {
 export interface DaySummary {
   totalDoses: number;
   takenDoses: number;
+  /** Not taken, for any reason — `skippedDoses` is the deliberate subset of it.
+   *  Kept inclusive so every number that existed before 'skipped' did still
+   *  reads the same (ComplianceReport totals it for the doctor report). */
   missedDoses: number;
+  skippedDoses: number;
   compliancePct: number;
   waterMl: number;
   t0: Date | null;

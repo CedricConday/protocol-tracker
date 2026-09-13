@@ -238,7 +238,7 @@ export async function skipDose(logId: number): Promise<void> {
   const db = await getDb();
   const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
   await db.runAsync(
-    "UPDATE dose_logs SET status = 'missed', logged_time = ? WHERE id = ?",
+    "UPDATE dose_logs SET status = 'skipped', logged_time = ? WHERE id = ?",
     [Date.now(), logId]
   );
   if (log?.supplement_id) await decrementQuantity(log.supplement_id);
@@ -249,7 +249,7 @@ export async function skipDoseWithReason(logId: number, reason: string): Promise
   const db = await getDb();
   const log = await db.getFirstAsync<{supplement_id: string; date: string}>("SELECT supplement_id, date FROM dose_logs WHERE id = ?", [logId]);
   await db.runAsync(
-    "UPDATE dose_logs SET status = 'missed', logged_time = ?, skip_reason = ? WHERE id = ?",
+    "UPDATE dose_logs SET status = 'skipped', logged_time = ?, skip_reason = ? WHERE id = ?",
     [Date.now(), reason, logId]
   );
   if (log) await enqueueAction('dose_skipped', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString(), reason });
@@ -277,18 +277,26 @@ export async function getDaySummary(date: string = todayStr()): Promise<DaySumma
     [date]
   );
 
-  const counts = { taken: 0, missed: 0, upcoming: 0, due: 0 };
+  // Every status the table can hold has to be listed here: the total is summed
+  // from these keys, so a status missing from the object silently leaves the
+  // denominator and moves compliance. The other aggregates (getCalendarRange,
+  // getStreak, getWeightedAdherenceScore) count rows, so they needed nothing.
+  const counts = { taken: 0, missed: 0, skipped: 0, upcoming: 0, due: 0 };
   for (const row of logs) {
     counts[row.status as keyof typeof counts] = row.count;
   }
 
-  const total = counts.taken + counts.missed + counts.upcoming + counts.due;
+  const total = counts.taken + counts.missed + counts.skipped + counts.upcoming + counts.due;
+  // A deliberate skip still counts against adherence, exactly as it did when it
+  // was stored as 'missed' — Cedric's call, 2026-09-13. Moving it out of the
+  // denominator is a one-line change here and a re-read of every chart.
   const compliancePct = total > 0 ? Math.round((counts.taken / total) * 100) : 0;
 
   return {
     totalDoses: total,
     takenDoses: counts.taken,
-    missedDoses: counts.missed,
+    missedDoses: counts.missed + counts.skipped,
+    skippedDoses: counts.skipped,
     compliancePct,
     waterMl: anchor?.water_ml ?? 0,
     t0: anchor?.t0_timestamp ? new Date(anchor.t0_timestamp) : null,

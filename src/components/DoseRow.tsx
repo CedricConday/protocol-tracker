@@ -8,6 +8,7 @@ const statusBorderColors: Record<string, string> = {
   due:      '#F2603C',
   upcoming: '#2AA6B8',
   missed:   '#C0392B',
+  skipped:  '#9AA3B2',
 };
 
 interface Props {
@@ -67,6 +68,8 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     rightEl = <Text style={styles.rightDue}>{t('nowUpper')}</Text>;
   } else if (dose.status === 'missed') {
     rightEl = <Text style={styles.rightMissed}>✕</Text>;
+  } else if (dose.status === 'skipped') {
+    rightEl = <Text style={styles.rightSkipped}>—</Text>;
   } else {
     rightEl = <Text style={styles.rightUpcoming}>›</Text>;
   }
@@ -210,6 +213,11 @@ const styles = StyleSheet.create({
   },
   rightMissed: {
     color: '#C0392B',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rightSkipped: {
+    color: '#9AA3B2',
     fontSize: 14,
     fontWeight: '700',
   },

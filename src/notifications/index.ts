@@ -289,7 +289,7 @@ export const skipDoseFromNotification = async (doseId: number): Promise<void> =>
   try {
     const db = await getDb();
     await db.runAsync(
-      "UPDATE dose_logs SET status = 'missed', skip_reason = 'notification_skip' WHERE id = ?",
+      "UPDATE dose_logs SET status = 'skipped', skip_reason = 'notification_skip' WHERE id = ?",
       [doseId]
     );
   } catch (e) {

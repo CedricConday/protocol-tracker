@@ -26,6 +26,7 @@ function getStatusAccentColor(status: ScheduledDose['status']): string {
     case 'due': return '#f97316';
     case 'upcoming': return '#3b82f6';
     case 'missed': return '#ef4444';
+    case 'skipped': return '#94a3b8';
     default: return '#555555';
   }
 }
@@ -57,6 +58,7 @@ export default function DoseDetailModal({
   const accentColor = getStatusAccentColor(dose.status);
   const isTaken = dose.status === 'taken';
   const isMissed = dose.status === 'missed';
+  const isSkipped = dose.status === 'skipped';
   // Every actionable path needs a real dose_logs row id. Without it onTook and
   // onSkip are no-ops, so offering the buttons is worse than hiding them.
   const canAct = dose.logId != null && (dose.status === 'upcoming' || dose.status === 'due');
@@ -201,6 +203,12 @@ export default function DoseDetailModal({
           ) : isMissed ? (
             <View style={styles.missedBanner}>
               <Text style={styles.missedBannerText}>✕ Marked as missed</Text>
+            </View>
+          ) : isSkipped ? (
+            <View style={styles.skippedBanner}>
+              <Text style={styles.skippedBannerText}>
+                — {t('skipped')}{dose.skipReason ? `: ${dose.skipReason}` : ''}
+              </Text>
             </View>
           ) : (
             <Text style={styles.statusText}>
@@ -387,6 +395,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  skippedBanner: {
+    backgroundColor: '#ECEDE6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#CFD2C6',
+  },
+  skippedBannerText: {
+    color: '#5A6478',
+    fontSize: 15,
+    fontWeight: '700',
   },
   takenBanner: {
     backgroundColor: '#F0F7F0',

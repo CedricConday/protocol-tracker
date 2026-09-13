@@ -108,7 +108,7 @@ function fmtTime(ts: number | null): string {
 }
 
 const DOSE_STATUS_COLOR: Record<string, string> = {
-  taken: '#2F8F5B', missed: '#C0392B', due: '#F2B233', upcoming: '#5A6478',
+  taken: '#2F8F5B', missed: '#C0392B', skipped: '#9AA3B2', due: '#F2B233', upcoming: '#5A6478',
 };
 const EVENT_LABEL: Record<string, string> = {
   relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',

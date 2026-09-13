@@ -106,6 +106,38 @@ describe('getDaySummary', () => {
     expect(result.compliancePct).toBe(75);
   });
 
+  it('keeps a skipped dose in the denominator, exactly where missed put it', async () => {
+    mockDb.getAllAsync.mockResolvedValueOnce([
+      { status: 'taken', count: 3 },
+      { status: 'skipped', count: 1 },
+    ]);
+    mockDb.getFirstAsync.mockResolvedValueOnce({ water_ml: 500, t0_timestamp: Date.now() });
+
+    const result = await getDaySummary();
+    // Same four doses, same 75% the row produced when a skip was stored as
+    // 'missed'. A status left out of the counts object drops out of the total
+    // instead, and compliance silently rises to 100%.
+    expect(result.totalDoses).toBe(4);
+    expect(result.compliancePct).toBe(75);
+    expect(result.skippedDoses).toBe(1);
+    expect(result.missedDoses).toBe(1);
+  });
+
+  it('separates a deliberate skip from an untouched missed dose', async () => {
+    mockDb.getAllAsync.mockResolvedValueOnce([
+      { status: 'taken', count: 2 },
+      { status: 'missed', count: 1 },
+      { status: 'skipped', count: 1 },
+    ]);
+    mockDb.getFirstAsync.mockResolvedValueOnce({ water_ml: 0, t0_timestamp: Date.now() });
+
+    const result = await getDaySummary();
+    expect(result.totalDoses).toBe(4);
+    expect(result.skippedDoses).toBe(1);
+    expect(result.missedDoses).toBe(2); // not taken, either way — the doctor report totals this
+    expect(result.compliancePct).toBe(50);
+  });
+
   it('handles an empty dose list gracefully', async () => {
     mockDb.getAllAsync.mockResolvedValueOnce([]);
     mockDb.getFirstAsync.mockResolvedValueOnce(null);

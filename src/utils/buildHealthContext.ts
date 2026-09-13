@@ -30,7 +30,7 @@ export async function buildHealthContext(): Promise<string> {
       `SELECT s.name, COUNT(*) as count 
        FROM dose_logs dl
        JOIN supplements s ON dl.supplement_id = s.id
-       WHERE dl.status = 'missed' AND dl.date >= date('now', '-30 days')
+       WHERE dl.status IN ('missed', 'skipped') AND dl.date >= date('now', '-30 days')
        GROUP BY dl.supplement_id ORDER BY count DESC LIMIT 1`
     );
 

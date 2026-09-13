@@ -195,7 +195,7 @@ export default function ScheduleScreen() {
             >
               <View style={styles.info}>
                 <Text style={styles.name}>{item.supplementName}</Text>
-                {item.status === 'missed' && item.logId && (
+                {item.status === 'skipped' && item.logId && (
                   <Text style={styles.skipReasonText}>{item.skipReason ?? 'Skipped'}</Text>
                 )}
 
@@ -204,6 +204,8 @@ export default function ScheduleScreen() {
                     <Text style={{ color: '#2F8F5B', fontWeight: '700' }}>Taken</Text>
                   ) : item.status === 'missed' ? (
                     <Text style={{ color: '#C0392B', fontWeight: '700' }}>Missed</Text>
+                  ) : item.status === 'skipped' ? (
+                    <Text style={{ color: '#5A6478', fontWeight: '700' }}>Skipped</Text>
                   ) : (
                     <View style={{ backgroundColor: item.status === 'due' ? '#1B58B8' : '#ECEDE6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#1B58B8' }}>
                       <Text style={{ color: item.status === 'due' ? '#F7F7F2' : '#1B58B8', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
