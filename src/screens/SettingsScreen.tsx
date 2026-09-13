@@ -401,30 +401,15 @@ export default function SettingsScreen() {
 
             <Row icon="list-outline" label={t('manageSupplements')} sub={d3 ? `Daily D3 ${d3.dose} ${d3.unit} · add, edit, remove` : 'Set your daily D3 · add, edit, remove'} onPress={() => navigation.navigate('SupplementEditor')} />
 
-            <Row icon="alarm-outline" label={t('scheduleReminders')} sub={t('doseTimesSub')} onPress={() => navigation.navigate('Schedule')} />
-
-            <Row icon="chatbubble-ellipses-outline" label={t('reminderTone')} sub={t('reminderToneSub')} onPress={() => navigation.navigate('CoachingStyle')} />
-
-            <Row icon="timer-outline" label={t('timingWindowsRow')} sub={t('toleranceSub')} onPress={() => toggleSection('timing')} />
-            <Expand open={expandedSection === 'timing'}>
-              {toleranceRules.map((rule) => {
-                const val = getToleranceValue(rule.id);
-                return (
-                  <View key={rule.id} style={styles.toleranceRow}>
-                    <Text style={styles.toleranceName}>{rule.supplement_name}</Text>
-                    <View style={styles.stepper}>
-                      <Pressable haptic style={[styles.stepperBtn, val <= 15 && styles.stepperBtnDisabled]} onPress={() => handleToleranceChange(rule.id, -15)} disabled={val <= 15}>
-                        <Text style={styles.stepperBtnText}>−</Text>
-                      </Pressable>
-                      <Text style={styles.stepperValue}>{val}m</Text>
-                      <Pressable haptic style={[styles.stepperBtn, val >= 120 && styles.stepperBtnDisabled]} onPress={() => handleToleranceChange(rule.id, 15)} disabled={val >= 120}>
-                        <Text style={styles.stepperBtnText}>+</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                );
-              })}
-            </Expand>
+            {/* FamilySync is registered in the navigator but nothing navigated
+                to it, so invite-code sharing was unreachable in the shipped
+                build. Settings is where the other account-level rows live. */}
+            <Row
+              icon="people-outline"
+              label="Family Sync"
+              sub="Share your progress with family or a caregiver"
+              onPress={() => navigation.navigate('FamilySync')}
+            />
 
             <Row
               icon="moon-outline" label={t('bedtime')}

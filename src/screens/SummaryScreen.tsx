@@ -197,8 +197,40 @@ export default function SummaryScreen() {
         ))}
       </View>
 
+      {/* The protocol's clinical surfaces. These screens were registered in the
+          navigator but nothing navigated to them, so lab monitoring, MRI history
+          and the doctor report were unreachable in the shipped build. */}
+      <View style={styles.medicalRow}>
+        <TouchableOpacity
+          style={styles.medicalBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('LabResults')}
+          accessibilityLabel="Lab results"
+          accessibilityRole="button"
+        >
+          <Text style={styles.medicalBtnLabel}>Lab Results</Text>
+          <Text style={styles.medicalBtnSub}>Vitamin D · PTH · calcium</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.medicalBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('MriTracker')}
+          accessibilityLabel="MRI history"
+          accessibilityRole="button"
+        >
+          <Text style={styles.medicalBtnLabel}>MRI History</Text>
+          <Text style={styles.medicalBtnSub}>Scans and findings</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Share Button */}
-      <TouchableOpacity style={styles.shareBtn} activeOpacity={0.8} accessibilityLabel="Share your progress" accessibilityRole="button">
+      <TouchableOpacity
+        style={styles.shareBtn}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('Report')}
+        accessibilityLabel="Share your progress"
+        accessibilityRole="button"
+      >
         <Text style={styles.shareBtnText}>{t('shareProgress')}</Text>
       </TouchableOpacity>
 
