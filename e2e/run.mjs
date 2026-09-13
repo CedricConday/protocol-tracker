@@ -34,8 +34,21 @@ for (const flow of flows) {
   // Runtime errors the page threw count as findings even when the flow itself
   // completed — a flow can walk right past a red console error.
   for (const e of ctx.errors) {
-    outcome.findings.push({ summary: `Runtime ${e.kind}`, detail: e.text });
+    outcome.findings.push({ summary: `Runtime ${e.kind}`, detail: e.text, notice: e.advisory === true });
   }
+
+  // A finding that is not a defect must not decide pass/fail. Two kinds:
+  // a dependency's own deprecation notice (session.mjs ADVISORY_CONSOLE), and a
+  // flow's deliberate `NOTE (not a defect)` observation. Both stay in the
+  // report — they are how the next reader learns what the build looked like —
+  // but "failed" now means the flow found something wrong with the app.
+  //
+  // Before this, every flow reported failed on every run because two libraries
+  // announce their deprecation at load, and the summary read 0/9 clean whatever
+  // the app did.
+  const isNotice = (f) => f.notice === true || /^NOTE\b/.test(f.summary || '');
+  outcome.notices = outcome.findings.filter(isNotice);
+  outcome.findings = outcome.findings.filter((f) => !isNotice(f));
   if (outcome.findings.length && outcome.status === 'passed') outcome.status = 'failed';
   outcome.shots = ctx.shots;
   results.push(outcome);
@@ -58,6 +71,11 @@ const md = [
     ...(r.findings.length
       ? ['', ...r.findings.map((f) => `- **${f.summary}**${f.detail ? `\n  \`\`\`\n  ${String(f.detail).replace(/\n/g, '\n  ')}\n  \`\`\`` : ''}`)]
       : ['', 'No findings.']),
+    ...(r.notices?.length
+      ? ['', '<details><summary>' + r.notices.length + ' notice(s) — not defects, not counted</summary>', '',
+         ...r.notices.map((f) => `- ${f.summary}${f.detail ? `\n  \`\`\`\n  ${String(f.detail).replace(/\n/g, '\n  ')}\n  \`\`\`` : ''}`),
+         '', '</details>']
+      : []),
     '',
     r.shots?.length ? `Screenshots: ${r.shots.join(', ')}` : '',
     '',
@@ -66,5 +84,7 @@ const md = [
 await writeFile('e2e/report/report.md', md);
 
 const bad = results.filter((r) => r.status !== 'passed').length;
-process.stderr.write(`\n${results.length - bad}/${results.length} flows clean → e2e/report/report.md\n`);
+const defects = results.reduce((n, r) => n + r.findings.length, 0);
+const notices = results.reduce((n, r) => n + (r.notices?.length ?? 0), 0);
+process.stderr.write(`\n${results.length - bad}/${results.length} flows clean · ${defects} defect(s) · ${notices} notice(s), not counted → e2e/report/report.md\n`);
 process.exit(bad ? 1 : 0);

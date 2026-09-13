@@ -571,7 +571,7 @@ const md = [
   '|---|---|---|---|',
   ...perDay,
   '',
-  `Phase A taps all five moods in order, so the expected stored mood for every day is 😞 (Struggling), the last one tapped.`,
+  `Phase A taps all five moods in order and phase B saves; phase C then taps 🙂 (Okay) after that save, so the expected stored mood for every day is 🙂 — not 😞 (Struggling), the last mood phase A touches. The caption here said 😞 until 2026-09-13, which was true only while phase C's tap was being discarded: once H8 made it persist, the hardcoded expectation stated the opposite of the right answer. Exactly the stale hardcoded finding text item 1.2 exists to remove.`,
   '',
   `## Findings — ${mismatches.length} of ${sequence.filter((e) => e.matchesExpected !== null && e.authoritative).length} settled probes`,
   '',
@@ -650,5 +650,19 @@ const md = [
 
 await writeFile(join(OUT, 'mood3.md'), md);
 
-process.stderr.write(`\n${sequence.length} probes · ${mismatches.length} finding(s) on settled reads · ${preCommit.length} pre-commit · ${domDisagrees.length} probe-health warning(s) → ${join(OUT, 'mood3.md')}\n`);
+// H7: the summary line used to report only settled-read findings, so a run with
+// Check 1 = 2 printed exactly the same line as a run with Check 1 = 0. That is
+// why cb8f2ba's commit message records "reported 0 findings, so the probe as I
+// invoked it is not a signal either way" — the probe WAS signalling, in the
+// report body, and the headline said nothing. Same class as item 1.4: a
+// reporting defect that makes a run look clean.
+//
+// Both checks are in the line now, and a run that finds anything exits non-zero
+// so a caller cannot mistake it for a pass.
+const checkTotal = carryOver.length + divergence.length;
+process.stderr.write(`\n${sequence.length} probes · Check 1 (carry-over): ${carryOver.length} · Check 2 (lost selection): ${divergence.length} · ${mismatches.length} finding(s) on settled reads · ${preCommit.length} pre-commit · ${domDisagrees.length} probe-health warning(s) → ${join(OUT, 'mood3.md')}\n`);
 if (problems.length) process.stderr.write(`${problems.length} driver problem(s) — see the report\n`);
+const failed = checkTotal + mismatches.length + problems.length;
+if (failed) process.stderr.write(`FAIL: ${failed} problem(s)\n`);
+else process.stderr.write('PASS: no checks fired\n');
+process.exit(failed ? 1 : 0);

@@ -22,6 +22,18 @@ const IGNORED_CONSOLE = [
 
 const isNoise = (text) => IGNORED_CONSOLE.some((re) => re.test(text));
 
+// Real, but not this app's to fix and not news: a dependency announcing its own
+// deprecation on every single page load. These were counted as findings, so
+// every flow reported "failed" and the summary line read 0/9 clean no matter
+// what the app did — a number that cannot go up is not a number. They are still
+// printed, under their own heading, and they no longer decide pass/fail.
+const ADVISORY_CONSOLE = [
+  /props\.pointerEvents is deprecated/i,
+  /expo-background-fetch: This library is deprecated/i,
+  /is deprecated and will be removed in a future (major )?(release|version)/i,
+];
+const isAdvisory = (text) => ADVISORY_CONSOLE.some((re) => re.test(text));
+
 // ── Native stub: expo-notifications' scheduler ────────────────────────────────
 // `Notifications.getAllScheduledNotificationsAsync()` has no web implementation
 // and throws UnavailabilityError. On a device it returns a list. Because
@@ -107,7 +119,7 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
     const text = `${m.text()}`;
     console_.push({ type: m.type(), text });
     if ((m.type() === 'error' || m.type() === 'warning') && !isNoise(text)) {
-      errors.push({ kind: `console.${m.type()}`, text });
+      errors.push({ kind: `console.${m.type()}`, text, advisory: isAdvisory(text) });
     }
   });
   page.on('pageerror', (e) => {

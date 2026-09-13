@@ -29,31 +29,46 @@ export default {
       'The supplement created during onboarding is not listed in the editor', editor.slice(0, 500));
 
     // --- Add a supplement ---
-    // The add control is icon-only: an Ionicon glyph inside a TouchableOpacity,
-    // with no text and no accessibility label. There is nothing to match on, so
-    // it has to be found geometrically — the small square touchable in the
-    // screen header. That absence is itself a finding (see below).
+    // The add control is icon-only in the visual sense, but it IS named:
+    // SupplementEditorScreen.tsx:264 renders accessibilityRole="button" and
+    // accessibilityLabel={showAddForm ? 'Close the add supplement form' : 'Add
+    // a supplement'}. This flow used to assert the opposite unconditionally —
+    // it pushed "no accessibilityLabel and no accessibilityRole" as a finding on
+    // every run without ever looking, and hunted the button by pixel geometry
+    // because of the same wrong premise.
+    //
+    // Ask for the name first, which is what a screen reader has. Geometry stays
+    // as a fallback, and the a11y finding is filed only when the name really is
+    // missing.
+    const addName = await ctx.page.evaluate(() => {
+      const el = [...document.querySelectorAll('[aria-label]')]
+        .find((e) => /^(add a supplement|close the add supplement form)$/i.test((e.getAttribute('aria-label') || '').trim()));
+      return el ? { label: el.getAttribute('aria-label'), role: el.getAttribute('role') } : null;
+    });
+
+    let addBtn = addName ? ctx.page.locator(`[aria-label="${addName.label}"]`).first() : null;
     const candidates = [];
-    let addBtn = null;
-    for (const el of await visibleTouchables(ctx)) {
-      const box = await el.boundingBox();
-      if (!box) continue;
-      // An icon-only control still has "text": the glyph from the icon font,
-      // which lives in the Unicode private-use area. Strip that to decide
-      // whether a human-readable label exists.
-      const raw = await el.evaluate((e) => e.innerText.trim());
-      const label = raw.replace(/[\p{Private_Use}\s]/gu, '');
-      candidates.push(`${label ? JSON.stringify(label.slice(0, 20)) : '(icon only)'}@${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}`);
-      if (!addBtn && !label && box.y > 40 && box.y < 160 && box.width <= 60 && box.height <= 60) addBtn = el;
+    if (!addBtn) {
+      for (const el of await visibleTouchables(ctx)) {
+        const box = await el.boundingBox();
+        if (!box) continue;
+        // An icon-only control still has "text": the glyph from the icon font,
+        // which lives in the Unicode private-use area. Strip that to decide
+        // whether a human-readable label exists.
+        const raw = await el.evaluate((e) => e.innerText.trim());
+        const label = raw.replace(/[\p{Private_Use}\s]/gu, '');
+        candidates.push(`${label ? JSON.stringify(label.slice(0, 20)) : '(icon only)'}@${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}`);
+        if (!addBtn && !label && box.y > 40 && box.y < 160 && box.width <= 60 && box.height <= 60) addBtn = el;
+      }
+      findings.push({
+        summary: 'The "add supplement" button has no accessible name — a screen reader announces an unlabelled control and nothing but pixel position identifies it',
+        detail: `visible touchables on the editor: ${candidates.join(' | ')}`,
+      });
     }
 
     check(addBtn !== null,
-      'Could not locate the icon-only "add supplement" button in the editor header',
-      `visible touchables: ${candidates.join(' | ')}`);
-    findings.push({
-      summary: 'The "add supplement" button has no accessibilityLabel and no accessibilityRole — only an icon glyph, so a screen reader announces an unlabelled control and nothing but pixel position identifies it',
-      detail: `visible touchables on the editor: ${candidates.join(' | ')}`,
-    });
+      'Could not locate the "add supplement" button in the editor header',
+      addName ? `accessible name present ("${addName.label}") but the element could not be resolved` : `visible touchables: ${candidates.join(' | ')}`);
 
     let opened = false;
     if (addBtn) {

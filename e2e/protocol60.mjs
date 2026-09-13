@@ -125,6 +125,19 @@ const findings = [];
 let currentDay = 0;
 let currentScreen = 'boot';
 const screensHit = new Set();
+// Settings sub-entries are counted separately from distinct screens.
+//
+// auditScreen() adds whatever name it is given to screensHit, and the Settings
+// deep sweep calls it as `Settings/<row label>` for each of the eleven rows. So
+// eleven rows read as eleven new screens and a run that covered 20 screens
+// reported 31. That was never a defect in the app — it was a reporting defect
+// that made an unchanged run look like new coverage, which is the worst kind
+// because it reads as progress.
+//
+// A name containing "/" is a sub-entry of the screen before the slash: it is
+// counted here, the parent is counted in screensHit, and the report gives both
+// numbers instead of adding them together.
+const subEntriesHit = new Set();
 const note = (severity, screen, what, repro, cause) =>
   findings.push({ severity, screen, what, repro, cause, day: currentDay });
 
@@ -411,7 +424,12 @@ const fillPlaceholder = async (ph, value) => {
  *  as a raw i18n key. Measured from the box model, never eyeballed. */
 async function auditScreen(name) {
   currentScreen = name;
-  screensHit.add(name);
+  if (name.includes('/')) {
+    subEntriesHit.add(name);
+    screensHit.add(name.slice(0, name.indexOf('/')));
+  } else {
+    screensHit.add(name);
+  }
   const probs = await page.evaluate(() => {
     const hidden = new Set(document.querySelectorAll('[aria-hidden="true"]'));
     const buried = (el) => { for (let n = el; n; n = n.parentElement) if (hidden.has(n)) return true; return false; };
@@ -745,11 +763,28 @@ async function addSupplements(n) {
   await shot('supplements-open');
   for (const sup of SUPPLEMENTS) {
     const before = (await sql('SELECT COUNT(*) c FROM supplements').catch(() => [{ c: -1 }]))[0].c;
-    // The add control is an Ionicons "add" glyph inside a TouchableOpacity with
-    // no text and no accessibilityLabel (SupplementEditorScreen.tsx:259), so no
-    // name-based query can reach it. Click the nameless header button instead
-    // and file the missing accessible name once.
-    const opened = await page.evaluate(() => {
+    // The add control IS named: SupplementEditorScreen.tsx:264 renders
+    // `accessibilityLabel={showAddForm ? 'Close the add supplement form' : 'Add
+    // a supplement'}` with accessibilityRole="button". The comment that used to
+    // sit here said the opposite, and the harness filed "no accessible name"
+    // every single run without ever checking — the note was unconditional, one
+    // line below a geometry hunt that only existed because of the same wrong
+    // premise.
+    //
+    // So: try the name first, which is what a screen reader has. Fall back to
+    // geometry only if the name is genuinely absent, and file the a11y finding
+    // only in that case.
+    const addName = await page.evaluate(() => {
+      const el = [...document.querySelectorAll('[aria-label]')]
+        .find((e) => /^(add a supplement|close the add supplement form)$/i.test((e.getAttribute('aria-label') || '').trim()));
+      return el ? el.getAttribute('aria-label') : null;
+    });
+
+    let opened = false;
+    if (addName) {
+      opened = await clickLabel(addName);
+    }
+    if (!opened) opened = await page.evaluate(() => {
       const isGlyph = (t) => t.length === 1 && t.codePointAt(0) >= 0xe000 && t.codePointAt(0) <= 0xf8ff;
       // The "+" sits at the top right of the header. Picking the last glyph in
       // DOM order instead grabbed the expand chevron on the first supplement
@@ -776,10 +811,11 @@ async function addSupplements(n) {
       note('medium', 'SupplementEditor', `No add control found when adding "${sup.name}"`, `day ${n}`, 'src/screens/SupplementEditorScreen.tsx:259');
       break;
     }
-    if (!namelessAddReported) {
+    // Only if the assertion actually failed.
+    if (!addName && !namelessAddReported) {
       namelessAddReported = true;
       note('medium', 'SupplementEditor',
-        'The "add supplement" button is an icon with no text and no accessibilityLabel, so it has no accessible name — screen-reader users cannot identify it and no name-based test can reach it',
+        'The "add supplement" button has no accessible name — screen-reader users cannot identify it and no name-based test can reach it; the harness had to find it by geometry',
         'open Settings > Manage supplements and inspect the header button',
         'src/screens/SupplementEditorScreen.tsx:259-265');
     }
@@ -1608,17 +1644,26 @@ const deduped = [...seen.values()].sort((a, b) => RANK[a.severity] - RANK[b.seve
 // A defect that reproduced on many independent days is certain; a one-off is a
 // suspicion until someone reproduces it.
 const certain = deduped.filter((f) => f.count >= 2 || f.severity === 'high');
+// Everything else is a medium/low one-off. This column swung 14 -> 6 between two
+// runs of IDENTICAL code, so it is not a measurement and must not be read as
+// one: a one-off depends on where the simulated clock happened to land, whether
+// an animation had settled, and which day a console warning attached itself to.
+// It is not made deterministic here — that would mean removing the timing
+// dependence from a dozen unrelated checks — so it is labelled advisory
+// everywhere it appears, and it is kept out of every headline number.
 const suspected = deduped.filter((f) => !certain.includes(f));
 
 const row = (f) => `| ${f.severity} | ${f.screen} | ${f.what.replace(/\|/g, '\\|')} | ${f.repro.replace(/\|/g, '\\|')} | ${f.cause || '—'} |`;
 const md = [
   `# Protocol Tracker — ${TOTAL_DAYS}-day protocol simulation audit`,
   '',
-  `Generated ${new Date().toISOString()} · ${days.length} simulated days from ${START} (Europe/Berlin) · ${screensHit.size} distinct screens.`,
+  `Generated ${new Date().toISOString()} · ${days.length} simulated days from ${START} (Europe/Berlin) · ${screensHit.size} distinct screens (+ ${subEntriesHit.size} sub-entries).`,
   '',
   `Clock seam: **none in app source** — driven via Playwright \`clock.setFixedTime\`, which replaces \`Date\`/\`Date.now\` in the page and leaves timers real. No app code was modified for this run.`,
   '',
-  `Counts: ${certain.length} certain · ${suspected.length} suspected · ${findings.length} raw observations before dedupe.`,
+  `**Counts: ${certain.length} certain.** ${findings.length} raw observations before dedupe.`,
+  '',
+  `Plus ${suspected.length} advisory one-offs, listed below and **deliberately not part of the count**. That column swung 14 → 6 between two runs of identical code; it is not a measurement and a change in it is not a trend.`,
   '',
   '## Certain',
   '',
@@ -1626,7 +1671,9 @@ const md = [
   '| --- | --- | --- | --- | --- |',
   ...certain.map(row),
   '',
-  '## Suspected',
+  '## Advisory — one-offs, not a count',
+  '',
+  '_Each of these fired on exactly one day at medium or low severity. They are timing-sensitive: this list swung 14 → 6 between two runs of identical code. Read a row, do not read the length._',
   '',
   '| severity | screen | what breaks | repro step | likely cause |',
   '| --- | --- | --- | --- | --- |',
@@ -1634,12 +1681,14 @@ const md = [
   '',
   '## Coverage',
   '',
-  `Screens: ${[...screensHit].sort().join(', ')}`,
+  `Screens (${screensHit.size}): ${[...screensHit].sort().join(', ')}`,
+  '',
+  `Sub-entries reached (${subEntriesHit.size}, not counted as screens): ${[...subEntriesHit].sort().join(', ') || 'none'}`,
   '',
   `Day shapes: ${days.map((d) => `${d.day}:${d.shape}`).join(', ')}`,
   '',
 ].join('\n');
 await writeFile(join(OUT, 'audit.md'), md);
 
-log(`\n${days.length} days · ${screensHit.size} screens · ${certain.length} certain / ${suspected.length} suspected → ${join(OUT, 'audit.md')}`);
+log(`\n${days.length} days · ${screensHit.size} screens (+${subEntriesHit.size} sub-entries) · ${certain.length} certain · ${suspected.length} advisory one-offs (not a count) → ${join(OUT, 'audit.md')}`);
 await browser.close();
