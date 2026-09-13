@@ -4,17 +4,21 @@
 import { onboard, gotoTab, screenText, TAB_LABELS, reporter } from '../lib/prelude.mjs';
 
 // A marker that only that screen renders, so "the tab switched" is provable.
+// Trackers was the Records tab until 2026-09-13. Doses Today / Day Streak moved
+// to History with the rest of the compliance block, so the marker for each of
+// those two tabs had to move with them — a marker that follows the tab name
+// rather than the content is how a rename turns into a false finding.
 const MARKERS = {
-  History: /Mon|Tue|Wed|January|February|March|April|May|June|July|August|September|October|November|December/,
+  History: /Doses Today|Day Streak/,
   Journal: /How are you feeling\?/,
   Today: /Start My Day|of \d+ doses|All doses done/,
-  Records: /Doses Today|Day Streak/,
+  Trackers: /Water|Sunlight|Exercise|Food/,
   Settings: /Danger zone|Manage supplements/,
 };
 
 export default {
   name: 'tabs',
-  description: 'Bottom tabs — History, Journal, Today, Records, Settings all render',
+  description: 'Bottom tabs — History, Journal, Today, Trackers, Settings all render',
 
   async run(ctx) {
     const { findings, check } = reporter();
@@ -45,7 +49,7 @@ export default {
     // Back to Today, then round-trip once more — a tab that only works on first
     // mount is a real failure mode with the stack navigators nested in tabs.
     await gotoTab(ctx, 'Today');
-    await gotoTab(ctx, 'Records');
+    await gotoTab(ctx, 'Trackers');
     await gotoTab(ctx, 'Today');
     const back = await screenText(ctx);
     check(MARKERS.Today.test(back), 'Today did not re-render after a second round trip', back.slice(0, 400));

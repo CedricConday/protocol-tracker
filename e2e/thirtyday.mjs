@@ -309,10 +309,13 @@ async function probeDead(label, screen) {
 }
 
 // ── navigation ───────────────────────────────────────────────────────────────
-const TABS = ['History', 'Journal', 'Today', 'Records', 'Settings'];
+const TABS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
 // The tab bar renders as <a role="tab" href="/Home">, and its innerText is the
 // icon glyph plus the label, so the href is the only stable handle.
-const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Records: '/Summary', Settings: '/Settings' };
+// Records became Trackers on 2026-09-13. Only the visible label moved; the
+// route id is still `Summary`, which is why gotoTab matches on the href and
+// the rename costs one line here instead of a sweep.
+const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Trackers: '/Summary', Settings: '/Settings' };
 async function gotoTab(label) {
   const ok = await page.evaluate((href) => {
     const hit = document.querySelector(`a[role="tab"][href="${href}"]`);
@@ -385,7 +388,7 @@ async function runDay(n) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await wait(n === 1 ? 9000 : 7000);
   } else {
-    await gotoTab('Records');
+    await gotoTab('Trackers');
     await gotoTab('Today');
   }
   currentScreen = 'Today';
@@ -514,7 +517,7 @@ async function runDay(n) {
       await inputs[inputs.length - 1].fill(body).catch(() => {});
     }
     // Mood buttons carry `Select mood <label>` (JournalScreen.tsx:162); vary the
-    // mood by day so the Records mood chart has something to plot.
+    // mood by day so the Journal mood strip has something to plot.
     const MOOD_LABELS = ['Great', 'Good', 'Okay', 'Rough', 'Struggling'];
     const wantMood = MOOD_LABELS[n % MOOD_LABELS.length];
     if (!(await clickLabel(`Select mood ${wantMood}`))) {
@@ -636,10 +639,11 @@ async function runDay(n) {
     if (closed) { await wait(1800); await shot('day-closed'); }
   });
 
-  // Records + History are read surfaces; look at them on a cadence so the
+  // Trackers + History are the two non-Today surfaces; look at them on a
+  // cadence so the
   // weekly/streak logic is exercised as history accumulates.
   if (n % 3 === 0) {
-    await step('records', async () => { await gotoTab('Records'); await auditScreen('Records'); await shot('records'); });
+    await step('trackers', async () => { await gotoTab('Trackers'); await auditScreen('Trackers'); await shot('trackers'); });
     await step('history', async () => { await gotoTab('History'); await auditScreen('History'); await shot('history'); });
     await gotoTab('Today');
   }
@@ -801,18 +805,51 @@ await step('day-key drift check', async () => {
 });
 
 // Adherence/streak surfaces should reflect 30 days of history, not zero.
-await step('records sanity', async () => {
-  await gotoTab('Records');
-  await auditScreen('Records');
-  await shot('final-records');
-  const t = await flat();
-  if (/0\s*%\s*Compliance/i.test(t) || /\b0\s*Day Streak/i.test(t)) {
-    note('high', 'Records', `Records reports zero after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 200)}"`,
-      'run the 30-day pass, open Records', 'src/hooks/useSummaryScreen.ts');
-  }
+await step('compliance sanity', async () => {
+  // The compliance block moved from the Records tab to History on 2026-09-13,
+  // under the month grid. Reading it off the Trackers tab — which is now four
+  // launcher cards and no numbers — would report zero forever.
+  //
+  // The old check also tested /0\s*%\s*Compliance/, and nothing in the app has
+  // ever rendered the word "Compliance" next to a percentage: the label is
+  // "Weighted Adherence". That half could not fail, so it is gone rather than
+  // carried across. What is left reads the two labels the screen really paints.
   await gotoTab('History');
   await auditScreen('History');
   await shot('final-history');
+  const t = await flat();
+
+  const streak = /(\d+)\s*Day Streak/i.exec(t);
+  const adherence = /(\d+)\s*%\s*Weighted Adherence/i.exec(t);
+  const doses = /(\d+)\s*\/\s*(\d+)\s*Doses Today/i.exec(t);
+
+  if (!streak && !adherence && !doses) {
+    note('high', 'History', `The compliance block did not render on History at all after ${TOTAL_DAYS} days: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History and scroll below the month grid`,
+      'src/screens/CalendarScreen.tsx (compliance block, moved from SummaryScreen)');
+  } else if (streak && Number(streak[1]) === 0) {
+    note('high', 'History', `Day Streak reads 0 after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History`, 'src/hooks/useSummaryScreen.ts');
+  } else if (adherence && Number(adherence[1]) === 0) {
+    note('high', 'History', `Weighted Adherence reads 0% after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History`, 'src/hooks/useSummaryScreen.ts');
+  }
+
+  // Trackers is a launcher now. It owes four cards and no numbers; a compliance
+  // figure left behind here would mean the restructure copied rather than moved.
+  await gotoTab('Trackers');
+  await auditScreen('Trackers');
+  await shot('final-trackers');
+  const tr = await flat();
+  const missing = ['Water', 'Sunlight', 'Exercise', 'Food'].filter((c) => !tr.includes(c));
+  if (missing.length) {
+    note('high', 'Trackers', `The Trackers tab is missing its ${missing.join(', ')} card(s): "${tr.slice(0, 300)}"`,
+      'open the Trackers tab', 'src/screens/SummaryScreen.tsx');
+  }
+  if (/Doses Today|Weighted Adherence/i.test(tr)) {
+    note('medium', 'Trackers', `Trackers still renders compliance numbers that moved to History: "${tr.slice(0, 300)}"`,
+      'open the Trackers tab', 'src/screens/SummaryScreen.tsx');
+  }
 });
 
 // ── export ───────────────────────────────────────────────────────────────────

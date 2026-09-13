@@ -58,7 +58,7 @@ const MOODS = [
   { emoji: '😞', label: 'Struggling' },
 ];
 const PATIENT = { name: 'Moodtest', weightKg: '62', dailyIU: '62000' };
-const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Records: '/Summary', Settings: '/Settings' };
+const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Trackers: '/Summary', Settings: '/Settings' };
 
 function dayDate(n) {
   const d = new Date(`${START}T12:00:00Z`);

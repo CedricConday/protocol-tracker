@@ -27,7 +27,7 @@ const isNoise = (text) => IGNORED_CONSOLE.some((re) => re.test(text));
 // and throws UnavailabilityError. On a device it returns a list. Because
 // `startDay()` awaits a helper that rethrows that error (see the audit), the
 // whole active-day surface is unreachable on web without a stub — every dose
-// row, the water and sun trackers, the day's Records numbers.
+// row, the water and sun trackers, the day's compliance numbers.
 //
 // So flows can opt in with `session: { stubNotificationScheduler: true }`, which
 // rewrites exactly one branch of the served dev bundle to return `[]` instead of

@@ -7,7 +7,20 @@
 // throws if a step does not land so a broken prelude cannot masquerade as a
 // broken feature.
 
-export const TAB_LABELS = ['History', 'Journal', 'Today', 'Records', 'Settings'];
+export const TAB_LABELS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
+
+// The route id behind each tab. `Trackers` was called `Records` until
+// 2026-09-13; only the visible label moved, the route is still `Summary`.
+// Matching on the href rather than the label is what makes a rename a one-line
+// change here instead of a sweep through six flows — and it is the same handle
+// protocol60/thirtyday/mood3 already use.
+export const TAB_HREF = {
+  History: '/Calendar',
+  Journal: '/Journal',
+  Today: '/Home',
+  Trackers: '/Summary',
+  Settings: '/Settings',
+};
 
 /**
  * Text of the tab that is actually on screen.
@@ -108,10 +121,30 @@ export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = 
 }
 
 /**
- * Switch bottom tab by its visible label. The tab bar renders its label as a
- * plain text node, so an exact match on the label is the stable handle.
+ * Switch bottom tab.
+ *
+ * The tab bar renders as `<a role="tab" href="/Home">`, so the href is the
+ * stable handle and the visible label is not: a rename or a locale change moves
+ * the label and leaves the route alone. Falls back to the label for a tab with
+ * no href in TAB_HREF, and throws naming the tabs it actually saw rather than
+ * timing out on a selector, so a miss reads as a tab-bar fact.
  */
 export async function gotoTab(ctx, label) {
+  const href = TAB_HREF[label];
+  if (href) {
+    const seen = await ctx.page.evaluate((wanted) => {
+      const tabs = [...document.querySelectorAll('a[role="tab"]')];
+      const hit = tabs.find((a) => a.getAttribute('href') === wanted)
+        || tabs.find((a) => (a.getAttribute('href') || '').startsWith(wanted + '/'));
+      if (hit) { hit.click(); return null; }
+      return tabs.map((a) => a.getAttribute('href') || '(no href)');
+    }, href);
+    if (seen) {
+      throw new Error(`gotoTab: no tab anchor with href "${href}" for "${label}". Tabs present: ${seen.join(', ') || 'none'}`);
+    }
+    await ctx.page.waitForTimeout(1200);
+    return;
+  }
   const tab = ctx.page.getByText(label, { exact: true }).last();
   await tab.waitFor({ state: 'visible', timeout: 8000 });
   await tab.click();
