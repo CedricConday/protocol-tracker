@@ -9,6 +9,14 @@ import Svg, { Circle, G, Path } from 'react-native-svg';
 //
 // `rays`, `body` and the face are separate groups so an animation can turn the
 // rays or blink the eyes without touching the rest.
+//
+// Placement is written as SVG `transform` strings rather than the `rotation` /
+// `translateX` / `origin` props react-native-svg also accepts. Those props are
+// non-spec: on web the shim turns `origin` into a literal `transform-origin`
+// DOM attribute and passes `rotation`/`translateX`/`translateY` straight
+// through, so React logged an invalid-property warning on every screen that
+// draws the mascot. Every origin here was already `0, 0`, so the geometry is
+// unchanged, and native parses transform strings the same way.
 
 const AMBER = '#E9A23C';
 const INK = '#14213D';
@@ -31,10 +39,10 @@ interface Props {
 export default function SunMascot({ size = 66, rayRotation = 0 }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 1024 1024" accessibilityRole="image">
-      <G translateX={512} translateY={512}>
-        <G rotation={rayRotation} origin="0, 0">
+      <G transform="translate(512, 512)">
+        <G transform={`rotate(${rayRotation})`}>
           {RAY_ANGLES.map((a) => (
-            <Path key={a} d={RAY} fill={AMBER} rotation={a} origin="0, 0" />
+            <Path key={a} d={RAY} fill={AMBER} transform={`rotate(${a})`} />
           ))}
         </G>
         <Circle cx={0} cy={0} r={215} fill={AMBER} />

@@ -77,6 +77,75 @@ export async function addWater(amount_ml: number, date: string = todayStr()): Pr
   });
 }
 
+/**
+ * Water and sun were INSERT-only: `addWater` and `logSunExposure` were the only
+ * writers against `water_logs` / `sun_log` anywhere in src/, so a mis-tap — 750 ml
+ * logged instead of 250, six taps instead of one — was permanent for that day.
+ *
+ * `daily_anchors.water_ml` is the running total the UI reads and `water_logs`
+ * holds the individual entries, so every correction below moves both inside one
+ * transaction. A total that disagrees with the sum of its entries is worse than
+ * the mis-tap it came from.
+ */
+export async function undoLastWater(date: string = todayStr()): Promise<number | null> {
+  const db = await getDb();
+  const last = await db.getFirstAsync<{ id: number; amount_ml: number }>(
+    'SELECT id, amount_ml FROM water_logs WHERE date = ? ORDER BY logged_at DESC, id DESC LIMIT 1',
+    [date]
+  );
+  if (!last) return null;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM water_logs WHERE id = ?', [last.id]);
+    // MAX(0, …) because the anchor is the number on screen: a negative total
+    // would render, and would be a second bug reported as the first one.
+    await db.runAsync(
+      'UPDATE daily_anchors SET water_ml = MAX(0, water_ml - ?) WHERE date = ?',
+      [last.amount_ml, date]
+    );
+  });
+  return last.amount_ml;
+}
+
+/** Correct one entry in place, moving the day's total by the difference. */
+export async function correctWaterLog(logId: number, amount_ml: number): Promise<void> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ date: string; amount_ml: number }>(
+    'SELECT date, amount_ml FROM water_logs WHERE id = ?',
+    [logId]
+  );
+  if (!row) return;
+  const next = Math.max(0, Math.round(amount_ml));
+  const delta = next - row.amount_ml;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE water_logs SET amount_ml = ? WHERE id = ?', [next, logId]);
+    await db.runAsync(
+      'UPDATE daily_anchors SET water_ml = MAX(0, water_ml + ?) WHERE date = ?',
+      [delta, row.date]
+    );
+  });
+}
+
+/** Every entry for the day, newest first — what a correction screen lists. */
+export async function getWaterLogs(
+  date: string = todayStr()
+): Promise<{ id: number; amount_ml: number; logged_at: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT id, amount_ml, logged_at FROM water_logs WHERE date = ? ORDER BY logged_at DESC, id DESC',
+    [date]
+  );
+}
+
+/**
+ * Sun is stored as one aggregated row per day (`sun_log.date` is UNIQUE), so
+ * there is no last entry to remove — `setSunExposure` already corrects the total
+ * outright, and this clears the day back to nothing.
+ */
+export async function clearSunLog(date: string = todayStr()): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM sun_log WHERE date = ?', [date]);
+}
+
 // ── Schedule Rules ────────────────────────────────────────────────────────────
 
 export async function getScheduleRules(): Promise<(ScheduleRule & { supplement_name: string; supplement_form: string; notes: string })[]> {
@@ -662,6 +731,52 @@ export async function getSupplementsWithRules(): Promise<{
   );
 }
 
+/**
+ * Materialise one dose row for a rule added after "Start My Day".
+ *
+ * Only `startDay()` called `createDoseLogs`, so a supplement added mid-day had a
+ * rule but no `dose_logs` row and never appeared in today's protocol — it showed
+ * up for the first time the next morning.
+ *
+ * Re-running `createDoseLogs` for every rule would have been the smaller diff,
+ * but it deletes only `status = 'upcoming'` rows and then re-inserts a row for
+ * *every* rule: a supplement already taken today keeps its 'taken' row AND gains
+ * a fresh 'upcoming' one. One row for the new rule only, no deletes.
+ *
+ * No-op before the day is started — `startDay()` will pick the rule up itself.
+ */
+async function createDoseLogForNewRule(
+  supplementId: string,
+  ruleId: number,
+  offsetMinutes: number,
+  date: string = todayStr()
+): Promise<void> {
+  const db = await getDb();
+  const anchor = await db.getFirstAsync<{ t0_timestamp: number | null }>(
+    'SELECT t0_timestamp FROM daily_anchors WHERE date = ?',
+    [date]
+  );
+  if (!anchor?.t0_timestamp) return;
+
+  const scheduledTime = anchor.t0_timestamp + offsetMinutes * 60 * 1000;
+
+  // TODO(cedric): DECISION NEEDED — a dose added when its own t0 + offset has
+  // already passed. Three defensible answers and this is your call, not mine:
+  //   'due'     — actionable now, the user just added it and can take it late
+  //   'missed'  — honest about the clock, but marks a dose the user never had
+  //   tomorrow  — skip today entirely, first dose lands at the next start
+  // Stubbed as 'due' so the dose is at least actionable and cannot be silently
+  // aged out: markOverdueDoses() only rewrites 'upcoming', so a 'due' row
+  // survives until the user acts on it.
+  const status = scheduledTime <= Date.now() ? 'due' : 'upcoming';
+
+  await db.runAsync(
+    `INSERT INTO dose_logs (date, supplement_id, rule_id, scheduled_time, status)
+     VALUES (?, ?, ?, ?, ?)`,
+    [date, supplementId, ruleId, scheduledTime, status]
+  );
+}
+
 export async function addSupplement(data: {
   name: string; form: string;
   dose_amount: string; dose_unit: string;
@@ -673,11 +788,12 @@ export async function addSupplement(data: {
     'INSERT INTO supplements (id, name, form) VALUES (?, ?, ?)',
     [id, data.name.trim(), data.form]
   );
-  await db.runAsync(
+  const rule = await db.runAsync(
     `INSERT INTO schedule_rules (supplement_id, dose_amount, dose_unit, offset_minutes, with_food, tolerance_window, anchor_type)
      VALUES (?, ?, ?, ?, ?, ?, 't0')`,
     [id, data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window]
   );
+  await createDoseLogForNewRule(id, rule.lastInsertRowId, data.offset_minutes);
 }
 
 export async function updateSupplementAndRule(data: {

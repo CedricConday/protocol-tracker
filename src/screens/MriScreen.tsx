@@ -43,6 +43,21 @@ function daysSince(d: string): number {
   return Math.floor((Date.now() - new Date(d + 'T00:00:00').getTime()) / 86400000);
 }
 
+// expo-secure-store has no web implementation: the module's default export has
+// no `getValueWithKeyAsync`, so every call throws there and the rejection
+// escapes as an uncaught error — the audit sees it on day 3, from Settings.
+// `await` sits INSIDE the try on purpose; returning a promise from a try block
+// does not bring that promise's rejection into the catch. Same stance as
+// `syncClient.getPatientJwt`.
+async function readSecret(key: string): Promise<string | null> {
+  try {
+    const { getItemAsync } = await import('expo-secure-store');
+    return await getItemAsync(key);
+  } catch {
+    return null;
+  }
+}
+
 export default function MriScreen() {
   const [scans, setScans] = useState<MriScan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,10 +169,9 @@ export default function MriScreen() {
     if (result.canceled || !result.assets[0]?.base64) return;
 
     const b64 = result.assets[0].base64;
-    const { getItemAsync } = await import('expo-secure-store');
     const [provider, apiKey] = await Promise.all([
       AsyncStorage.getItem('ai_provider'),
-      getItemAsync('ai_api_key'),
+      readSecret('ai_api_key'),
     ]);
 
     if (!apiKey) {
