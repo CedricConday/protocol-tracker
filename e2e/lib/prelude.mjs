@@ -133,9 +133,15 @@ export async function gotoTab(ctx, label) {
   const href = TAB_HREF[label];
   if (href) {
     const seen = await ctx.page.evaluate((wanted) => {
+      // Compare the PATH only. Once you navigate into a tab's nested stack the
+      // tab's own href carries the route with it — the Trackers tab reads
+      // `/Summary?screen=Report` after opening the doctor report — so an exact
+      // match misses the tab you are already standing next to. Query and hash
+      // are state, not identity.
+      const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
       const tabs = [...document.querySelectorAll('a[role="tab"]')];
-      const hit = tabs.find((a) => a.getAttribute('href') === wanted)
-        || tabs.find((a) => (a.getAttribute('href') || '').startsWith(wanted + '/'));
+      const hit = tabs.find((a) => path(a) === wanted)
+        || tabs.find((a) => path(a).startsWith(wanted + '/'));
       if (hit) { hit.click(); return null; }
       return tabs.map((a) => a.getAttribute('href') || '(no href)');
     }, href);

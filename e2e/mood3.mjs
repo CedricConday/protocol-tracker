@@ -141,9 +141,12 @@ const clickText = (t) => page.evaluate((needle) => {
 
 async function gotoTab(label) {
   const ok = await page.evaluate(({ href, label }) => {
+    // Path only: a tab's href carries its nested route once you have been into
+    // the stack (`/Summary?screen=Report`), so an exact match misses.
+    const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
     const tabs = [...document.querySelectorAll('a[role="tab"]')];
-    const hit = tabs.find((a) => a.getAttribute('href') === href)
-      || tabs.find((a) => (a.getAttribute('href') || '').startsWith(href + '/'))
+    const hit = tabs.find((a) => path(a) === href)
+      || tabs.find((a) => path(a).startsWith(href + '/'))
       || tabs.find((a) => (a.innerText || '').includes(label));
     if (!hit) return false;
     hit.click();

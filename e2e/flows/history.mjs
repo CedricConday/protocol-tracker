@@ -47,6 +47,74 @@ export default {
       await ctx.page.waitForTimeout(1800);
     }
 
+    // Return a tab's stack to its root. These sub-screens carry SUB_HEADER, so
+    // they have a back control; tapping the tab itself does NOT pop it, because
+    // react-navigation restores each tab's last state. That matters here: the
+    // three clinical buttons on History navigate into the SUMMARY stack, so
+    // after using one the Trackers tab is sitting on Share with Doctor and not
+    // on its four cards. Asserting the cards without popping first reports the
+    // app's normal stack behaviour as four missing cards, which is what this
+    // flow did until it was reordered.
+    const backToTrackersRoot = async () => {
+      for (let i = 0; i < 4; i++) {
+        await gotoTab(ctx, 'Trackers');
+        await ctx.page.waitForTimeout(900);
+        if ((await screenText(ctx)).includes('Water')) return true;
+        const back = ctx.page.locator('[aria-label="Go back"], [aria-label="Back"]').first();
+        if (await back.count()) { await back.click({ force: true }); }
+        else if (await ctx.page.getByText('\u2190', { exact: true }).first().count()) {
+          await ctx.page.getByText('\u2190', { exact: true }).first().click({ force: true });
+        } else { break; }
+        await ctx.page.waitForTimeout(900);
+      }
+      await gotoTab(ctx, 'Trackers');
+      await ctx.page.waitForTimeout(900);
+      return (await screenText(ctx)).includes('Water');
+    };
+
+    // --- Trackers: a launcher, so judge it on reachability ---
+    await backToTrackersRoot();
+    await ctx.page.waitForTimeout(700);
+    await ctx.shot('trackers');
+
+    const trk = await screenText(ctx);
+    check(!/went wrong/i.test(trk), 'Trackers crashed into the error boundary', trk.slice(0, 400));
+    for (const card of ['Water', 'Sunlight', 'Exercise', 'Food']) {
+      check(trk.includes(card), `Trackers has no ${card} card`, trk.slice(0, 600));
+    }
+    // The compliance numbers must NOT have been left behind here as well —
+    // the restructure moved them, and a duplicate would be a real defect.
+    check(!/Doses Today|Weighted Adherence/.test(trk),
+      'Trackers still renders compliance numbers that were supposed to move to History',
+      trk.slice(0, 600));
+
+    // Each card must open something. While Build C's screens are placeholders
+    // this proves the route is registered; once they land it proves the screen
+    // renders. Either way "the card does nothing" is the failure being caught.
+    for (const card of ['Water', 'Sunlight', 'Exercise', 'Food']) {
+      const before = await screenText(ctx);
+      // By accessible name, not by visible text. The card's label is a plain
+      // <Text> inside the touchable, so getByText matched the text node and the
+      // click landed on something with no onPress — which reads as "the card
+      // does nothing" when the card is fine. SummaryScreen.tsx:121 names each
+      // card `<Label> tracker. …`, and the tail varies with today's live value
+      // (C5), so match the prefix.
+      const target = ctx.page.locator(`[aria-label^="${card} tracker"]`).first();
+      if (!(await target.count())) {
+        check(false, `Trackers card "${card}" has no accessible name starting "${card} tracker"`);
+        continue;
+      }
+      await target.click({ force: true });
+      await ctx.page.waitForTimeout(1200);
+      const after = await screenText(ctx);
+      check(after !== before, `Tapping the ${card} card on Trackers does nothing`, after.slice(0, 300));
+      // Pop back rather than just re-tapping the tab, which would leave the
+      // stack on this card and make the next card unfindable — a silent skip
+      // that would have read as a pass.
+      await backToTrackersRoot();
+    }
+
+
     // --- History: the month grid, and the compliance block beneath it ---
     await gotoTab(ctx, 'History');
     await ctx.page.waitForTimeout(1600);
@@ -141,37 +209,6 @@ export default {
       // Close the day sheet so it does not cover the tab bar.
       await ctx.page.keyboard.press('Escape').catch(() => {});
       await ctx.page.waitForTimeout(800);
-    }
-
-    // --- Trackers: a launcher, so judge it on reachability ---
-    await gotoTab(ctx, 'Trackers');
-    await ctx.page.waitForTimeout(1600);
-    await ctx.shot('trackers');
-
-    const trk = await screenText(ctx);
-    check(!/went wrong/i.test(trk), 'Trackers crashed into the error boundary', trk.slice(0, 400));
-    for (const card of ['Water', 'Sunlight', 'Exercise', 'Food']) {
-      check(trk.includes(card), `Trackers has no ${card} card`, trk.slice(0, 600));
-    }
-    // The compliance numbers must NOT have been left behind here as well —
-    // the restructure moved them, and a duplicate would be a real defect.
-    check(!/Doses Today|Weighted Adherence/.test(trk),
-      'Trackers still renders compliance numbers that were supposed to move to History',
-      trk.slice(0, 600));
-
-    // Each card must open something. While Build C's screens are placeholders
-    // this proves the route is registered; once they land it proves the screen
-    // renders. Either way "the card does nothing" is the failure being caught.
-    for (const card of ['Water', 'Sunlight', 'Exercise', 'Food']) {
-      const before = await screenText(ctx);
-      const target = ctx.page.getByText(card, { exact: true }).first();
-      if (!(await target.count())) continue;
-      await target.click({ force: true });
-      await ctx.page.waitForTimeout(1200);
-      const after = await screenText(ctx);
-      check(after !== before, `Tapping the ${card} card on Trackers does nothing`, after.slice(0, 300));
-      await gotoTab(ctx, 'Trackers');
-      await ctx.page.waitForTimeout(900);
     }
 
     return { findings, endScreen: (await screenText(ctx)).slice(0, 700) };

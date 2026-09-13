@@ -318,7 +318,11 @@ const TABS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
 const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Trackers: '/Summary', Settings: '/Settings' };
 async function gotoTab(label) {
   const ok = await page.evaluate((href) => {
-    const hit = document.querySelector(`a[role="tab"][href="${href}"]`);
+    // Path only: a tab's href carries its nested route once you have been into
+    // the stack (`/Summary?screen=Report`), so an exact selector misses.
+    const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
+    const hit = [...document.querySelectorAll('a[role="tab"]')]
+      .find((a) => path(a) === href || path(a).startsWith(href + '/'));
     if (!hit) return false;
     hit.click();
     return true;

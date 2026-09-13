@@ -510,9 +510,12 @@ const TABS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
 const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Trackers: '/Summary', Settings: '/Settings' };
 async function gotoTab(label) {
   const press = () => page.evaluate(({ href, label }) => {
+    // Path only: a tab's href carries its nested route once you have been into
+    // the stack (`/Summary?screen=Report`), so an exact match misses.
+    const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
     const tabs = [...document.querySelectorAll('a[role="tab"]')];
-    const hit = tabs.find((a) => a.getAttribute('href') === href)
-      || tabs.find((a) => (a.getAttribute('href') || '').startsWith(href + '/'))
+    const hit = tabs.find((a) => path(a) === href)
+      || tabs.find((a) => path(a).startsWith(href + '/'))
       || tabs.find((a) => (a.innerText || '').includes(label));
     if (!hit) return false;
     hit.click();
