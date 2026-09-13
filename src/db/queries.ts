@@ -768,14 +768,12 @@ async function createDoseLogForNewRule(
 
   const scheduledTime = anchor.t0_timestamp + offsetMinutes * 60 * 1000;
 
-  // TODO(cedric): DECISION NEEDED — a dose added when its own t0 + offset has
-  // already passed. Three defensible answers and this is your call, not mine:
-  //   'due'     — actionable now, the user just added it and can take it late
-  //   'missed'  — honest about the clock, but marks a dose the user never had
-  //   tomorrow  — skip today entirely, first dose lands at the next start
-  // Stubbed as 'due' so the dose is at least actionable and cannot be silently
-  // aged out: markOverdueDoses() only rewrites 'upcoming', so a 'due' row
-  // survives until the user acts on it.
+  // A dose added after its own t0 + offset has passed is created 'due', not
+  // 'missed' and not deferred to tomorrow — Cedric's call, 2026-09-13, closing
+  // round 1's 2.4. The user added it just now and can still take it late;
+  // marking a dose missed that they never had the chance to take is a lie the
+  // compliance numbers then carry forever. 'due' also cannot be aged out behind
+  // their back: markOverdueDoses() only rewrites 'upcoming'.
   const status = scheduledTime <= Date.now() ? 'due' : 'upcoming';
 
   await db.runAsync(

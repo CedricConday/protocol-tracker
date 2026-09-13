@@ -47,11 +47,20 @@ export async function buildHealthContext(): Promise<string> {
     const latestSun = await db.getFirstAsync<{ minutes: number }>(
       "SELECT minutes FROM sun_log WHERE date >= date('now', '-7 days') ORDER BY date DESC LIMIT 1"
     );
+    // `day_anchors` and `exercise_minutes` never existed: the table is
+    // `daily_anchors` (see the migration note about exactly this typo) and
+    // exercise lives in its own table, one row per session. Both threw "no such
+    // table", and the catch below turns any throw in here into the whole
+    // context collapsing to "Unable to build health context." Nothing imports
+    // this function yet, so it had never been seen to fail.
     const avgWater = await db.getFirstAsync<{ avg: number }>(
-      "SELECT ROUND(AVG(water_ml)) as avg FROM day_anchors WHERE date >= date('now', '-7 days')"
+      "SELECT ROUND(AVG(water_ml)) as avg FROM daily_anchors WHERE date >= date('now', '-7 days')"
     );
     const avgExercise = await db.getFirstAsync<{ avg: number }>(
-      "SELECT ROUND(AVG(exercise_minutes)) as avg FROM day_anchors WHERE date >= date('now', '-7 days')"
+      `SELECT ROUND(AVG(day_minutes)) as avg FROM (
+         SELECT date, SUM(duration_minutes) as day_minutes FROM exercise_logs
+         WHERE date >= date('now', '-7 days') GROUP BY date
+       )`
     );
 
     context += `\n\nSun (last 7d): ${latestSun?.minutes ?? 0} min avg daily`;
