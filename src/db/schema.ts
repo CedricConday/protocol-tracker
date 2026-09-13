@@ -401,6 +401,48 @@ export async function initDb(): Promise<void> {
     console.log('[Database] migration: relapse_events constraint already updated');
   }
 
+  // ── sun_entries: sun becomes a series of sessions, like water and exercise ──
+  //
+  // `sun_log.date` is UNIQUE, so a day was ONE aggregated row and there was
+  // nothing to list or remove individually — "+20 min" and "+25 min" collapsed
+  // into "45". water_logs and exercise_logs have always kept a row per entry;
+  // this gives sun the same shape.
+  //
+  // `sun_log` STAYS, as the day's total, because getTodaySunLog, the Today tab's
+  // SunTracker, getWeekSummary and the 60-day harness all read it. The invariant
+  // from here on is that sun_log.minutes equals SUM(sun_entries.minutes) for the
+  // day, and every writer in queries.ts maintains it.
+  try {
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS sun_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        minutes INTEGER NOT NULL,
+        logged_at INTEGER NOT NULL
+      )
+    `);
+    await database.execAsync(`
+      CREATE INDEX IF NOT EXISTS idx_sun_entries_date ON sun_entries(date)
+    `);
+    // Backfill once: every existing day with minutes on it becomes a single
+    // session carrying that day's whole total, so no history is lost and the
+    // invariant holds immediately. Guarded on the table being empty rather than
+    // on a version number, so a half-applied migration cannot double-count.
+    const existing = await database.getFirstAsync<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM sun_entries'
+    );
+    if ((existing?.n ?? 0) === 0) {
+      await database.execAsync(`
+        INSERT INTO sun_entries (date, minutes, logged_at)
+        SELECT date, minutes, strftime('%s', COALESCE(logged_at, date)) * 1000
+        FROM sun_log
+        WHERE minutes > 0
+      `);
+    }
+  } catch (e) {
+    console.log('[Database] migration: sun_entries already present', e);
+  }
+
   // Contraindication drug-safety seeding removed — pure-tracker build gives no
   // advice. Table stays empty so no warnings fire. Original list in git history.
 }

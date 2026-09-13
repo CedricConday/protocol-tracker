@@ -6,8 +6,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import WaterTracker, { DEFAULT_GOAL_ML } from '../components/WaterTracker';
 import {
-  addWater, correctWaterLog, getAnchor, getMiscFlag, getWaterLogs, localDateStr,
-  setMiscFlag, todayStr, undoLastWater,
+  addWater, correctWaterLog, deleteWaterLog, getAnchor, getMiscFlag, getWaterLogs,
+  localDateStr, setMiscFlag, todayStr,
 } from '../db/queries';
 
 /**
@@ -25,12 +25,14 @@ import {
  * the flag is filed as a handoff. Until that lands, Today keeps saying 2.5 L —
  * which is wrong, but visibly wrong rather than silently so.
  *
- * REMOVAL IS ONLY THE NEWEST ENTRY, on purpose. `undoLastWater` deletes the
- * day's last row and moves the anchor total by it. There is no delete-by-id, and
- * faking one with `correctWaterLog(id, 0)` would leave a 0 ml row in the list
- * describing a drink that never happened. So the newest row gets Remove, every
- * row gets an edit, and the missing `deleteWaterLog` is filed rather than
- * improvised.
+ * EVERY ROW CAN BE REMOVED. It could not until `deleteWaterLog` existed: the
+ * only remover was `undoLastWater`, which deletes the day's NEWEST row — the
+ * right shape for an undo button on Today, the wrong one for a list. Only the
+ * top entry had a Remove button and every row under it was stuck, so a mis-tap
+ * three entries back could be edited to some other number but never deleted.
+ * `correctWaterLog(id, 0)` was not a substitute: it leaves a 0 ml row in the
+ * list describing a drink that never happened. Reported from the device,
+ * 2026-09-13.
  */
 
 export const WATER_GOAL_FLAG = 'water_goal_ml';
@@ -102,10 +104,13 @@ export default function WaterScreen() {
     await load();
   };
 
-  const handleUndoLast = async () => {
-    const removed = await undoLastWater();
-    if (removed === null) {
-      Alert.alert('Nothing to remove', 'No water has been logged today.');
+  const handleRemove = async (entry: Entry) => {
+    const removed = await deleteWaterLog(entry.id);
+    if (!removed) {
+      // The row went while the screen was open — reload rather than claim
+      // something happened.
+      Alert.alert('Already gone', 'That entry is no longer there.');
+      await load();
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -154,7 +159,6 @@ export default function WaterScreen() {
   }
 
   const peak = Math.max(goalMl, ...week.map((w) => w.ml), 1);
-  const newestId = entries.length > 0 ? entries[0].id : null;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -244,18 +248,14 @@ export default function WaterScreen() {
                 </TouchableOpacity>
               )}
 
-              {entry.id === newestId ? (
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={handleUndoLast}
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove the most recent water entry"
-                >
-                  <Text style={styles.removeBtnText}>Remove</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.removeSpacer} />
-              )}
+              <TouchableOpacity
+                style={styles.removeBtn}
+                onPress={() => handleRemove(entry)}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove the ${entry.amount_ml} millilitre entry logged at ${formatClock(entry.logged_at)}`}
+              >
+                <Text style={styles.removeBtnText}>Remove</Text>
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -319,7 +319,6 @@ const styles = StyleSheet.create({
   entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#2AA6B8', paddingHorizontal: 10, color: '#14213D', fontSize: 15, fontWeight: '600' },
   removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
   removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
-  removeSpacer: { width: 0 },
 
   weekRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 120 },
   weekCol: { flex: 1, alignItems: 'center' },

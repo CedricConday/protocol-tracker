@@ -5,21 +5,25 @@ import { t } from '../i18n';
 // The goal is context, not a ceiling. Someone who spent two hours outside should be
 // able to say so; the old card swapped its buttons for a "goal reached" banner at
 // 30 minutes, which silently made 30 the most the day could ever hold.
-const GOAL_MIN = 30;
+export const DEFAULT_SUN_GOAL_MIN = 30;
 const PRESETS = [10, 20, 30, 60];
 const STEP = 5;
 
 interface Props {
   sunMinutes: number;
   onLog: (minutes: number) => void;
+  /** The day's target. Editable on the Sunlight screen and stored in
+   *  misc_flags; 30 was hardcoded here, so the card contradicted the goal the
+   *  user had just set. Same prop shape as WaterTracker's `goalMl`. */
+  goalMin?: number;
 }
 
-const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) {
+const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin = DEFAULT_SUN_GOAL_MIN }: Props) {
   const [amount, setAmount] = useState(20);
   const [draft, setDraft] = useState('20');
 
-  const goalReached = sunMinutes >= GOAL_MIN;
-  const pct = Math.min(sunMinutes / GOAL_MIN, 1);
+  const goalReached = sunMinutes >= goalMin;
+  const pct = Math.min(sunMinutes / Math.max(1, goalMin), 1);
 
   const setBoth = (next: number) => {
     const clamped = Math.max(STEP, Math.min(600, next));
@@ -41,7 +45,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog }: Props) 
         </View>
         <Text style={[styles.amount, goalReached ? styles.amountDone : null]}>
           {sunMinutes}
-          <Text style={styles.goal}> min · goal {GOAL_MIN}</Text>
+          <Text style={styles.goal}> min · goal {goalMin}</Text>
         </Text>
       </View>
 

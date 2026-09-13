@@ -5,7 +5,10 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-import { getTodayExercise, localDateStr, logExercise, todayStr } from '../db/queries';
+import {
+  correctExerciseLog, deleteExerciseLog, getExerciseHistory, getExerciseLogs, getMiscFlag,
+  getTodayExercise, localDateStr, logExercise, setMiscFlag, todayStr,
+} from '../db/queries';
 
 /**
  * The Exercise screen (PT-trio round 3, C3).
@@ -16,14 +19,38 @@ import { getTodayExercise, localDateStr, logExercise, todayStr } from '../db/que
  * movement it was.
  *
  * `getTodayExercise` takes a date despite the name, so the 7-day strip is seven
- * calls and needs nothing new from the data layer — unlike sun, which is why
- * that screen has a stub where this one has a chart.
+ * calls and needs nothing new from the data layer.
  *
- * NO CORRECTION PATH, and the screen says so. `exercise_logs` is INSERT-only:
- * there is no undo, no edit and no delete anywhere in src/, so a mis-tap here is
- * permanent the way water was before `undoLastWater`. Adding one is a data-layer
- * change, which is Build A's this round — filed as handoff H14.
+ * ENTRIES ARE NOW CORRECTABLE. This screen used to say that `exercise_logs` was
+ * INSERT-only and a mis-tap was permanent — true of the READERS, not of the
+ * table: it has kept id, duration, type, intensity and logged_at per session
+ * since before the audit, and nothing ever read them back individually.
+ * `getExerciseLogs`, `deleteExerciseLog` and `correctExerciseLog` close that,
+ * so the day is a list you can fix rather than a number you are stuck with.
+ *
+ * THE GOAL lives in `misc_flags`, the same place Water's and Sunlight's do.
  */
+
+export const EXERCISE_GOAL_FLAG = 'exercise_goal_min';
+
+const DEFAULT_GOAL_MIN = 30;
+const GOAL_STEP = 5;
+const GOAL_MIN_LIMIT = 5;
+const GOAL_MAX_LIMIT = 600;
+const HISTORY_DAYS = 30;
+
+type Entry = { id: number; duration_minutes: number; type: string; intensity: string; logged_at: number };
+type HistoryDay = { date: string; total_minutes: number; entries: number };
+
+function formatClock(ms: number): string {
+  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDay(iso: string, today: string): string {
+  if (iso === today) return 'Today';
+  // Midday so a timezone offset cannot roll the label onto the neighbouring day.
+  return new Date(`${iso}T12:00:00`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+}
 
 const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STEP = 5;
@@ -50,6 +77,14 @@ export default function ExerciseScreen() {
   const [today, setToday] = useState({ totalMinutes: 0, logged: false, type: 'walk', intensity: 'moderate' });
   const [week, setWeek] = useState<{ day: string; minutes: number }[]>([]);
 
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [history, setHistory] = useState<HistoryDay[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [goalMin, setGoalMin] = useState(DEFAULT_GOAL_MIN);
+  const [goalDraft, setGoalDraft] = useState(String(DEFAULT_GOAL_MIN));
+  const [editingGoal, setEditingGoal] = useState(false);
+
   const [minutes, setMinutes] = useState(30);
   const [draft, setDraft] = useState('30');
   const [type, setType] = useState('walk');
@@ -57,7 +92,16 @@ export default function ExerciseScreen() {
 
   const load = useCallback(async () => {
     try {
-      setToday(await getTodayExercise(todayStr()));
+      const day = todayStr();
+      setToday(await getTodayExercise(day));
+      setEntries(await getExerciseLogs(day));
+      setHistory(await getExerciseHistory(HISTORY_DAYS, day));
+
+      const stored = await getMiscFlag(EXERCISE_GOAL_FLAG);
+      const parsedGoal = stored === null ? NaN : parseInt(stored, 10);
+      const goal = Number.isFinite(parsedGoal) && parsedGoal > 0 ? parsedGoal : DEFAULT_GOAL_MIN;
+      setGoalMin(goal);
+      setGoalDraft(String(goal));
 
       const todayIdx = (new Date().getDay() + 6) % 7;
       const days: { day: string; minutes: number }[] = [];
@@ -94,6 +138,51 @@ export default function ExerciseScreen() {
     await load();
   };
 
+  const handleRemove = async (entry: Entry) => {
+    const removed = await deleteExerciseLog(entry.id);
+    if (!removed) {
+      // The row went while the screen was open — reload rather than claim
+      // something happened.
+      await load();
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await load();
+  };
+
+  const beginEdit = (entry: Entry) => {
+    setEditingId(entry.id);
+    setEditDraft(String(entry.duration_minutes));
+  };
+
+  const commitEdit = async (entry: Entry) => {
+    const parsed = parseInt(editDraft.replace(/[^0-9]/g, ''), 10);
+    setEditingId(null);
+    // An unreadable draft means nothing usable was typed; leave the session as
+    // it was rather than writing 0 over it.
+    if (!Number.isFinite(parsed)) return;
+    if (parsed === entry.duration_minutes) return;
+    await correctExerciseLog(entry.id, Math.min(MAX_MINUTES, parsed));
+    await load();
+  };
+
+  const commitGoal = async () => {
+    const parsed = parseInt(goalDraft.replace(/[^0-9]/g, ''), 10);
+    setEditingGoal(false);
+    if (!Number.isFinite(parsed)) { setGoalDraft(String(goalMin)); return; }
+    const next = Math.max(GOAL_MIN_LIMIT, Math.min(GOAL_MAX_LIMIT, parsed));
+    await setMiscFlag(EXERCISE_GOAL_FLAG, String(next));
+    setGoalMin(next);
+    setGoalDraft(String(next));
+  };
+
+  const nudgeGoal = async (delta: number) => {
+    const next = Math.max(GOAL_MIN_LIMIT, Math.min(GOAL_MAX_LIMIT, goalMin + delta));
+    await setMiscFlag(EXERCISE_GOAL_FLAG, String(next));
+    setGoalMin(next);
+    setGoalDraft(String(next));
+  };
+
   if (loading) {
     return (
       <View style={styles.loading}>
@@ -102,7 +191,7 @@ export default function ExerciseScreen() {
     );
   }
 
-  const peak = Math.max(30, ...week.map((w) => w.minutes), 1);
+  const peak = Math.max(goalMin, ...week.map((w) => w.minutes), 1);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -119,9 +208,54 @@ export default function ExerciseScreen() {
         </View>
         <Text style={styles.cardSub}>
           {today.logged
-            ? `Last logged: ${today.type}, ${today.intensity}.`
-            : 'Nothing logged yet today.'}
+            ? `Last logged: ${today.type}, ${today.intensity}. Goal ${goalMin} min.`
+            : `Nothing logged yet today. Goal ${goalMin} min.`}
         </Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Daily goal</Text>
+        <View style={styles.goalRow}>
+          <TouchableOpacity
+            style={styles.goalBtn}
+            onPress={() => nudgeGoal(-GOAL_STEP)}
+            accessibilityRole="button"
+            accessibilityLabel="Lower the daily exercise goal"
+          >
+            <Text style={styles.goalBtnText}>−</Text>
+          </TouchableOpacity>
+
+          {editingGoal ? (
+            <TextInput
+              style={styles.goalField}
+              value={goalDraft}
+              onChangeText={setGoalDraft}
+              onBlur={commitGoal}
+              onSubmitEditing={commitGoal}
+              keyboardType="number-pad"
+              autoFocus
+              accessibilityLabel="Daily exercise goal in minutes"
+            />
+          ) : (
+            <TouchableOpacity
+              style={styles.goalValue}
+              onPress={() => setEditingGoal(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Daily exercise goal, ${goalMin} minutes. Tap to edit.`}
+            >
+              <Text style={styles.goalValueText}>{goalMin} min</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.goalBtn}
+            onPress={() => nudgeGoal(GOAL_STEP)}
+            accessibilityRole="button"
+            accessibilityLabel="Raise the daily exercise goal"
+          >
+            <Text style={styles.goalBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -241,11 +375,83 @@ export default function ExerciseScreen() {
         </View>
       </View>
 
-      <Text style={styles.note}>
-        Exercise entries cannot be edited or removed yet — the table is insert-only and the
-        correction belongs in the data layer, which another build owns this round. Filed as
-        handoff H14.
-      </Text>
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Today&apos;s sessions</Text>
+          <Text style={styles.sectionCount}>{entries.length}</Text>
+        </View>
+
+        {entries.length === 0 ? (
+          <Text style={styles.empty}>Nothing logged yet today.</Text>
+        ) : (
+          entries.map((entry) => (
+            <View key={entry.id} style={styles.entryRow}>
+              <Text style={styles.entryTime}>{formatClock(entry.logged_at)}</Text>
+
+              {editingId === entry.id ? (
+                <TextInput
+                  style={styles.entryField}
+                  value={editDraft}
+                  onChangeText={setEditDraft}
+                  onBlur={() => commitEdit(entry)}
+                  onSubmitEditing={() => commitEdit(entry)}
+                  keyboardType="number-pad"
+                  autoFocus
+                  accessibilityLabel={`Correct the ${entry.duration_minutes} minute ${entry.type}`}
+                />
+              ) : (
+                <TouchableOpacity
+                  style={styles.entryAmountWrap}
+                  onPress={() => beginEdit(entry)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${entry.duration_minutes} minutes of ${entry.type}, ${entry.intensity}, at ${formatClock(entry.logged_at)}. Tap to correct.`}
+                >
+                  <Text style={styles.entryAmount}>{entry.duration_minutes} min</Text>
+                  <Text style={styles.entryMeta}>{entry.type} · {entry.intensity}</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.removeBtn}
+                onPress={() => handleRemove(entry)}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove the ${entry.duration_minutes} minute ${entry.type} logged at ${formatClock(entry.logged_at)}`}
+              >
+                <Text style={styles.removeBtnText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Last {HISTORY_DAYS} days</Text>
+          <Text style={styles.sectionCount}>{history.length}</Text>
+        </View>
+
+        {history.length === 0 ? (
+          <Text style={styles.empty}>No exercise logged yet.</Text>
+        ) : (
+          history.map((h) => (
+            <View key={h.date} style={styles.histRow}>
+              <Text style={[styles.histDay, h.date === todayStr() && styles.histDayToday]}>
+                {formatDay(h.date, todayStr())}
+              </Text>
+              <View style={styles.histBarTrack}>
+                <View
+                  style={[
+                    styles.histBarFill,
+                    h.total_minutes >= goalMin && styles.histBarFillDone,
+                    { width: `${Math.min(100, (h.total_minutes / Math.max(goalMin, ...history.map((x) => x.total_minutes), 1)) * 100)}%` as `${number}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.histValue}>{h.total_minutes} min</Text>
+            </View>
+          ))
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -264,8 +470,35 @@ const styles = StyleSheet.create({
   cardSub: { color: '#5A6478', fontSize: 13, marginTop: 6 },
 
   section: { marginTop: 22 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   sectionTitle: { color: '#14213D', fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sectionCount: { color: '#9AA3B2', fontSize: 13, fontWeight: '700', marginBottom: 10 },
+  empty: { color: '#9AA3B2', fontSize: 13, fontStyle: 'italic', paddingVertical: 8 },
   note: { color: '#9AA3B2', fontSize: 11, lineHeight: 17, marginTop: 22 },
+
+  goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
+  goalBtnText: { color: '#14213D', fontSize: 20, fontWeight: '700' },
+  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
+  goalValueText: { color: '#14213D', fontSize: 17, fontWeight: '700' },
+  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#2F8F5B', textAlign: 'center', color: '#14213D', fontSize: 17, fontWeight: '700' },
+
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E6E7DF' },
+  entryTime: { color: '#9AA3B2', fontSize: 13, width: 58 },
+  entryAmountWrap: { flex: 1 },
+  entryAmount: { color: '#14213D', fontSize: 15, fontWeight: '700' },
+  entryMeta: { color: '#9AA3B2', fontSize: 11, marginTop: 1 },
+  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#2F8F5B', paddingHorizontal: 10, color: '#14213D', fontSize: 15, fontWeight: '700' },
+  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
+  removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
+
+  histRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
+  histDay: { color: '#5A6478', fontSize: 12, width: 86 },
+  histDayToday: { color: '#14213D', fontWeight: '700' },
+  histBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#E6E7DF', overflow: 'hidden' },
+  histBarFill: { height: 8, borderRadius: 4, backgroundColor: '#A8D5BC' },
+  histBarFillDone: { backgroundColor: '#2F8F5B' },
+  histValue: { color: '#14213D', fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
 
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   stepBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },

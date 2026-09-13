@@ -25,6 +25,14 @@ import {
   confirmDose,
   skipDose,
   correctSunLog,
+  deleteWaterLog,
+  deleteSunEntry,
+  getSunEntries,
+  logSunExposure,
+  deleteExerciseLog,
+  correctExerciseLog,
+  getExerciseLogs,
+  getExerciseHistory,
 } from '../queries';
 
 const mockDb = {
@@ -384,14 +392,27 @@ describe('clearSunLog', () => {
     await clearSunLog('2026-09-13');
     expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM sun_log WHERE date = ?', ['2026-09-13']);
   });
+
+  it('deletes the day\'s sessions too, or the next log would resurrect the total', async () => {
+    await clearSunLog('2026-09-13');
+    expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM sun_entries WHERE date = ?', ['2026-09-13']);
+  });
 });
 
 describe('correctSunLog', () => {
+  // These used to read mockDb.runAsync.mock.calls[0] — the FIRST call. Once
+  // correctSunLog started replacing the day's sessions, call 0 became the
+  // DELETE and all six broke without anything being wrong. Positional indices
+  // were never what these tests meant; each one now finds the statement it is
+  // actually about.
+  const dayWrite = () => mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_log/.test(String(c[0])));
+  const noteWrite = () => mockDb.runAsync.mock.calls.find((c) => /UPDATE sun_log SET notes/.test(String(c[0])));
+
   it('sets the day total outright instead of adding to it', async () => {
     await correctSunLog(20, '2026-09-13');
-    const [sqlText, params] = mockDb.runAsync.mock.calls[0];
-    // logSunExposure accumulates (`sun_log.minutes + excluded.minutes`); a
-    // correction must not, or fixing 30 to 20 would store 50.
+    const [sqlText, params] = dayWrite()!;
+    // logSunExposure accumulates; a correction must not, or fixing 30 to 20
+    // would store 50.
     expect(String(sqlText)).toContain('minutes = excluded.minutes');
     expect(String(sqlText)).not.toContain('sun_log.minutes + excluded.minutes');
     expect(params).toEqual(['2026-09-13', 20]);
@@ -399,28 +420,182 @@ describe('correctSunLog', () => {
 
   it('corrects a past day, which is the reason it exists', async () => {
     await correctSunLog(15, '2026-09-01');
-    expect(mockDb.runAsync.mock.calls[0][1][0]).toBe('2026-09-01');
+    expect(dayWrite()![1][0]).toBe('2026-09-01');
   });
 
   it('leaves the existing note alone when none is given', async () => {
     await correctSunLog(20, '2026-09-13');
-    expect(String(mockDb.runAsync.mock.calls[0][0])).not.toContain('notes = excluded.notes');
+    expect(noteWrite()).toBeUndefined();
   });
 
   it('replaces the note when one is given, including an empty one', async () => {
     await correctSunLog(20, '2026-09-13', '');
-    const [sqlText, params] = mockDb.runAsync.mock.calls[0];
-    expect(String(sqlText)).toContain('notes = excluded.notes');
-    expect(params).toEqual(['2026-09-13', 20, '']);
+    expect(noteWrite()).toBeTruthy();
+    expect(noteWrite()![1]).toEqual(['', '2026-09-13']);
   });
 
   it('floors a negative correction at zero', async () => {
     await correctSunLog(-5, '2026-09-13');
-    expect(mockDb.runAsync.mock.calls[0][1][1]).toBe(0);
+    expect(dayWrite()![1][1]).toBe(0);
   });
 
   it('rounds fractional minutes', async () => {
     await correctSunLog(12.6, '2026-09-13');
-    expect(mockDb.runAsync.mock.calls[0][1][1]).toBe(13);
+    expect(dayWrite()![1][1]).toBe(13);
+  });
+});
+
+
+// ── deleteWaterLog ────────────────────────────────────────────────────────────
+
+describe('deleteWaterLog', () => {
+  it('deletes the row it was given, not the newest one', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-13', amount_ml: 250 });
+    await deleteWaterLog(7);
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM water_logs/.test(c[0]));
+    expect(del).toBeTruthy();
+    expect(del![1]).toEqual([7]);
+  });
+
+  it("moves the day's total down by exactly what that entry held", async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-13', amount_ml: 400 });
+    await deleteWaterLog(7);
+    const upd = mockDb.runAsync.mock.calls.find((c) => /UPDATE daily_anchors/.test(c[0]));
+    expect(upd![1]).toEqual([400, '2026-09-13']);
+    // Floors at zero — the anchor is the number on screen.
+    expect(upd![0]).toMatch(/MAX\(0,/);
+  });
+
+  it('returns false and writes nothing for an id that does not exist', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await deleteWaterLog(999)).toBe(false);
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+});
+
+// ── sun sessions ──────────────────────────────────────────────────────────────
+
+describe('logSunExposure', () => {
+  it('inserts a session rather than adding to a single day row', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ total: 20, n: 1 });
+    await logSunExposure(20);
+    const ins = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_entries/.test(c[0]));
+    expect(ins).toBeTruthy();
+    expect(ins![1][1]).toBe(20);
+  });
+
+  it("derives the day total from the entries, never by incrementing", async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ total: 45, n: 2 });
+    await logSunExposure(25);
+    const day = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_log/.test(c[0]));
+    expect(day![1]).toEqual(['' + todayStr(), 45]);
+    // The old bug shape: minutes = sun_log.minutes + excluded.minutes.
+    expect(day![0]).not.toMatch(/sun_log\.minutes \+/);
+  });
+});
+
+describe('deleteSunEntry', () => {
+  it('removes the session and recomputes the day from what is left', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ date: '2026-09-13' })   // which day is this entry on
+      .mockResolvedValueOnce({ total: 25, n: 1 });     // what remains after the delete
+    expect(await deleteSunEntry(3)).toBe(true);
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM sun_entries WHERE id/.test(c[0]));
+    expect(del![1]).toEqual([3]);
+    const day = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_log/.test(c[0]));
+    expect(day![1]).toEqual(['2026-09-13', 25]);
+  });
+
+  it('drops the day row entirely when the last session goes and no note is kept', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ date: '2026-09-13' })
+      .mockResolvedValueOnce({ total: null, n: 0 })
+      .mockResolvedValueOnce({ notes: '' });
+    await deleteSunEntry(3);
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM sun_log/.test(c[0]));
+    expect(del![1]).toEqual(['2026-09-13']);
+  });
+
+  it('keeps a zeroed day row when it carries a note', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ date: '2026-09-13' })
+      .mockResolvedValueOnce({ total: null, n: 0 })
+      .mockResolvedValueOnce({ notes: 'overcast all day' });
+    await deleteSunEntry(3);
+    expect(mockDb.runAsync.mock.calls.some((c) => /DELETE FROM sun_log/.test(c[0]))).toBe(false);
+    const upd = mockDb.runAsync.mock.calls.find((c) => /UPDATE sun_log SET minutes = 0/.test(c[0]));
+    expect(upd![1]).toEqual(['2026-09-13']);
+  });
+
+  it('returns false for an id that does not exist', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await deleteSunEntry(999)).toBe(false);
+  });
+});
+
+describe('correctSunLog with sessions', () => {
+  it('replaces the day\'s sessions rather than leaving them to disagree with the total', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    await correctSunLog(30, '2026-09-13');
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM sun_entries WHERE date/.test(c[0]));
+    expect(del![1]).toEqual(['2026-09-13']);
+    const ins = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_entries/.test(c[0]));
+    expect(ins![1][1]).toBe(30);
+  });
+
+  it('writes no session when the day is corrected to zero', async () => {
+    await correctSunLog(0, '2026-09-13');
+    expect(mockDb.runAsync.mock.calls.some((c) => /INSERT INTO sun_entries/.test(c[0]))).toBe(false);
+  });
+});
+
+describe('getSunEntries', () => {
+  it('reads the day newest first', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getSunEntries('2026-09-13');
+    const [sql, params] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/FROM sun_entries WHERE date = \?/);
+    expect(sql).toMatch(/ORDER BY logged_at DESC/);
+    expect(params).toEqual(['2026-09-13']);
+  });
+});
+
+// ── exercise sessions ─────────────────────────────────────────────────────────
+
+describe('exercise entries', () => {
+  it('lists the day newest first', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getExerciseLogs('2026-09-13');
+    const [sql] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/FROM exercise_logs WHERE date = \?/);
+    expect(sql).toMatch(/ORDER BY logged_at DESC/);
+  });
+
+  it('deletes one session by id', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ id: 4 });
+    expect(await deleteExerciseLog(4)).toBe(true);
+    expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM exercise_logs WHERE id = ?', [4]);
+  });
+
+  it('returns false for an id that does not exist, and writes nothing', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await deleteExerciseLog(999)).toBe(false);
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('floors a corrected duration at zero rather than storing a negative', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ id: 4 });
+    await correctExerciseLog(4, -10);
+    const upd = mockDb.runAsync.mock.calls.find((c) => /UPDATE exercise_logs/.test(c[0]));
+    expect(upd![1]).toEqual([0, 4]);
+  });
+
+  it('groups history by day, newest first', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getExerciseHistory(30, '2026-09-13');
+    const [sql, params] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/GROUP BY date/);
+    expect(sql).toMatch(/ORDER BY date DESC/);
+    expect(params).toEqual(['2026-09-13', 30]);
   });
 });

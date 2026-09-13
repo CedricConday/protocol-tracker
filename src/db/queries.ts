@@ -1,3 +1,4 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
@@ -137,13 +138,160 @@ export async function getWaterLogs(
 }
 
 /**
+ * Remove one entry by id, and move the day's total by exactly what it held.
+ *
+ * `undoLastWater` removes the NEWEST row, which is the right shape for an undo
+ * button on the Today tab but the wrong one for a list: on a screen showing
+ * every entry for the day, only the top row could be removed and every row
+ * below it was stuck. Correcting a mis-tap three entries back meant editing it
+ * to some other number, never deleting it.
+ *
+ * Not expressible as `correctWaterLog(id, 0)` — that leaves a 0 ml row in the
+ * list describing a drink that never happened. A removal has to remove.
+ */
+export async function deleteWaterLog(logId: number): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ date: string; amount_ml: number }>(
+    'SELECT date, amount_ml FROM water_logs WHERE id = ?',
+    [logId]
+  );
+  if (!row) return false;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM water_logs WHERE id = ?', [logId]);
+    // MAX(0, …) for the same reason undoLastWater has it: the anchor is the
+    // number on screen, and a negative total would render.
+    await db.runAsync(
+      'UPDATE daily_anchors SET water_ml = MAX(0, water_ml - ?) WHERE date = ?',
+      [row.amount_ml, row.date]
+    );
+  });
+  return true;
+}
+
+/** Day totals for the last `days` days, newest first — the history strip. */
+export async function getWaterHistory(
+  days: number = 30,
+  from: string = todayStr()
+): Promise<{ date: string; total_ml: number; entries: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT date, SUM(amount_ml) AS total_ml, COUNT(*) AS entries
+     FROM water_logs WHERE date <= ? GROUP BY date ORDER BY date DESC LIMIT ?`,
+    [from, days]
+  );
+}
+
+/**
  * Sun is stored as one aggregated row per day (`sun_log.date` is UNIQUE), so
  * there is no last entry to remove the way there is for water — correcting sun
  * means setting the day's total. This clears the day back to nothing.
  */
 export async function clearSunLog(date: string = todayStr()): Promise<void> {
   const db = await getDb();
-  await db.runAsync('DELETE FROM sun_log WHERE date = ?', [date]);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM sun_entries WHERE date = ?', [date]);
+    await db.runAsync('DELETE FROM sun_log WHERE date = ?', [date]);
+  });
+}
+
+/**
+ * Recompute a day's `sun_log.minutes` from its entries.
+ *
+ * Sun now keeps a row per session in `sun_entries` AND a day total in
+ * `sun_log`, because everything that already reads sun — getTodaySunLog, the
+ * Today tab's SunTracker, getWeekSummary, the 60-day harness — reads the total.
+ * Two places holding the same fact is a bug waiting to happen, so the total is
+ * never written directly by anything but this: entries are the truth, the total
+ * is derived. A day whose entries all go away loses its row rather than keeping
+ * a 0 that reads as "went outside, got no sun".
+ */
+async function recomputeSunDay(db: SQLiteDatabase, date: string): Promise<number> {
+  const agg = await db.getFirstAsync<{ total: number | null; n: number }>(
+    'SELECT SUM(minutes) AS total, COUNT(*) AS n FROM sun_entries WHERE date = ?',
+    [date]
+  );
+  const total = agg?.total ?? 0;
+  if ((agg?.n ?? 0) === 0) {
+    // Keep the row only if it carries a note worth keeping.
+    const row = await db.getFirstAsync<{ notes: string }>(
+      'SELECT notes FROM sun_log WHERE date = ?',
+      [date]
+    );
+    if (row && row.notes) {
+      await db.runAsync('UPDATE sun_log SET minutes = 0 WHERE date = ?', [date]);
+    } else {
+      await db.runAsync('DELETE FROM sun_log WHERE date = ?', [date]);
+    }
+    return 0;
+  }
+  await db.runAsync(
+    `INSERT INTO sun_log (date, minutes, uv_index, notes)
+     VALUES (?, ?, NULL, '')
+     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes`,
+    [date, total]
+  );
+  return total;
+}
+
+/** Every session logged on this day, newest first. */
+export async function getSunEntries(
+  date: string = todayStr()
+): Promise<{ id: number; minutes: number; logged_at: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT id, minutes, logged_at FROM sun_entries WHERE date = ? ORDER BY logged_at DESC, id DESC',
+    [date]
+  );
+}
+
+/** Remove one session and move the day's total by exactly what it held. */
+export async function deleteSunEntry(entryId: number): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ date: string }>(
+    'SELECT date FROM sun_entries WHERE id = ?',
+    [entryId]
+  );
+  if (!row) return false;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM sun_entries WHERE id = ?', [entryId]);
+    await recomputeSunDay(db, row.date);
+  });
+  return true;
+}
+
+/** Edit one session in place. */
+export async function correctSunEntry(entryId: number, minutes: number): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ date: string }>(
+    'SELECT date FROM sun_entries WHERE id = ?',
+    [entryId]
+  );
+  if (!row) return false;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE sun_entries SET minutes = ? WHERE id = ?', [Math.max(0, Math.round(minutes)), entryId]);
+    await recomputeSunDay(db, row.date);
+  });
+  return true;
+}
+
+/** Day totals for the last `days` days, newest first — the history strip. */
+export async function getSunHistory(
+  days: number = 30,
+  from: string = todayStr()
+): Promise<{ date: string; minutes: number; notes: string; entries: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT l.date        AS date,
+            l.minutes     AS minutes,
+            l.notes       AS notes,
+            COUNT(e.id)   AS entries
+     FROM sun_log l
+     LEFT JOIN sun_entries e ON e.date = l.date
+     WHERE l.date <= ?
+     GROUP BY l.date, l.minutes, l.notes
+     ORDER BY l.date DESC LIMIT ?`,
+    [from, days]
+  );
 }
 
 /**
@@ -167,21 +315,28 @@ export async function correctSunLog(
 ): Promise<void> {
   const db = await getDb();
   const next = Math.max(0, Math.round(minutes));
-  if (notes === undefined) {
+  await db.withTransactionAsync(async () => {
+    // Setting the day's total outright REPLACES its sessions with one entry
+    // carrying that total. The alternative — leaving the old sessions in place
+    // — would put the list and the number it sums to in open disagreement, and
+    // the list is what the user is looking at.
+    await db.runAsync('DELETE FROM sun_entries WHERE date = ?', [date]);
+    if (next > 0) {
+      await db.runAsync(
+        'INSERT INTO sun_entries (date, minutes, logged_at) VALUES (?, ?, ?)',
+        [date, next, Date.now()]
+      );
+    }
     await db.runAsync(
       `INSERT INTO sun_log (date, minutes, uv_index, notes)
        VALUES (?, ?, NULL, '')
        ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes`,
       [date, next]
     );
-    return;
-  }
-  await db.runAsync(
-    `INSERT INTO sun_log (date, minutes, uv_index, notes)
-     VALUES (?, ?, NULL, ?)
-     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, notes = excluded.notes`,
-    [date, next, notes]
-  );
+    if (notes !== undefined) {
+      await db.runAsync('UPDATE sun_log SET notes = ? WHERE date = ?', [notes, date]);
+    }
+  });
 }
 
 // ── Schedule Rules ────────────────────────────────────────────────────────────
@@ -602,6 +757,59 @@ export async function logExercise(durationMinutes: number = 30, type: string = '
   await enqueueAction('exercise_logged', { minutes: durationMinutes, type, date });
 }
 
+/**
+ * Every session logged on this day, newest first.
+ *
+ * `exercise_logs` has kept one row per session since before the audit — id,
+ * duration, type, intensity, logged_at — but nothing ever read them back
+ * individually. `getTodayExercise` sums them and reports the newest row's type,
+ * so the screen could show "45 min, walk" and no way to see that it was three
+ * walks, or to remove the one logged by mistake.
+ */
+export async function getExerciseLogs(
+  date: string = todayStr()
+): Promise<{ id: number; duration_minutes: number; type: string; intensity: string; logged_at: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT id, duration_minutes, type, intensity, logged_at FROM exercise_logs WHERE date = ? ORDER BY logged_at DESC, id DESC',
+    [date]
+  );
+}
+
+/** Remove one session. No day-total row to maintain — the total is a SUM. */
+export async function deleteExerciseLog(logId: number): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM exercise_logs WHERE id = ?', [logId]);
+  if (!row) return false;
+  await db.runAsync('DELETE FROM exercise_logs WHERE id = ?', [logId]);
+  return true;
+}
+
+/** Edit one session's duration in place. */
+export async function correctExerciseLog(logId: number, durationMinutes: number): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM exercise_logs WHERE id = ?', [logId]);
+  if (!row) return false;
+  await db.runAsync(
+    'UPDATE exercise_logs SET duration_minutes = ? WHERE id = ?',
+    [Math.max(0, Math.round(durationMinutes)), logId]
+  );
+  return true;
+}
+
+/** Day totals for the last `days` days, newest first — the history strip. */
+export async function getExerciseHistory(
+  days: number = 30,
+  from: string = todayStr()
+): Promise<{ date: string; total_minutes: number; entries: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT date, SUM(duration_minutes) AS total_minutes, COUNT(*) AS entries
+     FROM exercise_logs WHERE date <= ? GROUP BY date ORDER BY date DESC LIMIT ?`,
+    [from, days]
+  );
+}
+
 export async function getTodayExercise(date: string = todayStr()): Promise<{ totalMinutes: number; logged: boolean; type: string; intensity: string }> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ duration_minutes: number; type: string; intensity: string }>(
@@ -711,30 +919,38 @@ export async function getRelapseEvents(limit?: number): Promise<RelapseEvent[]> 
 // Adds to the day's total. The previous version wrote `minutes = excluded.minutes`,
 // which REPLACED the day with the increment: logging +10 then +20 stored 20 while
 // the screen showed 30, and the day collapsed to the last tap on reload.
-export async function logSunExposure(minutes: number, notes: string = '', uvIndex?: string): Promise<void> {
+export async function logSunExposure(minutes: number, notes: string = '', uvIndex?: string, date: string = todayStr()): Promise<void> {
   const db = await getDb();
-  const date = todayStr();
-  await db.runAsync(
-    `INSERT INTO sun_log (date, minutes, uv_index, notes)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(date) DO UPDATE SET
-       minutes = sun_log.minutes + excluded.minutes,
-       uv_index = COALESCE(excluded.uv_index, sun_log.uv_index),
-       notes = CASE WHEN excluded.notes = '' THEN sun_log.notes ELSE excluded.notes END`,
-    [date, minutes, uvIndex ?? null, notes]
-  );
+  const mins = Math.max(0, Math.round(minutes));
+  await db.withTransactionAsync(async () => {
+    // The session is the record; the day total is derived from it. Adding used
+    // to be `minutes = sun_log.minutes + excluded.minutes` against a single
+    // row, which is why "+20 then +25" left nothing to remove but "45".
+    await db.runAsync(
+      'INSERT INTO sun_entries (date, minutes, logged_at) VALUES (?, ?, ?)',
+      [date, mins, Date.now()]
+    );
+    await recomputeSunDay(db, date);
+    // uv_index and notes still live on the day row — they describe the day, not
+    // a session, and nothing asked for them per session.
+    if (uvIndex !== undefined || notes !== '') {
+      await db.runAsync(
+        `UPDATE sun_log SET
+           uv_index = COALESCE(?, uv_index),
+           notes = CASE WHEN ? = '' THEN notes ELSE ? END
+         WHERE date = ?`,
+        [uvIndex ?? null, notes, notes, date]
+      );
+    }
+  });
 }
 
 // Sets the day's total outright, for correcting a mis-tap rather than adding to it.
 export async function setSunExposure(minutes: number, notes: string = ''): Promise<void> {
-  const db = await getDb();
-  const date = todayStr();
-  await db.runAsync(
-    `INSERT INTO sun_log (date, minutes, uv_index, notes)
-     VALUES (?, ?, NULL, ?)
-     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, notes = excluded.notes`,
-    [date, Math.max(0, Math.round(minutes)), notes]
-  );
+  // Same operation as correctSunLog against today. Kept because callers exist;
+  // delegating rather than duplicating means the entries invariant is
+  // maintained in exactly one place.
+  await correctSunLog(minutes, todayStr(), notes);
 }
 
 export async function getTodaySunLog(): Promise<{ minutes: number; notes: string } | null> {
