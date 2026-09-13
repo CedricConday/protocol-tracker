@@ -26,6 +26,7 @@ import Pressable from '../components/Pressable';
 import { t, setLanguage, getLanguage } from '../i18n';
 import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
+import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 
 type ToleranceRule = { id: number; supplement_name: string; tolerance_window: number };
 
@@ -541,6 +542,70 @@ export default function SettingsScreen() {
               last
             />
           </Group>
+
+          {/* ── Developer ─────────────────────────────────────────────────
+              __DEV__ only: never rendered in a release build. Backfills a
+              plausible 60-day history against the schedule rules already on
+              this device, so charts, streaks and history have something real
+              to draw without tapping it all in by hand. */}
+          {__DEV__ && (
+            <>
+              <Text style={styles.groupLabel}>DEVELOPER</Text>
+              <View style={styles.group}>
+                <Row
+                  icon="flask-outline"
+                  label="Load 60-day demo history"
+                  sub="Uses your own supplements · leaves today alone"
+                  onPress={() => {
+                    Alert.alert(
+                      'Load 60 days of history?',
+                      'Writes dose, water, sun, journal, lab and MRI history for the 60 days before today, following the supplements set up on this device. If none are set up, a starter protocol is created first — placeholder amounts you can edit in Manage supplements. Today is left alone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Keep existing days',
+                          onPress: () => {
+                            seedSimulatedHistory(60, 'append')
+                              .then((r) => Alert.alert('Done', `${r.days} days written (${r.skippedExistingDays} already had data and were left alone).\n${r.dosesTaken}/${r.doseRows} doses taken, ${r.journalRows} journal entries, ${r.labRows} lab panels, ${r.mriRows} MRI scans.${r.stagedSupplements.length ? `\n\nStarter protocol created (edit in Manage supplements):\n· ${r.stagedSupplements.join('\n· ')}` : ''}`))
+                              .catch((e) => Alert.alert('Could not load history', e?.message ?? 'Please try again.'));
+                          },
+                        },
+                        {
+                          text: 'Replace those days',
+                          style: 'destructive',
+                          onPress: () => {
+                            seedSimulatedHistory(60, 'replace')
+                              .then((r) => Alert.alert('Done', `${r.days} days written.\n${r.dosesTaken}/${r.doseRows} doses taken, ${r.journalRows} journal entries, ${r.labRows} lab panels, ${r.mriRows} MRI scans.${r.stagedSupplements.length ? `\n\nStarter protocol created (edit in Manage supplements):\n· ${r.stagedSupplements.join('\n· ')}` : ''}`))
+                              .catch((e) => Alert.alert('Could not load history', e?.message ?? 'Please try again.'));
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                />
+                <Row
+                  icon="trash-outline"
+                  label="Clear the last 60 days"
+                  sub="Removes history before today, keeps your protocol"
+                  onPress={() => {
+                    Alert.alert('Clear 60 days of history?', 'Removes every tracked day before today. Your profile, supplements and schedule stay.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Clear',
+                        style: 'destructive',
+                        onPress: () => {
+                          clearSeededHistory(60)
+                            .then(() => Alert.alert('Cleared', 'The last 60 days of history were removed.'))
+                            .catch((e) => Alert.alert('Could not clear', e?.message ?? 'Please try again.'));
+                        },
+                      },
+                    ]);
+                  }}
+                  last
+                />
+              </View>
+            </>
+          )}
 
           <Text style={styles.disclaimer}>{MEDICAL_DISCLAIMER}</Text>
 
