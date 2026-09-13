@@ -313,7 +313,10 @@ const styles = StyleSheet.create({
   slider: {
     flex: 1,
     flexDirection: 'row',
-    width: width * 5,
+    // One page per step. This was hardcoded to `width * 5` from when onboarding
+    // had five beats; with three it painted 1950px of slider into a 390px
+    // viewport, so every step overflowed to the right.
+    width: width * STEPS.length,
   },
   page: {
     width,
