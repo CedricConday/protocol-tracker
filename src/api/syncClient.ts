@@ -10,7 +10,11 @@ export const SYNC_ENABLED = API_BASE !== null;
 async function getPatientJwt(): Promise<string | null> {
   try {
     const { getItemAsync } = await import('expo-secure-store');
-    return getItemAsync('patient_jwt');
+    // `return somePromise` inside try/catch does not catch that promise's
+    // rejection — the await is what brings it inside the guard. Without it,
+    // a platform where SecureStore is unavailable produced an uncaught
+    // "getValueWithKeyAsync is not a function" on the Today screen.
+    return await getItemAsync('patient_jwt');
   } catch {
     return null;
   }
