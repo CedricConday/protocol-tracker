@@ -1,232 +1,86 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useSummaryScreen } from '../hooks';
-import { getMiscFlag } from '../db/queries';
-import SkeletonCard from '../components/SkeletonCard';
-import { getProfileById } from '../data/diseaseProfiles';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { t } from '../i18n';
 
-function getComplianceColor(compliancePct: number) {
-  if (compliancePct >= 80) return '#22c55e';
-  if (compliancePct >= 50) return '#eab308';
-  return '#ef4444';
-}
+/**
+ * The Trackers tab.
+ *
+ * This was the Records tab, and it was a summary screen: compliance ring,
+ * weighted adherence, streak, a 7-day mood strip, a 7-day water strip and the
+ * three clinical entry points. All of that is a reading of history, so on
+ * 2026-09-13 it moved to the Calendar tab, which was already showing the
+ * history it described. The mood strip was not moved — JournalScreen has
+ * rendered the same seven days since before this screen did — and the water
+ * strip belongs on the Water screen with the rest of the water data.
+ *
+ * What is left is a shell: the four things a patient logs every day, each with
+ * a screen of its own. The route id is still `Summary` so every existing
+ * `navigate('Summary', …)` and the three medical sub-routes keep working; only
+ * the tab's visible label changed.
+ *
+ * The four destination screens are Lane B's (PT-trio round 2). Until they land,
+ * these cards navigate to route names that are agreed but not yet registered —
+ * which is why each `onPress` is guarded rather than optimistic.
+ */
+
+type Tracker = {
+  route: string;
+  label: string;
+  sub: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tint: string;
+};
+
+const TRACKERS: Tracker[] = [
+  { route: 'Water',    label: 'Water',    sub: 'Intake, goal and corrections', icon: 'water-outline',    tint: '#3B9AE1' },
+  { route: 'Sunlight', label: 'Sunlight', sub: 'Exposure minutes and history', icon: 'sunny-outline',    tint: '#E9A23C' },
+  { route: 'Exercise', label: 'Exercise', sub: 'Movement logged each day',     icon: 'walk-outline',     tint: '#2F8F5B' },
+  { route: 'Food',     label: 'Food',     sub: 'Meals and first-meal time',    icon: 'restaurant-outline', tint: '#A3623C' },
+];
 
 export default function SummaryScreen() {
   const navigation = useNavigation<any>();
-  const {
-    summary, weekData, refreshing, setRefreshing, streak, adherenceScore,
-    moodWeek, waterWeek, patientName, loadData,
-  } = useSummaryScreen();
 
-  const [loading, setLoading] = useState(true);
-
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
-
-  const barContainerWidth = useRef(0);
-  const barAnim = useRef(new Animated.Value(0)).current;
-  // The ring's number is read straight off the data. It used to be driven by an
-  // Animated.Value listener, and wherever that listener did not fire the ring
-  // read 0 while the card directly above it read 100% — the app contradicting
-  // itself on its headline number. A count-up is not worth that risk; the bar
-  // below still animates.
-  const [onboardingTrack, setOnboardingTrack] = useState<string | null>(null);
-  const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
-
-  const isSimple = onboardingTrack === 'simple';
-
-  useEffect(() => {
-    getMiscFlag('onboarding_track').then(setOnboardingTrack);
-    getMiscFlag('disease_profile').then((id) => {
-      if (id) {
-        const p = getProfileById(id);
-        if (p) setProfileBlurb(p.patientDescription);
-      }
-    });
-  }, []);
-
-  const animateToCompliance = useCallback((pct: number) => {
-    Animated.parallel([
-      Animated.timing(barAnim, {
-        toValue: barContainerWidth.current * pct / 100,
-        duration: 700,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [barAnim]);
-
-  useEffect(() => {
-    if (summary !== null) setLoading(false);
-  }, [summary]);
-
-  useEffect(() => {
-    animateToCompliance(summary?.compliancePct ?? 0);
-  }, [summary, animateToCompliance]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
+  // A card whose screen has not been registered yet must do nothing visible
+  // rather than throw a navigation error at the patient. Once Lane B's screens
+  // are registered this guard simply never fires.
+  const open = (route: string) => {
+    try {
+      navigation.navigate(route);
+    } catch {
+      /* route not registered yet — PT-trio round 2, Lane B */
+    }
   };
-
-  const taken = summary?.takenDoses ?? 0;
-  const total = summary?.totalDoses ?? 0;
-  const compliancePct = summary?.compliancePct ?? 0;
-  const ringColor = getComplianceColor(compliancePct);
-
-  const MAX_WATER = 2000;
-  const weekLabels = waterWeek.map(w => w.day);
-
-  const highestMood = Math.max(...moodWeek.filter(m => m.score !== null).map(m => m.score!), 1);
-  const highestWater = Math.max(...waterWeek.map(w => w.ml), 1);
-
-  if (loading) {
-    return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <SkeletonCard height={40} width={180} />
-        <View style={{ height: 16 }} />
-        <SkeletonCard height={100} />
-        <View style={{ height: 12 }} />
-        <SkeletonCard height={80} />
-        <View style={{ height: 12 }} />
-        <SkeletonCard height={180} />
-        <View style={{ height: 24 }} />
-        <SkeletonCard height={60} />
-      </ScrollView>
-    );
-  }
 
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />}
     >
-      <Text style={styles.heading}>{t('summary')}</Text>
+      <Text style={styles.heading}>{t('trackers')}</Text>
+      <Text style={styles.standfirst}>{t('trackersIntro')}</Text>
 
-      <View style={styles.statRow}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{taken}/{total}</Text>
-          <Text style={styles.statLabel}>{t('dosesToday')}</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{streak}</Text>
-          <Text style={styles.statLabel}>{t('dayStreak')}</Text>
-        </View>
-      </View>
-
-      {/* Adherence Score */}
-      {adherenceScore > 0 && (
-        <View style={styles.scoreCard}>
-          <Text style={styles.scoreValue}>{Math.round(adherenceScore)}%</Text>
-          <Text style={styles.scoreLabel}>{t('weightedAdherence')}</Text>
-          <Text style={styles.scoreSub}>14-day weighted score based on completeness and timing</Text>
-        </View>
-      )}
-
-      {profileBlurb && (
-        <View style={styles.profileBlurbCard}>
-          <Text style={styles.profileBlurbText}>{profileBlurb}</Text>
-        </View>
-      )}
-
-      {/* Compliance Ring Card */}
-      <View style={styles.complianceCard}>
-        <Text style={styles.cardDayLabel}>{t('today')}</Text>
-        <View style={styles.ringContainer}>
-          <View style={[styles.ringOuter, { borderColor: '#CFD2C6' }]}>
-            <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
-            <View style={styles.ringCenter}>
-              <Text style={[styles.ringNumber, { color: ringColor }]}>{compliancePct}</Text>
-              <Text style={styles.ringPercent}>%</Text>
-            </View>
-          </View>
-        </View>
-        <Text style={styles.complianceLabel}>{t('compliance')}</Text>
-        <View
-          style={styles.barBg}
-          onLayout={e => {
-            barContainerWidth.current = e.nativeEvent.layout.width;
-            animateToCompliance(compliancePct);
-          }}
-        >
-          <Animated.View style={[styles.barFill, { width: barAnim, backgroundColor: ringColor }]} />
-        </View>
-      </View>
-
-      {/* Mood Chart */}
-      <Text style={styles.chartSectionTitle}>{t('mood7')}</Text>
-      <View style={styles.barChartRow}>
-        {moodWeek.map((m, i) => (
-          <View key={m.day} style={styles.barCol}>
-            <View style={[styles.moodBar, { height: m.score ? (m.score / highestMood) * 70 : 0, backgroundColor: m.score ? '#22c55e' : '#DBDDD3' }]} />
-            <Text style={styles.barDayLabel}>{m.day}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Water Chart */}
-      <Text style={styles.chartSectionTitle}>{t('water7')}</Text>
-      <View style={styles.waterChartRow}>
-        {waterWeek.map((w, i) => (
-          <View key={w.day} style={styles.waterCol}>
-            <Text style={styles.waterMlLabel}>{w.ml > 0 ? `${Math.round(w.ml / 100) * 100}` : ''}</Text>
-            <View style={styles.waterBarTrack}>
-              <View style={[styles.waterBarFill, { height: Math.min(100, (w.ml / MAX_WATER) * 100), backgroundColor: w.ml >= MAX_WATER * 0.8 ? '#22c55e' : '#eab308' }]} />
-              <View style={[styles.waterBarRemain, { flex: 1 }]} />
-            </View>
-            <Text style={styles.waterDayLabel}>{w.day}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* The protocol's clinical surfaces. These screens were registered in the
-          navigator but nothing navigated to them, so lab monitoring, MRI history
-          and the doctor report were unreachable in the shipped build. */}
-      <View style={styles.medicalRow}>
+      {TRACKERS.map((tracker) => (
         <TouchableOpacity
-          style={styles.medicalBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('LabResults')}
-          accessibilityLabel="Lab results"
+          key={tracker.route}
+          style={styles.card}
+          activeOpacity={0.85}
+          onPress={() => open(tracker.route)}
           accessibilityRole="button"
+          accessibilityLabel={`${tracker.label} tracker. ${tracker.sub}`}
         >
-          <Text style={styles.medicalBtnLabel}>Lab Results</Text>
-          <Text style={styles.medicalBtnSub}>Vitamin D · PTH · calcium</Text>
+          <View style={[styles.iconWrap, { backgroundColor: `${tracker.tint}1A` }]}>
+            <Ionicons name={tracker.icon} size={22} color={tracker.tint} />
+          </View>
+          <View style={styles.cardText}>
+            <Text style={styles.cardLabel}>{tracker.label}</Text>
+            <Text style={styles.cardSub}>{tracker.sub}</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.medicalBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('MriTracker')}
-          accessibilityLabel="MRI history"
-          accessibilityRole="button"
-        >
-          <Text style={styles.medicalBtnLabel}>MRI History</Text>
-          <Text style={styles.medicalBtnSub}>Scans and findings</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Share Button */}
-      <TouchableOpacity
-        style={styles.shareBtn}
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate('Report')}
-        accessibilityLabel="Share your progress"
-        accessibilityRole="button"
-      >
-        <Text style={styles.shareBtnText}>{t('shareProgress')}</Text>
-      </TouchableOpacity>
-
+      ))}
     </ScrollView>
   );
 }
@@ -234,51 +88,22 @@ export default function SummaryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F7F2' },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  medicalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  medicalBtn: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
-  medicalBtnLabel: { color: '#14213D', fontSize: 14, fontWeight: '700', marginBottom: 3 },
-  medicalBtnSub: { color: '#5A6478', fontSize: 11 },
-  workspaceBtn: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 10, borderWidth: 1, borderColor: '#1B58B840' },
-  workspaceBtnIcon: { color: '#1B58B8', fontSize: 22 },
-  workspaceBtnLabel: { color: '#1B58B8', fontSize: 15, fontWeight: '700' },
-  workspaceBtnSub: { color: '#9AA3B2', fontSize: 12, marginTop: 2 },
-  chartSectionTitle: { color: '#5A6478', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8, marginTop: 24 },
-  barChartRow: { flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 6, marginBottom: 4 },
-  barCol: { flex: 1, alignItems: 'center', gap: 4, justifyContent: 'flex-end' },
-  moodBar: { width: '100%', borderRadius: 4 },
-  barDayLabel: { color: '#5A6478', fontSize: 10, textAlign: 'center' },
-  waterGoalLine: { position: 'absolute', bottom: 20, left: 0, right: 0, height: 1, backgroundColor: '#14213D', opacity: 0.1 },
-  heading: { color: '#14213D', fontSize: 24, fontWeight: '800', marginBottom: 24 },
-  statRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#CFD2C6' },
-  statValue: { color: '#14213D', fontSize: 28, fontWeight: '800' },
-  statLabel: { color: '#5A6478', fontSize: 13, marginTop: 4, lineHeight: 20 },
-  complianceCard: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#CFD2C6' },
-  cardDayLabel: { color: '#5A6478', fontSize: 12, fontWeight: '600', alignSelf: 'flex-start', marginBottom: 4 },
-  ringContainer: { width: 84, height: 84, justifyContent: 'center', alignItems: 'center', marginVertical: 4 },
-  ringOuter: { width: 84, height: 84, borderRadius: 42, borderWidth: 6, justifyContent: 'center', alignItems: 'center' },
-  ringInnerAccent: { position: 'absolute', width: 84, height: 84, borderRadius: 42, borderWidth: 6, borderLeftColor: 'transparent', borderBottomColor: 'transparent' },
-  ringCenter: { alignItems: 'center' },
-  ringNumber: { fontSize: 24, fontWeight: '800' },
-  ringPercent: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
-  complianceLabel: { color: '#14213D', fontSize: 14, fontWeight: '600', marginTop: 6 },
-  barBg: { width: '100%', height: 8, minHeight: 8, backgroundColor: '#DBDDD3', borderRadius: 4, marginTop: 10 },
-  barFill: { height: 8, borderRadius: 4 },
-  scoreCard: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: '#CFD2C6' },
-  scoreValue: { color: '#14213D', fontSize: 22, fontWeight: '800' },
-  scoreLabel: { color: '#5A6478', fontSize: 13, fontWeight: '600', marginTop: 2 },
-  scoreSub: { color: '#9AA3B2', fontSize: 12, marginTop: 3, lineHeight: 16 },
-  waterChartRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120, marginBottom: 16 },
-  waterCol: { alignItems: 'center', width: 36 },
-  waterMlLabel: { color: '#9AA3B2', fontSize: 9, fontWeight: '600', marginBottom: 4 },
-  waterBarTrack: { width: 12, height: 100, backgroundColor: '#DBDDD3', borderRadius: 6, overflow: 'hidden' },
-  waterBarFill: { width: 12, borderRadius: 6 },
-  waterBarRemain: { width: 12 },
-  waterDayLabel: { color: '#5A6478', fontSize: 10, marginTop: 8 },
-  shareBtn: { backgroundColor: '#ECEDE6', borderRadius: 10, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: '#1B58B8' },
-  shareBtnText: { color: '#1B58B8', fontSize: 15, fontWeight: '700' },
-  doctorBtn: { backgroundColor: '#ECEDE6', borderRadius: 10, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2AA6B8' },
-  doctorBtnText: { color: '#2AA6B8', fontSize: 14, fontWeight: '700' },
-  profileBlurbCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
-  profileBlurbText: { color: '#5A6478', fontSize: 13, lineHeight: 20 },
+  heading: { color: '#14213D', fontSize: 28, fontWeight: '800', marginBottom: 6 },
+  standfirst: { color: '#5A6478', fontSize: 14, lineHeight: 20, marginBottom: 20 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#ECEDE6',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#CFD2C6',
+  },
+  iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  cardText: { flex: 1 },
+  cardLabel: { color: '#14213D', fontSize: 16, fontWeight: '700' },
+  cardSub: { color: '#5A6478', fontSize: 12, marginTop: 2 },
+  chevron: { color: '#9AA3B2', fontSize: 24, fontWeight: '300' },
 });

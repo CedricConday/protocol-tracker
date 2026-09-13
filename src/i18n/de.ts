@@ -11,6 +11,8 @@ export const de: Record<string, string> = {
   journal: 'Tagebuch',
   schedule: 'Zeitplan',
   summary: 'Zusammenfassung',
+  trackers: 'Tracker',
+  trackersIntro: 'Was du täglich erfasst. Einhaltung und klinische Befunde stehen jetzt unter dem Kalender.',
   history: 'Verlauf',
   guide: 'Leitfaden',
   awareness: 'Erinnerungen',
