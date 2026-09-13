@@ -138,12 +138,50 @@ export async function getWaterLogs(
 
 /**
  * Sun is stored as one aggregated row per day (`sun_log.date` is UNIQUE), so
- * there is no last entry to remove — `setSunExposure` already corrects the total
- * outright, and this clears the day back to nothing.
+ * there is no last entry to remove the way there is for water — correcting sun
+ * means setting the day's total. This clears the day back to nothing.
  */
 export async function clearSunLog(date: string = todayStr()): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM sun_log WHERE date = ?', [date]);
+}
+
+/**
+ * Set a day's sun total, including a day that is not today.
+ *
+ * `setSunExposure` already writes the total outright, but it computes its own
+ * `todayStr()` and takes no date — so yesterday's mis-tap could not be corrected
+ * at all, only today's. That is the whole gap this fills: the same write, against
+ * a named date. Water gets `correctWaterLog(logId, …)` because it keeps one row
+ * per entry; sun keeps one row per day, so the day *is* the unit of correction
+ * and there is no id to address.
+ *
+ * `notes` left undefined keeps whatever the row already says; passing `''` is a
+ * deliberate erase. The two must not collapse into each other — correcting the
+ * minutes should not silently wipe the note explaining the day.
+ */
+export async function correctSunLog(
+  minutes: number,
+  date: string = todayStr(),
+  notes?: string
+): Promise<void> {
+  const db = await getDb();
+  const next = Math.max(0, Math.round(minutes));
+  if (notes === undefined) {
+    await db.runAsync(
+      `INSERT INTO sun_log (date, minutes, uv_index, notes)
+       VALUES (?, ?, NULL, '')
+       ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes`,
+      [date, next]
+    );
+    return;
+  }
+  await db.runAsync(
+    `INSERT INTO sun_log (date, minutes, uv_index, notes)
+     VALUES (?, ?, NULL, ?)
+     ON CONFLICT(date) DO UPDATE SET minutes = excluded.minutes, notes = excluded.notes`,
+    [date, next, notes]
+  );
 }
 
 // ── Schedule Rules ────────────────────────────────────────────────────────────
