@@ -34,8 +34,11 @@ export default function SummaryScreen() {
 
   const barContainerWidth = useRef(0);
   const barAnim = useRef(new Animated.Value(0)).current;
-  const countAnim = useRef(new Animated.Value(0)).current;
-  const [displayPct, setDisplayPct] = useState(0);
+  // The ring's number is read straight off the data. It used to be driven by an
+  // Animated.Value listener, and wherever that listener did not fire the ring
+  // read 0 while the card directly above it read 100% — the app contradicting
+  // itself on its headline number. A count-up is not worth that risk; the bar
+  // below still animates.
   const [onboardingTrack, setOnboardingTrack] = useState<string | null>(null);
   const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
 
@@ -51,11 +54,6 @@ export default function SummaryScreen() {
     });
   }, []);
 
-  useEffect(() => {
-    const id = countAnim.addListener(({ value }) => setDisplayPct(Math.round(value)));
-    return () => countAnim.removeListener(id);
-  }, [countAnim]);
-
   const animateToCompliance = useCallback((pct: number) => {
     Animated.parallel([
       Animated.timing(barAnim, {
@@ -63,13 +61,8 @@ export default function SummaryScreen() {
         duration: 700,
         useNativeDriver: false,
       }),
-      Animated.timing(countAnim, {
-        toValue: pct,
-        duration: 700,
-        useNativeDriver: false,
-      }),
     ]).start();
-  }, [barAnim, countAnim]);
+  }, [barAnim]);
 
   useEffect(() => {
     if (summary !== null) setLoading(false);
@@ -154,7 +147,7 @@ export default function SummaryScreen() {
           <View style={[styles.ringOuter, { borderColor: '#CFD2C6' }]}>
             <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
             <View style={styles.ringCenter}>
-              <Text style={[styles.ringNumber, { color: ringColor }]}>{displayPct}</Text>
+              <Text style={[styles.ringNumber, { color: ringColor }]}>{compliancePct}</Text>
               <Text style={styles.ringPercent}>%</Text>
             </View>
           </View>
