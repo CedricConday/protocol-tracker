@@ -260,6 +260,8 @@ export default function SupplementEditorScreen() {
             style={styles.addBtn}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={showAddForm ? 'Close the add supplement form' : 'Add a supplement'}
           >
             <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#F7F7F2" />
           </TouchableOpacity>
@@ -276,6 +278,8 @@ export default function SupplementEditorScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdd().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
                 disabled={saving === '__add__'}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Add supplement"
               >
                 <Text style={styles.saveBtnText}>{saving === '__add__' ? 'Saving…' : 'Add Supplement'}</Text>
               </TouchableOpacity>

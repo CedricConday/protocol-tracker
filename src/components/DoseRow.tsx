@@ -110,8 +110,9 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     </Animated.View>
   );
 
+  const a11yLabel = `${dose.supplementName}, ${dose.doseAmount}, scheduled at ${timeLabel} ${ampm}, status ${dose.status}`;
+
   if (onPress) {
-    const a11yLabel = `${dose.supplementName}, ${dose.doseAmount}, scheduled at ${timeLabel} ${ampm}, status ${dose.status}`;
     return (
       <TouchableOpacity
         onPress={() => onPress(dose)}
@@ -126,7 +127,14 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     );
   }
 
-  return inner;
+  // Not pressable, but still a row the user is meant to read. Without a name
+  // here the expanded dose list exposed no accessible rows at all — screen
+  // readers and name-based tests saw an unlabelled group.
+  return (
+    <View accessible accessibilityLabel={a11yLabel} accessibilityRole="text">
+      {inner}
+    </View>
+  );
 });
 
 export default DoseRow;

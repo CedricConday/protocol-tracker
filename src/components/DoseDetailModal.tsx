@@ -158,12 +158,16 @@ export default function DoseDetailModal({
               <TouchableOpacity
                 style={styles.tookButton}
                 onPress={() => onTook(dose)}
+                accessibilityRole="button"
+                accessibilityLabel={`Mark ${dose.supplementName} as taken`}
               >
                 <Text style={styles.tookButtonText}>✓ Took it</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.skipButton}
                 onPress={handleSkipPress}
+                accessibilityRole="button"
+                accessibilityLabel={`Skip ${dose.supplementName}`}
               >
                 <Text style={styles.skipButtonText}>{t('skip')}</Text>
               </TouchableOpacity>
