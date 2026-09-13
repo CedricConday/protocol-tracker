@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
 import { t } from '../i18n';
+import { todayStr } from '../db/queries';
 
 interface MriScan {
   id: number;
@@ -64,7 +65,7 @@ export default function MriScreen() {
   }, []);
 
   // Form state
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayStr());
   const [facility, setFacility] = useState('');
   const [scanType, setScanType] = useState('Brain');
   const [contrast, setContrast] = useState(false);
@@ -104,7 +105,7 @@ export default function MriScreen() {
         [date, facility, scanType, contrast ? 1 : 0, newLesions, enhancing === null ? null : (enhancing ? 1 : 0), assessment.toLowerCase(), notes]
       );
       setShowForm(false);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(todayStr());
       setFacility(''); setNewLesions(''); setNotes('');
       setContrast(false); setEnhancing(null); setAssessment('Stable'); setScanType('Brain');
       await load();

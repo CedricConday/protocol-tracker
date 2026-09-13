@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getDaySummary, getStreak } from '../db/queries';
+import { getDaySummary, getStreak, todayStr } from '../db/queries';
 import { t } from '../i18n';
 
 const MOOD_OPTIONS = [
@@ -40,7 +40,7 @@ export default function CaregiverScreen() {
       setStreak(s);
       const sync = await AsyncStorage.getItem(SYNC_KEY);
       setLastSync(sync);
-      const todayMood = await AsyncStorage.getItem(CAREGIVER_MOOD_KEY + '_' + new Date().toISOString().split('T')[0]);
+      const todayMood = await AsyncStorage.getItem(CAREGIVER_MOOD_KEY + '_' + todayStr());
       if (todayMood) setSelectedMood(parseInt(todayMood, 10));
 
       const share = await AsyncStorage.getItem('info_share_approved');
@@ -57,7 +57,7 @@ export default function CaregiverScreen() {
 
         // Schedule a daily compliance summary notification for caregiver
         const lastNotif = await AsyncStorage.getItem('caregiver_daily_notif_date');
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayStr();
         if (lastNotif !== today) {
           const compliance = summary.compliancePct;
           await Notifications.scheduleNotificationAsync({
@@ -75,14 +75,14 @@ export default function CaregiverScreen() {
 
   const handleSaveMood = async (score: number) => {
     setSelectedMood(score);
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     await AsyncStorage.setItem(CAREGIVER_MOOD_KEY + '_' + today, String(score));
     setMoodSaved(true);
     setTimeout(() => setMoodSaved(false), 2000);
   };
 
   const handleSync = async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     await AsyncStorage.setItem(SYNC_KEY, today);
     setLastSync(today);
     setShowNudge(false);

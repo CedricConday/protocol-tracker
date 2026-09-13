@@ -1,4 +1,5 @@
 import { getDb } from './schema';
+import { todayStr } from './queries';
 
 // Pure-tracker build: the app ships with NO pre-loaded protocol, supplements,
 // schedule, interaction warnings, dietary rules, or awareness content. The user
@@ -15,7 +16,7 @@ export async function seedDb(): Promise<void> {
 
 export async function createDefaultProfile(name: string, weight_kg: number): Promise<void> {
   const db = await getDb();
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   await db.runAsync(
     `INSERT OR REPLACE INTO user_profile (id, name, weight_kg, start_date, timezone, bedtime_hour, bedtime_minute)
      VALUES (1, ?, ?, ?, 'Europe/Berlin', 22, 0)`,

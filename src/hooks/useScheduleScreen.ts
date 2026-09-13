@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDoseLogs, getDaySummary, getScheduleRules, localDateStr } from '../db/queries';
+import { getDoseLogs, getDaySummary, getScheduleRules, localDateStr, todayStr } from '../db/queries';
 import { formatDoseTime } from '../engine/scheduler';
 import type { DoseLog, DoseStatus, ScheduledDose } from '../types';
 
@@ -71,11 +71,11 @@ export function useScheduleScreen() {
 
   const loadCalendar = useCallback(async () => {
     const dateStrs = buildLast30Days();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = todayStr();
     const results = await Promise.all(
       dateStrs.map(async (dateStr) => {
         const summary = await getDaySummary(dateStr);
-        return { date: dateStr, dayNumber: new Date(dateStr + 'T12:00:00').getDate(), compliancePct: summary.compliancePct, totalDoses: summary.totalDoses, isToday: dateStr === todayStr };
+        return { date: dateStr, dayNumber: new Date(dateStr + 'T12:00:00').getDate(), compliancePct: summary.compliancePct, totalDoses: summary.totalDoses, isToday: dateStr === today };
       }),
     );
     setCalCells(results);

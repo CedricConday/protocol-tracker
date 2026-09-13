@@ -28,7 +28,7 @@ import WaterTracker from '../components/WaterTracker';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag } from '../db/queries';
+import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { ScheduledDose, MedicalEvent } from '../types';
@@ -260,7 +260,7 @@ export default function HomeScreen() {
 
   const handleLogExercise = async (minutes: number = 30, type: string = 'walk', intensity: string = 'moderate') => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await logExercise(minutes, type, new Date().toISOString().split('T')[0], intensity);
+    await logExercise(minutes, type, todayStr(), intensity);
     setExerciseMinutes(prev => prev + minutes);
     setExerciseType(type);
     setExerciseIntensity(intensity);
@@ -278,7 +278,7 @@ export default function HomeScreen() {
   const handleLogMeal = async () => {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    await setFirstMealTime(new Date().toISOString().split('T')[0], timeStr);
+    await setFirstMealTime(todayStr(), timeStr);
     setFirstMealTimeState(timeStr);
     setShowMealPrompt(false);
   };

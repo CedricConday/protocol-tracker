@@ -14,7 +14,7 @@ import { getDb } from '../db/schema';
 import { enqueueAction } from '../db/actionQueue';
 import EmptyState from '../components/EmptyState';
 import { DISEASE_PROFILES, getProfileById, type DiseaseProfile } from '../data/diseaseProfiles';
-import { getMiscFlag } from '../db/queries';
+import { getMiscFlag, todayStr } from '../db/queries';
 import { t } from '../i18n';
 
 interface LabResult {
@@ -66,7 +66,7 @@ export default function LabResultsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayStr());
   const [vitD, setVitD] = useState('');
   const [pth, setPth] = useState('');
   const [calciumSerum, setCalciumSerum] = useState('');
@@ -112,7 +112,7 @@ export default function LabResultsScreen() {
       await enqueueAction('lab_result_saved', { date, vit_d_ngml: vitD, calcium_serum_mgdl: calciumSerum, pth_pgml: pth });
       // Pure-tracker build: no "out of range" evaluation/alerting on lab values.
       setShowForm(false);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(todayStr());
       setVitD(''); setPth(''); setCalciumSerum(''); setCalciumUrine(''); setCreatinine(''); setNfl('');
       setSulkowitch(null); setNotes('');
       await load();
