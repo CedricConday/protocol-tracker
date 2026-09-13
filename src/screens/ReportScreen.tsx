@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { generateComplianceReport } from '../components/ComplianceReport';
@@ -29,6 +30,8 @@ export default function ReportScreen() {
       );
       setLastGenerated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+    } catch (e: any) {
+      Alert.alert('Could not create the report', e?.message ?? 'Please try again.');
     } finally {
       setGenerating(false);
     }

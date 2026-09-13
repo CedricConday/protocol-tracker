@@ -104,6 +104,12 @@ export async function generateComplianceReport(
     </html>
   `;
 
-  const { uri } = await Print.printToFileAsync({ html });
-  return uri;
+  // expo-print resolves to undefined where there is no file-producing printer
+  // (the web target prints straight to a dialog), and destructuring that threw
+  // an uncaught "Cannot destructure property 'uri'" that the caller never saw.
+  const printed = await Print.printToFileAsync({ html });
+  if (!printed?.uri) {
+    throw new Error('This device could not produce a PDF file for the report.');
+  }
+  return printed.uri;
 }
