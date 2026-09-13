@@ -1,0 +1,20 @@
+import { openApp } from '../lib/session.mjs';
+import { onboard, startDay, gotoTab } from '../lib/prelude.mjs';
+const ctx = await openApp({ label: 'trk', stubNotificationScheduler: true });
+const { page } = ctx;
+const call = (fn, ...a) => page.evaluate(async ({ fn, a }) => {
+  const m = window.__r(window.__PT_MODS['src/db/queries.ts']); return m[fn](...a);
+}, { fn, a });
+await onboard(ctx);
+await startDay(ctx);
+await page.waitForTimeout(2000);
+const today = await ctx.today();
+await call('addWater', 250); await call('addWater', 400);
+await call('logSunExposure', 20, '', undefined, today);
+await call('logExercise', 25, 'walk', today, 'moderate');
+await call('setFirstMealTime', today, '08:15');
+await gotoTab(ctx, 'Trackers');
+await page.waitForTimeout(1800);
+await ctx.shot('tab');
+console.log('ok');
+await ctx.close();

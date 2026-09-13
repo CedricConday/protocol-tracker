@@ -43,8 +43,18 @@ export function useJournalScreen() {
       ? { date: today, mood: existing.mood, note: existing.note }
       : { date: today, mood: null, note: '' });
 
-    const all = await getRecentJournalEntries(7);
-    setPastEntries(all.filter((e) => e.date !== today));
+    // Today is IN the list.
+    //
+    // It used to be filtered out, because the editor above this list is today's
+    // entry and showing it twice looked redundant. From the user's side that
+    // reads as a logging bug: you pick a mood, it saves, you scroll to "Recent
+    // Entries" — which is your log — and the newest thing in it is yesterday.
+    // Reported from the device as exactly that.
+    //
+    // The filter also quietly cost a row: seven were fetched, today was dropped,
+    // six were shown. Fetch one extra so seven is really seven.
+    const all = await getRecentJournalEntries(8);
+    setPastEntries(all.slice(0, 7));
 
     const recentEvents = await getRelapseEvents(10);
     setEvents(recentEvents);

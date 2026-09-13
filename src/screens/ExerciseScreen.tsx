@@ -33,7 +33,7 @@ import {
 
 export const EXERCISE_GOAL_FLAG = 'exercise_goal_min';
 
-const DEFAULT_GOAL_MIN = 30;
+export const DEFAULT_GOAL_MIN = 30;
 const GOAL_STEP = 5;
 const GOAL_MIN_LIMIT = 5;
 const GOAL_MAX_LIMIT = 600;

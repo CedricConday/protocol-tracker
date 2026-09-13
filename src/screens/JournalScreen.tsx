@@ -542,12 +542,14 @@ export default function JournalScreen() {
               style={styles.entryCard}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpandedId(isExpanded ? null : entry.id); }}
               activeOpacity={0.7}
-              accessibilityLabel={isExpanded ? `Collapse entry from ${entry.date}` : `Expand entry from ${entry.date}`}
+              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} entry from ${entry.date === todayStr() ? 'today' : entry.date}`}
               accessibilityRole="button"
             >
               <View style={styles.entryTop}>
                 <Text style={styles.entryMood}>{entry.mood}</Text>
-                <Text style={styles.entryDate}>{formatDateLabel(entry.date)}</Text>
+                <Text style={[styles.entryDate, entry.date === todayStr() && styles.entryDateToday]}>
+                  {entry.date === todayStr() ? 'Today' : formatDateLabel(entry.date)}
+                </Text>
                 <View style={[styles.complianceBadge, { backgroundColor: complianceBadgeColor(entry.compliance_pct) + '30' }]}>
                   <Text style={[styles.complianceBadgeText, { color: complianceBadgeColor(entry.compliance_pct) }]}>
                     {entry.compliance_pct}%
@@ -831,6 +833,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  entryDateToday: { fontWeight: '800' },
   complianceBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,

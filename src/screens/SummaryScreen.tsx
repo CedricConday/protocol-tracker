@@ -3,10 +3,14 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { t } from '../i18n';
+import { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
+import { SUN_GOAL_FLAG } from './SunlightScreen';
+import { EXERCISE_GOAL_FLAG, DEFAULT_GOAL_MIN as DEFAULT_EXERCISE_GOAL_MIN } from './ExerciseScreen';
 import { DEFAULT_GOAL_ML } from '../components/WaterTracker';
 import { WATER_GOAL_FLAG } from './WaterScreen';
 import {
   getAnchor, getFirstMealTime, getMiscFlag, getTodayExercise, getTodaySunLog, todayStr,
+  getSunEntries, getExerciseLogs, getWaterLogs, getTodayMeals,
 } from '../db/queries';
 
 /**
@@ -52,11 +56,20 @@ const TRACKERS: Tracker[] = [
   { route: 'Food',     label: 'Food',     sub: 'Meals and first-meal time',    icon: 'restaurant-outline', tint: '#A3623C' },
 ];
 
-type TodayValues = Record<Tracker['route'], string>;
+type CardData = {
+  /** The headline number, e.g. "1200 of 3500 ml". */
+  value: string;
+  /** A second line of context — goal, session count, last entry. */
+  detail: string;
+  /** 0..1 against the day's goal, or null where a goal makes no sense. */
+  progress: number | null;
+};
+type TodayValues = Record<Tracker['route'], CardData>;
 
 // Until the reads land the cards say nothing rather than "0" — a zero the app
 // has not actually looked up is a claim, and on this screen it is the wrong one.
-const PENDING: TodayValues = { Water: '', Sunlight: '', Exercise: '', Food: '' };
+const EMPTY: CardData = { value: '', detail: '', progress: null };
+const PENDING: TodayValues = { Water: EMPTY, Sunlight: EMPTY, Exercise: EMPTY, Food: EMPTY };
 
 export default function SummaryScreen() {
   const navigation = useNavigation<any>();
@@ -73,14 +86,50 @@ export default function SummaryScreen() {
       const waterMl = anchor?.water_ml ?? 0;
 
       const sun = await getTodaySunLog();
+      const sunGoal = Number(await getMiscFlag(SUN_GOAL_FLAG)) || DEFAULT_SUN_GOAL_MIN;
+      const sunEntries = await getSunEntries(date);
+
       const exercise = await getTodayExercise(date);
+      const exGoal = Number(await getMiscFlag(EXERCISE_GOAL_FLAG)) || DEFAULT_EXERCISE_GOAL_MIN;
+      const exEntries = await getExerciseLogs(date);
+
       const firstMeal = await getFirstMealTime(date);
+      const meals = await getTodayMeals(date);
+
+      const waterEntries = await getWaterLogs(date);
+      const sunMin = sun?.minutes ?? 0;
+
+      const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
       setToday({
-        Water: `${waterMl} of ${goalMl} ml`,
-        Sunlight: `${sun?.minutes ?? 0} min`,
-        Exercise: `${exercise.totalMinutes} min`,
-        Food: firstMeal ? `First meal ${firstMeal}` : 'First meal not set',
+        Water: {
+          value: `${waterMl} of ${goalMl} ml`,
+          detail: waterEntries.length
+            ? `${plural(waterEntries.length, 'entry', 'entries')} · ${Math.max(0, goalMl - waterMl)} ml to go`
+            : 'Nothing logged yet',
+          progress: goalMl > 0 ? Math.min(1, waterMl / goalMl) : null,
+        },
+        Sunlight: {
+          value: `${sunMin} of ${sunGoal} min`,
+          detail: sunEntries.length
+            ? `${plural(sunEntries.length, 'session', 'sessions')} · last ${new Date(sunEntries[0].logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            : 'Nothing logged yet',
+          progress: sunGoal > 0 ? Math.min(1, sunMin / sunGoal) : null,
+        },
+        Exercise: {
+          value: `${exercise.totalMinutes} of ${exGoal} min`,
+          detail: exEntries.length
+            ? `${plural(exEntries.length, 'session', 'sessions')} · ${exEntries[0].type}, ${exEntries[0].intensity}`
+            : 'Nothing logged yet',
+          progress: exGoal > 0 ? Math.min(1, exercise.totalMinutes / exGoal) : null,
+        },
+        Food: {
+          value: firstMeal ? `First meal ${firstMeal}` : 'First meal not set',
+          detail: meals.length
+            ? `${plural(meals.length, 'meal', 'meals')} logged today`
+            : 'Dose timing keys off your first meal',
+          progress: null,
+        },
       });
     } catch (e) {
       // One failed read must not blank the tab: the cards fall back to their
@@ -111,6 +160,7 @@ export default function SummaryScreen() {
       <Text style={styles.heading}>{t('trackers')}</Text>
       <Text style={styles.standfirst}>{t('trackersIntro')}</Text>
 
+      <View style={styles.list}>
       {TRACKERS.map((tracker) => (
         <TouchableOpacity
           key={tracker.route}
@@ -119,8 +169,8 @@ export default function SummaryScreen() {
           onPress={() => open(tracker.route)}
           accessibilityRole="button"
           accessibilityLabel={
-            today[tracker.route]
-              ? `${tracker.label} tracker. Today: ${today[tracker.route]}.`
+            today[tracker.route].value
+              ? `${tracker.label} tracker. Today: ${today[tracker.route].value}. ${today[tracker.route].detail}`
               : `${tracker.label} tracker. ${tracker.sub}`
           }
         >
@@ -129,30 +179,49 @@ export default function SummaryScreen() {
           </View>
           <View style={styles.cardText}>
             <Text style={styles.cardLabel}>{tracker.label}</Text>
-            <Text style={[styles.cardSub, today[tracker.route] ? styles.cardToday : null]}>
-              {today[tracker.route] || tracker.sub}
+            <Text style={[styles.cardSub, today[tracker.route].value ? styles.cardToday : null]}>
+              {today[tracker.route].value || tracker.sub}
             </Text>
+            {today[tracker.route].detail ? (
+              <Text style={styles.cardDetail}>{today[tracker.route].detail}</Text>
+            ) : null}
+            {today[tracker.route].progress !== null ? (
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    { backgroundColor: tracker.tint },
+                    { width: `${Math.round((today[tracker.route].progress ?? 0) * 100)}%` as `${number}%` },
+                  ]}
+                />
+              </View>
+            ) : null}
           </View>
           <Text style={styles.chevron}>›</Text>
         </TouchableOpacity>
       ))}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F7F2' },
-  content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  // flexGrow lets the four cards share the height instead of bunching at the
+  // top over an empty half-screen; it still scrolls if the text wraps.
+  content: { padding: 24, paddingTop: 60, paddingBottom: 24, flexGrow: 1 },
   heading: { color: '#14213D', fontSize: 28, fontWeight: '800', marginBottom: 6 },
   standfirst: { color: '#5A6478', fontSize: 14, lineHeight: 20, marginBottom: 20 },
+  list: { flex: 1, gap: 12 },
   card: {
+    flex: 1,
+    minHeight: 96,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     backgroundColor: '#ECEDE6',
     borderRadius: 14,
     padding: 16,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#CFD2C6',
   },
@@ -160,6 +229,9 @@ const styles = StyleSheet.create({
   cardText: { flex: 1 },
   cardLabel: { color: '#14213D', fontSize: 16, fontWeight: '700' },
   cardSub: { color: '#5A6478', fontSize: 12, marginTop: 2 },
+  cardDetail: { color: '#9AA3B2', fontSize: 12, marginTop: 3 },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: '#DDDFD4', overflow: 'hidden', marginTop: 9 },
+  barFill: { height: 6, borderRadius: 3 },
   cardToday: { color: '#14213D', fontSize: 13, fontWeight: '600' },
   chevron: { color: '#9AA3B2', fontSize: 24, fontWeight: '300' },
 });

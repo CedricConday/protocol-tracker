@@ -187,6 +187,9 @@ export default function HomeScreen() {
 
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [dosesExpanded, setDosesExpanded] = useState(false);
+  const remainingDoses = doses.filter(
+    (d) => d.status === 'upcoming' || d.status === 'due'
+  ).length;
   const [initialLoading, setInitialLoading] = useState(true);
 
   useFocusEffect(useCallback(() => { loadDay(); }, [loadDay]));
@@ -516,6 +519,8 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
+        {/* Still actionable: upcoming or due. A taken, skipped or missed dose
+            is resolved and should not be counted as something left to do. */}
         {doses.length > 0 ? (
           <>
             {doses.every((d) => d.status === 'taken') ? (
@@ -566,14 +571,25 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                 >
                   <View>
-                    {/* Stacked peek cards */}
+                    {/* Stacked peek cards. `slice(1, …)` dated from when the
+                        first dose was rendered above this teaser; nothing is,
+                        so it drew one card too few. */}
                     <View style={styles.stackPeek}>
-                      {doses.slice(1, 4).map((d, i) => (
+                      {doses.slice(0, 3).map((d, i) => (
                         <View key={d.id} style={[styles.stackCard, { top: -i * 8 }]} />
                       ))}
                     </View>
+                    {/* Doses still to take, not the size of the list.
+                        `doses.length - 1` was wrong twice over: off by one for
+                        the same reason as the stack above, and counting TOTAL
+                        rather than REMAINING, so on a four-dose day it read "3
+                        more doses" whether none had been taken or three had.
+                        Reported from the device: "It always say 3 no matter
+                        what." */}
                     <Text style={styles.stackLabel}>
-                      {doses.length - 1} more dose{doses.length - 1 !== 1 ? 's' : ''} today — tap to view all
+                      {remainingDoses === 0
+                        ? `Tap to view today’s ${doses.length} doses`
+                        : `${remainingDoses} dose${remainingDoses !== 1 ? 's' : ''} left today — tap to view all`}
                     </Text>
                   </View>
                 </TouchableOpacity>
