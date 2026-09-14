@@ -309,13 +309,20 @@ async function probeDead(label, screen) {
 }
 
 // ── navigation ───────────────────────────────────────────────────────────────
-const TABS = ['History', 'Journal', 'Today', 'Records', 'Settings'];
+const TABS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
 // The tab bar renders as <a role="tab" href="/Home">, and its innerText is the
 // icon glyph plus the label, so the href is the only stable handle.
-const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Records: '/Summary', Settings: '/Settings' };
+// Records became Trackers on 2026-09-13. Only the visible label moved; the
+// route id is still `Summary`, which is why gotoTab matches on the href and
+// the rename costs one line here instead of a sweep.
+const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Trackers: '/Summary', Settings: '/Settings' };
 async function gotoTab(label) {
   const ok = await page.evaluate((href) => {
-    const hit = document.querySelector(`a[role="tab"][href="${href}"]`);
+    // Path only: a tab's href carries its nested route once you have been into
+    // the stack (`/Summary?screen=Report`), so an exact selector misses.
+    const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
+    const hit = [...document.querySelectorAll('a[role="tab"]')]
+      .find((a) => path(a) === href || path(a).startsWith(href + '/'));
     if (!hit) return false;
     hit.click();
     return true;
@@ -324,6 +331,29 @@ async function gotoTab(label) {
   await wait(1400);
   currentScreen = label;
   screensHit.add(label);
+  return true;
+}
+
+// Water and sun were logged from Today until 2026-09-13; both moved to their own
+// screens under Trackers. Same components, same accessible names — only the
+// route changed.
+async function gotoTracker(name) {
+  if (!(await gotoTab('Trackers'))) return false;
+  await wait(600);
+  const opened = await page.evaluate((n) => {
+    const el = [...document.querySelectorAll('[aria-label]')]
+      .find((e) => (e.getAttribute('aria-label') || '').startsWith(`${n} tracker`));
+    if (!el) return false;
+    el.click();
+    return true;
+  }, name);
+  if (!opened) {
+    note('high', 'Trackers', `No ${name} card on the Trackers tab — ${name} cannot be logged`, `day ${currentDay}`, 'src/screens/SummaryScreen.tsx');
+    return false;
+  }
+  await wait(1400);
+  currentScreen = name;
+  screensHit.add(name);
   return true;
 }
 
@@ -348,14 +378,14 @@ async function onboard() {
   await page.getByPlaceholder('e.g. 5000').first().fill('10000');
   await wait(400);
   await shot('profile-filled');
-  await clickLabel('Next step'); await wait(1500);
+  await clickLabel('Continue'); await wait(1500);
   await auditScreen('onboarding/condition');
   if (!(await clickLabel('Select condition: Multiple Sclerosis'))) {
     note('high', 'onboarding', 'Condition card not selectable', 'onboarding step 2', 'src/screens/OnboardingScreen.tsx:223');
   }
   await wait(800);
   await shot('condition');
-  await clickLabel('Next step'); await wait(1500);
+  await clickLabel('Continue'); await wait(1500);
   await auditScreen('onboarding/almost-ready');
   await shot('almost-ready');
   if (!(await clickLabel("Let's begin"))) {
@@ -385,7 +415,7 @@ async function runDay(n) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await wait(n === 1 ? 9000 : 7000);
   } else {
-    await gotoTab('Records');
+    await gotoTab('Trackers');
     await gotoTab('Today');
   }
   currentScreen = 'Today';
@@ -469,15 +499,19 @@ async function runDay(n) {
   // ── supplements: water + sun ───────────────────────────────────────────────
   await step('water', async () => {
     const taps = plan.shape === 'max-values' ? 14 : plan.shape === 'partial' ? 1 : 4;
+    if (!(await gotoTracker('Water'))) return;
     for (let i = 0; i < taps; i++) { await clickText('+ 250 ml'); await wait(260); }
     await shot('water');
   });
   await step('sun', async () => {
-    if (plan.shape === 'partial') return;
+    if (plan.shape === 'partial') { await gotoTab('Today'); return; }
     const btn = plan.shape === 'max-values' ? '+30' : '+20';
     const reps = plan.shape === 'max-values' ? 6 : 1;
+    if (!(await gotoTracker('Sunlight'))) return;
     for (let i = 0; i < reps; i++) { await clickText(btn); await wait(300); }
     await shot('sun');
+    // Back to Today: the rest of the day's steps assume it.
+    await gotoTab('Today');
   });
 
   if (plan.shape === 'partial') {
@@ -514,7 +548,7 @@ async function runDay(n) {
       await inputs[inputs.length - 1].fill(body).catch(() => {});
     }
     // Mood buttons carry `Select mood <label>` (JournalScreen.tsx:162); vary the
-    // mood by day so the Records mood chart has something to plot.
+    // mood by day so the Journal mood strip has something to plot.
     const MOOD_LABELS = ['Great', 'Good', 'Okay', 'Rough', 'Struggling'];
     const wantMood = MOOD_LABELS[n % MOOD_LABELS.length];
     if (!(await clickLabel(`Select mood ${wantMood}`))) {
@@ -636,10 +670,11 @@ async function runDay(n) {
     if (closed) { await wait(1800); await shot('day-closed'); }
   });
 
-  // Records + History are read surfaces; look at them on a cadence so the
+  // Trackers + History are the two non-Today surfaces; look at them on a
+  // cadence so the
   // weekly/streak logic is exercised as history accumulates.
   if (n % 3 === 0) {
-    await step('records', async () => { await gotoTab('Records'); await auditScreen('Records'); await shot('records'); });
+    await step('trackers', async () => { await gotoTab('Trackers'); await auditScreen('Trackers'); await shot('trackers'); });
     await step('history', async () => { await gotoTab('History'); await auditScreen('History'); await shot('history'); });
     await gotoTab('Today');
   }
@@ -801,18 +836,51 @@ await step('day-key drift check', async () => {
 });
 
 // Adherence/streak surfaces should reflect 30 days of history, not zero.
-await step('records sanity', async () => {
-  await gotoTab('Records');
-  await auditScreen('Records');
-  await shot('final-records');
-  const t = await flat();
-  if (/0\s*%\s*Compliance/i.test(t) || /\b0\s*Day Streak/i.test(t)) {
-    note('high', 'Records', `Records reports zero after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 200)}"`,
-      'run the 30-day pass, open Records', 'src/hooks/useSummaryScreen.ts');
-  }
+await step('compliance sanity', async () => {
+  // The compliance block moved from the Records tab to History on 2026-09-13,
+  // under the month grid. Reading it off the Trackers tab — which is now four
+  // launcher cards and no numbers — would report zero forever.
+  //
+  // The old check also tested /0\s*%\s*Compliance/, and nothing in the app has
+  // ever rendered the word "Compliance" next to a percentage: the label is
+  // "Weighted Adherence". That half could not fail, so it is gone rather than
+  // carried across. What is left reads the two labels the screen really paints.
   await gotoTab('History');
   await auditScreen('History');
   await shot('final-history');
+  const t = await flat();
+
+  const streak = /(\d+)\s*Day Streak/i.exec(t);
+  const adherence = /(\d+)\s*%\s*Weighted Adherence/i.exec(t);
+  const doses = /(\d+)\s*\/\s*(\d+)\s*Doses Today/i.exec(t);
+
+  if (!streak && !adherence && !doses) {
+    note('high', 'History', `The compliance block did not render on History at all after ${TOTAL_DAYS} days: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History and scroll below the month grid`,
+      'src/screens/CalendarScreen.tsx (compliance block, moved from SummaryScreen)');
+  } else if (streak && Number(streak[1]) === 0) {
+    note('high', 'History', `Day Streak reads 0 after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History`, 'src/hooks/useSummaryScreen.ts');
+  } else if (adherence && Number(adherence[1]) === 0) {
+    note('high', 'History', `Weighted Adherence reads 0% after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History`, 'src/hooks/useSummaryScreen.ts');
+  }
+
+  // Trackers is a launcher now. It owes four cards and no numbers; a compliance
+  // figure left behind here would mean the restructure copied rather than moved.
+  await gotoTab('Trackers');
+  await auditScreen('Trackers');
+  await shot('final-trackers');
+  const tr = await flat();
+  const missing = ['Water', 'Sunlight', 'Exercise', 'Food'].filter((c) => !tr.includes(c));
+  if (missing.length) {
+    note('high', 'Trackers', `The Trackers tab is missing its ${missing.join(', ')} card(s): "${tr.slice(0, 300)}"`,
+      'open the Trackers tab', 'src/screens/SummaryScreen.tsx');
+  }
+  if (/Doses Today|Weighted Adherence/i.test(tr)) {
+    note('medium', 'Trackers', `Trackers still renders compliance numbers that moved to History: "${tr.slice(0, 300)}"`,
+      'open the Trackers tab', 'src/screens/SummaryScreen.tsx');
+  }
 });
 
 // ── export ───────────────────────────────────────────────────────────────────

@@ -1,4 +1,7 @@
-export type DoseStatus = 'upcoming' | 'due' | 'taken' | 'missed';
+// 'missed' is the clock's verdict on a dose the user never touched; 'skipped'
+// is the user's own decision. markOverdueDoses only ever writes the first, the
+// skip paths only ever the second (round 3, A2).
+export type DoseStatus = 'upcoming' | 'due' | 'taken' | 'missed' | 'skipped';
 export type AnchorType = 't0' | 'meal' | 'fixed';
 export type MedicalEventType = 'bloodwork' | 'mri' | 'appointment' | 'urine';
 
@@ -21,7 +24,6 @@ export interface MedicalEvent {
 export interface UserProfile {
   id: number;
   name: string;
-  weight_kg: number;
   start_date: string;
   timezone: string;
   bedtime_hour: number;
@@ -70,6 +72,9 @@ export interface DailyAnchor {
   date: string;
   t0_timestamp: number | null;
   water_ml: number;
+  // Added by migration v10; getAnchor does SELECT *, so the column was already
+  // coming back on every read — it was just invisible to the type.
+  first_meal_time: string | null;
 }
 
 export interface DoseLog {
@@ -85,7 +90,11 @@ export interface DoseLog {
 export interface DaySummary {
   totalDoses: number;
   takenDoses: number;
+  /** Not taken, for any reason — `skippedDoses` is the deliberate subset of it.
+   *  Kept inclusive so every number that existed before 'skipped' did still
+   *  reads the same (ComplianceReport totals it for the doctor report). */
   missedDoses: number;
+  skippedDoses: number;
   compliancePct: number;
   waterMl: number;
   t0: Date | null;

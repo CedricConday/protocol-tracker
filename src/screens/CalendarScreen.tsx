@@ -1,8 +1,9 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,9 +14,14 @@ import {
 } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getCalendarMonth, getDayDetail, localDateStr, todayStr, type CalendarDay, type DayDetail } from '../db/queries';
+import { confirmDose, getCalendarMonth, getDayDetail, localDateStr, skipDose, skipDoseWithReason, todayStr, type CalendarDay, type DayDetail, type DayDetailDose } from '../db/queries';
+import DoseDetailModal from '../components/DoseDetailModal';
+import type { ScheduledDose } from '../types';
 import SkeletonCard from '../components/SkeletonCard';
 import Svg, { Circle } from 'react-native-svg';
+import { useSummaryScreen } from '../hooks';
+import { getMiscFlag } from '../db/queries';
+import { getProfileById } from '../data/diseaseProfiles';
 import { t } from '../i18n';
 
 const MONTH_NAMES = [
@@ -83,6 +89,16 @@ function ComplianceRing({ pct, color }: { pct: number; color: string }) {
 const EVENT_COLOR = '#C0392B';
 const JOURNAL_COLOR = '#7C6FB8';
 const WATER_COLOR = '#3B9AE1';
+// Row dots in the day sheet only — the grid markers stay three shapes, because
+// six of them in a 44pt cell is unreadable.
+const FOOD_COLOR = '#A3623C';
+const EXERCISE_COLOR = '#2F8F5B';
+const SUN_COLOR = '#F2B233';
+
+// The day total reads as litres past 1000 ml, matching WaterScreen.
+function fmtMl(ml: number): string {
+  return ml >= 1000 ? `${(ml / 1000).toFixed(1)} L` : `${ml} ml`;
+}
 
 function formatFullDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -95,16 +111,29 @@ function fmtTime(ts: number | null): string {
 }
 
 const DOSE_STATUS_COLOR: Record<string, string> = {
-  taken: '#2F8F5B', missed: '#C0392B', due: '#F2B233', upcoming: '#5A6478',
+  taken: '#2F8F5B', missed: '#C0392B', skipped: '#9AA3B2', due: '#F2B233', upcoming: '#5A6478',
 };
 const EVENT_LABEL: Record<string, string> = {
   relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',
+};
+const MEAL_LABEL: Record<string, string> = {
+  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack',
 };
 
 // One slot in the month grid — either a real day or a leading/trailing blank.
 type Slot = { date: string; day: number } | null;
 
+// How far forward the month pager may browse. Events, appointments and MRI dates
+// are routinely saved against a future date, and the grid used to stop dead at
+// the current month, so those days could not be reached to be opened at all.
+// Bounded rather than open-ended: an unbounded pager wanders into empty decades,
+// and a year covers every scheduled event this app writes.
+const FORWARD_MONTHS = 12;
+
 export default function CalendarScreen() {
+  const navigation = useNavigation<any>();
+  const { summary, streak, loadData: loadCompliance } = useSummaryScreen();
+  const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -113,6 +142,10 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [detailDate, setDetailDate] = useState<string | null>(null);
   const [detail, setDetail] = useState<DayDetail | null>(null);
+  const [selectedDose, setSelectedDose] = useState<DayDetailDose | null>(null);
+  const horizon = new Date(now.getFullYear(), now.getMonth() + FORWARD_MONTHS, 1);
+  const horizonYear = horizon.getFullYear();
+  const horizonMonth = horizon.getMonth();
 
   const loadMonth = useCallback(async (year: number, month: number) => {
     const map = await getCalendarMonth(year, month);
@@ -120,11 +153,25 @@ export default function CalendarScreen() {
     setLoaded(true);
   }, []);
 
-  useFocusEffect(useCallback(() => { loadMonth(viewYear, viewMonth); }, [loadMonth, viewYear, viewMonth]));
+  useFocusEffect(useCallback(() => {
+    loadMonth(viewYear, viewMonth);
+    loadCompliance();
+  }, [loadMonth, viewYear, viewMonth, loadCompliance]));
+
+  useEffect(() => {
+    getMiscFlag('disease_profile').then((id) => {
+      if (!id) return;
+      const profile = getProfileById(id);
+      if (profile) setProfileBlurb(profile.patientDescription);
+    });
+  }, []);
+
+  const taken = summary?.takenDoses ?? 0;
+  const totalDosesToday = summary?.totalDoses ?? 0;
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadMonth(viewYear, viewMonth);
+    await Promise.all([loadMonth(viewYear, viewMonth), loadCompliance()]);
     setRefreshing(false);
   };
 
@@ -134,19 +181,51 @@ export default function CalendarScreen() {
     let y = viewYear;
     if (m < 0) { m = 11; y -= 1; }
     else if (m > 11) { m = 0; y += 1; }
-    // Don't page past the current month (no future data).
-    if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return;
+    if (y > horizonYear || (y === horizonYear && m > horizonMonth)) return;
     setViewYear(y);
     setViewMonth(m);
   };
-  const canGoNext = !(viewYear === now.getFullYear() && viewMonth === now.getMonth());
+  const canGoNext = !(viewYear === horizonYear && viewMonth === horizonMonth);
 
   const openDay = useCallback(async (date: string) => {
     setDetailDate(date);
     setDetail(null);
     try { setDetail(await getDayDetail(date)); } catch { setDetail(null); }
   }, []);
-  const closeDay = useCallback(() => { setDetailDate(null); setDetail(null); }, []);
+  const closeDay = useCallback(() => { setDetailDate(null); setDetail(null); setSelectedDose(null); }, []);
+
+  // A correction moves the day's compliance, so the month grid behind the sheet
+  // and the header's own numbers have to be re-read, not just this day's rows.
+  const afterCorrection = useCallback(async () => {
+    setSelectedDose(null);
+    if (detailDate) {
+      try { setDetail(await getDayDetail(detailDate)); } catch { setDetail(null); }
+    }
+    await Promise.all([loadMonth(viewYear, viewMonth), loadCompliance()]);
+  }, [detailDate, loadMonth, viewYear, viewMonth, loadCompliance]);
+
+  const correctTook = useCallback(async (dose: ScheduledDose) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (dose.logId == null) return;
+    try {
+      await confirmDose(dose.logId);
+    } catch {
+      Alert.alert('Error', 'Could not update this dose. Please try again.');
+    }
+    await afterCorrection();
+  }, [afterCorrection]);
+
+  const correctSkip = useCallback(async (dose: ScheduledDose, reason?: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (dose.logId == null) return;
+    try {
+      if (reason) await skipDoseWithReason(dose.logId, reason);
+      else await skipDose(dose.logId);
+    } catch {
+      Alert.alert('Error', 'Could not update this dose. Please try again.');
+    }
+    await afterCorrection();
+  }, [afterCorrection]);
   const stepDay = useCallback((delta: number) => {
     if (!detailDate) return;
     const d = new Date(detailDate + 'T00:00:00');
@@ -262,14 +341,17 @@ export default function CalendarScreen() {
                 const isToday = slot.date === today;
                 const isFuture = slot.date > today;
                 const hasDoses = !!c && c.totalDoses > 0;
-                const hasData = !!c && (c.totalDoses > 0 || c.eventCount > 0 || c.hasJournal || c.hasWater || c.started);
+                const hasData = !!c && (c.totalDoses > 0 || c.eventCount > 0 || c.hasJournal || c.hasWater
+                  || c.hasFood || c.hasExercise || c.hasSun || c.started);
                 // Ring: calm cream card, dark legible number, a compliance ring around it.
                 // Event/journal/water-only days are still a data card (just no ring).
                 const cellBg = hasData ? '#FFFFFF' : 'transparent';
                 const cellBorder = hasData ? '#EFE7DF' : 'transparent';
                 const textColor = hasData ? INK : (isFuture ? '#CFD2C6' : '#C3B7AD');
                 const awareness = getAwarenessDate(slot.date);
-                const disabled = isFuture || !hasData;
+                // Openability turns on data, not on the date. A future day holding a
+                // real saved event was previously as unopenable as an empty one.
+                const disabled = !hasData;
                 return (
                   <TouchableOpacity
                     key={slot.date}
@@ -278,7 +360,7 @@ export default function CalendarScreen() {
                     disabled={disabled}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`${slot.date}${hasDoses ? `, ${c!.compliancePct}% compliance, ${c!.takenDoses} of ${c!.totalDoses} doses taken` : ''}${c && c.eventCount > 0 ? `, ${c.eventCount} event${c.eventCount > 1 ? 's' : ''}` : ''}${c && c.hasJournal ? ', journal entry' : ''}${c && c.hasWater ? ', water logged' : ''}${isToday ? ', today' : ''}${!hasData ? ', no data' : ''}. Tap for details.`}
+                    accessibilityLabel={`${slot.date}${hasDoses ? `, ${c!.takenDoses} of ${c!.totalDoses} doses taken` : ''}${c && c.eventCount > 0 ? `, ${c.eventCount} event${c.eventCount > 1 ? 's' : ''}` : ''}${c && c.hasJournal ? ', journal entry' : ''}${c && c.hasWater ? ', water logged' : ''}${c && c.hasFood ? ', meals logged' : ''}${c && c.hasExercise ? ', exercise logged' : ''}${c && c.hasSun ? ', sun logged' : ''}${isToday ? ', today' : ''}${!hasData ? ', no data' : ''}. Tap for details.`}
                   >
                     <View style={[styles.cell, { backgroundColor: cellBg, borderColor: cellBorder }, isToday && styles.cellToday]}>
                       <View style={styles.ringWrap}>
@@ -317,8 +399,102 @@ export default function CalendarScreen() {
         </View>
       </View>
 
+      {/* ── Compliance ─────────────────────────────────────────────────────
+          Moved here from the Records tab on 2026-09-13. Records became
+          Trackers (water, sunlight, exercise, food), and these numbers are a
+          reading of history, so they belong beneath the history grid. */}
+      <View style={styles.statRow}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{taken}/{totalDosesToday}</Text>
+          <Text style={styles.statLabel}>{t('dosesToday')}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{streak}</Text>
+          <Text style={styles.statLabel}>{t('dayStreak')}</Text>
+        </View>
+      </View>
+
+      {/* The "Weighted Adherence" card stood here until 2026-09-14. Its own
+          subtitle — "14-day weighted score based on completeness and timing" —
+          described a calculation the code does not perform: timing never enters
+          it, and the per-supplement weighting tests ids ('vit_d3', 'vit_k2',
+          'mag_citrate') that addSupplement cannot mint in this build, so it has
+          never fired on any install. What was left was doses taken over doses
+          scheduled, tilted toward the newest rows.
+
+          The today ring went with it on the same day: a second reading of
+          taken-over-scheduled, sitting directly under the "Doses Today" card
+          that already states it as the fraction it is. */}
+
+      {profileBlurb ? (
+        <View style={styles.profileBlurbCard}>
+          <Text style={styles.profileBlurbText}>{profileBlurb}</Text>
+        </View>
+      ) : null}
+
+      {/* ── The protocol's clinical surfaces ───────────────────────────────
+          These came off the Records tab with the compliance block. They are
+          the ONLY tap path to lab monitoring, MRI history and the doctor
+          report: before they existed those three screens were registered in
+          the navigator and reachable by nothing, which is what the audit
+          reported as "no entry point on Records". They stay together with the
+          clinical record, not with the daily trackers. */}
+      <View style={styles.medicalRow}>
+        <TouchableOpacity
+          style={styles.medicalBtn}
+          activeOpacity={0.8}
+          // Nested target, not a bare route name: these three screens live in
+          // SummaryNavigator (the Trackers tab's stack) while this screen renders
+          // in CalendarTabNavigator. react-navigation resolves the current
+          // navigator and its parents, never a sibling's nested stack, so the
+          // bare form rendered a button that did nothing (H9, Build B).
+          onPress={() => navigation.navigate('Summary', { screen: 'LabResults' })}
+          accessibilityLabel="Lab results"
+          accessibilityRole="button"
+        >
+          <Text style={styles.medicalBtnLabel}>Lab Results</Text>
+          <Text style={styles.medicalBtnSub}>Vitamin D · PTH · calcium</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.medicalBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Summary', { screen: 'MriTracker' })}
+          accessibilityLabel="MRI history"
+          accessibilityRole="button"
+        >
+          <Text style={styles.medicalBtnLabel}>MRI History</Text>
+          <Text style={styles.medicalBtnSub}>Scans and findings</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        style={styles.shareProgressBtn}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('Summary', { screen: 'Report' })}
+        accessibilityLabel="Share your progress"
+        accessibilityRole="button"
+      >
+        <Text style={styles.shareProgressBtnText}>{t('shareProgress')}</Text>
+      </TouchableOpacity>
+
       <Modal visible={detailDate !== null} animationType="slide" transparent onRequestClose={closeDay}>
+        {/* The scrim closes the sheet. Tapping the dimmed area above the card is
+            how every other bottom sheet dismisses, and the Close button at the
+            foot of a long day was the only way out.
+
+            The scrim is a SIBLING behind the card, not its parent: nesting the
+            card inside a pressable scrim makes react-native-web render a
+            <button> inside a <button>, which is invalid HTML and throws a
+            hydration error. As siblings, the card paints last and takes its own
+            touches, the exposed scrim takes the rest, and the ScrollView inside
+            the card keeps its gestures untouched. */}
         <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeDay}
+            accessibilityLabel="Close day details"
+            accessibilityRole="button"
+          />
           <View style={styles.modalCard}>
             <View style={styles.grabber} />
             <View style={styles.detailHeader}>
@@ -326,7 +502,7 @@ export default function CalendarScreen() {
                 <Text style={styles.detailArrow}>‹</Text>
               </TouchableOpacity>
               <Text style={styles.detailDate}>{detailDate ? formatFullDate(detailDate) : ''}</Text>
-              <TouchableOpacity onPress={() => stepDay(1)} disabled={detailDate === today} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Next day" accessibilityRole="button">
+              <TouchableOpacity onPress={() => stepDay(1)} disabled={detailDate === null || detailDate >= today} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Next day" accessibilityRole="button">
                 <Text style={[styles.detailArrow, detailDate === today && styles.navArrowDisabled]}>›</Text>
               </TouchableOpacity>
             </View>
@@ -348,13 +524,109 @@ export default function CalendarScreen() {
                     <Text style={styles.detailMuted}>{t('noDosesThisDay')}</Text>
                   ) : (
                     detail.doses.map((d, i) => (
-                      <View key={i} style={styles.detailRow}>
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.detailRow}
+                        onPress={() => setSelectedDose(d)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${d.supplementName}, ${d.status} — correct this dose`}
+                      >
                         <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#5A6478' }]} />
-                        <Text style={styles.detailRowText}>{d.name}</Text>
-                        <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.logged_time ? fmtTime(d.logged_time) : d.status}</Text>
+                        <Text style={styles.detailRowText}>{d.supplementName}</Text>
+                        <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.loggedTime ? fmtTime(d.loggedTime) : d.status}</Text>
+                        <Text style={styles.detailRowChevron}>›</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+
+                  {/* ── The four trackers ───────────────────────────────────
+                      These read from the same per-date queries the tracker
+                      screens use. Before this the sheet showed pills, journal
+                      and events only, so the grid could mark a day as having
+                      water and then open onto no water at all. Each section
+                      states its day total and lists the entries behind it. */}
+                  <View style={styles.detailSectionRow}>
+                    <Text style={styles.detailSection}>{t('water')}</Text>
+                    {detail.waterMl > 0 && (
+                      <Text style={styles.detailSummary}>{fmtMl(detail.waterMl)}</Text>
+                    )}
+                  </View>
+                  {detail.waterLogs.length === 0 ? (
+                    <Text style={styles.detailMuted}>{t('nothingLogged')}</Text>
+                  ) : (
+                    detail.waterLogs.map((w) => (
+                      <View key={w.id} style={styles.detailRow}>
+                        <View style={[styles.detailDot, { backgroundColor: WATER_COLOR }]} />
+                        <Text style={styles.detailRowText}>{w.amount_ml} ml</Text>
+                        <Text style={styles.detailRowMeta}>{fmtTime(w.logged_at)}</Text>
                       </View>
                     ))
                   )}
+
+                  <View style={styles.detailSectionRow}>
+                    <Text style={styles.detailSection}>{t('meals')}</Text>
+                    {detail.firstMealTime ? (
+                      <Text style={styles.detailSummary}>{`first ${detail.firstMealTime}`}</Text>
+                    ) : null}
+                  </View>
+                  {detail.meals.length === 0 ? (
+                    <Text style={styles.detailMuted}>{t('nothingLogged')}</Text>
+                  ) : (
+                    detail.meals.map((m) => (
+                      <View key={m.id} style={styles.detailRow}>
+                        <View style={[styles.detailDot, { backgroundColor: FOOD_COLOR }]} />
+                        <Text style={styles.detailRowText}>{MEAL_LABEL[m.meal_type] ?? m.meal_type}</Text>
+                        <Text style={styles.detailRowMeta}>{m.time}</Text>
+                      </View>
+                    ))
+                  )}
+
+                  <View style={styles.detailSectionRow}>
+                    <Text style={styles.detailSection}>{t('exercise')}</Text>
+                    {detail.exerciseMinutes > 0 && (
+                      <Text style={styles.detailSummary}>{detail.exerciseMinutes} min</Text>
+                    )}
+                  </View>
+                  {detail.exerciseLogs.length === 0 ? (
+                    <Text style={styles.detailMuted}>{t('nothingLogged')}</Text>
+                  ) : (
+                    detail.exerciseLogs.map((e) => (
+                      <View key={e.id} style={styles.detailRow}>
+                        <View style={[styles.detailDot, { backgroundColor: EXERCISE_COLOR }]} />
+                        <Text style={styles.detailRowText}>{`${e.duration_minutes} min ${e.type}`}</Text>
+                        <Text style={styles.detailRowMeta}>{e.intensity}</Text>
+                      </View>
+                    ))
+                  )}
+
+                  <View style={styles.detailSectionRow}>
+                    <Text style={styles.detailSection}>{t('sunExposure')}</Text>
+                    {detail.sunMinutes > 0 && (
+                      <Text style={styles.detailSummary}>{detail.sunMinutes} min</Text>
+                    )}
+                  </View>
+                  {detail.sunMinutes === 0 ? (
+                    <Text style={styles.detailMuted}>{t('nothingLogged')}</Text>
+                  ) : detail.sunEntries.length === 0 ? (
+                    // A day total with no sessions behind it: either an older
+                    // row written before sessions existed, or an install whose
+                    // sun_entries table was never created. The total is real
+                    // either way, so it is shown rather than hidden.
+                    <View style={styles.detailRow}>
+                      <View style={[styles.detailDot, { backgroundColor: SUN_COLOR }]} />
+                      <Text style={styles.detailRowText}>{detail.sunMinutes} min</Text>
+                    </View>
+                  ) : (
+                    detail.sunEntries.map((s) => (
+                      <View key={s.id} style={styles.detailRow}>
+                        <View style={[styles.detailDot, { backgroundColor: SUN_COLOR }]} />
+                        <Text style={styles.detailRowText}>{s.minutes} min</Text>
+                        <Text style={styles.detailRowMeta}>{fmtTime(s.logged_at)}</Text>
+                      </View>
+                    ))
+                  )}
+                  {!!detail.sunNote && <Text style={styles.detailSunNote}>{detail.sunNote}</Text>}
 
                   <Text style={styles.detailSection}>{t('journal')}</Text>
                   {detail.journal ? (
@@ -391,6 +663,18 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Nested inside the day sheet so it draws above it. `correctable` is
+            what makes the actions appear for a dose that is already taken,
+            missed or skipped. */}
+        <DoseDetailModal
+          visible={selectedDose !== null}
+          dose={selectedDose}
+          correctable
+          onClose={() => setSelectedDose(null)}
+          onTook={correctTook}
+          onSkip={correctSkip}
+        />
       </Modal>
     </ScrollView>
   );
@@ -427,6 +711,20 @@ const styles = StyleSheet.create({
   markerCircle: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: WATER_COLOR },
   awarenessDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#F97316', position: 'absolute', top: 5, right: 5 },
 
+  // ── Compliance block, moved from SummaryScreen 2026-09-13 ──────────────
+  statRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  statCard: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
+  statValue: { color: '#14213D', fontSize: 22, fontWeight: '700' },
+  statLabel: { color: '#5A6478', fontSize: 12, marginTop: 2 },
+  profileBlurbCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
+  profileBlurbText: { color: '#5A6478', fontSize: 13, lineHeight: 20 },
+  medicalRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  medicalBtn: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
+  medicalBtnLabel: { color: '#14213D', fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  medicalBtnSub: { color: '#5A6478', fontSize: 11 },
+  shareProgressBtn: { backgroundColor: '#1B58B8', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12 },
+  shareProgressBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
+
   legend: { paddingTop: 18, marginTop: 4, gap: 10 },
   legendRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 16 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -445,11 +743,13 @@ const styles = StyleSheet.create({
   detailBody: { marginBottom: 12 },
   detailSectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8 },
   detailSection: { color: '#8A7A70', fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 16, marginBottom: 8 },
-  detailSummary: { fontSize: 13, fontWeight: '700' },
+  detailSummary: { fontSize: 13, fontWeight: '700', color: INK_MUTED },
+  detailSunNote: { color: '#3A302A', fontSize: 13, lineHeight: 19, paddingVertical: 4, fontStyle: 'italic' },
   detailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, gap: 10, borderBottomWidth: 1, borderBottomColor: '#F0EAE3' },
   detailDot: { width: 9, height: 9, borderRadius: 4.5 },
   detailRowText: { color: INK, fontSize: 14, fontWeight: '600', flex: 1 },
   detailRowMeta: { color: '#9A8A80', fontSize: 13, fontWeight: '600' },
+  detailRowChevron: { color: '#C3B6AD', fontSize: 16, fontWeight: '700' },
   journalCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#F5EEE7', borderRadius: 14, padding: 13 },
   detailMood: { fontSize: 24, lineHeight: 26 },
   journalNote: { color: '#3A302A', fontSize: 14, flex: 1, lineHeight: 20 },

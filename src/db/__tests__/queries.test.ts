@@ -17,7 +17,23 @@ import {
   getDaySummary,
   getStreak,
   getWaterProgress,
+  getWaterGoalMl,
   getWeekSummary,
+  addSupplement,
+  undoLastWater,
+  correctWaterLog,
+  clearSunLog,
+  confirmDose,
+  skipDose,
+  correctSunLog,
+  deleteWaterLog,
+  deleteSunEntry,
+  getSunEntries,
+  logSunExposure,
+  deleteExerciseLog,
+  correctExerciseLog,
+  getExerciseLogs,
+  getExerciseHistory,
 } from '../queries';
 
 const mockDb = {
@@ -102,6 +118,38 @@ describe('getDaySummary', () => {
     expect(result.compliancePct).toBe(75);
   });
 
+  it('keeps a skipped dose in the denominator, exactly where missed put it', async () => {
+    mockDb.getAllAsync.mockResolvedValueOnce([
+      { status: 'taken', count: 3 },
+      { status: 'skipped', count: 1 },
+    ]);
+    mockDb.getFirstAsync.mockResolvedValueOnce({ water_ml: 500, t0_timestamp: Date.now() });
+
+    const result = await getDaySummary();
+    // Same four doses, same 75% the row produced when a skip was stored as
+    // 'missed'. A status left out of the counts object drops out of the total
+    // instead, and compliance silently rises to 100%.
+    expect(result.totalDoses).toBe(4);
+    expect(result.compliancePct).toBe(75);
+    expect(result.skippedDoses).toBe(1);
+    expect(result.missedDoses).toBe(1);
+  });
+
+  it('separates a deliberate skip from an untouched missed dose', async () => {
+    mockDb.getAllAsync.mockResolvedValueOnce([
+      { status: 'taken', count: 2 },
+      { status: 'missed', count: 1 },
+      { status: 'skipped', count: 1 },
+    ]);
+    mockDb.getFirstAsync.mockResolvedValueOnce({ water_ml: 0, t0_timestamp: Date.now() });
+
+    const result = await getDaySummary();
+    expect(result.totalDoses).toBe(4);
+    expect(result.skippedDoses).toBe(1);
+    expect(result.missedDoses).toBe(2); // not taken, either way — the doctor report totals this
+    expect(result.compliancePct).toBe(50);
+  });
+
   it('handles an empty dose list gracefully', async () => {
     mockDb.getAllAsync.mockResolvedValueOnce([]);
     mockDb.getFirstAsync.mockResolvedValueOnce(null);
@@ -110,6 +158,73 @@ describe('getDaySummary', () => {
     expect(result.totalDoses).toBe(0);
     expect(result.compliancePct).toBe(0);
     expect(result.t0).toBeNull();
+  });
+});
+
+// ── confirmDose / skipDose ────────────────────────────────────────────────────
+// Both run through applyDoseStatus, which owns the two rules a correction made
+// necessary: when `logged_time` may be stamped "now", and when a pill leaves or
+// returns to the bottle.
+
+describe('confirmDose and skipDose', () => {
+  const sqlOf = (call: unknown[]) => String(call[0]);
+  const runSql = () => mockDb.runAsync.mock.calls.map(sqlOf);
+  const statusUpdate = () =>
+    mockDb.runAsync.mock.calls.find((c) => sqlOf(c).includes('UPDATE dose_logs SET status'));
+
+  it('stamps a past dose with its scheduled time, not the moment of the correction', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: '2026-09-01', status: 'missed', scheduled_time: 1_756_700_000_000,
+    });
+
+    await confirmDose(7);
+
+    // ['taken', logged_time, logId] — a correction three weeks later cannot
+    // claim the dose was swallowed at this minute.
+    expect(statusUpdate()?.[1]).toEqual(['taken', 1_756_700_000_000, 7]);
+  });
+
+  it("stamps today's dose with the current time", async () => {
+    const before = Date.now();
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'due', scheduled_time: 1_000,
+    });
+
+    await confirmDose(3);
+
+    const stamped = (statusUpdate()?.[1] as unknown[])[1] as number;
+    expect(stamped).toBeGreaterThanOrEqual(before);
+  });
+
+  it('takes a pill out of the bottle once, however often the dose is re-confirmed', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'taken', scheduled_time: 1_000,
+    });
+
+    await confirmDose(3);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand - 1'))).toBe(false);
+  });
+
+  it('puts the pill back when a taken dose is corrected to skipped', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: '2026-09-01', status: 'taken', scheduled_time: 1_756_700_000_000,
+    });
+
+    await skipDose(7);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand + 1'))).toBe(true);
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand - 1'))).toBe(false);
+  });
+
+  it('does not consume a pill for a dose that was never taken', async () => {
+    mockDb.getFirstAsync.mockResolvedValueOnce({
+      supplement_id: 'vit_d3', date: todayStr(), status: 'due', scheduled_time: 1_000,
+    });
+
+    await skipDose(3);
+
+    expect(runSql().some((sql) => sql.includes('quantity_on_hand'))).toBe(false);
   });
 });
 
@@ -173,5 +288,348 @@ describe('getWeekSummary', () => {
       expect(r.compliancePct).toBeGreaterThanOrEqual(0);
       expect(r.compliancePct).toBeLessThanOrEqual(100);
     });
+  });
+});
+
+// ── mid-day supplement materialises a dose (2.4) ─────────────────────────────
+
+describe('addSupplement', () => {
+  const data = {
+    name: 'Magnesium', form: 'capsule',
+    dose_amount: '400', dose_unit: 'mg',
+    offset_minutes: 120, with_food: true, tolerance_window: 30,
+  };
+
+  it('writes a dose_log for today when the day has been started', async () => {
+    const t0 = Date.now() - 60 * 60 * 1000;            // started an hour ago
+    mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 42, changes: 1 });
+    mockDb.getFirstAsync.mockResolvedValue({ t0_timestamp: t0 });
+
+    await addSupplement(data);
+
+    const inserts = mockDb.runAsync.mock.calls.map((c) => String(c[0]));
+    const doseInsert = inserts.find((q) => q.includes('INSERT INTO dose_logs'));
+    expect(doseInsert).toBeDefined();
+    const args = mockDb.runAsync.mock.calls.find((c) => String(c[0]).includes('INSERT INTO dose_logs'))![1] as unknown[];
+    expect(args[2]).toBe(42);                          // the rule just inserted
+    expect(args[3]).toBe(t0 + 120 * 60 * 1000);        // t0 + offset
+  });
+
+  it('does not write a dose_log before the day is started', async () => {
+    mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 7, changes: 1 });
+    mockDb.getFirstAsync.mockResolvedValue(null);      // no anchor yet
+
+    await addSupplement(data);
+
+    const inserts = mockDb.runAsync.mock.calls.map((c) => String(c[0]));
+    expect(inserts.some((q) => q.includes('INSERT INTO dose_logs'))).toBe(false);
+  });
+
+  it('marks a dose whose time has already passed as due, not upcoming', async () => {
+    mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 9, changes: 1 });
+    mockDb.getFirstAsync.mockResolvedValue({ t0_timestamp: Date.now() - 5 * 60 * 60 * 1000 });
+
+    await addSupplement(data);                         // offset 120min, so 3h in the past
+
+    const args = mockDb.runAsync.mock.calls.find((c) => String(c[0]).includes('INSERT INTO dose_logs'))![1] as unknown[];
+    expect(args[4]).toBe('due');
+  });
+
+  it('marks a dose still ahead of the clock as upcoming', async () => {
+    mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 9, changes: 1 });
+    mockDb.getFirstAsync.mockResolvedValue({ t0_timestamp: Date.now() });
+
+    await addSupplement(data);                         // offset 120min, two hours out
+
+    const args = mockDb.runAsync.mock.calls.find((c) => String(c[0]).includes('INSERT INTO dose_logs'))![1] as unknown[];
+    expect(args[4]).toBe('upcoming');
+  });
+});
+
+// ── water and sun are correctable (2.5) ──────────────────────────────────────
+
+describe('undoLastWater', () => {
+  it('removes the newest entry and takes it off the day total', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ id: 5, amount_ml: 250 });
+
+    const removed = await undoLastWater('2026-09-13');
+
+    expect(removed).toBe(250);
+    const del = mockDb.runAsync.mock.calls.find((c) => String(c[0]).startsWith('DELETE FROM water_logs'));
+    expect(del![1]).toEqual([5]);
+    const upd = mockDb.runAsync.mock.calls.find((c) => String(c[0]).includes('UPDATE daily_anchors'));
+    expect(String(upd![0])).toContain('MAX(0, water_ml - ?)');
+    expect(upd![1]).toEqual([250, '2026-09-13']);
+  });
+
+  it('is a no-op when the day has no entries', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await undoLastWater('2026-09-13')).toBeNull();
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('correctWaterLog', () => {
+  it('moves the day total by the difference, not by the new value', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-13', amount_ml: 750 });
+
+    await correctWaterLog(5, 250);
+
+    const upd = mockDb.runAsync.mock.calls.find((c) => String(c[0]).includes('UPDATE water_logs'));
+    expect(upd![1]).toEqual([250, 5]);
+    const anchor = mockDb.runAsync.mock.calls.find((c) => String(c[0]).includes('UPDATE daily_anchors'));
+    expect(anchor![1]).toEqual([-500, '2026-09-13']);
+  });
+
+  it('ignores an unknown entry', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    await correctWaterLog(999, 250);
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('clearSunLog', () => {
+  it('deletes the day row', async () => {
+    await clearSunLog('2026-09-13');
+    expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM sun_log WHERE date = ?', ['2026-09-13']);
+  });
+
+  it('deletes the day\'s sessions too, or the next log would resurrect the total', async () => {
+    await clearSunLog('2026-09-13');
+    expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM sun_entries WHERE date = ?', ['2026-09-13']);
+  });
+});
+
+describe('correctSunLog', () => {
+  // These used to read mockDb.runAsync.mock.calls[0] — the FIRST call. Once
+  // correctSunLog started replacing the day's sessions, call 0 became the
+  // DELETE and all six broke without anything being wrong. Positional indices
+  // were never what these tests meant; each one now finds the statement it is
+  // actually about.
+  const dayWrite = () => mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_log/.test(String(c[0])));
+  const noteWrite = () => mockDb.runAsync.mock.calls.find((c) => /UPDATE sun_log SET notes/.test(String(c[0])));
+
+  it('sets the day total outright instead of adding to it', async () => {
+    await correctSunLog(20, '2026-09-13');
+    const [sqlText, params] = dayWrite()!;
+    // logSunExposure accumulates; a correction must not, or fixing 30 to 20
+    // would store 50.
+    expect(String(sqlText)).toContain('minutes = excluded.minutes');
+    expect(String(sqlText)).not.toContain('sun_log.minutes + excluded.minutes');
+    expect(params).toEqual(['2026-09-13', 20]);
+  });
+
+  it('corrects a past day, which is the reason it exists', async () => {
+    await correctSunLog(15, '2026-09-01');
+    expect(dayWrite()![1][0]).toBe('2026-09-01');
+  });
+
+  it('leaves the existing note alone when none is given', async () => {
+    await correctSunLog(20, '2026-09-13');
+    expect(noteWrite()).toBeUndefined();
+  });
+
+  it('replaces the note when one is given, including an empty one', async () => {
+    await correctSunLog(20, '2026-09-13', '');
+    expect(noteWrite()).toBeTruthy();
+    expect(noteWrite()![1]).toEqual(['', '2026-09-13']);
+  });
+
+  it('floors a negative correction at zero', async () => {
+    await correctSunLog(-5, '2026-09-13');
+    expect(dayWrite()![1][1]).toBe(0);
+  });
+
+  it('rounds fractional minutes', async () => {
+    await correctSunLog(12.6, '2026-09-13');
+    expect(dayWrite()![1][1]).toBe(13);
+  });
+});
+
+
+// ── deleteWaterLog ────────────────────────────────────────────────────────────
+
+describe('deleteWaterLog', () => {
+  it('deletes the row it was given, not the newest one', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-13', amount_ml: 250 });
+    await deleteWaterLog(7);
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM water_logs/.test(c[0]));
+    expect(del).toBeTruthy();
+    expect(del![1]).toEqual([7]);
+  });
+
+  it("moves the day's total down by exactly what that entry held", async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-13', amount_ml: 400 });
+    await deleteWaterLog(7);
+    const upd = mockDb.runAsync.mock.calls.find((c) => /UPDATE daily_anchors/.test(c[0]));
+    expect(upd![1]).toEqual([400, '2026-09-13']);
+    // Floors at zero — the anchor is the number on screen.
+    expect(upd![0]).toMatch(/MAX\(0,/);
+  });
+
+  it('returns false and writes nothing for an id that does not exist', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await deleteWaterLog(999)).toBe(false);
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+});
+
+// ── sun sessions ──────────────────────────────────────────────────────────────
+
+describe('logSunExposure', () => {
+  it('inserts a session rather than adding to a single day row', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ total: 20, n: 1 });
+    await logSunExposure(20);
+    const ins = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_entries/.test(c[0]));
+    expect(ins).toBeTruthy();
+    expect(ins![1][1]).toBe(20);
+  });
+
+  it("derives the day total from the entries, never by incrementing", async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ total: 45, n: 2 });
+    await logSunExposure(25);
+    const day = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_log/.test(c[0]));
+    expect(day![1]).toEqual(['' + todayStr(), 45]);
+    // The old bug shape: minutes = sun_log.minutes + excluded.minutes.
+    expect(day![0]).not.toMatch(/sun_log\.minutes \+/);
+  });
+});
+
+describe('deleteSunEntry', () => {
+  it('removes the session and recomputes the day from what is left', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ date: '2026-09-13' })   // which day is this entry on
+      .mockResolvedValueOnce({ total: 25, n: 1 });     // what remains after the delete
+    expect(await deleteSunEntry(3)).toBe(true);
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM sun_entries WHERE id/.test(c[0]));
+    expect(del![1]).toEqual([3]);
+    const day = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_log/.test(c[0]));
+    expect(day![1]).toEqual(['2026-09-13', 25]);
+  });
+
+  it('drops the day row entirely when the last session goes and no note is kept', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ date: '2026-09-13' })
+      .mockResolvedValueOnce({ total: null, n: 0 })
+      .mockResolvedValueOnce({ notes: '' });
+    await deleteSunEntry(3);
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM sun_log/.test(c[0]));
+    expect(del![1]).toEqual(['2026-09-13']);
+  });
+
+  it('keeps a zeroed day row when it carries a note', async () => {
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ date: '2026-09-13' })
+      .mockResolvedValueOnce({ total: null, n: 0 })
+      .mockResolvedValueOnce({ notes: 'overcast all day' });
+    await deleteSunEntry(3);
+    expect(mockDb.runAsync.mock.calls.some((c) => /DELETE FROM sun_log/.test(c[0]))).toBe(false);
+    const upd = mockDb.runAsync.mock.calls.find((c) => /UPDATE sun_log SET minutes = 0/.test(c[0]));
+    expect(upd![1]).toEqual(['2026-09-13']);
+  });
+
+  it('returns false for an id that does not exist', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await deleteSunEntry(999)).toBe(false);
+  });
+});
+
+describe('correctSunLog with sessions', () => {
+  it('replaces the day\'s sessions rather than leaving them to disagree with the total', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    await correctSunLog(30, '2026-09-13');
+    const del = mockDb.runAsync.mock.calls.find((c) => /DELETE FROM sun_entries WHERE date/.test(c[0]));
+    expect(del![1]).toEqual(['2026-09-13']);
+    const ins = mockDb.runAsync.mock.calls.find((c) => /INSERT INTO sun_entries/.test(c[0]));
+    expect(ins![1][1]).toBe(30);
+  });
+
+  it('writes no session when the day is corrected to zero', async () => {
+    await correctSunLog(0, '2026-09-13');
+    expect(mockDb.runAsync.mock.calls.some((c) => /INSERT INTO sun_entries/.test(c[0]))).toBe(false);
+  });
+});
+
+describe('getSunEntries', () => {
+  it('reads the day newest first', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getSunEntries('2026-09-13');
+    const [sql, params] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/FROM sun_entries WHERE date = \?/);
+    expect(sql).toMatch(/ORDER BY logged_at DESC/);
+    expect(params).toEqual(['2026-09-13']);
+  });
+});
+
+// ── exercise sessions ─────────────────────────────────────────────────────────
+
+describe('exercise entries', () => {
+  it('lists the day newest first', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getExerciseLogs('2026-09-13');
+    const [sql] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/FROM exercise_logs WHERE date = \?/);
+    expect(sql).toMatch(/ORDER BY logged_at DESC/);
+  });
+
+  it('deletes one session by id', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ id: 4 });
+    expect(await deleteExerciseLog(4)).toBe(true);
+    expect(mockDb.runAsync).toHaveBeenCalledWith('DELETE FROM exercise_logs WHERE id = ?', [4]);
+  });
+
+  it('returns false for an id that does not exist, and writes nothing', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await deleteExerciseLog(999)).toBe(false);
+    expect(mockDb.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('floors a corrected duration at zero rather than storing a negative', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ id: 4 });
+    await correctExerciseLog(4, -10);
+    const upd = mockDb.runAsync.mock.calls.find((c) => /UPDATE exercise_logs/.test(c[0]));
+    expect(upd![1]).toEqual([0, 4]);
+  });
+
+  it('groups history by day, newest first', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getExerciseHistory(30, '2026-09-13');
+    const [sql, params] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/GROUP BY date/);
+    expect(sql).toMatch(/ORDER BY date DESC/);
+    expect(params).toEqual(['2026-09-13', 30]);
+  });
+});
+
+
+// ── the water goal is the one the user set ────────────────────────────────────
+
+describe('getWaterGoalMl', () => {
+  it('returns the stored goal', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ value: '3200' });
+    expect(await getWaterGoalMl()).toBe(3200);
+  });
+
+  it('falls back to 2500 when nothing is stored', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    expect(await getWaterGoalMl()).toBe(2500);
+  });
+
+  it('falls back rather than trusting a junk or zero value', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ value: 'nonsense' });
+    expect(await getWaterGoalMl()).toBe(2500);
+    mockDb.getFirstAsync.mockResolvedValue({ value: '0' });
+    expect(await getWaterGoalMl()).toBe(2500);
+  });
+});
+
+describe('getWaterProgress honours the stored goal', () => {
+  it('reports the goal the user set, not a hardcoded 2500', async () => {
+    // getAnchor first, then the goal flag.
+    mockDb.getFirstAsync
+      .mockResolvedValueOnce({ water_ml: 900 })
+      .mockResolvedValueOnce({ value: '3200' });
+    const r = await getWaterProgress('2026-09-13');
+    expect(r).toEqual({ waterMl: 900, goalMl: 3200 });
   });
 });

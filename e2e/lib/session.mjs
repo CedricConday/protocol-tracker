@@ -22,12 +22,24 @@ const IGNORED_CONSOLE = [
 
 const isNoise = (text) => IGNORED_CONSOLE.some((re) => re.test(text));
 
+// Real, but not this app's to fix and not news: a dependency announcing its own
+// deprecation on every single page load. These were counted as findings, so
+// every flow reported "failed" and the summary line read 0/9 clean no matter
+// what the app did — a number that cannot go up is not a number. They are still
+// printed, under their own heading, and they no longer decide pass/fail.
+const ADVISORY_CONSOLE = [
+  /props\.pointerEvents is deprecated/i,
+  /expo-background-fetch: This library is deprecated/i,
+  /is deprecated and will be removed in a future (major )?(release|version)/i,
+];
+const isAdvisory = (text) => ADVISORY_CONSOLE.some((re) => re.test(text));
+
 // ── Native stub: expo-notifications' scheduler ────────────────────────────────
 // `Notifications.getAllScheduledNotificationsAsync()` has no web implementation
 // and throws UnavailabilityError. On a device it returns a list. Because
 // `startDay()` awaits a helper that rethrows that error (see the audit), the
 // whole active-day surface is unreachable on web without a stub — every dose
-// row, the water and sun trackers, the day's Records numbers.
+// row, the water and sun trackers, the day's compliance numbers.
 //
 // So flows can opt in with `session: { stubNotificationScheduler: true }`, which
 // rewrites exactly one branch of the served dev bundle to return `[]` instead of
@@ -63,9 +75,43 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
+    // protocol60 and thirtyday both pin Europe/Berlin; openApp did not, so every
+    // flow ran in the box's UTC. Two consequences, both bad: no flow could ever
+    // exercise a day-key or dose-time bug that only appears when local and UTC
+    // dates disagree, and a flow's result was not comparable with the same
+    // screen's result in the 60-day pass. Pinned here so all three agree.
+    //
+    // Node still runs in UTC, so a flow must NOT derive "today" with `new Date()`
+    // and compare it to the screen — near midnight Berlin they are different
+    // days. Use browserToday() below.
+    timezoneId: 'Europe/Berlin',
+    locale: 'en-US',
   });
   const page = await context.newPage();
   if (stubNotificationScheduler) await installNotificationSchedulerStub(page);
+
+  // Resolve app modules by source path at runtime, so a flow can read the app's
+  // own SQLite handle. Metro's dev bundle passes a verboseName as __d's 4th
+  // argument; capturing the registrations gets us the real database without
+  // adding a test-only export to src/. Same mechanism protocol60.mjs uses —
+  // lifted here because a flow that only reads the screen cannot tell "the tap
+  // did nothing" from "the tap worked and the screen does not show it", and
+  // that distinction is the whole content of several findings.
+  await page.addInitScript(() => {
+    window.__PT_MODS = {};
+    let real, wrapped;
+    Object.defineProperty(window, '__d', {
+      configurable: true,
+      get() { return real ? wrapped : undefined; },
+      set(fn) {
+        real = fn;
+        wrapped = function (factory, moduleId, deps, verboseName) {
+          if (verboseName) window.__PT_MODS[verboseName] = moduleId;
+          return real.apply(this, arguments);
+        };
+      },
+    });
+  });
 
   const errors = [];
   const console_ = [];
@@ -73,7 +119,7 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
     const text = `${m.text()}`;
     console_.push({ type: m.type(), text });
     if ((m.type() === 'error' || m.type() === 'warning') && !isNoise(text)) {
-      errors.push({ kind: `console.${m.type()}`, text });
+      errors.push({ kind: `console.${m.type()}`, text, advisory: isAdvisory(text) });
     }
   });
   page.on('pageerror', (e) => {
@@ -123,6 +169,28 @@ export async function openApp({ label = 'flow', stubNotificationScheduler = fals
 
     async sees(needle) {
       return (await page.innerText('body')).includes(needle);
+    },
+
+    /** Today's date as the BROWSER sees it, YYYY-MM-DD. The context is pinned to
+     *  Europe/Berlin while node runs in UTC, so anything comparing a date
+     *  against the screen has to ask the page, not the process. */
+    async today() {
+      return page.evaluate(() => {
+        const d = new Date();
+        const p = (x) => String(x).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      });
+    },
+
+    /** Read the app's own database. Throws if the registry did not capture the
+     *  schema module, rather than returning [] and reading as "no rows". */
+    async sql(query, params = []) {
+      return page.evaluate(async ({ query, params }) => {
+        const id = window.__PT_MODS?.['src/db/schema.ts'];
+        if (id === undefined) throw new Error('schema module not registered — module registry did not capture the dev bundle');
+        const db = await window.__r(id).getDb();
+        return db.getAllAsync(query, params);
+      }, { query, params });
     },
 
     shots,

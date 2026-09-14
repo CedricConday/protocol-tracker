@@ -7,7 +7,20 @@
 // throws if a step does not land so a broken prelude cannot masquerade as a
 // broken feature.
 
-export const TAB_LABELS = ['History', 'Journal', 'Today', 'Records', 'Settings'];
+export const TAB_LABELS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
+
+// The route id behind each tab. `Trackers` was called `Records` until
+// 2026-09-13; only the visible label moved, the route is still `Summary`.
+// Matching on the href rather than the label is what makes a rename a one-line
+// change here instead of a sweep through six flows — and it is the same handle
+// protocol60/thirtyday/mood3 already use.
+export const TAB_HREF = {
+  History: '/Calendar',
+  Journal: '/Journal',
+  Today: '/Home',
+  Trackers: '/Summary',
+  Settings: '/Settings',
+};
 
 /**
  * Text of the tab that is actually on screen.
@@ -81,7 +94,7 @@ export async function visibleTouchables(ctx) {
  * Fresh install → app proper. Leaves the app on the Today tab with a profile
  * named `name` and one supplement ("Vitamin D3") when `d3Dose` is given.
  */
-export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = '10000', condition = 'Multiple Sclerosis' } = {}) {
+export async function onboard(ctx, { name = 'Testuser', d3Dose = '10000', condition = 'Multiple Sclerosis' } = {}) {
   if (await ctx.sees('Stay on Track')) {
     await ctx.tap('Not now');
   }
@@ -90,15 +103,16 @@ export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = 
   }
 
   await ctx.fill('e.g. Alex', name);
-  await ctx.fill('e.g. 70', weight);
+  // The weight field ("e.g. 70") was removed from the profile step; filling it
+  // timed out here and crashed every flow before it reached its own subject.
   if (d3Dose) await ctx.fill('e.g. 5000', d3Dose);
-  await ctx.tap('Next');
+  await ctx.tap('Continue');
 
   if (!(await ctx.sees('Your Condition'))) {
     throw new Error('prelude: profile step did not advance to Your Condition');
   }
   await ctx.tap(condition);
-  await ctx.tap('Next');
+  await ctx.tap('Continue');
 
   if (!(await ctx.sees('Almost Ready'))) {
     throw new Error('prelude: condition step did not advance to Almost Ready');
@@ -108,10 +122,36 @@ export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = 
 }
 
 /**
- * Switch bottom tab by its visible label. The tab bar renders its label as a
- * plain text node, so an exact match on the label is the stable handle.
+ * Switch bottom tab.
+ *
+ * The tab bar renders as `<a role="tab" href="/Home">`, so the href is the
+ * stable handle and the visible label is not: a rename or a locale change moves
+ * the label and leaves the route alone. Falls back to the label for a tab with
+ * no href in TAB_HREF, and throws naming the tabs it actually saw rather than
+ * timing out on a selector, so a miss reads as a tab-bar fact.
  */
 export async function gotoTab(ctx, label) {
+  const href = TAB_HREF[label];
+  if (href) {
+    const seen = await ctx.page.evaluate((wanted) => {
+      // Compare the PATH only. Once you navigate into a tab's nested stack the
+      // tab's own href carries the route with it — the Trackers tab reads
+      // `/Summary?screen=Report` after opening the doctor report — so an exact
+      // match misses the tab you are already standing next to. Query and hash
+      // are state, not identity.
+      const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
+      const tabs = [...document.querySelectorAll('a[role="tab"]')];
+      const hit = tabs.find((a) => path(a) === wanted)
+        || tabs.find((a) => path(a).startsWith(wanted + '/'));
+      if (hit) { hit.click(); return null; }
+      return tabs.map((a) => a.getAttribute('href') || '(no href)');
+    }, href);
+    if (seen) {
+      throw new Error(`gotoTab: no tab anchor with href "${href}" for "${label}". Tabs present: ${seen.join(', ') || 'none'}`);
+    }
+    await ctx.page.waitForTimeout(1200);
+    return;
+  }
   const tab = ctx.page.getByText(label, { exact: true }).last();
   await tab.waitFor({ state: 'visible', timeout: 8000 });
   await tab.click();

@@ -96,54 +96,37 @@ export default {
       }
     }
 
-    // --- Water tracker ---
-    const water = ctx.page.getByText('+ 250 ml').first();
-    check(await water.count() > 0, 'Water tracker "+ 250 ml" button not found on Today');
-    if (await water.count()) {
-      await water.click({ force: true });
-      await ctx.page.waitForTimeout(1000);
-      const afterWater = await screenText(ctx);
-      check(/250ml \/ 2\.5L/.test(afterWater) || /2250 ml to go/.test(afterWater),
-        'Adding 250 ml did not move the water total on Today',
-        afterWater.split('\n').filter((l) => /ml|L/.test(l)).slice(0, 8).join(' | '));
-      await ctx.shot('after-water');
-    }
+    // --- Water and sun are NOT on Today any more ---
+    // Both moved to their own screens under Trackers on 2026-09-13, where they
+    // have entry lists, editable goals and history. Asserted as an absence so a
+    // regression that puts the cards back is visible here rather than only as a
+    // surprise on the device; the logging itself is covered by the `trackers`
+    // flow, against the screens that now own it.
+    const todayBody = await screenText(ctx);
+    check(!/\+ 250 ml/.test(todayBody),
+      'The water tracker is back on Today — it belongs on the Water screen',
+      todayBody.slice(0, 400));
+    check(!/goal 30|\/ 30 min/.test(todayBody),
+      'The sun tracker is back on Today — it belongs on the Sunlight screen',
+      todayBody.slice(0, 400));
 
-    // --- Sun tracker ---
-    const sunLine = async () =>
-      (await screenText(ctx)).split('\n').find((l) => /\/ 30 min/.test(l)) ?? '(no sun line)';
-    const sun = ctx.page.getByText('+20', { exact: true }).first();
-    check(await sun.count() > 0, 'Sun tracker quick-log buttons not found on Today');
-    if (await sun.count()) {
-      const before = await sunLine();
-      await sun.click({ force: true });
-      await ctx.page.waitForTimeout(1400);
-      const after = await sunLine();
-      check(after !== before && /^20/.test(after.trim()),
-        'Logging 20 minutes of sun did not change the sun tracker', `${before} → ${after}`);
-    }
-
-    // --- Quick log links ---
+    // --- What Today does NOT carry ---
+    // The old assertions here demanded a "Sleep check-in" and a "Calcium log"
+    // quick link. Neither string has ever appeared in src/ — `git log -S` finds
+    // no commit that removed them either — so the flow reported two missing
+    // features that were never built, on every run. Stale expectations, the
+    // same class as the harness defects this lane spent the round deleting.
+    //
+    // What IS worth asserting is the gap they were gesturing at: Today loads
+    // exercise and meal state and renders no way to log either. That one is
+    // real, so it stays.
     const body = await screenText(ctx);
-    check(body.includes('Sleep check-in'), 'Sleep check-in quick log missing from Today', body.slice(0, 600));
-    check(body.includes('Calcium log'), 'Calcium log quick log missing from Today');
-
-    // Neither exercise nor meals can be logged anywhere on Today, although the
-    // screen loads and holds both.
     check(/Exercise|Walk|Log exercise/i.test(body),
       'Today loads exercise state (getTodayExercise) but renders no way to log exercise',
       body.slice(0, 800));
     check(/meal|Ate|breakfast/i.test(body),
       'Today loads meal state and defines handleLogMeal, but renders no meal prompt or button',
       body.slice(0, 800));
-
-    if (body.includes('Sleep check-in')) {
-      await tapAnimated(ctx, 'Sleep check-in').catch(() => {});
-      await ctx.page.waitForTimeout(1400);
-      await ctx.shot('sleep');
-      const sleep = await screenText(ctx);
-      check(!/went wrong/i.test(sleep), 'Sleep check-in crashed into the error boundary', sleep.slice(0, 400));
-    }
 
     return { findings, endScreen: (await screenText(ctx)).slice(0, 800) };
   },

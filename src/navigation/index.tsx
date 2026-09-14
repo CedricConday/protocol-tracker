@@ -2,10 +2,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
+import type { ComponentType } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
+import { t } from '../i18n';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
@@ -24,6 +26,10 @@ import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
 import SummaryScreen from '../screens/SummaryScreen';
+import WaterScreen from '../screens/WaterScreen';
+import SunlightScreen from '../screens/SunlightScreen';
+import ExerciseScreen from '../screens/ExerciseScreen';
+import FoodScreen from '../screens/FoodScreen';
 
 const Tab = createBottomTabNavigator();
 const CalendarTabNav = createNativeStackNavigator();
@@ -69,6 +75,21 @@ function JournalNavigator() {
   );
 }
 
+/**
+ * The four tracker screens (PT-trio round 3, C5).
+ *
+ * The route names were agreed before either round-2 lane started and registered
+ * against a placeholder, so the Trackers tab has been navigable end to end since
+ * the shell landed and this round only swapped `component`. Nothing else in this
+ * file changed, which was the point of agreeing the names up front.
+ */
+const TRACKER_ROUTES: { name: string; title: string; component: ComponentType<any> }[] = [
+  { name: 'Water', title: 'Water', component: WaterScreen },
+  { name: 'Sunlight', title: 'Sunlight', component: SunlightScreen },
+  { name: 'Exercise', title: 'Exercise', component: ExerciseScreen },
+  { name: 'Food', title: 'Food', component: FoodScreen },
+];
+
 function SummaryNavigator() {
   return (
     <SummaryNav.Navigator screenOptions={{ headerShown: false }}>
@@ -88,6 +109,14 @@ function SummaryNavigator() {
         component={LabResultsScreen}
         options={{ ...SUB_HEADER, title: 'Lab Results', animation: 'slide_from_right' }}
       />
+      {TRACKER_ROUTES.map((route) => (
+        <SummaryNav.Screen
+          key={route.name}
+          name={route.name}
+          component={route.component}
+          options={{ ...SUB_HEADER, title: route.title, animation: 'slide_from_right' }}
+        />
+      ))}
     </SummaryNav.Navigator>
   );
 }
@@ -191,11 +220,16 @@ function TabNavigator() {
       >
         {() => <ErrorBoundary><HomeNavigator /></ErrorBoundary>}
       </Tab.Screen>
+      {/* Route id stays `Summary` on purpose: every existing navigate('Summary', …)
+          and the three medical sub-routes below keep working, and the rename is
+          one line instead of a sweep. The tab stopped being a summary on
+          2026-09-13 — compliance moved under the calendar and this became the
+          home of the four daily trackers. */}
       <Tab.Screen
         name="Summary"
         options={{
-          tabBarLabel: 'Records',
-          tabBarIcon: ({ color, size }) => <Ionicons name="pulse-outline" size={size} color={color} />,
+          tabBarLabel: t('trackers'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="leaf-outline" size={size} color={color} />,
         }}
       >
         {() => <ErrorBoundary><SummaryNavigator /></ErrorBoundary>}

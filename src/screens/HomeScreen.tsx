@@ -23,13 +23,11 @@ import SunMascot from '../components/SunMascot';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
-import SunTracker from '../components/SunTracker';
 import { MEDICAL_DISCLAIMER } from '../config/links';
-import WaterTracker from '../components/WaterTracker';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
-import { getAnchor, addWater, confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, logSunExposure, getTodaySunLog, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
+import { confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { ScheduledDose, MedicalEvent } from '../types';
@@ -172,9 +170,9 @@ const headerStyles = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const {
-    t0, setT0, dayLoaded, doses, setDoses, waterMl, setWaterMl, firstMealTime, setFirstMealTimeState,
+    t0, setT0, dayLoaded, doses, setDoses, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
-    exerciseIntensity, setExerciseIntensity, sunMinutes, setSunMinutes,
+    exerciseIntensity, setExerciseIntensity,
     todayMeals, setTodayMeals, patientName, isCaregiver, caregiverPatientName,
     showFatigueAlert, setShowFatigueAlert, showSurveyPrompt, setShowSurveyPrompt,
     showMagnesiumHint, setShowMagnesiumHint, showD3MealHint, setShowD3MealHint,
@@ -189,6 +187,9 @@ export default function HomeScreen() {
 
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [dosesExpanded, setDosesExpanded] = useState(false);
+  const remainingDoses = doses.filter(
+    (d) => d.status === 'upcoming' || d.status === 'due'
+  ).length;
   const [initialLoading, setInitialLoading] = useState(true);
 
   useFocusEffect(useCallback(() => { loadDay(); }, [loadDay]));
@@ -213,7 +214,7 @@ export default function HomeScreen() {
 
   const energyCredits = doses.reduce((acc, d) => {
     if (d.status === 'taken') return acc + 1;
-    if (d.status === 'missed') return acc - 1;
+    if (d.status === 'missed' || d.status === 'skipped') return acc - 1;
     return acc;
   }, 10);
   const clampedCredits = Math.max(0, Math.min(10, energyCredits));
@@ -250,30 +251,12 @@ export default function HomeScreen() {
      }
    };
 
-  const handleAddWater = async (amountMl: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await addWater(amountMl);
-    // Read the day back rather than assuming the increment landed, so the screen
-    // and daily_anchors can never disagree.
-    const anchor = await getAnchor();
-    setWaterMl(anchor?.water_ml ?? 0);
-  };
-
   const handleLogExercise = async (minutes: number = 30, type: string = 'walk', intensity: string = 'moderate') => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await logExercise(minutes, type, todayStr(), intensity);
     setExerciseMinutes(prev => prev + minutes);
     setExerciseType(type);
     setExerciseIntensity(intensity);
-  };
-
-  const handleLogSun = async (minutes: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await logSunExposure(minutes);
-    // Read the day back rather than assuming the increment landed — the screen and
-    // the sun_log row used to drift apart and only agree again after a reload.
-    const today = await getTodaySunLog();
-    setSunMinutes(today?.minutes ?? 0);
   };
 
   const handleLogMeal = async () => {
@@ -528,20 +511,26 @@ export default function HomeScreen() {
             <Text style={styles.wizardTitle}>Your First Day Started</Text>
             <Text style={styles.wizardStep}>1 — Your T=0 anchor is now set. All supplements are scheduled from this moment.</Text>
             <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
-            <Text style={styles.wizardStep}>3 — Track your water intake with the Water tracker below.</Text>
-            <Text style={styles.wizardStep}>4 — Log your sun exposure and exercise whenever you like.</Text>
+            <Text style={styles.wizardStep}>3 — Track water, sunlight, exercise and food on the Trackers tab.</Text>
+            <Text style={styles.wizardStep}>4 — History shows your compliance, streak and calendar.</Text>
             <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel="Dismiss wizard, start using the app" accessibilityRole="button">
               <Text style={styles.wizardBtnText}>Got it, let's start</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
+        {/* Still actionable: upcoming or due. A taken, skipped or missed dose
+            is resolved and should not be counted as something left to do. */}
         {doses.length > 0 ? (
           <>
             {doses.every((d) => d.status === 'taken') ? (
               <Text style={styles.allDoneLabel}>All done ✓</Text>
             ) : (
-              dosesExpanded ? (
+              // A single dose has nothing to collapse. The teaser read "0 more
+              // doses today — tap to view all" over an empty stack, and the
+              // one dose of the day was not on screen at all until it was
+              // tapped. Treat a one-dose day as already expanded.
+              (dosesExpanded || doses.length <= 1) ? (
                 // Expanded, the list is just a list. Keeping the outer touchable
                 // here nested DoseRow and Collapse inside a button, so the wrapper
                 // competed with them for the touch responder and a long-press
@@ -551,18 +540,20 @@ export default function HomeScreen() {
                   {doses.map((dose) => (
                     <DoseRow key={dose.id} dose={dose} onPress={() => handleDosePress(dose)} />
                   ))}
-                  <TouchableOpacity
-                    style={styles.collapseBtn}
-                    onPress={() => {
-                      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                      setDosesExpanded(false);
-                    }}
-                    activeOpacity={0.7}
-                    accessibilityLabel="Collapse dose list"
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.collapseBtnText}>Collapse</Text>
-                  </TouchableOpacity>
+                  {doses.length > 1 ? (
+                    <TouchableOpacity
+                      style={styles.collapseBtn}
+                      onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setDosesExpanded(false);
+                      }}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Collapse dose list"
+                      accessibilityRole="button"
+                    >
+                      <Text style={styles.collapseBtnText}>Collapse</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : (
                 <TouchableOpacity
@@ -580,14 +571,25 @@ export default function HomeScreen() {
                   accessibilityRole="button"
                 >
                   <View>
-                    {/* Stacked peek cards */}
+                    {/* Stacked peek cards. `slice(1, …)` dated from when the
+                        first dose was rendered above this teaser; nothing is,
+                        so it drew one card too few. */}
                     <View style={styles.stackPeek}>
-                      {doses.slice(1, 4).map((d, i) => (
+                      {doses.slice(0, 3).map((d, i) => (
                         <View key={d.id} style={[styles.stackCard, { top: -i * 8 }]} />
                       ))}
                     </View>
+                    {/* Doses still to take, not the size of the list.
+                        `doses.length - 1` was wrong twice over: off by one for
+                        the same reason as the stack above, and counting TOTAL
+                        rather than REMAINING, so on a four-dose day it read "3
+                        more doses" whether none had been taken or three had.
+                        Reported from the device: "It always say 3 no matter
+                        what." */}
                     <Text style={styles.stackLabel}>
-                      {doses.length - 1} more dose{doses.length - 1 !== 1 ? 's' : ''} today — tap to view all
+                      {remainingDoses === 0
+                        ? `Tap to view today’s ${doses.length} doses`
+                        : `${remainingDoses} dose${remainingDoses !== 1 ? 's' : ''} left today — tap to view all`}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -601,10 +603,6 @@ export default function HomeScreen() {
             <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your protocol supplements.</Text>
         </View>
       )}
-
-        <WaterTracker waterMl={waterMl} onAdd={handleAddWater} />
-
-        <SunTracker sunMinutes={sunMinutes} onLog={handleLogSun} />
 
         <Text style={styles.homeDisclaimer}>{MEDICAL_DISCLAIMER}</Text>
 

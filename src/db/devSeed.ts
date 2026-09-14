@@ -180,7 +180,10 @@ export async function seedSimulatedHistory(
       const scheduled = t0Ms + rule.offset_minutes * 60_000;
       // Partial days drop the later doses; full days occasionally miss one.
       const missed = shape === 'partial' ? rule.offset_minutes > 0 : rand() < 0.07;
-      const status = missed ? 'missed' : 'taken';
+      // Some of the untaken doses are deliberate skips, so seeded data covers
+      // both statuses. Either way the row is not 'taken', so every compliance
+      // number the seed produces is unchanged.
+      const status = missed ? (rand() < 0.4 ? 'skipped' : 'missed') : 'taken';
       const loggedTime = missed ? null : scheduled + Math.floor(rand() * rule.tolerance_window) * 60_000;
       await db.runAsync(
         `INSERT INTO dose_logs (date, supplement_id, rule_id, scheduled_time, logged_time, status, missed_alerted)

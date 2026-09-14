@@ -429,6 +429,49 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    // sun_entries: sun is a series of sessions, like water and exercise.
+    //
+    // This table was only ever created by schema.ts, inside its
+    // `if (currentVersion === 0)` branch — so it reached fresh installs and
+    // nothing else. On an upgraded device the table is simply absent, and
+    // logSunExposure INSERTs into it inside a transaction: sun logging fails
+    // outright, and the day sheet and Trackers grid fall back to empty.
+    //
+    // sun_log STAYS as the day's total (getTodaySunLog, SunTracker,
+    // getWeekSummary and the 60-day harness all read it). The invariant is that
+    // sun_log.minutes equals SUM(sun_entries.minutes) for the day, and every
+    // writer in queries.ts maintains it.
+    //
+    // Numbered 16 because 15 is claimed by the dose-frequency work in flight.
+    version: 16,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS sun_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          minutes INTEGER NOT NULL,
+          logged_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_sun_entries_date ON sun_entries(date);
+      `);
+      // Backfill once: every existing day with minutes on it becomes a single
+      // session carrying that day's whole total, so no history is lost and the
+      // invariant holds immediately. Guarded on the table being empty rather
+      // than on the version number, so a half-applied run cannot double-count.
+      const existing = await db.getFirstAsync<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM sun_entries'
+      );
+      if ((existing?.n ?? 0) === 0) {
+        await db.execAsync(`
+          INSERT INTO sun_entries (date, minutes, logged_at)
+          SELECT date, minutes, strftime('%s', COALESCE(logged_at, date)) * 1000
+          FROM sun_log
+          WHERE minutes > 0
+        `);
+      }
+    },
+  },
 ];
 
 async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {

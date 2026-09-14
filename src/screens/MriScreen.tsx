@@ -1,3 +1,4 @@
+import NetInfo from '@react-native-community/netinfo';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -43,39 +44,52 @@ function daysSince(d: string): number {
   return Math.floor((Date.now() - new Date(d + 'T00:00:00').getTime()) / 86400000);
 }
 
+// expo-secure-store has no web implementation: the module's default export has
+// no `getValueWithKeyAsync`, so every call throws there and the rejection
+// escapes as an uncaught error — the audit sees it on day 3, from Settings.
+// `await` sits INSIDE the try on purpose; returning a promise from a try block
+// does not bring that promise's rejection into the catch. Same stance as
+// `syncClient.getPatientJwt`.
+async function readSecret(key: string): Promise<string | null> {
+  try {
+    const { getItemAsync } = await import('expo-secure-store');
+    return await getItemAsync(key);
+  } catch {
+    return null;
+  }
+}
+
 export default function MriScreen() {
   const [scans, setScans] = useState<MriScan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
+  // Connectivity, read from the OS rather than by contacting anybody.
+  //
+  // This used to poll `clients3.google.com/generate_204` every 30 seconds for
+  // as long as the screen was open. No health data went with it, but it handed
+  // the device's IP address to Google on a schedule, the user was never told,
+  // and onboarding's first screen promises "your information stays on your
+  // device". An offline badge is not worth a third party knowing when and how
+  // often this app is open.
+  //
+  // @react-native-community/netinfo was already a dependency. It asks the
+  // platform, makes no request, and is also more accurate: the old check called
+  // a captive portal "online" because the request completed.
   useEffect(() => {
-    const check = async () => {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 5000);
-      try {
-        // `no-cors` because the browser blocks a readable response from this
-        // endpoint and logged a CORS error every 30 seconds on the web build —
-        // 342 console errors across a 60-day run. We only care whether the
-        // request completes, never what it returns, so an opaque response is
-        // exactly as useful as a readable one.
-        await fetch('https://clients3.google.com/generate_204', {
-          method: 'HEAD',
-          mode: 'no-cors',
-          signal: controller.signal,
-        });
-        setIsOffline(false);
-      } catch {
-        setIsOffline(true);
-      } finally {
-        // Previously only cleared on the success path, so every failed check
-        // left a live 5s abort timer behind — one per poll, every 30s.
-        clearTimeout(id);
-      }
-    };
-    check();
-    const interval = setInterval(check, 30000);
-    return () => clearInterval(interval);
+    let cancelled = false;
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (cancelled) return;
+      // `isInternetReachable` is null while unknown; treat only an explicit
+      // false as offline so the banner does not flash on a cold start.
+      setIsOffline(state.isConnected === false || state.isInternetReachable === false);
+    });
+    NetInfo.fetch().then((state) => {
+      if (cancelled) return;
+      setIsOffline(state.isConnected === false || state.isInternetReachable === false);
+    });
+    return () => { cancelled = true; unsubscribe(); };
   }, []);
 
   // Form state
@@ -154,10 +168,9 @@ export default function MriScreen() {
     if (result.canceled || !result.assets[0]?.base64) return;
 
     const b64 = result.assets[0].base64;
-    const { getItemAsync } = await import('expo-secure-store');
     const [provider, apiKey] = await Promise.all([
       AsyncStorage.getItem('ai_provider'),
-      getItemAsync('ai_api_key'),
+      readSecret('ai_api_key'),
     ]);
 
     if (!apiKey) {

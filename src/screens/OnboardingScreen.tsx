@@ -19,6 +19,7 @@ import { getSupplementsWithRules, addSupplement, updateRuleDose, setMiscFlag } f
 import { createDefaultProfile } from '../db/seed';
 import * as Notifications from 'expo-notifications';
 import { DISEASE_PROFILES } from '../data/diseaseProfiles';
+import SunMascot from '../components/SunMascot';
 
 const { width } = Dimensions.get('window');
 
@@ -37,7 +38,7 @@ const STEPS = [
   {
     title: 'Set Up Your Profile',
     icon: '👤',
-    body: 'Your information stays on your device — nothing is shared without your consent.',
+    body: 'Your health data stays on your device. None of it reaches our servers — we do not run one.',
   },
   {
     title: 'Your Condition',
@@ -58,7 +59,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const [d3Dose, setD3Dose] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const nameRef = useRef<TextInput>(null);
   const weightRef = useRef<TextInput>(null);
+  // What the last Next tap found missing. Empty until the user actually taps,
+  // so the screen does not greet them with errors for fields they have not
+  // reached yet.
+  const [hint, setHint] = useState<{ key: 'name' | 'weight' | 'condition'; label: string }[]>([]);
   const d3Ref = useRef<TextInput>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -126,13 +132,40 @@ export default function OnboardingScreen({ onComplete }: Props) {
     }
   };
 
-  const canProceed = () => {
+  /**
+   * What is stopping this step, named — not just whether something is.
+   *
+   * The button used to be `disabled={!canProceed() || saving}`, which on web and
+   * on device means `pointer-events: none`: tapping it did nothing at all. No
+   * shake, no message, no hint about which field was wanted. Reported from the
+   * device as "stays greyed out", which is exactly what it looks like from the
+   * outside — the user had filled in the only field the screen visibly asked
+   * for, and nothing marked weight as required.
+   */
+  const missingFields = (): { key: 'name' | 'weight' | 'condition'; label: string }[] => {
     if (step === 0) {
-      return name.trim().length > 0 && weight.trim().length > 0 && !isNaN(parseFloat(weight));
+      const out: { key: 'name' | 'weight' | 'condition'; label: string }[] = [];
+      if (name.trim().length === 0) out.push({ key: 'name', label: 'your name' });
+      // A weight that is present but unreadable ("kg 70", a bare comma) is as
+      // blocking as an empty one and looks filled in, so it gets its own words.
+      if (weight.trim().length === 0) out.push({ key: 'weight', label: 'your weight' });
+      else if (isNaN(parseFloat(weight))) out.push({ key: 'weight', label: 'a weight we can read, like 70 or 70,5' });
+      return out;
     }
-    if (step === 1) return selectedProfile !== null;
-    return true;
+    if (step === 1 && selectedProfile === null) return [{ key: 'condition', label: 'a condition' }];
+    return [];
   };
+
+  const canProceed = () => missingFields().length === 0;
+
+  // Drop a complaint the moment it stops being true, rather than leaving it on
+  // screen until the next tap.
+  useEffect(() => {
+    if (hint.length === 0) return;
+    const still = missingFields();
+    if (still.length !== hint.length) setHint(still);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, weight, selectedProfile]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -154,16 +187,31 @@ export default function OnboardingScreen({ onComplete }: Props) {
             { transform: [{ translateX }] },
           ]}
         >
-          {/* Step 0: Profile */}
-          <View style={[styles.page, { justifyContent: 'flex-start', paddingTop: 32 }]}>
-            <Text style={styles.icon}>👤</Text>
+          {/* Step 0: Profile
+              A ScrollView, not a View. It was the only step that could not
+              scroll while step 1 could, and with the iOS keyboard up
+              KeyboardAvoidingView shrinks the area under it: the form then had
+              nowhere to go, overflowed its page, and painted through the
+              footer — the Next button landing on top of the weight label, and
+              the footer's top border cutting across the form. The D3 field was
+              unreachable at the same time. */}
+          <ScrollView
+            style={{ width }}
+            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.icon}><SunMascot size={72} /></View>
             <Text style={styles.title}>Set Up Your Profile</Text>
-            <Text style={styles.body}>Your information stays on your device — nothing is shared without your consent.</Text>
+            <Text style={styles.body}>Your health data stays on your device. None of it reaches our servers — we do not run one.</Text>
 
             <View style={styles.form}>
-              <Text style={styles.inputLabel}>What should we call you?</Text>
+              <Text style={styles.inputLabel}>
+                What should we call you? <Text style={styles.required}>Required</Text>
+              </Text>
               <TextInput
-                style={styles.input}
+                ref={nameRef}
+                style={[styles.input, hint.some((h) => h.key === 'name') && styles.inputError]}
                 placeholder="e.g. Alex"
                 placeholderTextColor="#9AA3B2"
                 value={name}
@@ -173,10 +221,13 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 submitBehavior="submit"
                 onSubmitEditing={() => weightRef.current?.focus()}
               />
-                <Text style={styles.inputLabel}>What's your weight? (we use this for your D3 dose)</Text>
+                <Text style={styles.inputLabel}>
+                  What&apos;s your weight? <Text style={styles.required}>Required</Text>
+                </Text>
+                <Text style={styles.inputHelp}>We use this to work out your D3 dose. A comma is fine — 70,5.</Text>
                 <TextInput
                   ref={weightRef}
-                  style={styles.input}
+                  style={[styles.input, hint.some((h) => h.key === 'weight') && styles.inputError]}
                   placeholder="e.g. 70"
                   placeholderTextColor="#9AA3B2"
                   value={weight}
@@ -186,7 +237,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   submitBehavior="submit"
                   onSubmitEditing={() => d3Ref.current?.focus()}
                 />
-                <Text style={styles.inputLabel}>Daily Vitamin D3 Dose (IU)</Text>
+                <Text style={styles.inputLabel}>
+                  Daily Vitamin D3 Dose (IU) <Text style={styles.optional}>Optional</Text>
+                </Text>
                 <TextInput
                   ref={d3Ref}
                   style={styles.input}
@@ -202,13 +255,19 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   Enter the dose your doctor prescribed.
                 </Text>
             </View>
-          </View>
+          </ScrollView>
 
           {/* Step 1: Condition (disease profile) */}
+          {/* Nine conditions do not fit on one screen. The scroll indicator was
+              hidden, so the last card was sliced by the footer with nothing to
+              say more existed — someone with Crohn's, type 1 diabetes or
+              "Other" would have concluded their condition was not supported.
+              Indicator on, and enough bottom padding that the final card clears
+              the footer instead of being cut in half. */}
           <ScrollView
             style={{ width }}
-            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 40 }]}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
+            showsVerticalScrollIndicator={true}
           >
             <Text style={styles.icon}>🏥</Text>
             <Text style={styles.title}>Your Condition</Text>
@@ -225,8 +284,25 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 >
                   <Text style={{ fontSize: 24 }}>{CONDITION_ICONS[p.id] || '🏥'}</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.trackTitle, selectedProfile === p.id && styles.trackTitleActive]}>{p.name}</Text>
-                    <Text style={styles.trackDesc}>{p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}</Text>
+                    {/* `patientDescription` is deliberately '' — this build
+                        authors no medical descriptions — so a second <Text>
+                        rendered empty on every card: dead height, and the same
+                        empty-string-child the audit chased for seven screens.
+                        The ICD-10 code goes INLINE rather than on its own line:
+                        as a second line it grew every card and cut the number
+                        of conditions visible without scrolling from six to
+                        five, which works against the very problem being fixed
+                        here. Nine conditions and a short screen means density
+                        is the point. */}
+                    <Text style={[styles.trackTitle, selectedProfile === p.id && styles.trackTitleActive]}>
+                      {p.name}
+                      {p.icd10 ? <Text style={styles.trackCode}>  ICD-10 {p.icd10}</Text> : null}
+                    </Text>
+                    {p.patientDescription ? (
+                      <Text style={styles.trackDesc}>
+                        {p.patientDescription.length > 60 ? p.patientDescription.slice(0, 60) + '…' : p.patientDescription}
+                      </Text>
+                    ) : null}
                   </View>
                 </TouchableOpacity>
               ))}
@@ -248,8 +324,18 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
         </Animated.View>
 
-        {/* Bottom buttons */}
+        {/* Bottom buttons.
+            The hint gets its own full-width line ABOVE the button row. Dropped
+            into the row itself it became a third flex child and squeezed the
+            button sideways — visible in the first screenshot of it. */}
         <View style={styles.footer}>
+          {hint.length ? (
+            <Text style={styles.missingHint} accessibilityLiveRegion="polite">
+              Still needed: {hint.map((h) => h.label).join(' and ')}.
+            </Text>
+          ) : null}
+
+          <View style={styles.footerRow}>
           {step > 0 ? (
             <TouchableOpacity
               style={styles.backButton}
@@ -266,18 +352,40 @@ export default function OnboardingScreen({ onComplete }: Props) {
             style={[
               styles.nextButton,
               step === 0 && styles.nextButtonWide,
-              !canProceed() ? styles.buttonDisabled : null,
+              // NOT greyed out when a field is missing. The button works in
+              // that state — it tells you what is still needed — and a control
+              // that looks dead while being live is worse than one that is
+              // honestly either. Reported from the device: "stays greyed out
+              // even when I finished my name, pressing it did submit it."
+              // `saving` is the only state where it really is inert, so that
+              // is the only state that looks it.
+              saving ? styles.buttonDisabled : null,
             ]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleNext(); }}
-            disabled={!canProceed() || saving}
+            onPress={() => {
+              const missing = missingFields();
+              if (missing.length) {
+                // Say what is wanted and put the cursor in it, rather than
+                // swallowing the tap.
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                setHint(missing);
+                if (missing[0].key === 'name') nameRef.current?.focus();
+                if (missing[0].key === 'weight') weightRef.current?.focus();
+                return;
+              }
+              setHint([]);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              handleNext();
+            }}
+            disabled={saving}
             activeOpacity={0.8}
-            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Next step' : "Let's begin"}
+            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Continue' : "Let's begin"}
             accessibilityRole="button"
           >
             <Text style={styles.nextText}>
-              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Next' : "Let's begin →"}
+              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Continue' : "Let's begin →"}
             </Text>
           </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -327,6 +435,8 @@ const styles = StyleSheet.create({
   icon: {
     fontSize: 48,
     marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     color: '#14213D',
@@ -352,6 +462,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 16,
   },
+  required: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
+  optional: { color: '#9AA3B2', fontSize: 12, fontWeight: '600' },
+  inputHelp: { color: '#9AA3B2', fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 6 },
+  inputError: { borderColor: '#B3453E', borderWidth: 1.5 },
+  missingHint: { color: '#B3453E', fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 10 },
   input: {
     backgroundColor: '#ECEDE6',
     borderRadius: 10,
@@ -397,13 +512,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: '#CFD2C6',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   backButton: {
     paddingVertical: 12,
@@ -429,6 +546,7 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.4,
   },
+  // Full strength, because the button is tappable whatever is missing.
   nextText: {
     color: '#F7F7F2',
     fontSize: 16,
@@ -439,4 +557,5 @@ const styles = StyleSheet.create({
   trackTitle: { color: '#5A6478', fontSize: 15, fontWeight: '700' },
   trackTitleActive: { color: '#1B58B8' },
   trackDesc: { color: '#9AA3B2', fontSize: 13, marginTop: 2 },
+  trackCode: { color: '#9AA3B2', fontSize: 12, fontWeight: '500' },
 });

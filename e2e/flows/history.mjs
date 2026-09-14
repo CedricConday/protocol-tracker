@@ -1,0 +1,216 @@
+// The two read-only surfaces, after the 2026-09-13 restructure.
+//
+// This file was `records.mjs`. The Records tab is gone: it was renamed
+// `Trackers` and gutted down to four cards (water, sunlight, exercise, food),
+// and everything it used to assert — the Doses Today / Day Streak stats, the
+// weighted-adherence score, the Share Your Progress button and the three
+// clinical entry points — moved to History, under the month grid. The
+// assertions moved with the content rather than staying with the tab name,
+// which is the whole point: a check pinned to a tab title reports a rename as
+// a defect.
+//
+// Trackers is now a launcher, so what it owes the user is four reachable
+// cards, not numbers.
+import { onboard, gotoTab, startDay, tapAnimated, screenText, screenLine, reporter } from '../lib/prelude.mjs';
+
+export default {
+  name: 'history',
+  description: 'History and Trackers tabs — compliance reflects the day, every control is live',
+  session: { stubNotificationScheduler: true },
+
+  async run(ctx) {
+    const { findings, check } = reporter();
+
+    await onboard(ctx);
+
+    // Build one taken dose so the stats have something to show.
+    await startDay(ctx);
+    await ctx.page.waitForTimeout(2000);
+    const today = await screenText(ctx);
+    if (/more dose/.test(today)) {
+      await tapAnimated(ctx, 'more dose').catch(() => {});
+      await ctx.page.waitForTimeout(800);
+    }
+    // Two passes: the first "Took it" after Start My Day is dropped (see the
+    // `day` flow). The compliance block needs a dose that actually landed.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (/1 of 1 doses|All done/.test(await screenLine(ctx))) break;
+      if (/more dose/.test(await screenText(ctx))) {
+        await tapAnimated(ctx, 'more dose').catch(() => {});
+        await ctx.page.waitForTimeout(800);
+      }
+      await tapAnimated(ctx, 'Vitamin D3').catch(() => {});
+      await ctx.page.waitForTimeout(800);
+      const took = ctx.page.getByText(/Took it/i).first();
+      if (!(await took.count())) break;
+      await took.click({ force: true });
+      await ctx.page.waitForTimeout(1800);
+    }
+
+    // Return a tab's stack to its root. These sub-screens carry SUB_HEADER, so
+    // they have a back control; tapping the tab itself does NOT pop it, because
+    // react-navigation restores each tab's last state. That matters here: the
+    // three clinical buttons on History navigate into the SUMMARY stack, so
+    // after using one the Trackers tab is sitting on Share with Doctor and not
+    // on its four cards. Asserting the cards without popping first reports the
+    // app's normal stack behaviour as four missing cards, which is what this
+    // flow did until it was reordered.
+    const backToTrackersRoot = async () => {
+      for (let i = 0; i < 4; i++) {
+        await gotoTab(ctx, 'Trackers');
+        await ctx.page.waitForTimeout(900);
+        if ((await screenText(ctx)).includes('Water')) return true;
+        const back = ctx.page.locator('[aria-label="Go back"], [aria-label="Back"]').first();
+        if (await back.count()) { await back.click({ force: true }); }
+        else if (await ctx.page.getByText('\u2190', { exact: true }).first().count()) {
+          await ctx.page.getByText('\u2190', { exact: true }).first().click({ force: true });
+        } else { break; }
+        await ctx.page.waitForTimeout(900);
+      }
+      await gotoTab(ctx, 'Trackers');
+      await ctx.page.waitForTimeout(900);
+      return (await screenText(ctx)).includes('Water');
+    };
+
+    // --- Trackers: a launcher, so judge it on reachability ---
+    await backToTrackersRoot();
+    await ctx.page.waitForTimeout(700);
+    await ctx.shot('trackers');
+
+    const trk = await screenText(ctx);
+    check(!/went wrong/i.test(trk), 'Trackers crashed into the error boundary', trk.slice(0, 400));
+    for (const card of ['Water', 'Sunlight', 'Exercise', 'Food']) {
+      check(trk.includes(card), `Trackers has no ${card} card`, trk.slice(0, 600));
+    }
+    // The compliance numbers must NOT have been left behind here as well —
+    // the restructure moved them, and a duplicate would be a real defect.
+    check(!/Doses Today|Weighted Adherence/.test(trk),
+      'Trackers still renders compliance numbers that were supposed to move to History',
+      trk.slice(0, 600));
+
+    // Each card must open something. While Build C's screens are placeholders
+    // this proves the route is registered; once they land it proves the screen
+    // renders. Either way "the card does nothing" is the failure being caught.
+    for (const card of ['Water', 'Sunlight', 'Exercise', 'Food']) {
+      const before = await screenText(ctx);
+      // By accessible name, not by visible text. The card's label is a plain
+      // <Text> inside the touchable, so getByText matched the text node and the
+      // click landed on something with no onPress — which reads as "the card
+      // does nothing" when the card is fine. SummaryScreen.tsx:121 names each
+      // card `<Label> tracker. …`, and the tail varies with today's live value
+      // (C5), so match the prefix.
+      const target = ctx.page.locator(`[aria-label^="${card} tracker"]`).first();
+      if (!(await target.count())) {
+        check(false, `Trackers card "${card}" has no accessible name starting "${card} tracker"`);
+        continue;
+      }
+      await target.click({ force: true });
+      await ctx.page.waitForTimeout(1200);
+      const after = await screenText(ctx);
+      check(after !== before, `Tapping the ${card} card on Trackers does nothing`, after.slice(0, 300));
+      // Pop back rather than just re-tapping the tab, which would leave the
+      // stack on this card and make the next card unfindable — a silent skip
+      // that would have read as a pass.
+      await backToTrackersRoot();
+    }
+
+
+    // --- History: the month grid, and the compliance block beneath it ---
+    await gotoTab(ctx, 'History');
+    await ctx.page.waitForTimeout(1600);
+    await ctx.shot('history');
+
+    const hist = await screenText(ctx);
+    check(!/went wrong/i.test(hist), 'History crashed into the error boundary', hist.slice(0, 400));
+
+    // Derived from the browser, not from node: the context is Europe/Berlin
+    // while this process is UTC, so near midnight they are different days.
+    const todayIso = await ctx.today();
+    const month = new Date(`${todayIso}T12:00:00`).toLocaleDateString('en-US', { month: 'long' });
+    check(hist.includes(month) || /\d{4}/.test(hist),
+      'History does not show the current month', hist.slice(0, 400));
+
+    // The calendar is meant to stay the first thing on the screen, with
+    // compliance under it. Assert the order, not just the presence — "moved
+    // under the calendar" was the requirement, and a block that reappeared
+    // above the grid would satisfy a presence check silently.
+    const gridAt = hist.indexOf(month);
+    const statsAt = hist.indexOf('Doses Today');
+    check(gridAt === -1 || statsAt === -1 || gridAt < statsAt,
+      'The compliance block renders above the month grid on History, not below it',
+      `month "${month}" at ${gridAt}, "Doses Today" at ${statsAt}`);
+
+    check(hist.includes('Doses Today'), 'History did not render the Doses Today stat', hist.slice(0, 600));
+    check(hist.includes('Day Streak'), 'History did not render the Day Streak stat', hist.slice(0, 600));
+    check(/1\/1/.test(hist),
+      'History does not show the dose taken on Today', hist.split('\n').slice(0, 24).join(' | '));
+    check(!/\b0\/1\b/.test(hist),
+      'History reports 0/1 doses although one was confirmed on Today',
+      hist.split('\n').slice(0, 16).join(' | '));
+
+    // Weighted adherence: getWeightedAdherenceScore returns a percentage.
+    const scoreLine = hist.split('\n').find((l) => /\/8$/.test(l.trim()));
+    check(!scoreLine || !/^(100|[1-9]\d)\.\d\/8$/.test(scoreLine.trim()),
+      'Weighted Adherence renders a 0–100 percentage against a "/8" denominator',
+      scoreLine ?? '(no /8 line found)');
+
+    // Today's cell should be marked as having activity now that a dose is taken.
+    const dayNum = String(Number(todayIso.slice(8, 10)));
+    check(hist.includes(dayNum), `History grid does not contain today's date (${dayNum})`, hist.slice(0, 500));
+
+    // The three clinical entry points. They are registered under the Summary
+    // stack but they are tapped from here, so this is the only place the tap
+    // path can be checked — and a label on screen is not a tap path. Tap each
+    // one by its accessible name and assert the app landed on the target
+    // screen, identified by body text History itself never renders.
+    const CLINICAL = [
+      { name: 'Lab Results', label: 'Lab results', landed: /add lab result|no lab results|creatinine|sulkowitch/i },
+      { name: 'MRI History', label: 'MRI history', landed: /log mri scan|log first scan|save scan|lesion/i },
+      { name: 'Share with Doctor', label: 'Share your progress', landed: /generate report|could not create the report/i },
+    ];
+    for (const target of CLINICAL) {
+      await gotoTab(ctx, 'History');
+      await ctx.page.waitForTimeout(1000);
+      const control = ctx.page.locator(`[aria-label="${target.label}"]`).first();
+      if (!(await control.count())) {
+        check(false, `History has no control named "${target.label}" — ${target.name} has no tap path`);
+        continue;
+      }
+      const before = await screenText(ctx);
+      await control.click({ force: true });
+      await ctx.page.waitForTimeout(1600);
+      const after = await screenText(ctx);
+      await ctx.shot(`clinical-${target.name.toLowerCase().replace(/\W+/g, '-')}`);
+      check(target.landed.test(after),
+        `Tapping "${target.label}" on History does not open ${target.name}`,
+        `screen ${after === before ? 'is byte-identical after the tap' : 'changed but is not the target'}: ${after.replace(/\n/g, ' | ').slice(0, 300)}`);
+    }
+
+    // The Share button's visible text is `shareProgress` — "Share Your
+    // Progress", capitalised — while its accessibility name is "Share your
+    // progress". Both are asserted: the visible one is what the user looks for,
+    // the accessible one is what the loop above taps.
+    await gotoTab(ctx, 'History');
+    await ctx.page.waitForTimeout(1200);
+    check(await ctx.page.getByText(/Share Your Progress/i).first().count() > 0,
+      'History has no Share Your Progress button');
+
+    // Tap today's cell — a day with data should open a detail view.
+    const cell = ctx.page.getByText(dayNum, { exact: true }).last();
+    if (await cell.count()) {
+      const before = await screenText(ctx);
+      await cell.click({ force: true });
+      await ctx.page.waitForTimeout(1200);
+      await ctx.shot('history-day-tapped');
+      const after = await screenText(ctx);
+      check(after !== before,
+        'Tapping a day with logged doses in History does nothing',
+        after.slice(0, 400));
+      // Close the day sheet so it does not cover the tab bar.
+      await ctx.page.keyboard.press('Escape').catch(() => {});
+      await ctx.page.waitForTimeout(800);
+    }
+
+    return { findings, endScreen: (await screenText(ctx)).slice(0, 700) };
+  },
+};

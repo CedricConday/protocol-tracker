@@ -125,6 +125,19 @@ const findings = [];
 let currentDay = 0;
 let currentScreen = 'boot';
 const screensHit = new Set();
+// Settings sub-entries are counted separately from distinct screens.
+//
+// auditScreen() adds whatever name it is given to screensHit, and the Settings
+// deep sweep calls it as `Settings/<row label>` for each of the eleven rows. So
+// eleven rows read as eleven new screens and a run that covered 20 screens
+// reported 31. That was never a defect in the app — it was a reporting defect
+// that made an unchanged run look like new coverage, which is the worst kind
+// because it reads as progress.
+//
+// A name containing "/" is a sub-entry of the screen before the slash: it is
+// counted here, the parent is counted in screensHit, and the report gives both
+// numbers instead of adding them together.
+const subEntriesHit = new Set();
 const note = (severity, screen, what, repro, cause) =>
   findings.push({ severity, screen, what, repro, cause, day: currentDay });
 
@@ -278,6 +291,105 @@ async function sql(query, params = []) {
   }, { query, params });
 }
 
+/**
+ * Has this dose been deliberately skipped?
+ *
+ * `DoseStatus` has no 'skipped' member yet (src/types/index.ts:1, frozen until
+ * round 3 A2), so skipDose and skipDoseWithReason both write status='missed'
+ * and stamp logged_time. markOverdueDoses also writes 'missed', but leaves
+ * logged_time null — so logged_time is the only thing separating a dose the
+ * patient skipped from one they never touched. Asserting on /skip/i against
+ * status, as this harness did for sixty days, could therefore never pass: a
+ * working skip stored the string "missed".
+ *
+ * A2 makes 'skipped' real. Both readings are accepted so the check keeps
+ * meaning the same thing on either side of that change, and neither reading is
+ * satisfied by an untouched dose.
+ */
+function doseIsSkipped(rows) {
+  const r = rows && rows[0];
+  if (!r) return false;
+  const status = String(r.status ?? '');
+  if (/^skipped$/i.test(status)) return true;
+  return status === 'missed' && r.logged_time !== null && r.logged_time !== undefined;
+}
+
+// ── day-key drift: which rows were written DURING the crossing window ──────
+//
+// The previous check scanned every table at the end of the run and filed a
+// finding for any row whose `date` equalled the day before a timezone-crossing
+// day. Those rows exist because that day happened: the harness ran day 19 and
+// day 50 normally and wrote real rows dated accordingly. So the check fired on
+// every run no matter what the app did, which is not a test — it is a constant.
+// It also cited `src/screens/HomeScreen.tsx:260/:275` as the culprit; that code
+// is gone (`grep -rn "toISOString().split" src/` returns nothing, and
+// `todayStr()` goes through `localDateStr`), so the finding named a line that
+// does not exist.
+//
+// What is actually falsifiable: a row written WHILE the simulated clock stands
+// between local midnight and 02:00 on the crossing day must carry that day's
+// local date. In Europe/Berlin that window is the previous day in UTC, so a day
+// key derived from toISOString() lands on `prev` and a local one lands on
+// `tzDate`. Isolating "written during the window" is what the old check never
+// did, so it is done here by rowid: snapshot the high-water mark per table
+// before the day opens, and afterwards look only at rows added since.
+//
+// Limit, stated rather than hidden: this sees INSERTs. A row UPDATEd during the
+// window onto a wrong date keeps its rowid and is invisible here. Catching that
+// needs a column recording when the write happened, which the schema does not
+// have; a false negative is the honest cost, and it beats a finding that cannot
+// fail.
+async function dateColumnTables() {
+  const names = await sql("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").catch(() => []);
+  const out = [];
+  for (const { name } of names) {
+    const cols = await sql(`PRAGMA table_info("${name}")`).catch(() => []);
+    if (cols.some((c) => c.name === 'date')) out.push(name);
+  }
+  return out;
+}
+
+async function rowidHighWater() {
+  const mark = {};
+  for (const name of await dateColumnTables()) {
+    const r = await sql(`SELECT COALESCE(MAX(rowid), 0) AS hi FROM "${name}"`).catch(() => []);
+    mark[name] = Number(r[0]?.hi ?? 0);
+  }
+  return mark;
+}
+
+async function checkDayKeyDrift(n, mark) {
+  const tzDate = dayDate(n);
+  const prev = dayDate(n - 1);
+  const drifted = [];
+  const written = [];
+  for (const [name, hi] of Object.entries(mark)) {
+    const rows = await sql(`SELECT rowid AS rid, date FROM "${name}" WHERE rowid > ?`, [hi]).catch(() => []);
+    for (const r of rows) {
+      if (typeof r.date !== 'string') continue;
+      written.push(`${name}#${r.rid}=${r.date}`);
+      if (r.date !== tzDate) drifted.push(`${name}#${r.rid}.date=${r.date}`);
+    }
+  }
+
+  if (drifted.length) {
+    const utc = drifted.filter((d) => d.endsWith(prev));
+    note('high', 'Today (timezone-crossing)',
+      `Rows written between 00:20 and 01:40 local on ${tzDate} were stored under another date. ${utc.length ? `${utc.length} of them landed on ${prev}, which is the UTC date during that window — a day key computed from toISOString() rather than the local calendar date. ` : ''}Affected: ${drifted.join(', ')}`,
+      `set the device clock to ${tzDate} 00:20 Europe/Berlin and log the day normally`,
+      'src/db/queries.ts todayStr() / localDateStr(), and any screen computing its own day key');
+    return;
+  }
+
+  if (!written.length) {
+    // Nothing was inserted at all, so nothing was proved. Say that, rather than
+    // letting an empty set read as a pass.
+    note('low', 'Today (timezone-crossing)',
+      `The day-key check on ${tzDate} proved nothing: no rows were inserted into any date-bearing table while the clock stood just after local midnight. Either the day's writes are UPDATEs (invisible to a rowid check) or the day did not run.`,
+      `day ${n}`, 'e2e/protocol60.mjs checkDayKeyDrift');
+  }
+}
+
 // ── navigate through the app's own navigation API ────────────────────────────
 // Four registered screens (Report, MriTracker, LabResults, FamilySync) have no
 // navigate() call anywhere in src/, so no tap sequence reaches them and the app
@@ -312,7 +424,12 @@ const fillPlaceholder = async (ph, value) => {
  *  as a raw i18n key. Measured from the box model, never eyeballed. */
 async function auditScreen(name) {
   currentScreen = name;
-  screensHit.add(name);
+  if (name.includes('/')) {
+    subEntriesHit.add(name);
+    screensHit.add(name.slice(0, name.indexOf('/')));
+  } else {
+    screensHit.add(name);
+  }
   const probs = await page.evaluate(() => {
     const hidden = new Set(document.querySelectorAll('[aria-hidden="true"]'));
     const buried = (el) => { for (let n = el; n; n = n.parentElement) if (hidden.has(n)) return true; return false; };
@@ -384,15 +501,21 @@ async function probeDead(label, screen) {
 }
 
 // ── navigation ───────────────────────────────────────────────────────────────
-const TABS = ['History', 'Journal', 'Today', 'Records', 'Settings'];
+const TABS = ['History', 'Journal', 'Today', 'Trackers', 'Settings'];
 // The tab bar renders as <a role="tab" href="/Home">, and its innerText is the
 // icon glyph plus the label, so the href is the only stable handle.
-const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Records: '/Summary', Settings: '/Settings' };
+// Records became Trackers on 2026-09-13. Only the visible label moved; the
+// route id is still `Summary`, which is why gotoTab matches on the href and
+// the rename costs one line here instead of a sweep.
+const TAB_HREF = { History: '/Calendar', Journal: '/Journal', Today: '/Home', Trackers: '/Summary', Settings: '/Settings' };
 async function gotoTab(label) {
   const press = () => page.evaluate(({ href, label }) => {
+    // Path only: a tab's href carries its nested route once you have been into
+    // the stack (`/Summary?screen=Report`), so an exact match misses.
+    const path = (a) => (a.getAttribute('href') || '').split(/[?#]/)[0];
     const tabs = [...document.querySelectorAll('a[role="tab"]')];
-    const hit = tabs.find((a) => a.getAttribute('href') === href)
-      || tabs.find((a) => (a.getAttribute('href') || '').startsWith(href + '/'))
+    const hit = tabs.find((a) => path(a) === href)
+      || tabs.find((a) => path(a).startsWith(href + '/'))
       || tabs.find((a) => (a.innerText || '').includes(label));
     if (!hit) return false;
     hit.click();
@@ -417,6 +540,34 @@ async function gotoTab(label) {
   return true;
 }
 
+/**
+ * Open one of the four tracker screens from the Trackers tab.
+ *
+ * Water and sun were logged from Today until 2026-09-13; both cards moved to
+ * their own screens, which carry the entry list, goal and history a card could
+ * not. The log controls themselves are the same components with the same
+ * accessible names, so only the route changed.
+ */
+async function gotoTracker(name) {
+  if (!(await gotoTab('Trackers'))) return false;
+  await wait(600);
+  const opened = await page.evaluate((n) => {
+    const el = [...document.querySelectorAll('[aria-label]')]
+      .find((e) => (e.getAttribute('aria-label') || '').startsWith(`${n} tracker`));
+    if (!el) return false;
+    el.click();
+    return true;
+  }, name);
+  if (!opened) {
+    note('high', 'Trackers', `No ${name} card on the Trackers tab — ${name} cannot be logged`, `day ${currentDay}`, 'src/screens/SummaryScreen.tsx');
+    return false;
+  }
+  await wait(1400);
+  currentScreen = name;
+  screensHit.add(name);
+  return true;
+}
+
 // ── set the simulated moment ─────────────────────────────────────────────────
 async function setMoment(n, hhmm) {
   await page.clock.setFixedTime(at(n, hhmm));
@@ -438,14 +589,14 @@ async function onboard() {
   await page.getByPlaceholder('e.g. 5000').first().fill(PATIENT.dailyIU);
   await wait(400);
   await shot('profile-filled');
-  await clickLabel('Next step'); await wait(1500);
+  await clickLabel('Continue'); await wait(1500);
   await auditScreen('onboarding/condition');
   if (!(await clickLabel('Select condition: Multiple Sclerosis'))) {
     note('high', 'onboarding', 'Condition card not selectable', 'onboarding step 2', 'src/screens/OnboardingScreen.tsx:223');
   }
   await wait(800);
   await shot('condition');
-  await clickLabel('Next step'); await wait(1500);
+  await clickLabel('Continue'); await wait(1500);
   await auditScreen('onboarding/almost-ready');
   await shot('almost-ready');
   if (!(await clickLabel("Let's begin"))) {
@@ -458,32 +609,103 @@ async function onboard() {
 }
 
 // ── reachability: is there any tap path to the protocol's own surfaces? ──────
+//
+// This used to grep the screen for /share with doctor|report/i and call the job
+// done. Three things were wrong with that. The regex matched text the app has
+// never rendered — the button's visible label is `shareProgress`, "Share Your
+// Progress", and its accessibility name is "Share your progress"; neither
+// contains "share with doctor", and "report" appears nowhere on the screen. The
+// finding it emitted was hardcoded prose naming SummaryScreen as having no
+// navigation, which stopped being true two rounds ago. And a string on a screen
+// is not a tap path: a button can render perfectly and go nowhere.
+//
+// So: tap each control by its accessible name and assert the app actually
+// landed on the target screen, then come back. "No control" and "control that
+// does nothing" are different defects and get reported as different findings,
+// because they have different fixes.
+const CLINICAL = [
+  {
+    name: 'Lab Results',
+    label: 'Lab results',
+    route: 'LabResults',
+    // Body text of the destination that History itself never renders.
+    landed: /add lab result|no lab results|creatinine|sulkowitch/i,
+  },
+  {
+    name: 'MRI History',
+    label: 'MRI history',
+    route: 'MriTracker',
+    landed: /log mri scan|log first scan|save scan|lesion/i,
+  },
+  {
+    name: 'Share with Doctor',
+    label: 'Share your progress',
+    route: 'Report',
+    landed: /generate report|could not create the report/i,
+  },
+];
+
 let reachabilityChecked = false;
 async function checkReachability() {
   if (reachabilityChecked) return;
   reachabilityChecked = true;
-  await gotoTab('Records');
-  await wait(900);
-  const txt = await flat();
-  const WANTED = [
-    ['Lab Results', /lab result|laborwert/i],
-    ['MRI History', /mri|mrt/i],
-    ['Share with Doctor', /share with doctor|report/i],
-  ];
-  const missing = WANTED.filter(([, re]) => !re.test(txt)).map(([n]) => n);
-  if (missing.length) {
-    note('high', 'Records',
-      `No entry point on Records for: ${missing.join(', ')}. These screens are registered in src/navigation/index.tsx but src/ contains no navigate() call for Report, MriTracker, LabResults or FamilySync, and the app sets no linking config — so a user cannot open them by tapping or by URL. The protocol's lab monitoring, MRI history and doctor report are unreachable in the shipped build.`,
-      'open Records and look for Lab Results / MRI / Share with Doctor',
-      'src/navigation/index.tsx:77-90 (registered) vs src/screens/SummaryScreen.tsx (no navigation)');
+
+  for (const target of CLINICAL) {
+    await gotoTab('History');
+    await wait(900);
+    const before = await flat();
+
+    // The control itself. Match the accessible name, which is what a screen
+    // reader and a harness both have to work with.
+    const tapped = await clickLabel(target.label);
+    if (!tapped) {
+      note('high', 'History',
+        `No control named "${target.label}" on History — ${target.name} has no tap path. The route is registered in src/navigation/index.tsx under the Summary stack, so the screen exists and the code runs; nothing reaches it.`,
+        `open History, scroll below the month grid, look for ${target.name}`,
+        `src/screens/CalendarScreen.tsx (clinical row) vs src/navigation/index.tsx (${target.route} registered under SummaryNavigator)`);
+      continue;
+    }
+
+    await wait(1800);
+    const after = await flat();
+    if (target.landed.test(after)) {
+      await shot(`reach-${target.route.toLowerCase()}`);
+      continue;
+    }
+
+    // The control is there and the tap changed nothing that matters. Say which
+    // of the two it is, because a tap that navigates somewhere wrong and a tap
+    // that is inert are not the same bug.
+    const moved = after !== before;
+    // Prove the screen is reachable at all before blaming the tap: if the app's
+    // own navigate() gets there, the route is fine and the tap path is the
+    // defect. If it does not, the route registration is.
+    const viaApp = await navViaApp('Summary', target.route);
+    const afterBridge = await flat();
+    const bridgeLanded = viaApp === 'ok' && target.landed.test(afterBridge);
+
+    note('high', 'History',
+      bridgeLanded
+        ? `Tapping "${target.label}" on History does not open ${target.name}, but the app's own navigate('Summary', { screen: '${target.route}' }) does. The control renders and is accessible; the navigation call behind it cannot resolve the route. ${target.route} is registered inside SummaryNavigator (the Trackers tab's stack) while the button now lives on CalendarScreen, and a bare navigate('${target.route}') from a sibling tab's stack is not resolved by react-navigation — it only searches the current navigator and its parents. Screen ${moved ? 'changed but is not the target' : 'is byte-identical after the tap'}.`
+        : `${target.name} cannot be reached at all: tapping "${target.label}" on History does nothing, and the app's own navigate('Summary', { screen: '${target.route}' }) did not land either (bridge said "${viaApp}").`,
+      `open History, scroll below the month grid, tap ${target.name}`,
+      `src/screens/CalendarScreen.tsx (navigate('${target.route}')) vs src/navigation/index.tsx (${target.route} registered under SummaryNavigator)`);
+
+    await shot(`reach-${target.route.toLowerCase()}-failed`);
   }
+
+  await gotoTab('History');
+  await wait(600);
 }
 
 // ── the protocol's clinical milestones ───────────────────────────────────────
 async function labPanel(n) {
   const lab = LAB_DAYS[n];
   if (!lab) return;
-  await gotoTab('Records');
+  // Lab Results / MRI History / Share Your Progress moved to the History tab
+  // with the compliance block on 2026-09-13. The routes are still registered
+  // under the Summary stack, so navViaApp's fallback is unchanged.
+  await gotoTab('History');
   await wait(900);
   let nav = (await clickLabel('Lab results')) ? 'ok' : null;
   if (nav) { await wait(1800); } else { nav = await navViaApp('Summary', 'LabResults'); }
@@ -529,7 +751,7 @@ async function labPanel(n) {
 async function mriEntry(n) {
   const m = MRI_DAYS[n];
   if (!m) return;
-  await gotoTab('Records');
+  await gotoTab('History');
   await wait(900);
   let nav = (await clickLabel('MRI history')) ? 'ok' : null;
   if (nav) { await wait(1800); } else { nav = await navViaApp('Summary', 'MriTracker'); }
@@ -572,11 +794,28 @@ async function addSupplements(n) {
   await shot('supplements-open');
   for (const sup of SUPPLEMENTS) {
     const before = (await sql('SELECT COUNT(*) c FROM supplements').catch(() => [{ c: -1 }]))[0].c;
-    // The add control is an Ionicons "add" glyph inside a TouchableOpacity with
-    // no text and no accessibilityLabel (SupplementEditorScreen.tsx:259), so no
-    // name-based query can reach it. Click the nameless header button instead
-    // and file the missing accessible name once.
-    const opened = await page.evaluate(() => {
+    // The add control IS named: SupplementEditorScreen.tsx:264 renders
+    // `accessibilityLabel={showAddForm ? 'Close the add supplement form' : 'Add
+    // a supplement'}` with accessibilityRole="button". The comment that used to
+    // sit here said the opposite, and the harness filed "no accessible name"
+    // every single run without ever checking — the note was unconditional, one
+    // line below a geometry hunt that only existed because of the same wrong
+    // premise.
+    //
+    // So: try the name first, which is what a screen reader has. Fall back to
+    // geometry only if the name is genuinely absent, and file the a11y finding
+    // only in that case.
+    const addName = await page.evaluate(() => {
+      const el = [...document.querySelectorAll('[aria-label]')]
+        .find((e) => /^(add a supplement|close the add supplement form)$/i.test((e.getAttribute('aria-label') || '').trim()));
+      return el ? el.getAttribute('aria-label') : null;
+    });
+
+    let opened = false;
+    if (addName) {
+      opened = await clickLabel(addName);
+    }
+    if (!opened) opened = await page.evaluate(() => {
       const isGlyph = (t) => t.length === 1 && t.codePointAt(0) >= 0xe000 && t.codePointAt(0) <= 0xf8ff;
       // The "+" sits at the top right of the header. Picking the last glyph in
       // DOM order instead grabbed the expand chevron on the first supplement
@@ -603,10 +842,11 @@ async function addSupplements(n) {
       note('medium', 'SupplementEditor', `No add control found when adding "${sup.name}"`, `day ${n}`, 'src/screens/SupplementEditorScreen.tsx:259');
       break;
     }
-    if (!namelessAddReported) {
+    // Only if the assertion actually failed.
+    if (!addName && !namelessAddReported) {
       namelessAddReported = true;
       note('medium', 'SupplementEditor',
-        'The "add supplement" button is an icon with no text and no accessibilityLabel, so it has no accessible name — screen-reader users cannot identify it and no name-based test can reach it',
+        'The "add supplement" button has no accessible name — screen-reader users cannot identify it and no name-based test can reach it; the harness had to find it by geometry',
         'open Settings > Manage supplements and inspect the header button',
         'src/screens/SupplementEditorScreen.tsx:259-265');
     }
@@ -640,7 +880,7 @@ async function addSupplements(n) {
 }
 
 async function doctorReport(n) {
-  await gotoTab('Records');
+  await gotoTab('History');
   await wait(900);
   let nav = (await clickLabel('Share your progress')) ? 'ok' : null;
   if (nav) { await wait(1800); } else { nav = await navViaApp('Summary', 'Report'); }
@@ -691,13 +931,18 @@ async function runDay(n) {
   const openAt = plan.shape === 'timezone-crossing' ? '00:20' : '07:30';
   await setMoment(n, openAt);
 
+  // High-water rowid per date-bearing table, taken before the day writes
+  // anything, so the day-key check at the bottom can look at this day's rows
+  // alone instead of at every row in the database. See checkDayKeyDrift.
+  const rowidMark = plan.shape === 'timezone-crossing' ? await rowidHighWater().catch(() => null) : null;
+
   // Every fifth day is a cold boot (reload); the rest re-enter through the tab
   // bar, which is what a phone does when the app is resumed the next morning.
   if (n === 1 || n % 5 === 0) {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await wait(n === 1 ? 9000 : 7000);
   } else {
-    await gotoTab('Records');
+    await gotoTab('Trackers');
     await gotoTab('Today');
   }
   currentScreen = 'Today';
@@ -776,16 +1021,19 @@ async function runDay(n) {
     await clickLabel(rows[0]); await wait(1200);
     await auditScreen('DoseDetailModal');
     await shot('dose-modal');
-    // DoseDetailModal.tsx:160 / :166 — "✓ Took it" and the translated "Skip".
-    const takeLabel = plan.shape === 'max-values' ? 'Skip' : 'Took it';
-    const wantPrefix = plan.shape === 'max-values' ? 'Skip ' : 'Mark ';
-    const acted = await page.evaluate((pref) => {
+    // DoseDetailModal.tsx:172 / :180 — "✓ Took it" and the translated "Skip".
+    const skipping = plan.shape === 'max-values';
+    const takeLabel = skipping ? 'Skip' : 'Took it';
+    const wantPrefix = skipping ? 'Skip ' : 'Mark ';
+    const clickPrefix = (pref) => page.evaluate((p) => {
       const el = [...document.querySelectorAll('[aria-label]')]
-        .find((e) => (e.getAttribute('aria-label') || '').startsWith(pref));
+        .find((e) => (e.getAttribute('aria-label') || '').startsWith(p));
       if (!el) return false;
       el.click();
       return true;
-    }, wantPrefix) || await clickText(takeLabel);
+    }, pref);
+
+    const acted = await clickPrefix(wantPrefix) || await clickText(takeLabel);
     if (!acted) {
       note('medium', 'DoseDetailModal', `No control matching "${takeLabel}" in the dose sheet — dose cannot be logged`,
         `day ${n}: Today > expand doses > tap a dose`, 'src/components/DoseDetailModal.tsx');
@@ -793,9 +1041,55 @@ async function runDay(n) {
       // Read the row back rather than trusting the tap. status/logged_time is
       // the only proof the action reached the database.
       await wait(1400);
-      const after = await sql('SELECT status, logged_time FROM dose_logs WHERE date = ?', [date]).catch(() => []);
-      const want = plan.shape === 'max-values' ? /skip/i : /taken|took/i;
-      if (after.length && !want.test(String(after[0].status))) {
+      const read = () => sql('SELECT status, logged_time, skip_reason FROM dose_logs WHERE date = ?', [date]).catch(() => []);
+      let after = await read();
+
+      // ── the skip is a two-step flow, and it is mid-change ──────────────────
+      // "Skip" opened a reason picker and wrote nothing; only tapping a reason
+      // reached the database (handleSkipPress vs handleReasonSelect,
+      // DoseDetailModal.tsx:64/:68). The audit recorded that as "Skip does not
+      // persist" for sixty days because the harness tapped Skip, waited, and
+      // read back a row that was still upcoming — it never tapped a reason, and
+      // the reason buttons had no accessible name to tap by. They do now
+      // (`Skip this dose: <reason>`, landed with H1 on fix/lane-ui).
+      //
+      // Round 3 A1 makes one tap skip outright, with the reason as an optional
+      // second step. So this handles both shapes rather than either: if the
+      // first tap already moved the row, stop; otherwise look for the picker
+      // and complete it. When A1 lands, the `reasonNeeded` branch simply stops
+      // being taken, and the difference is visible in the report instead of
+      // silently changing what "skip works" means.
+      let usedReason = null;
+      if (skipping && !doseIsSkipped(after)) {
+        const reasons = await page.evaluate(() => [...document.querySelectorAll('[aria-label]')]
+          .map((e) => e.getAttribute('aria-label') || '')
+          .filter((l) => l.startsWith('Skip this dose: ')));
+        if (reasons.length) {
+          usedReason = reasons[0];
+          await clickLabel(usedReason);
+          await wait(1400);
+          after = await read();
+        } else {
+          note('high', 'DoseDetailModal',
+            `Tapping "Skip" wrote nothing and the sheet offers no reason control to finish with. dose_logs.status is "${after[0]?.status}", logged_time ${after[0]?.logged_time ?? 'null'}. Either the single tap should write (round 3 A1) or the reason buttons need accessible names — as written the skip is unreachable by name.`,
+            `day ${n}: Today > expand doses > tap the dose > "Skip"`,
+            'src/components/DoseDetailModal.tsx:64 handleSkipPress');
+        }
+      }
+
+      if (skipping) {
+        if (!doseIsSkipped(after) && after.length) {
+          note('high', 'DoseDetailModal',
+            `The dose was not skipped${usedReason ? ` even after tapping "${usedReason}"` : ' on a single tap'}: dose_logs.status is "${after[0].status}", logged_time ${after[0].logged_time === null ? 'null' : after[0].logged_time}, skip_reason ${after[0].skip_reason === null || after[0].skip_reason === undefined ? 'null' : `"${after[0].skip_reason}"`}.`,
+            `day ${n}: start the day, open Today > expand doses > tap the dose > "Skip"${usedReason ? ' > a reason' : ''}`,
+            'src/components/DoseDetailModal.tsx handleSkipPress/handleReasonSelect -> src/db/queries.ts skipDose');
+        } else if (usedReason && (after[0]?.skip_reason === null || after[0]?.skip_reason === undefined)) {
+          note('medium', 'DoseDetailModal',
+            `A reason was tapped ("${usedReason}") but dose_logs.skip_reason is null — the reason was discarded even though the skip landed.`,
+            `day ${n}: Today > expand doses > tap the dose > "Skip" > a reason`,
+            'src/db/queries.ts skipDoseWithReason');
+        }
+      } else if (after.length && !/taken|took/i.test(String(after[0].status))) {
         note('high', 'DoseDetailModal',
           `Tapping "${takeLabel}" in the dose sheet did not change the stored dose: dose_logs.status is "${after[0].status}", logged_time ${after[0].logged_time === null ? 'null' : after[0].logged_time} — inside the 30-minute tolerance window (offset 0, scheduled ${new Date(Number((await sql('SELECT scheduled_time FROM dose_logs WHERE date = ?', [date]))[0].scheduled_time)).toISOString()})`,
           `day ${n}: start the day, open Today > expand doses > tap the dose > "${takeLabel}"`,
@@ -810,14 +1104,15 @@ async function runDay(n) {
   await step('water', async () => {
     const ml = plan.shape === 'max-values' ? 750 : 250;
     const reps = plan.shape === 'max-values' ? 6 : plan.shape === 'partial' ? 1 : 4;
+    if (!(await gotoTracker('Water'))) return;
     for (let i = 0; i < reps; i++) {
       if (!(await clickLabel(`Set ${ml} millilitres`))) {
-        note('medium', 'Today', `Water preset "Set ${ml} millilitres" not found — water cannot be logged`, `day ${n}`, 'src/components/WaterTracker.tsx:116');
+        note('medium', 'Water', `Water preset "Set ${ml} millilitres" not found — water cannot be logged`, `day ${n}`, 'src/components/WaterTracker.tsx:116');
         return;
       }
       await wait(200);
       if (!(await clickLabel(`Log ${ml} millilitres of water`))) {
-        note('medium', 'Today', `Water commit button "Log ${ml} ml" not found`, `day ${n}`, 'src/components/WaterTracker.tsx:128');
+        note('medium', 'Water', `Water commit button "Log ${ml} ml" not found`, `day ${n}`, 'src/components/WaterTracker.tsx:128');
         return;
       }
       await wait(450);
@@ -828,19 +1123,22 @@ async function runDay(n) {
     if (plan.shape === 'partial') return;
     const min = plan.shape === 'max-values' ? 60 : 20;
     const reps = plan.shape === 'max-values' ? 3 : 1;
+    if (!(await gotoTracker('Sunlight'))) return;
     for (let i = 0; i < reps; i++) {
       if (!(await clickLabel(`Set ${min} minutes`))) {
-        note('medium', 'Today', `Sun preset "Set ${min} minutes" not found — sun exposure cannot be logged`, `day ${n}`, 'src/components/SunTracker.tsx:96');
+        note('medium', 'Sunlight', `Sun preset "Set ${min} minutes" not found — sun exposure cannot be logged`, `day ${n}`, 'src/components/SunTracker.tsx:96');
         return;
       }
       await wait(200);
       if (!(await clickLabel(`Log ${min} minutes of sun`))) {
-        note('medium', 'Today', `Sun commit button "Log ${min} min" not found`, `day ${n}`, 'src/components/SunTracker.tsx:108');
+        note('medium', 'Sunlight', `Sun commit button "Log ${min} min" not found`, `day ${n}`, 'src/components/SunTracker.tsx:108');
         return;
       }
       await wait(450);
     }
     await shot('sun');
+    // Back to Today: the rest of the day's steps assume it.
+    await gotoTab('Today');
   });
 
   if (plan.shape === 'partial') {
@@ -876,7 +1174,7 @@ async function runDay(n) {
     await fillPlaceholder('Any dairy, calcium supplements, or protocol deviations today?',
       plan.shape === 'max-values' ? 'Hard cheese at lunch, 300 mg calcium.' : 'No dairy.');
     // Mood buttons carry `Select mood <label>` (JournalScreen.tsx:162); vary the
-    // mood by day so the Records mood chart has something to plot.
+    // mood by day so the Journal mood strip has something to plot.
     const MOOD_LABELS = ['Great', 'Good', 'Okay', 'Rough', 'Struggling'];
     const wantMood = MOOD_LABELS[n % MOOD_LABELS.length];
     if (!(await clickLabel(`Select mood ${wantMood}`))) {
@@ -1015,12 +1313,17 @@ async function runDay(n) {
     if (closed) { await wait(1800); await shot('day-closed'); }
   });
 
-  // Records + History are read surfaces; look at them on a cadence so the
+  // Trackers + History are the two non-Today surfaces; look at them on a
+  // cadence so the
   // weekly/streak logic is exercised as history accumulates.
   if (n % 3 === 0) {
-    await step('records', async () => { await gotoTab('Records'); await auditScreen('Records'); await shot('records'); });
+    await step('trackers', async () => { await gotoTab('Trackers'); await auditScreen('Trackers'); await shot('trackers'); });
     await step('history', async () => { await gotoTab('History'); await auditScreen('History'); await shot('history'); });
     await gotoTab('Today');
+  }
+
+  if (rowidMark) {
+    await step('day-key drift', async () => { await checkDayKeyDrift(n, rowidMark); });
   }
 
   await shot('day-end');
@@ -1159,41 +1462,55 @@ await step('dump tables', async () => {
   }
 });
 
-// Day keys must all be local calendar dates. A row whose date is the day before
-// the day it was written on is the toISOString() drift.
-await step('day-key drift check', async () => {
-  for (const tzDay of TZ_CROSS_DAYS) {
-    const tzDate = dayDate(tzDay);
-    const prev = dayDate(tzDay - 1);
-    const suspects = [];
-    for (const [t, rows] of Object.entries(tables)) {
-      if (!Array.isArray(rows)) continue;
-      for (const r of rows) {
-        if (r && typeof r.date === 'string' && r.date === prev) suspects.push(`${t}.date=${r.date}`);
-      }
-    }
-    if (suspects.length) {
-      note('high', 'Today (timezone-crossing)',
-        `Rows written just after local midnight on ${tzDate} were stored under ${prev} — the day key came from UTC, not the local calendar date. Affected: ${[...new Set(suspects)].join(', ')}`,
-        `set the device clock to ${tzDate} 00:20 Europe/Berlin, log exercise and a meal from Today`,
-        'src/screens/HomeScreen.tsx:260 / :275 (new Date().toISOString().split("T")[0])');
-    }
-  }
-});
+// The day-key drift check now runs inside runDay() for each crossing day, on
+// the rows that day actually inserted. See checkDayKeyDrift.
 
 // Adherence/streak surfaces should reflect 30 days of history, not zero.
-await step('records sanity', async () => {
-  await gotoTab('Records');
-  await auditScreen('Records');
-  await shot('final-records');
-  const t = await flat();
-  if (/0\s*%\s*Compliance/i.test(t) || /\b0\s*Day Streak/i.test(t)) {
-    note('high', 'Records', `Records reports zero after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 200)}"`,
-      `run the ${TOTAL_DAYS}-day pass, open Records`, 'src/hooks/useSummaryScreen.ts');
-  }
+await step('compliance sanity', async () => {
+  // The compliance block moved from the Records tab to History on 2026-09-13,
+  // under the month grid. Reading it off the Trackers tab — which is now four
+  // launcher cards and no numbers — would report zero forever.
+  //
+  // The old check also tested /0\s*%\s*Compliance/, and nothing in the app has
+  // ever rendered the word "Compliance" next to a percentage: the label is
+  // "Weighted Adherence". That half could not fail, so it is gone rather than
+  // carried across. What is left reads the two labels the screen really paints.
   await gotoTab('History');
   await auditScreen('History');
   await shot('final-history');
+  const t = await flat();
+
+  const streak = /(\d+)\s*Day Streak/i.exec(t);
+  const adherence = /(\d+)\s*%\s*Weighted Adherence/i.exec(t);
+  const doses = /(\d+)\s*\/\s*(\d+)\s*Doses Today/i.exec(t);
+
+  if (!streak && !adherence && !doses) {
+    note('high', 'History', `The compliance block did not render on History at all after ${TOTAL_DAYS} days: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History and scroll below the month grid`,
+      'src/screens/CalendarScreen.tsx (compliance block, moved from SummaryScreen)');
+  } else if (streak && Number(streak[1]) === 0) {
+    note('high', 'History', `Day Streak reads 0 after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History`, 'src/hooks/useSummaryScreen.ts');
+  } else if (adherence && Number(adherence[1]) === 0) {
+    note('high', 'History', `Weighted Adherence reads 0% after ${TOTAL_DAYS} days of logged data: "${t.slice(0, 300)}"`,
+      `run the ${TOTAL_DAYS}-day pass, open History`, 'src/hooks/useSummaryScreen.ts');
+  }
+
+  // Trackers is a launcher now. It owes four cards and no numbers; a compliance
+  // figure left behind here would mean the restructure copied rather than moved.
+  await gotoTab('Trackers');
+  await auditScreen('Trackers');
+  await shot('final-trackers');
+  const tr = await flat();
+  const missing = ['Water', 'Sunlight', 'Exercise', 'Food'].filter((c) => !tr.includes(c));
+  if (missing.length) {
+    note('high', 'Trackers', `The Trackers tab is missing its ${missing.join(', ')} card(s): "${tr.slice(0, 300)}"`,
+      'open the Trackers tab', 'src/screens/SummaryScreen.tsx');
+  }
+  if (/Doses Today|Weighted Adherence/i.test(tr)) {
+    note('medium', 'Trackers', `Trackers still renders compliance numbers that moved to History: "${tr.slice(0, 300)}"`,
+      'open the Trackers tab', 'src/screens/SummaryScreen.tsx');
+  }
 });
 
 // ── export ───────────────────────────────────────────────────────────────────
@@ -1362,17 +1679,26 @@ const deduped = [...seen.values()].sort((a, b) => RANK[a.severity] - RANK[b.seve
 // A defect that reproduced on many independent days is certain; a one-off is a
 // suspicion until someone reproduces it.
 const certain = deduped.filter((f) => f.count >= 2 || f.severity === 'high');
+// Everything else is a medium/low one-off. This column swung 14 -> 6 between two
+// runs of IDENTICAL code, so it is not a measurement and must not be read as
+// one: a one-off depends on where the simulated clock happened to land, whether
+// an animation had settled, and which day a console warning attached itself to.
+// It is not made deterministic here — that would mean removing the timing
+// dependence from a dozen unrelated checks — so it is labelled advisory
+// everywhere it appears, and it is kept out of every headline number.
 const suspected = deduped.filter((f) => !certain.includes(f));
 
 const row = (f) => `| ${f.severity} | ${f.screen} | ${f.what.replace(/\|/g, '\\|')} | ${f.repro.replace(/\|/g, '\\|')} | ${f.cause || '—'} |`;
 const md = [
   `# Protocol Tracker — ${TOTAL_DAYS}-day protocol simulation audit`,
   '',
-  `Generated ${new Date().toISOString()} · ${days.length} simulated days from ${START} (Europe/Berlin) · ${screensHit.size} distinct screens.`,
+  `Generated ${new Date().toISOString()} · ${days.length} simulated days from ${START} (Europe/Berlin) · ${screensHit.size} distinct screens (+ ${subEntriesHit.size} sub-entries).`,
   '',
   `Clock seam: **none in app source** — driven via Playwright \`clock.setFixedTime\`, which replaces \`Date\`/\`Date.now\` in the page and leaves timers real. No app code was modified for this run.`,
   '',
-  `Counts: ${certain.length} certain · ${suspected.length} suspected · ${findings.length} raw observations before dedupe.`,
+  `**Counts: ${certain.length} certain.** ${findings.length} raw observations before dedupe.`,
+  '',
+  `Plus ${suspected.length} advisory one-offs, listed below and **deliberately not part of the count**. That column swung 14 → 6 between two runs of identical code; it is not a measurement and a change in it is not a trend.`,
   '',
   '## Certain',
   '',
@@ -1380,7 +1706,9 @@ const md = [
   '| --- | --- | --- | --- | --- |',
   ...certain.map(row),
   '',
-  '## Suspected',
+  '## Advisory — one-offs, not a count',
+  '',
+  '_Each of these fired on exactly one day at medium or low severity. They are timing-sensitive: this list swung 14 → 6 between two runs of identical code. Read a row, do not read the length._',
   '',
   '| severity | screen | what breaks | repro step | likely cause |',
   '| --- | --- | --- | --- | --- |',
@@ -1388,12 +1716,14 @@ const md = [
   '',
   '## Coverage',
   '',
-  `Screens: ${[...screensHit].sort().join(', ')}`,
+  `Screens (${screensHit.size}): ${[...screensHit].sort().join(', ')}`,
+  '',
+  `Sub-entries reached (${subEntriesHit.size}, not counted as screens): ${[...subEntriesHit].sort().join(', ') || 'none'}`,
   '',
   `Day shapes: ${days.map((d) => `${d.day}:${d.shape}`).join(', ')}`,
   '',
 ].join('\n');
 await writeFile(join(OUT, 'audit.md'), md);
 
-log(`\n${days.length} days · ${screensHit.size} screens · ${certain.length} certain / ${suspected.length} suspected → ${join(OUT, 'audit.md')}`);
+log(`\n${days.length} days · ${screensHit.size} screens (+${subEntriesHit.size} sub-entries) · ${certain.length} certain · ${suspected.length} advisory one-offs (not a count) → ${join(OUT, 'audit.md')}`);
 await browser.close();
