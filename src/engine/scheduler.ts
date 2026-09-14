@@ -2,6 +2,7 @@ import { getProfile, getMiscFlag, todayStr, localDateStr } from '../db/queries';
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
 import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications, scheduleWaterReminders } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
+import { ruleFiresOn, cadenceOf } from './cadence';
 
 /**
  * Called when patient taps "Start My Day".
@@ -33,7 +34,13 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
 
   const rules = await getScheduleRules();
 
-  const dosesToCreate = rules.map((rule) => ({
+  // Cadence gate (schema v15). Before this, every rule fired every day, so a
+  // Mon/Wed/Fri supplement was owed on Sunday too and the compliance figure
+  // counted a dose the patient was never supposed to take. 'as-needed' rules
+  // are never owed at all.
+  const dueToday = rules.filter((rule) => ruleFiresOn(cadenceOf(rule), dateStr));
+
+  const dosesToCreate = dueToday.map((rule) => ({
     supplement_id: rule.supplement_id,
     rule_id: rule.id,
     scheduled_time: t0Ms + rule.offset_minutes * 60 * 1000,

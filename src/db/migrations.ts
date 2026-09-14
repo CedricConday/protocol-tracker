@@ -418,6 +418,30 @@ const migrations: Migration[] = [
     },
   },
   {
+    version: 15,
+    up: async (db) => {
+      // Cadence. Until now every schedule_rule fired every single day: startDay
+      // mapped the whole rule set onto today with no way to say "Mondays only",
+      // "every other week" or "only when I need it". A protocol that pauses, or
+      // a PRN dose, could not be expressed at all.
+      //
+      // Shape borrowed from the frequency model Dosage (GPL-3) settled on after
+      // several releases — daily / specific-days / day-of-month / cycle /
+      // as-needed. Written from the enum, not from their code.
+      //
+      // Defaults keep every existing rule daily, so this migration changes no
+      // user's schedule.
+      await db.execAsync(`
+        ALTER TABLE schedule_rules ADD COLUMN frequency TEXT NOT NULL DEFAULT 'daily';
+        ALTER TABLE schedule_rules ADD COLUMN days_of_week TEXT NOT NULL DEFAULT '';
+        ALTER TABLE schedule_rules ADD COLUMN day_of_month INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE schedule_rules ADD COLUMN cycle_on_days INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE schedule_rules ADD COLUMN cycle_off_days INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE schedule_rules ADD COLUMN cycle_start_date TEXT NOT NULL DEFAULT '';
+      `);
+    },
+  },
+  {
     version: 14,
     up: async (db) => {
       // care_surveys was schema-only — nothing ever wrote to it. sleep_checkins

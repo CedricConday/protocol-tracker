@@ -52,6 +52,12 @@ export async function initDb(): Promise<void> {
       dose_amount TEXT NOT NULL DEFAULT '',
       dose_unit TEXT NOT NULL DEFAULT '',
       display_order INTEGER NOT NULL DEFAULT 0,
+      frequency TEXT NOT NULL DEFAULT 'daily',
+      days_of_week TEXT NOT NULL DEFAULT '',
+      day_of_month INTEGER NOT NULL DEFAULT 0,
+      cycle_on_days INTEGER NOT NULL DEFAULT 0,
+      cycle_off_days INTEGER NOT NULL DEFAULT 0,
+      cycle_start_date TEXT NOT NULL DEFAULT '',
       FOREIGN KEY(supplement_id) REFERENCES supplements(id)
     );
 
