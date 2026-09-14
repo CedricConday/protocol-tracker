@@ -35,7 +35,6 @@ export async function buildHealthContext(): Promise<string> {
     );
 
     let context = `Patient: ${profile?.name ?? 'Unknown'}`;
-    context += `\nWeight: ${profile?.weight_kg ?? 'N/A'} kg`;
     context += `\nD3 Dose: N/A`;
     
     context += `\n\n30-Day Compliance: ${avgCompliance}% (${takenDoses}/${totalDoses} doses)`;

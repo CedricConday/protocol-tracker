@@ -23,9 +23,8 @@ export async function stageDemoSupplements(): Promise<string[]> {
   const existing = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM schedule_rules');
   if (existing && existing.n > 0) return [];
 
-  const profile = await getProfile();
-  const weight = profile?.weight_kg ?? null;
-  const d3 = weight ? String(Math.round((weight * 1000) / 1000) * 1000) : '';
+  // Was derived from profile.weight_kg, which the app no longer collects.
+  const d3 = '';
 
   const rows: Array<{ name: string; form: string; dose_amount: string; dose_unit: string; offset_minutes: number; with_food: boolean; tolerance_window: number }> = [
     { name: 'Vitamin D3',           form: 'capsule', dose_amount: d3,     dose_unit: 'IU',  offset_minutes: 0,   with_food: true,  tolerance_window: 30 },

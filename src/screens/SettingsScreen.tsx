@@ -121,7 +121,6 @@ const NOTIF_TOPICS = ['supplements', 'water', 'exercise', 'morning_checkin', 'we
  *  there is anything to save. */
 type SavedFields = {
   name: string;
-  weight: string;
   bedtimeHour: number;
   bedtimeMinute: number;
   aiProvider: string;
@@ -133,7 +132,6 @@ type SavedFields = {
 
 export default function SettingsScreen() {
   const [name, setName] = useState('');
-  const [weight, setWeight] = useState('');
   // Display only: the daily D3 dose is edited in SupplementEditor.
   const [d3, setD3] = useState<D3Display>(null);
   const [bedtimeHour, setBedtimeHour] = useState(22);
@@ -168,12 +166,10 @@ export default function SettingsScreen() {
     (async () => {
       const profile = await getProfile();
       const loadedName = profile ? profile.name : '';
-      const loadedWeight = profile ? String(profile.weight_kg) : '';
       const loadedBedtimeHour = profile?.bedtime_hour ?? 22;
       const loadedBedtimeMinute = profile?.bedtime_minute ?? 0;
       if (profile) {
         setName(loadedName);
-        setWeight(loadedWeight);
         setBedtimeHour(loadedBedtimeHour);
         setBedtimeMinute(loadedBedtimeMinute);
       }
@@ -205,7 +201,6 @@ export default function SettingsScreen() {
       // footer can tell "nothing touched yet" from "unsaved edits".
       setBaseline({
         name: loadedName,
-        weight: loadedWeight,
         bedtimeHour: loadedBedtimeHour,
         bedtimeMinute: loadedBedtimeMinute,
         aiProvider: savedAiProvider || 'groq',
@@ -224,16 +219,10 @@ export default function SettingsScreen() {
   }, [navigation]);
 
   const handleSave = useCallback(async () => {
-    const parsedWeight = parseFloat(weight.trim());
-    if (!Number.isFinite(parsedWeight)) {
-      Alert.alert(t('invalidWeight'), t('invalidWeightSub'));
-      return;
-    }
     setSaving(true);
     try {
       await updateProfile({
         name: name.trim(),
-        weight_kg: parsedWeight,
         bedtime_hour: bedtimeHour,
         bedtime_minute: bedtimeMinute,
       });
@@ -247,7 +236,7 @@ export default function SettingsScreen() {
       // Live values, not the trimmed copies written above — otherwise trailing
       // whitespace in a field would leave the footer stuck open after saving.
       setBaseline({
-        name, weight, bedtimeHour, bedtimeMinute,
+        name, bedtimeHour, bedtimeMinute,
         aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd,
       });
       setSaved(true);
@@ -258,13 +247,12 @@ export default function SettingsScreen() {
     } finally {
       setSaving(false);
     }
-  }, [name, weight, bedtimeHour, bedtimeMinute, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
+  }, [name, bedtimeHour, bedtimeMinute, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
 
   const isDirty = useMemo(() => {
     if (!baseline) return false;
     return (
       name !== baseline.name ||
-      weight !== baseline.weight ||
       bedtimeHour !== baseline.bedtimeHour ||
       bedtimeMinute !== baseline.bedtimeMinute ||
       aiProvider !== baseline.aiProvider ||
@@ -274,7 +262,7 @@ export default function SettingsScreen() {
       NOTIF_TOPICS.some((k) => (notifPrefs[k] ?? true) !== (baseline.notifPrefs[k] ?? true))
     );
   }, [
-    baseline, name, weight, bedtimeHour, bedtimeMinute,
+    baseline, name, bedtimeHour, bedtimeMinute,
     aiProvider, aiApiKey, quietStart, quietEnd, notifPrefs,
   ]);
 
@@ -373,12 +361,10 @@ export default function SettingsScreen() {
 
           {/* ── Protocol ──────────────────────────────────────────────────── */}
           <Group label={t('protocolGroup')}>
-            <Row icon="person-outline" label={t('you')} sub={name ? `${name}${weight ? ` · ${weight} kg` : ''}` : 'Name, weight, language'} onPress={() => toggleSection('profile')} />
+            <Row icon="person-outline" label={t('you')} sub={name ? name : 'Name, language'} onPress={() => toggleSection('profile')} />
             <Expand open={expandedSection === 'profile'}>
               <Text style={styles.inputLabel}>{t('yourName')}</Text>
               <TextInput style={styles.input} placeholder="Alex" placeholderTextColor={C.textMuted} value={name} onChangeText={setName} autoCapitalize="words" />
-              <Text style={styles.inputLabel}>{t('weightKg')}</Text>
-              <TextInput style={styles.input} placeholder="70" placeholderTextColor={C.textMuted} value={weight} onChangeText={setWeight} keyboardType="numeric" />
               <Text style={styles.inputLabel}>{t('language')}</Text>
               <View style={styles.segment}>
                 {['en', 'de'].map((lang) => (
