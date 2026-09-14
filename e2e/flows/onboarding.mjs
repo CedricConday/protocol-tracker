@@ -26,10 +26,10 @@ export default {
     // Next must be blocked while the required fields are empty.
     await ctx.tap('Continue').catch(() => {});
     check(await ctx.sees('Set Up Your Profile'),
-      'Next advanced past the profile step with name and weight empty');
+      'Next advanced past the profile step with the required name empty');
 
     await ctx.fill('e.g. Alex', 'Testuser');
-    await ctx.fill('e.g. 70', '72');
+    // Weight ("e.g. 70") is no longer collected here; name is the only required field.
     await ctx.fill('e.g. 5000', '10000');
     await ctx.shot('profile-filled');
 

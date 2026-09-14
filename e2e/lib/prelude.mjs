@@ -94,7 +94,7 @@ export async function visibleTouchables(ctx) {
  * Fresh install → app proper. Leaves the app on the Today tab with a profile
  * named `name` and one supplement ("Vitamin D3") when `d3Dose` is given.
  */
-export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = '10000', condition = 'Multiple Sclerosis' } = {}) {
+export async function onboard(ctx, { name = 'Testuser', d3Dose = '10000', condition = 'Multiple Sclerosis' } = {}) {
   if (await ctx.sees('Stay on Track')) {
     await ctx.tap('Not now');
   }
@@ -103,7 +103,8 @@ export async function onboard(ctx, { name = 'Testuser', weight = '72', d3Dose = 
   }
 
   await ctx.fill('e.g. Alex', name);
-  await ctx.fill('e.g. 70', weight);
+  // The weight field ("e.g. 70") was removed from the profile step; filling it
+  // timed out here and crashed every flow before it reached its own subject.
   if (d3Dose) await ctx.fill('e.g. 5000', d3Dose);
   await ctx.tap('Continue');
 
