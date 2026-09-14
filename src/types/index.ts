@@ -24,7 +24,6 @@ export interface MedicalEvent {
 export interface UserProfile {
   id: number;
   name: string;
-  weight_kg: number;
   start_date: string;
   timezone: string;
   bedtime_hour: number;
@@ -73,6 +72,9 @@ export interface DailyAnchor {
   date: string;
   t0_timestamp: number | null;
   water_ml: number;
+  // Added by migration v10; getAnchor does SELECT *, so the column was already
+  // coming back on every read — it was just invisible to the type.
+  first_meal_time: string | null;
 }
 
 export interface DoseLog {

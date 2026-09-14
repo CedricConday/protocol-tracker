@@ -28,7 +28,9 @@ export async function getProfile(): Promise<UserProfile | null> {
 // interpolates these keys directly into SQL, so the whitelist is the safety
 // barrier; values are always parameterized.
 const UPDATE_PROFILE_ALLOWED = new Set<keyof UserProfile>([
-  'name', 'weight_kg', 'start_date', 'timezone', 'bedtime_hour', 'bedtime_minute',
+  // weight_kg deliberately absent since 2026-09-14: the column still exists on
+  // older installs but nothing may write it.
+  'name', 'start_date', 'timezone', 'bedtime_hour', 'bedtime_minute',
 ]);
 
 export async function updateProfile(fields: Partial<UserProfile>): Promise<void> {
@@ -531,6 +533,12 @@ export interface CalendarDay {
   eventCount: number;
   hasJournal: boolean;
   hasWater: boolean;
+  // Water was the only tracker the grid knew about, so a day holding a meal, a
+  // walk or twenty minutes of sun read as empty and would not open. The marker
+  // row and the day sheet both key off these.
+  hasFood: boolean;
+  hasExercise: boolean;
+  hasSun: boolean;
   started: boolean;
 }
 
@@ -549,7 +557,7 @@ export async function getCalendarMonth(year: number, month: number): Promise<Map
   const ensure = (d: string): CalendarDay => {
     let c = map.get(d);
     if (!c) {
-      c = { date: d, totalDoses: 0, takenDoses: 0, compliancePct: 0, eventCount: 0, hasJournal: false, hasWater: false, started: false };
+      c = { date: d, totalDoses: 0, takenDoses: 0, compliancePct: 0, eventCount: 0, hasJournal: false, hasWater: false, hasFood: false, hasExercise: false, hasSun: false, started: false };
       map.set(d, c);
     }
     return c;
@@ -590,6 +598,26 @@ export async function getCalendarMonth(year: number, month: number): Promise<Map
     if (r.water_ml > 0) c.hasWater = true;
   }
 
+  const mealRows = await db.getAllAsync<{ date: string }>(
+    'SELECT DISTINCT date FROM meal_log WHERE date BETWEEN ? AND ?',
+    [start, end],
+  );
+  for (const r of mealRows) ensure(r.date).hasFood = true;
+
+  const exRows = await db.getAllAsync<{ date: string }>(
+    'SELECT DISTINCT date FROM exercise_logs WHERE date BETWEEN ? AND ?',
+    [start, end],
+  );
+  for (const r of exRows) ensure(r.date).hasExercise = true;
+
+  // sun_log, not sun_entries: the day total is the aggregate this grid wants,
+  // and it is the column the rest of the app reads for a day's sun.
+  const sunRows = await db.getAllAsync<{ date: string; minutes: number }>(
+    'SELECT date, minutes FROM sun_log WHERE date BETWEEN ? AND ?',
+    [start, end],
+  );
+  for (const r of sunRows) if (r.minutes > 0) ensure(r.date).hasSun = true;
+
   return map;
 }
 
@@ -607,6 +635,18 @@ export interface DayDetail {
   compliancePct: number;
   journal: JournalEntry | null;
   events: RelapseEvent[];
+  // The four trackers. Until now the day sheet knew only about pills, journal
+  // and events, so the grid could mark a day as having water and then open a
+  // sheet with no water on it.
+  waterMl: number;
+  waterLogs: { id: number; amount_ml: number; logged_at: number }[];
+  meals: { id: number; meal_type: string; time: string }[];
+  firstMealTime: string | null;
+  exerciseMinutes: number;
+  exerciseLogs: { id: number; duration_minutes: number; type: string; intensity: string; logged_at: number }[];
+  sunMinutes: number;
+  sunNote: string;
+  sunEntries: { id: number; minutes: number; logged_at: number }[];
 }
 
 // Aggregates everything logged on a single day — pills, journal, and events —
@@ -620,6 +660,19 @@ export async function getDayDetail(date: string): Promise<DayDetail> {
     'SELECT * FROM relapse_events WHERE date = ? ORDER BY created_at DESC',
     [date]
   );
+
+  // The trackers, read through the same per-date functions their own screens
+  // use, so the day sheet and the tracker screens can never disagree.
+  const anchor = await getAnchor(date);
+  const waterLogs = await getWaterLogs(date);
+  const meals = await getTodayMeals(date);
+  const exerciseLogs = await getExerciseLogs(date);
+  const sunDay = await db.getFirstAsync<{ minutes: number; notes: string }>(
+    'SELECT minutes, notes FROM sun_log WHERE date = ?',
+    [date]
+  );
+  const sunEntries = await getSunEntries(date);
+
   return {
     date,
     // Status is read straight from the row: on a past day the clock has nothing
@@ -648,6 +701,15 @@ export async function getDayDetail(date: string): Promise<DayDetail> {
     compliancePct: summary.compliancePct,
     journal,
     events,
+    waterMl: anchor?.water_ml ?? 0,
+    waterLogs,
+    meals,
+    firstMealTime: anchor?.first_meal_time ?? null,
+    exerciseMinutes: exerciseLogs.reduce((sum, r) => sum + r.duration_minutes, 0),
+    exerciseLogs,
+    sunMinutes: sunDay?.minutes ?? 0,
+    sunNote: sunDay?.notes ?? '',
+    sunEntries,
   };
 }
 
@@ -1178,6 +1240,11 @@ export async function deleteSupplement(supplementId: string): Promise<void> {
 }
 
 // ── Protocol Adherence Score ──────────────────────────────────────────────────
+// NO UI CALLER since 2026-09-14: the card that displayed this was removed
+// because the number could not be described honestly (no timing term, and the
+// supplement weighting below tests ids this build never mints). Kept only
+// because scripts/backtest/backtestPm30.test.ts pins its clock-anchoring
+// behaviour; delete both together when that harness is retired.
 export async function getWeightedAdherenceScore(days: number = 14): Promise<number> {
   const db = await getDb();
   // Bounded on both ends and anchored to the app's own clock (todayStr, local),
