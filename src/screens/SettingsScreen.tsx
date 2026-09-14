@@ -357,12 +357,12 @@ export default function SettingsScreen() {
                 </View>
               ))}
               <View style={styles.notifRow}>
-                <Text style={styles.notifLabel}>Weather &amp; UV card</Text>
+                <Text style={styles.notifLabel}>{t('setWeatherCard')}</Text>
                 <Switch
                   value={weatherOn}
                   onValueChange={async (v) => { hSelect(); setWeatherOn(v); await setWeatherEnabled(v); }}
                   trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
-                  accessibilityLabel="Show the weather and UV card on Today"
+                  accessibilityLabel={t('setWeatherA11y')}
                 />
               </View>
               <Text style={styles.notifHint}>
@@ -377,7 +377,7 @@ export default function SettingsScreen() {
                   value={quietOn}
                   onValueChange={(v) => { hSelect(); setQuietOn(v); }}
                   trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
-                  accessibilityLabel="Silence notifications during quiet hours"
+                  accessibilityLabel={t('setQuietA11y')}
                 />
               </View>
               {quietOn ? (
@@ -395,7 +395,7 @@ export default function SettingsScreen() {
                 </>
               ) : null}
             </Expand>
-            <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
+            <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert(t('setExportTitle'), t('setExportBody'))} />
             <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
             {/* Opens the community page in the system browser. Nothing is
                 collected in-app and nothing in the app unlocks from this —
@@ -406,11 +406,11 @@ export default function SettingsScreen() {
               sub={t('supportSub')}
               onPress={() => {
                 if (!/^https?:\/\//.test(SUPPORT_URL)) {
-                  Alert.alert('Not set up yet', 'The support link is still a placeholder.');
+                  Alert.alert(t('setNotSetUp'), t('setNotSetUpSub'));
                   return;
                 }
                 Linking.openURL(SUPPORT_URL).catch(() =>
-                  Alert.alert('Could not open', 'Please try again from your browser.'));
+                  Alert.alert(t('setCouldNotOpen'), t('setCouldNotOpenSub')));
               }}
             />
             <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} />
@@ -520,7 +520,7 @@ export default function SettingsScreen() {
 
           <Text style={styles.disclaimer}>{MEDICAL_DISCLAIMER}</Text>
 
-          <Text style={styles.version}>Protocol Tracker · v1.0.0 · © 2026</Text>
+          <Text style={styles.version}>{t('setVersionLine', { version: '1.0.0', year: 2026 })}</Text>
 
         </ScrollView>
 

@@ -20,12 +20,12 @@ export default function AccountSettingsScreen() {
 
   const handleResetAll = () => {
     Alert.alert(
-      'Reset logged data',
-      'Clears dose logs, water, journal, exercise, meals. Your schedule and profile stay.\n\nThis cannot be undone.',
+      t('resetTracking'),
+      t('accResetBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('commonCancel'), style: 'cancel' },
         {
-          text: 'Reset', style: 'destructive',
+          text: t('accResetCta'), style: 'destructive',
           onPress: async () => {
             const db = await getDb();
             await db.withTransactionAsync(async () => {
@@ -36,7 +36,7 @@ export default function AccountSettingsScreen() {
               `);
             });
             await AsyncStorage.multiRemove(['fatigue_alert_shown', 'last_care_survey_date', 'auto_report_last_week', 'review_prompted']);
-            Alert.alert('Done', 'Logged data cleared.');
+            Alert.alert(t('accDone'), t('accClearedBody'));
           },
         },
       ],
@@ -45,12 +45,12 @@ export default function AccountSettingsScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete account',
-      'Erases everything — profile, schedule, all logs. The app restarts at setup.\n\nThis cannot be undone.',
+      t('deleteAccount'),
+      t('accDeleteBody'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('commonCancel'), style: 'cancel' },
         {
-          text: 'Delete everything', style: 'destructive',
+          text: t('accDeleteCta'), style: 'destructive',
           onPress: async () => {
             const db = await getDb();
             await db.withTransactionAsync(async () => {
@@ -75,9 +75,7 @@ export default function AccountSettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.intro}>
-        Everything here is permanent and happens on this device only. Nothing is sent anywhere.
-      </Text>
+      <Text style={styles.intro}>{t('accIntro')}</Text>
 
       <View style={styles.group}>
         <Pressable onPress={handleResetAll} accessibilityLabel="Reset logged data" accessibilityRole="button">

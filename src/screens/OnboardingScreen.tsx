@@ -21,6 +21,7 @@ import * as Notifications from 'expo-notifications';
 import { DISEASE_PROFILES } from '../data/diseaseProfiles';
 import SunMascot from '../components/SunMascot';
 
+import { t, useLanguage } from '../i18n';
 const { width } = Dimensions.get('window');
 
 interface Props {
@@ -34,25 +35,16 @@ const CONDITION_ICONS: Record<string, string> = {
 
 // The welcome beat lives on the startup screen (SplashAnimation), so onboarding
 // opens straight on the profile step.
+// Titles and bodies are keys, not strings: this array is evaluated once at
+// module load, so literals here would freeze whatever language was active then.
 const STEPS = [
-  {
-    title: 'Set Up Your Profile',
-    icon: '👤',
-    body: 'Your health data stays on your device. None of it reaches our servers — we do not run one.',
-  },
-  {
-    title: 'Your Condition',
-    icon: '🏥',
-    body: 'Select your condition so the app can show the most relevant lab markers and protocol information.',
-  },
-  {
-    title: 'Almost Ready',
-    icon: '🔔',
-    body: 'Enable notifications so you never miss a dose. You can change this later in Settings.',
-  },
+  { titleKey: 'obProfileTitle',   icon: '👤', bodyKey: 'obPrivacy' },
+  { titleKey: 'obConditionTitle', icon: '🏥', bodyKey: 'obConditionBody' },
+  { titleKey: 'obAlmostTitle',    icon: '🔔', bodyKey: 'obAlmostBody' },
 ];
 
 export default function OnboardingScreen({ onComplete }: Props) {
+  useLanguage(); // re-render this screen when the language changes
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [d3Dose, setD3Dose] = useState('');
@@ -196,17 +188,17 @@ export default function OnboardingScreen({ onComplete }: Props) {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.icon}><SunMascot size={72} /></View>
-            <Text style={styles.title}>Set Up Your Profile</Text>
-            <Text style={styles.body}>Your health data stays on your device. None of it reaches our servers — we do not run one.</Text>
+            <Text style={styles.title}>{t('obProfileTitle')}</Text>
+            <Text style={styles.body}>{t('obPrivacy')}</Text>
 
             <View style={styles.form}>
               <Text style={styles.inputLabel}>
-                What should we call you? <Text style={styles.required}>Required</Text>
+                {t('obNameLabel')} <Text style={styles.required}>{t('obRequired')}</Text>
               </Text>
               <TextInput
                 ref={nameRef}
                 style={[styles.input, hint.some((h) => h.key === 'name') && styles.inputError]}
-                placeholder="e.g. Alex"
+                placeholder={t('obNamePlaceholder')}
                 placeholderTextColor="#9AA3B2"
                 value={name}
                 onChangeText={setName}
@@ -216,7 +208,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 onSubmitEditing={() => d3Ref.current?.focus()}
               />
                 <Text style={styles.inputLabel}>
-                  Daily Vitamin D3 Dose (IU) <Text style={styles.optional}>Optional</Text>
+                  {t('obD3Label')} <Text style={styles.optional}>{t('obOptional')}</Text>
                 </Text>
                 <TextInput
                   ref={d3Ref}
@@ -230,7 +222,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 <Text style={styles.hint}>
-                  Enter the dose your doctor prescribed.
+                  {t('obD3Help')}
                 </Text>
             </View>
           </ScrollView>
@@ -319,7 +311,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               style={styles.backButton}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStep(step - 1); }}
               activeOpacity={0.7}
-              accessibilityLabel="Go back to previous step"
+              accessibilityLabel={t('obBack')}
               accessibilityRole="button"
             >
               <Text style={styles.backText}>Back</Text>
@@ -355,11 +347,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
             }}
             disabled={saving}
             activeOpacity={0.8}
-            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Continue' : "Let's begin"}
+            accessibilityLabel={saving ? t('obSaving') : step < STEPS.length - 1 ? t('obContinue') : t('obBegin')}
             accessibilityRole="button"
           >
             <Text style={styles.nextText}>
-              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Continue' : "Let's begin →"}
+              {saving ? t('obSavingEllipsis') : step < STEPS.length - 1 ? t('obContinue') : `${t('obBegin')} →`}
             </Text>
           </TouchableOpacity>
           </View>
