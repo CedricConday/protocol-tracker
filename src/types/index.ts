@@ -24,7 +24,6 @@ export interface MedicalEvent {
 export interface UserProfile {
   id: number;
   name: string;
-  weight_kg: number;
   start_date: string;
   timezone: string;
   bedtime_hour: number;

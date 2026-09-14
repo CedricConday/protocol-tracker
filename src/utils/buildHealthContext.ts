@@ -1,8 +1,22 @@
-import { getProfile, getStreak } from '../db/queries';
+import { getProfile, getStreak, todayStr, localDateStr } from '../db/queries';
 import { getDb } from '../db/schema';
+
+/** N days back from today in the device's LOCAL calendar. */
+function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return localDateStr(d);
+}
 
 export async function buildHealthContext(): Promise<string> {
   try {
+    // Every window below was `date('now', '-N days')`, which SQLite evaluates in
+    // UTC while every date this app writes is local (todayStr/localDateStr).
+    // East of UTC that window opens a day late until local midnight has caught
+    // up — the same clock-source bug already fixed in getWeightedAdherenceScore.
+    const today = todayStr();
+    const since30 = daysAgo(30);
+    const since7 = daysAgo(7);
     const profile = await getProfile();
     const streak = await getStreak();
     const db = await getDb();
@@ -10,8 +24,9 @@ export async function buildHealthContext(): Promise<string> {
     const last30 = await db.getAllAsync<{ date: string; total: number; taken: number }>(
       `SELECT date, COUNT(*) as total,
               SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) as taken
-       FROM dose_logs WHERE date >= date('now', '-30 days')
-       GROUP BY date ORDER BY date`
+       FROM dose_logs WHERE date >= ? AND date <= ?
+       GROUP BY date ORDER BY date`,
+      [since30, today]
     );
 
     const journals = await db.getAllAsync<{ date: string; mood: string; note: string }>(
@@ -30,12 +45,12 @@ export async function buildHealthContext(): Promise<string> {
       `SELECT s.name, COUNT(*) as count 
        FROM dose_logs dl
        JOIN supplements s ON dl.supplement_id = s.id
-       WHERE dl.status IN ('missed', 'skipped') AND dl.date >= date('now', '-30 days')
-       GROUP BY dl.supplement_id ORDER BY count DESC LIMIT 1`
+       WHERE dl.status IN ('missed', 'skipped') AND dl.date >= ? AND dl.date <= ?
+       GROUP BY dl.supplement_id ORDER BY count DESC LIMIT 1`,
+      [since30, today]
     );
 
     let context = `Patient: ${profile?.name ?? 'Unknown'}`;
-    context += `\nWeight: ${profile?.weight_kg ?? 'N/A'} kg`;
     context += `\nD3 Dose: N/A`;
     
     context += `\n\n30-Day Compliance: ${avgCompliance}% (${takenDoses}/${totalDoses} doses)`;
@@ -45,7 +60,8 @@ export async function buildHealthContext(): Promise<string> {
     }
 
     const latestSun = await db.getFirstAsync<{ minutes: number }>(
-      "SELECT minutes FROM sun_log WHERE date >= date('now', '-7 days') ORDER BY date DESC LIMIT 1"
+      'SELECT minutes FROM sun_log WHERE date >= ? AND date <= ? ORDER BY date DESC LIMIT 1',
+      [since7, today]
     );
     // `day_anchors` and `exercise_minutes` never existed: the table is
     // `daily_anchors` (see the migration note about exactly this typo) and
@@ -54,13 +70,15 @@ export async function buildHealthContext(): Promise<string> {
     // context collapsing to "Unable to build health context." Nothing imports
     // this function yet, so it had never been seen to fail.
     const avgWater = await db.getFirstAsync<{ avg: number }>(
-      "SELECT ROUND(AVG(water_ml)) as avg FROM daily_anchors WHERE date >= date('now', '-7 days')"
+      'SELECT ROUND(AVG(water_ml)) as avg FROM daily_anchors WHERE date >= ? AND date <= ?',
+      [since7, today]
     );
     const avgExercise = await db.getFirstAsync<{ avg: number }>(
       `SELECT ROUND(AVG(day_minutes)) as avg FROM (
          SELECT date, SUM(duration_minutes) as day_minutes FROM exercise_logs
-         WHERE date >= date('now', '-7 days') GROUP BY date
-       )`
+         WHERE date >= ? AND date <= ? GROUP BY date
+       )`,
+      [since7, today]
     );
 
     context += `\n\nSun (last 7d): ${latestSun?.minutes ?? 0} min avg daily`;

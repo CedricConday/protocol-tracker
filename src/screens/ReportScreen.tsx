@@ -25,7 +25,6 @@ export default function ReportScreen() {
       const d3 = rows.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
       const uri = await generateComplianceReport(
         profile?.name ?? 'Patient',
-        profile?.weight_kg ?? 70,
         d3?.dose_amount ?? '—'
       );
       setLastGenerated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));

@@ -11,6 +11,7 @@ import { WATER_GOAL_FLAG } from './WaterScreen';
 import {
   getAnchor, getFirstMealTime, getMiscFlag, getTodayExercise, getTodaySunLog, todayStr,
   getSunEntries, getExerciseLogs, getWaterLogs, getTodayMeals,
+  getSupplementsWithRules, getProfile,
 } from '../db/queries';
 
 /**
@@ -24,8 +25,11 @@ import {
  * rendered the same seven days since before this screen did — and the water
  * strip belongs on the Water screen with the rest of the water data.
  *
- * What is left is a shell: the four things a patient logs every day, each with
- * a screen of its own. The route id is still `Summary` so every existing
+ * What is left is a shell: the things a patient logs every day, each with a
+ * screen of its own. Manage supplements and Bedtime joined them on 2026-09-14 —
+ * they were buried in Settings, and neither is a preference: one is the
+ * protocol the day is built from, the other is the boundary `startDay()`
+ * enforces. The route id is still `Summary` so every existing
  * `navigate('Summary', …)` and the three medical sub-routes keep working; only
  * the tab's visible label changed.
  *
@@ -42,7 +46,7 @@ import {
  */
 
 type Tracker = {
-  route: 'Water' | 'Sunlight' | 'Exercise' | 'Food';
+  route: 'Water' | 'Sunlight' | 'Exercise' | 'Food' | 'SupplementEditor' | 'Bedtime';
   label: string;
   sub: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -50,11 +54,22 @@ type Tracker = {
 };
 
 const TRACKERS: Tracker[] = [
+  { route: 'SupplementEditor', label: 'Doses',       sub: 'Supplements, timing and order', icon: 'list-outline', tint: '#7A5BD6' },
   { route: 'Water',    label: 'Water',    sub: 'Intake, goal and corrections', icon: 'water-outline',    tint: '#3B9AE1' },
   { route: 'Sunlight', label: 'Sunlight', sub: 'Exposure minutes and history', icon: 'sunny-outline',    tint: '#E9A23C' },
   { route: 'Exercise', label: 'Exercise', sub: 'Movement logged each day',     icon: 'walk-outline',     tint: '#2F8F5B' },
   { route: 'Food',     label: 'Food',     sub: 'Meals and first-meal time',    icon: 'restaurant-outline', tint: '#A3623C' },
+  { route: 'Bedtime',  label: 'Bedtime',  sub: 'When the day closes',          icon: 'moon-outline',     tint: '#5B5BD6' },
 ];
+
+const GRID_GAP = 12;
+
+/** Two per row. Pairs are fixed, so the rows do not reflow as values load. */
+const ROWS: Tracker[][] = TRACKERS.reduce<Tracker[][]>((acc, tracker, i) => {
+  if (i % 2 === 0) acc.push([tracker]);
+  else acc[acc.length - 1].push(tracker);
+  return acc;
+}, []);
 
 type CardData = {
   /** The headline number, e.g. "1200 of 3500 ml". */
@@ -69,11 +84,20 @@ type TodayValues = Record<Tracker['route'], CardData>;
 // Until the reads land the cards say nothing rather than "0" — a zero the app
 // has not actually looked up is a claim, and on this screen it is the wrong one.
 const EMPTY: CardData = { value: '', detail: '', progress: null };
-const PENDING: TodayValues = { Water: EMPTY, Sunlight: EMPTY, Exercise: EMPTY, Food: EMPTY };
+const PENDING: TodayValues = {
+  Water: EMPTY, Sunlight: EMPTY, Exercise: EMPTY, Food: EMPTY,
+  SupplementEditor: EMPTY, Bedtime: EMPTY,
+};
 
 export default function SummaryScreen() {
   const navigation = useNavigation<any>();
   const [today, setToday] = useState<TodayValues>(PENDING);
+  // What one row actually gets, measured rather than assumed: three rows plus
+  // two gaps out of whatever the grid was given. A 667pt screen leaves ~120pt a
+  // row and a 844pt one ~190pt, and the same type does not fit both — at the
+  // small end the third line is what pushes the last row under the tab bar.
+  const [rowHeight, setRowHeight] = useState<number | null>(null);
+  const compact = rowHeight !== null && rowHeight < 140;
 
   const load = useCallback(async () => {
     try {
@@ -98,6 +122,14 @@ export default function SummaryScreen() {
 
       const waterEntries = await getWaterLogs(date);
       const sunMin = sun?.minutes ?? 0;
+
+      // Neither of these is a "today" number — they are the settings the day is
+      // built from, so the card shows what is configured rather than progress.
+      const supplements = await getSupplementsWithRules();
+      const d3 = supplements.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
+      const profile = await getProfile();
+      const bedH = profile?.bedtime_hour ?? 22;
+      const bedM = profile?.bedtime_minute ?? 0;
 
       const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -130,6 +162,20 @@ export default function SummaryScreen() {
             : 'Dose timing keys off your first meal',
           progress: null,
         },
+        SupplementEditor: {
+          value: supplements.length
+            ? plural(supplements.length, 'supplement', 'supplements')
+            : 'Nothing set up yet',
+          detail: d3?.dose_amount?.trim()
+            ? `Daily D3 ${d3.dose_amount.trim()} ${d3.dose_unit.trim() || 'IU'}`
+            : 'Add, edit and reorder your doses',
+          progress: null,
+        },
+        Bedtime: {
+          value: `${String(bedH).padStart(2, '0')}:${String(bedM).padStart(2, '0')}`,
+          detail: 'A day cannot be started after this time',
+          progress: null,
+        },
       });
     } catch (e) {
       // One failed read must not blank the tab: the cards fall back to their
@@ -160,45 +206,70 @@ export default function SummaryScreen() {
       <Text style={styles.heading}>{t('trackers')}</Text>
       <Text style={styles.standfirst}>{t('trackersIntro')}</Text>
 
-      <View style={styles.list}>
-      {TRACKERS.map((tracker) => (
-        <TouchableOpacity
-          key={tracker.route}
-          style={styles.card}
-          activeOpacity={0.85}
-          onPress={() => open(tracker.route)}
-          accessibilityRole="button"
-          accessibilityLabel={
-            today[tracker.route].value
-              ? `${tracker.label} tracker. Today: ${today[tracker.route].value}. ${today[tracker.route].detail}`
-              : `${tracker.label} tracker. ${tracker.sub}`
-          }
-        >
-          <View style={[styles.iconWrap, { backgroundColor: `${tracker.tint}1A` }]}>
-            <Ionicons name={tracker.icon} size={22} color={tracker.tint} />
-          </View>
-          <View style={styles.cardText}>
-            <Text style={styles.cardLabel}>{tracker.label}</Text>
-            <Text style={[styles.cardSub, today[tracker.route].value ? styles.cardToday : null]}>
-              {today[tracker.route].value || tracker.sub}
-            </Text>
-            {today[tracker.route].detail ? (
-              <Text style={styles.cardDetail}>{today[tracker.route].detail}</Text>
-            ) : null}
-            {today[tracker.route].progress !== null ? (
-              <View style={styles.barTrack}>
+      <View
+        style={styles.grid}
+        onLayout={(e) => setRowHeight((e.nativeEvent.layout.height - 2 * GRID_GAP) / ROWS.length)}
+      >
+      {ROWS.map((row, i) => (
+        <View key={i} style={styles.row}>
+          {row.map((tracker) => (
+            <TouchableOpacity
+              key={tracker.route}
+              style={styles.card}
+              activeOpacity={0.85}
+              onPress={() => open(tracker.route)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                today[tracker.route].value
+                  ? `${tracker.label} tracker. Today: ${today[tracker.route].value}. ${today[tracker.route].detail}`
+                  : `${tracker.label} tracker. ${tracker.sub}`
+              }
+            >
+              <View style={styles.cardHead}>
                 <View
                   style={[
-                    styles.barFill,
-                    { backgroundColor: tracker.tint },
-                    { width: `${Math.round((today[tracker.route].progress ?? 0) * 100)}%` as `${number}%` },
+                    styles.iconWrap,
+                    compact && styles.iconWrapCompact,
+                    { backgroundColor: `${tracker.tint}1A` },
                   ]}
-                />
+                >
+                  <Ionicons name={tracker.icon} size={compact ? 20 : 24} color={tracker.tint} />
+                </View>
+                <Text style={[styles.cardLabel, compact && styles.cardLabelCompact]} numberOfLines={2}>
+                  {tracker.label}
+                </Text>
               </View>
-            ) : null}
-          </View>
-          <Text style={styles.chevron}>›</Text>
-        </TouchableOpacity>
+              <View>
+                <Text
+                  style={[
+                    styles.cardSub,
+                    today[tracker.route].value ? styles.cardToday : null,
+                    compact && (today[tracker.route].value ? styles.cardTodayCompact : styles.cardSubCompact),
+                  ]}
+                  numberOfLines={2}
+                >
+                  {today[tracker.route].value || tracker.sub}
+                </Text>
+                {/* The third line is the first thing to go when the row is short:
+                    it is context, and the number above it is the point. */}
+                {today[tracker.route].detail && !compact ? (
+                  <Text style={styles.cardDetail} numberOfLines={2}>{today[tracker.route].detail}</Text>
+                ) : null}
+                {today[tracker.route].progress !== null ? (
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        { backgroundColor: tracker.tint },
+                        { width: `${Math.round((today[tracker.route].progress ?? 0) * 100)}%` as `${number}%` },
+                      ]}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
       ))}
       </View>
     </ScrollView>
@@ -207,31 +278,40 @@ export default function SummaryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F7F2' },
-  // flexGrow lets the four cards share the height instead of bunching at the
-  // top over an empty half-screen; it still scrolls if the text wraps.
-  content: { padding: 24, paddingTop: 60, paddingBottom: 24, flexGrow: 1 },
-  heading: { color: '#14213D', fontSize: 28, fontWeight: '800', marginBottom: 6 },
-  standfirst: { color: '#5A6478', fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  list: { flex: 1, gap: 12 },
+  // The tab is one page: the grid takes whatever is left under the heading and
+  // the three rows divide it, so the cards grow with the screen instead of
+  // sitting small above a blank half. flexGrow on the content container is what
+  // gives the grid a height to divide in the first place.
+  content: { padding: 20, paddingTop: 52, paddingBottom: 20, flexGrow: 1 },
+  heading: { color: '#14213D', fontSize: 26, fontWeight: '800', marginBottom: 4 },
+  standfirst: { color: '#5A6478', fontSize: 13, lineHeight: 18, marginBottom: 16 },
+
+  grid: { flex: 1, gap: GRID_GAP },
+  row:  { flex: 1, flexDirection: 'row', gap: GRID_GAP },
   card: {
     flex: 1,
-    minHeight: 96,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
+    minHeight: 104,
+    // Centred, not space-between: on a tall screen the tiles grow, and pinning
+    // the label to the top and the number to the bottom just moves the blank
+    // space inside the card. As one block in the middle they read at any height.
+    justifyContent: 'center',
+    gap: 10,
     backgroundColor: '#ECEDE6',
     borderRadius: 14,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#CFD2C6',
   },
-  iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  cardText: { flex: 1 },
-  cardLabel: { color: '#14213D', fontSize: 16, fontWeight: '700' },
-  cardSub: { color: '#5A6478', fontSize: 12, marginTop: 2 },
-  cardDetail: { color: '#9AA3B2', fontSize: 12, marginTop: 3 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconWrap: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  iconWrapCompact: { width: 34, height: 34, borderRadius: 17 },
+  cardLabel: { flex: 1, color: '#14213D', fontSize: 17, fontWeight: '700' },
+  cardLabelCompact: { fontSize: 15 },
+  cardSub: { color: '#5A6478', fontSize: 13, lineHeight: 18 },
+  cardSubCompact: { fontSize: 12, lineHeight: 16 },
+  cardToday: { color: '#14213D', fontSize: 16, fontWeight: '700', lineHeight: 21 },
+  cardTodayCompact: { fontSize: 14, lineHeight: 18 },
+  cardDetail: { color: '#9AA3B2', fontSize: 12, lineHeight: 16, marginTop: 3 },
   barTrack: { height: 6, borderRadius: 3, backgroundColor: '#DDDFD4', overflow: 'hidden', marginTop: 9 },
   barFill: { height: 6, borderRadius: 3 },
-  cardToday: { color: '#14213D', fontSize: 13, fontWeight: '600' },
-  chevron: { color: '#9AA3B2', fontSize: 24, fontWeight: '300' },
 });

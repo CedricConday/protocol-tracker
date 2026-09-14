@@ -9,15 +9,18 @@ import type { ScheduledDose, DoseStatus } from '../types';
  * All dose times calculate forward from this anchor.
  */
 export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> {
-  // Bedtime gate check
+  // Bedtime gate check.
+  //
+  // The cutoff is bedtime MINUS the last supplement's offset, not bedtime
+  // itself: starting at 21:55 with a 22:00 bedtime and a +240 min last dose
+  // scheduled that dose for 01:55, well past the boundary this gate exists to
+  // protect. calculateBedtimeCutoff already did this arithmetic and had no
+  // caller. With no rules yet the offset is 0 and the cutoff is bedtime, which
+  // is the old behaviour.
   const profile = await getProfile();
   if (profile) {
-    const now = new Date();
-    const cutoffHour = profile.bedtime_hour ?? 22;
-    const cutoffMin = profile.bedtime_minute ?? 0;
-    const cutoff = new Date();
-    cutoff.setHours(cutoffHour, cutoffMin, 0, 0);
-    if (now >= cutoff) {
+    const cutoff = await getLatestStartTime();
+    if (cutoff && new Date() >= cutoff) {
       throw new Error('BEDTIME_GATE');
     }
   }

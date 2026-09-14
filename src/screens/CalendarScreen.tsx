@@ -1,8 +1,7 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
-  Animated,
   Modal,
   RefreshControl,
   ScrollView,
@@ -54,15 +53,6 @@ const BG = '#F7F7F2';
 const ACCENT = '#1B58B8';
 const INK = '#14213D';
 const INK_MUTED = '#5A6478';
-
-// The moved compliance block keeps its own palette. It came off the Records tab
-// (2026-09-13): compliance is history, so it now sits under the history the
-// calendar is already showing, and the tab it left became Trackers.
-function getComplianceStatusColor(compliancePct: number) {
-  if (compliancePct >= 80) return '#22c55e';
-  if (compliancePct >= 50) return '#eab308';
-  return '#ef4444';
-}
 
 // Dose-compliance ring color.
 function getComplianceColor(compliancePct: number, totalDoses: number): string {
@@ -128,12 +118,8 @@ const FORWARD_MONTHS = 12;
 
 export default function CalendarScreen() {
   const navigation = useNavigation<any>();
-  const {
-    summary, streak, adherenceScore, loadData: loadCompliance,
-  } = useSummaryScreen();
+  const { summary, streak, loadData: loadCompliance } = useSummaryScreen();
   const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
-  const barContainerWidth = useRef(0);
-  const barAnim = useRef(new Animated.Value(0)).current;
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -168,21 +154,6 @@ export default function CalendarScreen() {
 
   const taken = summary?.takenDoses ?? 0;
   const totalDosesToday = summary?.totalDoses ?? 0;
-  const compliancePct = summary?.compliancePct ?? 0;
-  const ringColor = getComplianceStatusColor(compliancePct);
-
-  // The bar animates to the live percentage; the ring's number is read straight
-  // off the data rather than off an Animated listener, because wherever that
-  // listener failed to fire the ring read 0 while the card above it read 100%.
-  const animateToCompliance = useCallback((pct: number) => {
-    Animated.timing(barAnim, {
-      toValue: (barContainerWidth.current * pct) / 100,
-      duration: 700,
-      useNativeDriver: false,
-    }).start();
-  }, [barAnim]);
-
-  useEffect(() => { animateToCompliance(compliancePct); }, [compliancePct, animateToCompliance]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -374,7 +345,7 @@ export default function CalendarScreen() {
                     disabled={disabled}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`${slot.date}${hasDoses ? `, ${c!.compliancePct}% compliance, ${c!.takenDoses} of ${c!.totalDoses} doses taken` : ''}${c && c.eventCount > 0 ? `, ${c.eventCount} event${c.eventCount > 1 ? 's' : ''}` : ''}${c && c.hasJournal ? ', journal entry' : ''}${c && c.hasWater ? ', water logged' : ''}${isToday ? ', today' : ''}${!hasData ? ', no data' : ''}. Tap for details.`}
+                    accessibilityLabel={`${slot.date}${hasDoses ? `, ${c!.takenDoses} of ${c!.totalDoses} doses taken` : ''}${c && c.eventCount > 0 ? `, ${c.eventCount} event${c.eventCount > 1 ? 's' : ''}` : ''}${c && c.hasJournal ? ', journal entry' : ''}${c && c.hasWater ? ', water logged' : ''}${isToday ? ', today' : ''}${!hasData ? ', no data' : ''}. Tap for details.`}
                   >
                     <View style={[styles.cell, { backgroundColor: cellBg, borderColor: cellBorder }, isToday && styles.cellToday]}>
                       <View style={styles.ringWrap}>
@@ -428,36 +399,17 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      {adherenceScore > 0 && (
-        <View style={styles.scoreCard}>
-          <Text style={styles.scoreValue}>{Math.round(adherenceScore)}%</Text>
-          <Text style={styles.scoreLabel}>{t('weightedAdherence')}</Text>
-          <Text style={styles.scoreSub}>14-day weighted score based on completeness and timing</Text>
-        </View>
-      )}
+      {/* The "Weighted Adherence" card stood here until 2026-09-14. Its own
+          subtitle — "14-day weighted score based on completeness and timing" —
+          described a calculation the code does not perform: timing never enters
+          it, and the per-supplement weighting tests ids ('vit_d3', 'vit_k2',
+          'mag_citrate') that addSupplement cannot mint in this build, so it has
+          never fired on any install. What was left was doses taken over doses
+          scheduled, tilted toward the newest rows.
 
-      <View style={styles.complianceCard}>
-        <Text style={styles.cardDayLabel}>{t('today')}</Text>
-        <View style={styles.ringContainer}>
-          <View style={[styles.ringOuter, { borderColor: '#CFD2C6' }]}>
-            <View style={[styles.ringInnerAccent, { borderColor: ringColor }]} />
-            <View style={styles.ringCenter}>
-              <Text style={[styles.ringNumber, { color: ringColor }]}>{compliancePct}</Text>
-              <Text style={styles.ringPercent}>%</Text>
-            </View>
-          </View>
-        </View>
-        <Text style={styles.complianceLabel}>{t('compliance')}</Text>
-        <View
-          style={styles.barBg}
-          onLayout={(e) => {
-            barContainerWidth.current = e.nativeEvent.layout.width;
-            animateToCompliance(compliancePct);
-          }}
-        >
-          <Animated.View style={[styles.barFill, { width: barAnim, backgroundColor: ringColor }]} />
-        </View>
-      </View>
+          The today ring went with it on the same day: a second reading of
+          taken-over-scheduled, sitting directly under the "Doses Today" card
+          that already states it as the fraction it is. */}
 
       {profileBlurb ? (
         <View style={styles.profileBlurbCard}>
@@ -645,21 +597,6 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
   statValue: { color: '#14213D', fontSize: 22, fontWeight: '700' },
   statLabel: { color: '#5A6478', fontSize: 12, marginTop: 2 },
-  scoreCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 12, alignItems: 'center', borderWidth: 1, borderColor: '#1B58B840' },
-  scoreValue: { color: '#1B58B8', fontSize: 26, fontWeight: '800' },
-  scoreLabel: { color: '#14213D', fontSize: 13, fontWeight: '700', marginTop: 2 },
-  scoreSub: { color: '#5A6478', fontSize: 11, marginTop: 4, textAlign: 'center' },
-  complianceCard: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 20, marginTop: 12, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
-  cardDayLabel: { color: '#5A6478', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  ringContainer: { marginVertical: 14 },
-  ringOuter: { width: 108, height: 108, borderRadius: 54, borderWidth: 8, alignItems: 'center', justifyContent: 'center' },
-  ringInnerAccent: { position: 'absolute', top: -8, left: -8, right: -8, bottom: -8, borderRadius: 54, borderWidth: 3, opacity: 0.85 },
-  ringCenter: { flexDirection: 'row', alignItems: 'baseline' },
-  ringNumber: { fontSize: 30, fontWeight: '800' },
-  ringPercent: { color: '#5A6478', fontSize: 14, fontWeight: '700', marginLeft: 1 },
-  complianceLabel: { color: '#5A6478', fontSize: 12, marginBottom: 10 },
-  barBg: { width: '100%', height: 8, borderRadius: 4, backgroundColor: '#DBDDD3', overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 4 },
   profileBlurbCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
   profileBlurbText: { color: '#5A6478', fontSize: 13, lineHeight: 20 },
   medicalRow: { flexDirection: 'row', gap: 10, marginTop: 16 },

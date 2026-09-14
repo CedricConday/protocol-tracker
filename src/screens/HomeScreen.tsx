@@ -173,7 +173,7 @@ export default function HomeScreen() {
     t0, setT0, dayLoaded, doses, setDoses, firstMealTime, setFirstMealTimeState,
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity,
-    todayMeals, setTodayMeals, patientName, isCaregiver, caregiverPatientName,
+    todayMeals, setTodayMeals, patientName,
     showFatigueAlert, setShowFatigueAlert, showSurveyPrompt, setShowSurveyPrompt,
     showMagnesiumHint, setShowMagnesiumHint, showD3MealHint, setShowD3MealHint,
     showEngagementNudge, setShowEngagementNudge, lowStockSupps, setLowStockSupps,
@@ -234,8 +234,8 @@ export default function HomeScreen() {
      } catch (error: any) {
        if (error.message === 'BEDTIME_GATE') {
          Alert.alert(
-           "Past Bedtime",
-           "It's past your bedtime. Start your day tomorrow morning.",
+           'Too late to start',
+           "The last dose of the day would land after your bedtime. Start again tomorrow morning.",
            [{ text: 'OK', style: 'cancel' }]
          );
        } else {
@@ -334,27 +334,9 @@ export default function HomeScreen() {
           <SunMascot size={66} />
         </View>
         <Text style={[styles.greeting, { textAlign: 'center' }]}>
-          {isCaregiver
-            ? (caregiverPatientName ? `Tracking ${caregiverPatientName.split(' ')[0]}` : 'Caregiver View')
-            : (patientName ? `Hello, ${patientName.split(' ')[0]}` : 'the Protocol')}
+          {patientName ? `Hello, ${patientName.split(' ')[0]}` : 'the Protocol'}
         </Text>
-        {isCaregiver && (
-          <Text style={{ fontSize: 12, color: '#9AA3B2', marginTop: 2, textAlign: 'center' }}>
-            Caregiver · {patientName || 'Your account'}
-          </Text>
-        )}
       </View>
-      {isCaregiver && (
-        <TouchableOpacity
-          style={{ backgroundColor: '#1B58B8', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 }}
-          onPress={() => navigation.navigate('Settings', { screen: 'Caregiver' })}
-          activeOpacity={0.8}
-          accessibilityLabel="Caregiver dashboard"
-          accessibilityRole="button"
-        >
-          <Text style={{ color: '#F7F7F2', fontSize: 12, fontWeight: '700' }}>Dashboard</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 

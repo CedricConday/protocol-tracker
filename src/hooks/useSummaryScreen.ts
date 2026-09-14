@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getDaySummary, getWeekSummary, getStreak, getAnchor,
-  getWeightedAdherenceScore, getRecentJournalEntries, getProfile, localDateStr,
+  getRecentJournalEntries, getProfile, localDateStr,
 } from '../db/queries';
 import type { DaySummary } from '../types';
 
@@ -10,7 +10,6 @@ export function useSummaryScreen() {
   const [weekData, setWeekData] = useState<{ date: string; compliancePct: number; totalDoses: number; waterMl: number }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [streak, setStreak] = useState(0);
-  const [adherenceScore, setAdherenceScore] = useState(0);
   const [moodWeek, setMoodWeek] = useState<{ day: string; score: number | null }[]>([]);
   const [waterWeek, setWaterWeek] = useState<{ day: string; ml: number }[]>([]);
   const [patientName, setPatientName] = useState('Patient');
@@ -23,9 +22,6 @@ export function useSummaryScreen() {
       setSummary(daySummary);
       const s = await getStreak();
       setStreak(s);
-      const score = await getWeightedAdherenceScore(14);
-      setAdherenceScore(score);
-
       const week = await getWeekSummary();
       const enriched = await Promise.all(
         week.map(async (d) => {
@@ -65,7 +61,7 @@ export function useSummaryScreen() {
 
   return {
     summary, weekData, refreshing, setRefreshing,
-    streak, adherenceScore, moodWeek, waterWeek, patientName,
+    streak, moodWeek, waterWeek, patientName,
     loadData,
   };
 }

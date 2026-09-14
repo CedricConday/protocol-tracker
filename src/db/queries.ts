@@ -28,7 +28,9 @@ export async function getProfile(): Promise<UserProfile | null> {
 // interpolates these keys directly into SQL, so the whitelist is the safety
 // barrier; values are always parameterized.
 const UPDATE_PROFILE_ALLOWED = new Set<keyof UserProfile>([
-  'name', 'weight_kg', 'start_date', 'timezone', 'bedtime_hour', 'bedtime_minute',
+  // weight_kg deliberately absent since 2026-09-14: the column still exists on
+  // older installs but nothing may write it.
+  'name', 'start_date', 'timezone', 'bedtime_hour', 'bedtime_minute',
 ]);
 
 export async function updateProfile(fields: Partial<UserProfile>): Promise<void> {
@@ -1178,6 +1180,11 @@ export async function deleteSupplement(supplementId: string): Promise<void> {
 }
 
 // ── Protocol Adherence Score ──────────────────────────────────────────────────
+// NO UI CALLER since 2026-09-14: the card that displayed this was removed
+// because the number could not be described honestly (no timing term, and the
+// supplement weighting below tests ids this build never mints). Kept only
+// because scripts/backtest/backtestPm30.test.ts pins its clock-anchoring
+// behaviour; delete both together when that harness is retired.
 export async function getWeightedAdherenceScore(days: number = 14): Promise<number> {
   const db = await getDb();
   // Bounded on both ends and anchored to the app's own clock (todayStr, local),

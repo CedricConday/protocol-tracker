@@ -11,7 +11,7 @@ import { t } from '../i18n';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
-import CaregiverScreen from '../screens/CaregiverScreen';
+import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CoachingStyleScreen from '../screens/CoachingStyleScreen';
 import FamilySyncScreen from '../screens/FamilySyncScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
@@ -25,6 +25,7 @@ import ReportScreen from '../screens/ReportScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
+import BedtimeScreen from '../screens/BedtimeScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import WaterScreen from '../screens/WaterScreen';
 import SunlightScreen from '../screens/SunlightScreen';
@@ -76,7 +77,10 @@ function JournalNavigator() {
 }
 
 /**
- * The four tracker screens (PT-trio round 3, C5).
+ * The tracker screens (PT-trio round 3, C5).
+ *
+ * Six since 2026-09-14: Manage supplements and Bedtime moved here out of
+ * Settings, so everything a day is built from is on one tab.
  *
  * The route names were agreed before either round-2 lane started and registered
  * against a placeholder, so the Trackers tab has been navigable end to end since
@@ -88,6 +92,8 @@ const TRACKER_ROUTES: { name: string; title: string; component: ComponentType<an
   { name: 'Sunlight', title: 'Sunlight', component: SunlightScreen },
   { name: 'Exercise', title: 'Exercise', component: ExerciseScreen },
   { name: 'Food', title: 'Food', component: FoodScreen },
+  { name: 'SupplementEditor', title: 'Manage Supplements', component: SupplementEditorScreen },
+  { name: 'Bedtime', title: 'Bedtime', component: BedtimeScreen },
 ];
 
 function SummaryNavigator() {
@@ -126,14 +132,14 @@ function SettingsNavigator() {
     <SettingsNav.Navigator screenOptions={{ headerShown: false }}>
       <SettingsNav.Screen name="SettingsMain" component={SettingsScreen} />
       <SettingsNav.Screen
-        name="SupplementEditor"
-        component={SupplementEditorScreen}
-        options={{ ...SUB_HEADER, title: 'Manage Supplements', animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
         name="About"
         component={AboutScreen}
         options={{ ...SUB_HEADER, title: 'About', animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="AccountSettings"
+        component={AccountSettingsScreen}
+        options={{ ...SUB_HEADER, title: 'Account Settings', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Schedule"
@@ -149,11 +155,6 @@ function SettingsNavigator() {
         name="FamilySync"
         component={FamilySyncScreen}
         options={{ ...SUB_HEADER, title: 'Family Sync', animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
-        name="Caregiver"
-        component={CaregiverScreen}
-        options={{ ...SUB_HEADER, title: 'Caregiver', animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Feedback"

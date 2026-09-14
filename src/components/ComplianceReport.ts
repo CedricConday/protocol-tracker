@@ -10,7 +10,6 @@ function getBoxColor(pct: number, total: number): string {
 
 export async function generateComplianceReport(
   patientName: string,
-  weightKg: number,
   d3Dose: string
 ): Promise<string> {
   const days: string[] = [];
@@ -78,7 +77,7 @@ export async function generateComplianceReport(
     <body>
       <h1>the Protocol — Compliance Report</h1>
       <div class="sub">
-        <p>Patient: ${patientName} | Weight: ${weightKg}kg | D3 Dose: ${d3Dose} IU</p>
+        <p>Patient: ${patientName} | D3 Dose: ${d3Dose} IU</p>
         <p>Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 

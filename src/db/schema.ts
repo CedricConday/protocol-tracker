@@ -27,6 +27,9 @@ export async function initDb(): Promise<void> {
       CREATE TABLE IF NOT EXISTS user_profile (
       id INTEGER PRIMARY KEY NOT NULL,
       name TEXT NOT NULL DEFAULT 'Patient',
+      -- Unused since 2026-09-14: nothing reads or writes it. Kept so installs
+      -- created before that date need no migration; drop it the next time
+      -- user_profile is rebuilt.
       weight_kg REAL NOT NULL DEFAULT 70,
       start_date TEXT NOT NULL,
       timezone TEXT NOT NULL DEFAULT 'Europe/Berlin',

@@ -55,16 +55,14 @@ const STEPS = [
 export default function OnboardingScreen({ onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const nameRef = useRef<TextInput>(null);
-  const weightRef = useRef<TextInput>(null);
   // What the last Next tap found missing. Empty until the user actually taps,
   // so the screen does not greet them with errors for fields they have not
   // reached yet.
-  const [hint, setHint] = useState<{ key: 'name' | 'weight' | 'condition'; label: string }[]>([]);
+  const [hint, setHint] = useState<{ key: 'name' | 'condition'; label: string }[]>([]);
   const d3Ref = useRef<TextInput>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -95,7 +93,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
     } else {
       setSaving(true);
       try {
-        await createDefaultProfile(name.trim(), parseFloat(weight));
+        await createDefaultProfile(name.trim());
         if (d3Dose.trim()) {
           // The dose entered here becomes the user's first supplement, created
           // through the same path as Manage supplements. Nothing is pre-seeded:
@@ -140,16 +138,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
    * shake, no message, no hint about which field was wanted. Reported from the
    * device as "stays greyed out", which is exactly what it looks like from the
    * outside — the user had filled in the only field the screen visibly asked
-   * for, and nothing marked weight as required.
+   * for, and nothing marked the field as required.
    */
-  const missingFields = (): { key: 'name' | 'weight' | 'condition'; label: string }[] => {
+  const missingFields = (): { key: 'name' | 'condition'; label: string }[] => {
     if (step === 0) {
-      const out: { key: 'name' | 'weight' | 'condition'; label: string }[] = [];
+      const out: { key: 'name' | 'condition'; label: string }[] = [];
       if (name.trim().length === 0) out.push({ key: 'name', label: 'your name' });
-      // A weight that is present but unreadable ("kg 70", a bare comma) is as
-      // blocking as an empty one and looks filled in, so it gets its own words.
-      if (weight.trim().length === 0) out.push({ key: 'weight', label: 'your weight' });
-      else if (isNaN(parseFloat(weight))) out.push({ key: 'weight', label: 'a weight we can read, like 70 or 70,5' });
       return out;
     }
     if (step === 1 && selectedProfile === null) return [{ key: 'condition', label: 'a condition' }];
@@ -165,7 +159,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
     const still = missingFields();
     if (still.length !== hint.length) setHint(still);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, weight, selectedProfile]);
+  }, [name, selectedProfile]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,7 +186,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               scroll while step 1 could, and with the iOS keyboard up
               KeyboardAvoidingView shrinks the area under it: the form then had
               nowhere to go, overflowed its page, and painted through the
-              footer — the Next button landing on top of the weight label, and
+              footer — the Next button landing on top of the dose label, and
               the footer's top border cutting across the form. The D3 field was
               unreachable at the same time. */}
           <ScrollView
@@ -219,24 +213,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 autoCapitalize="words"
                 returnKeyType="next"
                 submitBehavior="submit"
-                onSubmitEditing={() => weightRef.current?.focus()}
+                onSubmitEditing={() => d3Ref.current?.focus()}
               />
-                <Text style={styles.inputLabel}>
-                  What&apos;s your weight? <Text style={styles.required}>Required</Text>
-                </Text>
-                <Text style={styles.inputHelp}>We use this to work out your D3 dose. A comma is fine — 70,5.</Text>
-                <TextInput
-                  ref={weightRef}
-                  style={[styles.input, hint.some((h) => h.key === 'weight') && styles.inputError]}
-                  placeholder="e.g. 70"
-                  placeholderTextColor="#9AA3B2"
-                  value={weight}
-                  onChangeText={setWeight}
-                  keyboardType="numeric"
-                  returnKeyType="next"
-                  submitBehavior="submit"
-                  onSubmitEditing={() => d3Ref.current?.focus()}
-                />
                 <Text style={styles.inputLabel}>
                   Daily Vitamin D3 Dose (IU) <Text style={styles.optional}>Optional</Text>
                 </Text>
@@ -369,7 +347,6 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 setHint(missing);
                 if (missing[0].key === 'name') nameRef.current?.focus();
-                if (missing[0].key === 'weight') weightRef.current?.focus();
                 return;
               }
               setHint([]);

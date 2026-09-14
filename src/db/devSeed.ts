@@ -1,5 +1,5 @@
 import { getDb } from './schema';
-import { localDateStr, addSupplement, getProfile } from './queries';
+import { localDateStr, addSupplement } from './queries';
 
 // DEVELOPMENT ONLY — backfills a plausible protocol history so a screen with
 // charts, streaks and history has something to draw. Every call site is behind
@@ -12,9 +12,9 @@ import { localDateStr, addSupplement, getProfile } from './queries';
 
 /**
  * Create a starter protocol so there is something for the history to hang off.
- * These are PLACEHOLDERS, not a recommendation: the D3 figure is nothing more
- * than the app's own weight x 1000 IU arithmetic applied to the profile already
- * on the device, and the rest are the amounts printed on an ordinary label.
+ * These are PLACEHOLDERS, not a recommendation: the amounts are what an
+ * ordinary label prints, and the D3 row is left empty on purpose — the dose is
+ * the user's, and since 2026-09-14 nothing on the device derives one.
  * Everything here is editable in Settings -> Manage supplements, and the whole
  * function is unreachable outside __DEV__.
  */
@@ -23,12 +23,9 @@ export async function stageDemoSupplements(): Promise<string[]> {
   const existing = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM schedule_rules');
   if (existing && existing.n > 0) return [];
 
-  const profile = await getProfile();
-  const weight = profile?.weight_kg ?? null;
-  const d3 = weight ? String(Math.round((weight * 1000) / 1000) * 1000) : '';
 
   const rows: Array<{ name: string; form: string; dose_amount: string; dose_unit: string; offset_minutes: number; with_food: boolean; tolerance_window: number }> = [
-    { name: 'Vitamin D3',           form: 'capsule', dose_amount: d3,     dose_unit: 'IU',  offset_minutes: 0,   with_food: true,  tolerance_window: 30 },
+    { name: 'Vitamin D3',           form: 'capsule', dose_amount: '',     dose_unit: 'IU',  offset_minutes: 0,   with_food: true,  tolerance_window: 30 },
     { name: 'Vitamin K2 MK-7',      form: 'capsule', dose_amount: '200',  dose_unit: 'mcg', offset_minutes: 0,   with_food: true,  tolerance_window: 30 },
     { name: 'Magnesium Glycinate',  form: 'capsule', dose_amount: '400',  dose_unit: 'mg',  offset_minutes: 240, with_food: false, tolerance_window: 60 },
     { name: 'Omega-3',              form: 'capsule', dose_amount: '2000', dose_unit: 'mg',  offset_minutes: 240, with_food: true,  tolerance_window: 60 },
@@ -36,9 +33,9 @@ export async function stageDemoSupplements(): Promise<string[]> {
 
   const made: string[] = [];
   for (const r of rows) {
-    // Never invent the dose the user owns. If the profile carries no weight,
-    // the D3 row is created with an empty amount for them to fill in, loudly,
-    // rather than with a number this code made up.
+    // Never invent the dose the user owns: the D3 row is created with an
+    // empty amount for them to fill in, loudly, rather than with a number this
+    // code made up.
     await addSupplement(r);
     made.push(`${r.name} ${r.dose_amount || '(SET YOUR DOSE)'} ${r.dose_unit}`);
   }
