@@ -23,7 +23,7 @@ import SunMascot from '../components/SunMascot';
 import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
-import { MEDICAL_DISCLAIMER } from '../config/links';
+import { medicalDisclaimer } from '../config/links';
 import { t, useLanguage, locale } from '../i18n';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
@@ -590,7 +590,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-        <Text style={styles.homeDisclaimer}>{MEDICAL_DISCLAIMER}</Text>
+        <Text style={styles.homeDisclaimer}>{medicalDisclaimer()}</Text>
 
       </ScrollView>
 

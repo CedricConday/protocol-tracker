@@ -19,7 +19,7 @@ import {
   getProfile, updateProfile, getSupplementsWithRules,
   getMiscFlag, setMiscFlag, getWeatherEnabled, setWeatherEnabled,
 } from '../db/queries';
-import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
+import { SUPPORT_URL, medicalDisclaimer } from '../config/links';
 import Pressable from '../components/Pressable';
 import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
 import { C, space, radius, shadow, text as T } from '../theme';
@@ -518,7 +518,7 @@ export default function SettingsScreen() {
             </>
           )}
 
-          <Text style={styles.disclaimer}>{MEDICAL_DISCLAIMER}</Text>
+          <Text style={styles.disclaimer}>{medicalDisclaimer()}</Text>
 
           <Text style={styles.version}>{t('setVersionLine', { version: '1.0.0', year: 2026 })}</Text>
 
