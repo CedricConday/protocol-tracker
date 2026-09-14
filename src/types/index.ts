@@ -49,6 +49,13 @@ export interface ScheduleRule {
   dose_amount: string;
   dose_unit: string;
   display_order: number;
+  /** Cadence (schema v15). Defaults keep every pre-v15 rule daily. */
+  frequency: string;
+  days_of_week: string;
+  day_of_month: number;
+  cycle_on_days: number;
+  cycle_off_days: number;
+  cycle_start_date: string;
 }
 
 export interface ScheduledDose {

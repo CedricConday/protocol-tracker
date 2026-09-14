@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
+import { ruleFiresOn, cadenceOf, type Cadence } from '../engine/cadence';
 
 export function localDateStr(d: Date): string {
   // Local calendar date (YYYY-MM-DD). Used everywhere data is keyed by day so
@@ -1077,6 +1078,8 @@ export async function getSupplementsWithRules(): Promise<{
   id: string; name: string; form: string;
   dose_amount: string; dose_unit: string; offset_minutes: number;
   with_food: number; tolerance_window: number; rule_id: number | null;
+  frequency: string; days_of_week: string; day_of_month: number;
+  cycle_on_days: number; cycle_off_days: number; cycle_start_date: string;
 }[]> {
   const db = await getDb();
   return db.getAllAsync(
@@ -1086,6 +1089,12 @@ export async function getSupplementsWithRules(): Promise<{
        COALESCE(sr.offset_minutes, 0) as offset_minutes,
        COALESCE(sr.with_food, 0) as with_food,
        COALESCE(sr.tolerance_window, 30) as tolerance_window,
+       COALESCE(sr.frequency, 'daily') as frequency,
+       COALESCE(sr.days_of_week, '') as days_of_week,
+       COALESCE(sr.day_of_month, 0) as day_of_month,
+       COALESCE(sr.cycle_on_days, 0) as cycle_on_days,
+       COALESCE(sr.cycle_off_days, 0) as cycle_off_days,
+       COALESCE(sr.cycle_start_date, '') as cycle_start_date,
        sr.id as rule_id
      FROM supplements s
      LEFT JOIN schedule_rules sr ON sr.supplement_id = s.id
@@ -1111,7 +1120,8 @@ async function createDoseLogForNewRule(
   supplementId: string,
   ruleId: number,
   offsetMinutes: number,
-  date: string = todayStr()
+  cadence?: Cadence,
+  date: string = todayStr(),
 ): Promise<void> {
   const db = await getDb();
   const anchor = await db.getFirstAsync<{ t0_timestamp: number | null }>(
@@ -1119,6 +1129,11 @@ async function createDoseLogForNewRule(
     [date]
   );
   if (!anchor?.t0_timestamp) return;
+
+  // A rule added today that is not due today gets no dose log — an as-needed
+  // dose in particular is never owed, so creating one would put a dose the
+  // patient never agreed to into today's denominator.
+  if (cadence && !ruleFiresOn(cadence, date)) return;
 
   const scheduledTime = anchor.t0_timestamp + offsetMinutes * 60 * 1000;
 
@@ -1141,19 +1156,22 @@ export async function addSupplement(data: {
   name: string; form: string;
   dose_amount: string; dose_unit: string;
   offset_minutes: number; with_food: boolean; tolerance_window: number;
-}): Promise<void> {
+} & Partial<Cadence>): Promise<void> {
   const db = await getDb();
   const id = data.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
   await db.runAsync(
     'INSERT INTO supplements (id, name, form) VALUES (?, ?, ?)',
     [id, data.name.trim(), data.form]
   );
+  const c = cadenceOf(data);
   const rule = await db.runAsync(
-    `INSERT INTO schedule_rules (supplement_id, dose_amount, dose_unit, offset_minutes, with_food, tolerance_window, anchor_type)
-     VALUES (?, ?, ?, ?, ?, ?, 't0')`,
-    [id, data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window]
+    `INSERT INTO schedule_rules (supplement_id, dose_amount, dose_unit, offset_minutes, with_food, tolerance_window, anchor_type,
+                                 frequency, days_of_week, day_of_month, cycle_on_days, cycle_off_days, cycle_start_date)
+     VALUES (?, ?, ?, ?, ?, ?, 't0', ?, ?, ?, ?, ?, ?)`,
+    [id, data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window,
+     c.frequency, c.days_of_week, c.day_of_month, c.cycle_on_days, c.cycle_off_days, c.cycle_start_date]
   );
-  await createDoseLogForNewRule(id, rule.lastInsertRowId, data.offset_minutes);
+  await createDoseLogForNewRule(id, rule.lastInsertRowId, data.offset_minutes, c);
 }
 
 export async function updateSupplementAndRule(data: {
@@ -1161,12 +1179,16 @@ export async function updateSupplementAndRule(data: {
   name: string; form: string;
   dose_amount: string; dose_unit: string;
   offset_minutes: number; with_food: boolean; tolerance_window: number;
-}): Promise<void> {
+} & Partial<Cadence>): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE supplements SET name = ?, form = ? WHERE id = ?', [data.name, data.form, data.supplementId]);
+  const c = cadenceOf(data);
   await db.runAsync(
-    `UPDATE schedule_rules SET dose_amount=?, dose_unit=?, offset_minutes=?, with_food=?, tolerance_window=? WHERE id=?`,
-    [data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window, data.ruleId]
+    `UPDATE schedule_rules SET dose_amount=?, dose_unit=?, offset_minutes=?, with_food=?, tolerance_window=?,
+            frequency=?, days_of_week=?, day_of_month=?, cycle_on_days=?, cycle_off_days=?, cycle_start_date=?
+     WHERE id=?`,
+    [data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window,
+     c.frequency, c.days_of_week, c.day_of_month, c.cycle_on_days, c.cycle_off_days, c.cycle_start_date, data.ruleId]
   );
 }
 

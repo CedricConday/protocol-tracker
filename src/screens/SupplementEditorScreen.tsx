@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Pressable,
   Switch,
   Text,
   TextInput,
@@ -20,8 +21,10 @@ import {
   addSupplement,
   updateSupplementAndRule,
   deleteSupplement,
+  localDateStr,
 } from '../db/queries';
 import { t } from '../i18n';
+import { FREQUENCIES, parseDaysOfWeek, describeCadence } from '../engine/cadence';
 
 type SupRow = {
   id: string;
@@ -33,6 +36,12 @@ type SupRow = {
   with_food: number;
   tolerance_window: number;
   rule_id: number | null;
+  frequency: string;
+  days_of_week: string;
+  day_of_month: number;
+  cycle_on_days: number;
+  cycle_off_days: number;
+  cycle_start_date: string;
 };
 
 type FormState = {
@@ -43,6 +52,12 @@ type FormState = {
   offset_minutes: string;
   with_food: boolean;
   tolerance_window: string;
+  frequency: string;
+  days_of_week: string;
+  day_of_month: string;
+  cycle_on_days: string;
+  cycle_off_days: string;
+  cycle_start_date: string;
 };
 
 const BLANK: FormState = {
@@ -53,9 +68,124 @@ const BLANK: FormState = {
   offset_minutes: '0',
   with_food: false,
   tolerance_window: '30',
+  frequency: 'daily',
+  days_of_week: '',
+  day_of_month: '',
+  cycle_on_days: '',
+  cycle_off_days: '',
+  cycle_start_date: '',
 };
 
 const FORMS = ['capsule', 'tablet', 'powder', 'liquid'] as const;
+
+const FREQ_LABELS: Record<string, string> = {
+  'daily': 'Every day',
+  'specific-days': 'Certain days',
+  'day-of-month': 'Monthly',
+  'cycle': 'On / off cycle',
+  'as-needed': 'As needed',
+};
+
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/**
+ * Cadence picker. Only the sub-control the chosen frequency actually reads is
+ * shown — a weekday row under "Monthly" would be dead UI the user still has to
+ * reason about.
+ */
+function CadenceFields({ form, onChange }: { form: FormState; onChange: (f: FormState) => void }) {
+  const days = parseDaysOfWeek(form.days_of_week);
+  const toggleDay = (d: number) => {
+    const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d];
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onChange({ ...form, days_of_week: next.sort((a, b) => a - b).join(',') });
+  };
+
+  return (
+    <>
+      <Text style={styles.label}>{t('howOften')}</Text>
+      <View style={styles.chipRow}>
+        {FREQUENCIES.map((f) => (
+          <Pressable
+            key={f}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, frequency: f }); }}
+            style={[styles.chip, form.frequency === f && styles.chipActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: form.frequency === f }}
+            accessibilityLabel={FREQ_LABELS[f]}
+          >
+            <Text style={[styles.chipText, form.frequency === f && styles.chipTextActive]}>{FREQ_LABELS[f]}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {form.frequency === 'specific-days' && (
+        <View style={styles.dayRow}>
+          {WEEKDAYS.map((label, d) => (
+            <Pressable
+              key={d}
+              onPress={() => toggleDay(d)}
+              style={[styles.dayDot, days.includes(d) && styles.dayDotOn]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: days.includes(d) }}
+              accessibilityLabel={['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d]}
+            >
+              <Text style={[styles.dayDotText, days.includes(d) && styles.dayDotTextOn]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {form.frequency === 'day-of-month' && (
+        <View style={styles.row2}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.label}>{t('dayOfMonth')}</Text>
+            <TextInput
+              style={styles.input}
+              value={form.day_of_month}
+              onChangeText={(v) => onChange({ ...form, day_of_month: v })}
+              placeholder="1"
+              placeholderTextColor={C.textMuted}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ flex: 1 }} />
+        </View>
+      )}
+
+      {form.frequency === 'cycle' && (
+        <View style={styles.row2}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={styles.label}>{t('daysOn')}</Text>
+            <TextInput
+              style={styles.input}
+              value={form.cycle_on_days}
+              onChangeText={(v) => onChange({ ...form, cycle_on_days: v })}
+              placeholder="5"
+              placeholderTextColor={C.textMuted}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>{t('daysOff')}</Text>
+            <TextInput
+              style={styles.input}
+              value={form.cycle_off_days}
+              onChangeText={(v) => onChange({ ...form, cycle_off_days: v })}
+              placeholder="2"
+              placeholderTextColor={C.textMuted}
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+      )}
+
+      {form.frequency === 'as-needed' && (
+        <Text style={styles.cadenceNote}>{t('asNeededNote')}</Text>
+      )}
+    </>
+  );
+}
 
 function FormFields({
   form,
@@ -151,6 +281,8 @@ function FormFields({
           thumbColor="#ffffff"
         />
       </View>
+
+      <CadenceFields form={form} onChange={onChange} />
     </View>
   );
 }
@@ -182,6 +314,12 @@ export default function SupplementEditorScreen() {
         offset_minutes: String(row.offset_minutes),
         with_food: row.with_food === 1,
         tolerance_window: String(row.tolerance_window),
+        frequency: row.frequency || 'daily',
+        days_of_week: row.days_of_week || '',
+        day_of_month: row.day_of_month ? String(row.day_of_month) : '',
+        cycle_on_days: row.cycle_on_days ? String(row.cycle_on_days) : '',
+        cycle_off_days: row.cycle_off_days ? String(row.cycle_off_days) : '',
+        cycle_start_date: row.cycle_start_date || '',
       },
     }));
     setExpandedId(id);
@@ -203,6 +341,13 @@ export default function SupplementEditorScreen() {
         offset_minutes: parseInt(f.offset_minutes, 10) || 0,
         with_food: f.with_food,
         tolerance_window: parseInt(f.tolerance_window, 10) || 30,
+        frequency: f.frequency,
+        days_of_week: f.days_of_week,
+        day_of_month: parseInt(f.day_of_month, 10) || 0,
+        cycle_on_days: parseInt(f.cycle_on_days, 10) || 0,
+        cycle_off_days: parseInt(f.cycle_off_days, 10) || 0,
+        // A cycle counts from the day it was set up unless one is already stored.
+        cycle_start_date: f.cycle_start_date || localDateStr(new Date()),
       });
       await reload();
       setExpandedId(null);
@@ -242,6 +387,12 @@ export default function SupplementEditorScreen() {
         offset_minutes: parseInt(addForm.offset_minutes, 10) || 0,
         with_food: addForm.with_food,
         tolerance_window: parseInt(addForm.tolerance_window, 10) || 30,
+        frequency: addForm.frequency,
+        days_of_week: addForm.days_of_week,
+        day_of_month: parseInt(addForm.day_of_month, 10) || 0,
+        cycle_on_days: parseInt(addForm.cycle_on_days, 10) || 0,
+        cycle_off_days: parseInt(addForm.cycle_off_days, 10) || 0,
+        cycle_start_date: localDateStr(new Date()),
       });
       setAddForm(BLANK);
       setShowAddForm(false);
@@ -301,6 +452,11 @@ export default function SupplementEditorScreen() {
               ? `${row.dose_amount} ${row.dose_unit}`
               : row.dose_amount || '—';
             const timingLabel = row.offset_minutes === 0 ? 'At T0' : `T0 +${row.offset_minutes} min`;
+            // 'daily' is the overwhelming default — printing it on every row
+            // would bury the two that are not.
+            const cadenceLabel = row.frequency && row.frequency !== 'daily'
+              ? ` · ${describeCadence(row, t)}`
+              : '';
 
             return (
               <View key={row.id} style={styles.card}>
@@ -312,7 +468,7 @@ export default function SupplementEditorScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName}>{row.name}</Text>
                     <Text style={styles.cardSub}>
-                      {doseLabel} · {timingLabel}{row.with_food ? ' · with food' : ''}
+                      {doseLabel} · {timingLabel}{cadenceLabel}{row.with_food ? ' · with food' : ''}
                     </Text>
                   </View>
                   <Ionicons
@@ -422,6 +578,21 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: C.primaryBg, borderColor: C.primary },
   chipText: { fontSize: 13, color: C.textSub, fontWeight: '500' },
   chipTextActive: { color: C.primary, fontWeight: '600' },
+  dayRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 6 },
+  dayDot: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surface2,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  dayDotOn: { backgroundColor: C.primary, borderColor: C.primary },
+  dayDotText: { fontSize: 13, fontWeight: '600', color: C.textSub },
+  dayDotTextOn: { color: '#ffffff' },
+  cadenceNote: { marginTop: 10, fontSize: 13, lineHeight: 19, color: C.textMuted },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
