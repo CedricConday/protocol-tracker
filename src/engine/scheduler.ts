@@ -3,6 +3,7 @@ import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses 
 import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications, scheduleWaterReminders } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
 
+import { locale } from '../i18n';
 /**
  * Called when patient taps "Start My Day".
  * T=0 is the moment the first supplement goes in.
@@ -163,6 +164,6 @@ export function formatDoseTime(scheduledTime: Date): string {
   if (diffMin > 0 && diffMin < 60) return `In ${diffMin} min`;
   if (diffMin < 0 && diffMin > -60) return `${Math.abs(diffMin)} min ago`;
 
-  return scheduledTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return scheduledTime.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 import { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import { SUN_GOAL_FLAG } from './SunlightScreen';
 import { EXERCISE_GOAL_FLAG, DEFAULT_GOAL_MIN as DEFAULT_EXERCISE_GOAL_MIN } from './ExerciseScreen';
@@ -145,7 +145,7 @@ export default function SummaryScreen() {
         Sunlight: {
           value: `${sunMin} of ${sunGoal} min`,
           detail: sunEntries.length
-            ? `${plural(sunEntries.length, 'session', 'sessions')} · last ${new Date(sunEntries[0].logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            ? `${plural(sunEntries.length, 'session', 'sessions')} · last ${new Date(sunEntries[0].logged_at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
             : 'Nothing logged yet',
           progress: sunGoal > 0 ? Math.min(1, sunMin / sunGoal) : null,
         },

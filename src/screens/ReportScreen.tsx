@@ -9,7 +9,7 @@ import {
 import * as Sharing from 'expo-sharing';
 import { generateComplianceReport } from '../components/ComplianceReport';
 import { getProfile, getSupplementsWithRules } from '../db/queries';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 
 export default function ReportScreen() {
   useLanguage(); // re-render this screen when the language changes
@@ -28,7 +28,7 @@ export default function ReportScreen() {
         profile?.name ?? 'Patient',
         d3?.dose_amount ?? '—'
       );
-      setLastGenerated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastGenerated(new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }));
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
     } catch (e: any) {
       Alert.alert('Could not create the report', e?.message ?? 'Please try again.');

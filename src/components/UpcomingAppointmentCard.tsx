@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { MedicalEvent } from '../types';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 
 interface Props {
   event: MedicalEvent;
@@ -24,7 +24,7 @@ function daysAway(dateStr: string): number {
 
 function formatEventDate(dateStr: string, timeStr?: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  const day = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const day = d.toLocaleDateString(locale(), { weekday: 'long', month: 'long', day: 'numeric' });
   return timeStr ? `${day} · ${timeStr}` : day;
 }
 

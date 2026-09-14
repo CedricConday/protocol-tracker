@@ -10,6 +10,7 @@ import {
   localDateStr, setMiscFlag, todayStr, WATER_GOAL_FLAG,
 } from '../db/queries';
 
+import { locale } from '../i18n';
 /**
  * The Water screen (PT-trio round 3, C1).
  *
@@ -47,7 +48,7 @@ function formatMl(ml: number): string {
 }
 
 function formatClock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function WaterScreen() {

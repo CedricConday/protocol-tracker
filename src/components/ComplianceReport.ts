@@ -1,6 +1,7 @@
 import * as Print from 'expo-print';
 import { getDaySummary, getStreak, getRelapseEvents, todayStr, localDateStr } from '../db/queries';
 
+import { locale } from '../i18n';
 function getBoxColor(pct: number, total: number): string {
   if (total === 0) return '#2a2a2a';
   if (pct >= 80) return '#22c55e';
@@ -78,7 +79,7 @@ export async function generateComplianceReport(
       <h1>the Protocol — Compliance Report</h1>
       <div class="sub">
         <p>Patient: ${patientName} | D3 Dose: ${d3Dose} IU</p>
-        <p>Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p>Generated: ${new Date().toLocaleDateString(locale(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
       <h2 style="color:#22c55e;font-size:16px">30-Day Compliance Calendar</h2>

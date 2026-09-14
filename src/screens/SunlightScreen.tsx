@@ -10,6 +10,7 @@ import {
   getSunEntries, getSunHistory, getTodaySunLog, logSunExposure, setMiscFlag, todayStr,
 } from '../db/queries';
 
+import { t, useLanguage, locale } from '../i18n';
 /**
  * The Sunlight screen.
  *
@@ -40,7 +41,7 @@ type Entry = { id: number; minutes: number; logged_at: number };
 type HistoryDay = { date: string; minutes: number; notes: string; entries: number };
 
 function formatClock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDay(iso: string, today: string): string {
@@ -48,10 +49,11 @@ function formatDay(iso: string, today: string): string {
   // Parsed at midday so a timezone offset cannot roll the label onto the
   // neighbouring day — the same trap the day-key work chased through the app.
   const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 export default function SunlightScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [loading, setLoading] = useState(true);
   const [minutes, setMinutes] = useState(0);
   const [notes, setNotes] = useState('');
@@ -100,7 +102,7 @@ export default function SunlightScreen() {
   const handleRemove = async (entry: Entry) => {
     const removed = await deleteSunEntry(entry.id);
     if (!removed) {
-      Alert.alert('Already gone', 'That session is no longer there.');
+      Alert.alert(t('trkAlreadyGone'), t('sunGoneSub'));
       await load();
       return;
     }
@@ -163,8 +165,8 @@ export default function SunlightScreen() {
   const handleClear = () => {
     if (minutes === 0 && savedNotes === '' && entries.length === 0) return;
     Alert.alert(
-      'Clear today’s sun?',
-      'This removes every session logged today, along with the note.',
+      t('sunClearConfirm'),
+      t('sunClearConfirmSub'),
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -192,13 +194,13 @@ export default function SunlightScreen() {
       <SunTracker sunMinutes={minutes} onLog={handleLog} goalMin={goalMin} />
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daily goal</Text>
+        <Text style={styles.sectionTitle}>{t('trkDailyGoal')}</Text>
         <View style={styles.goalRow}>
           <TouchableOpacity
             style={styles.goalBtn}
             onPress={() => nudgeGoal(-GOAL_STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Lower the daily sunlight goal"
+            accessibilityLabel={t('sunGoalDown')}
           >
             <Text style={styles.goalBtnText}>−</Text>
           </TouchableOpacity>
@@ -212,7 +214,7 @@ export default function SunlightScreen() {
               onSubmitEditing={commitGoal}
               keyboardType="number-pad"
               autoFocus
-              accessibilityLabel="Daily sunlight goal in minutes"
+              accessibilityLabel={t('sunGoalField')}
             />
           ) : (
             <TouchableOpacity
@@ -229,7 +231,7 @@ export default function SunlightScreen() {
             style={styles.goalBtn}
             onPress={() => nudgeGoal(GOAL_STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Raise the daily sunlight goal"
+            accessibilityLabel={t('sunGoalUp')}
           >
             <Text style={styles.goalBtnText}>+</Text>
           </TouchableOpacity>
@@ -238,12 +240,12 @@ export default function SunlightScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today&apos;s sessions</Text>
+          <Text style={styles.sectionTitle}>{t('trkTodaysSessions')}</Text>
           <Text style={styles.sectionCount}>{entries.length}</Text>
         </View>
 
         {entries.length === 0 ? (
-          <Text style={styles.empty}>Nothing logged yet today.</Text>
+          <Text style={styles.empty}>{t('trkNothingToday')}</Text>
         ) : (
           entries.map((entry) => (
             <View key={entry.id} style={styles.entryRow}>
@@ -277,7 +279,7 @@ export default function SunlightScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove the ${entry.minutes} minute session logged at ${formatClock(entry.logged_at)}`}
               >
-                <Text style={styles.removeBtnText}>Remove</Text>
+                <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
               </TouchableOpacity>
             </View>
           ))
@@ -285,7 +287,7 @@ export default function SunlightScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Correct today&apos;s total</Text>
+        <Text style={styles.sectionTitle}>{t('sunCorrectTotal')}</Text>
         <Text style={styles.sectionBody}>
           This sets the day outright and replaces its sessions with one entry. Use it when
           the number is wrong — to remove a single session, use Remove above.
@@ -300,7 +302,7 @@ export default function SunlightScreen() {
               onSubmitEditing={commitCorrection}
               keyboardType="number-pad"
               autoFocus
-              accessibilityLabel="Set today's sun minutes"
+              accessibilityLabel={t('sunSetTodayA11y')}
             />
           ) : (
             <TouchableOpacity
@@ -317,21 +319,21 @@ export default function SunlightScreen() {
             style={styles.clearBtn}
             onPress={handleClear}
             accessibilityRole="button"
-            accessibilityLabel="Clear today's sun log"
+            accessibilityLabel={t('sunClearTodayA11y')}
           >
-            <Text style={styles.clearBtnText}>Clear day</Text>
+            <Text style={styles.clearBtnText}>{t('sunClearDay')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Note</Text>
+        <Text style={styles.sectionTitle}>{t('trkNote')}</Text>
         <TextInput
           style={styles.noteField}
           value={notes}
           onChangeText={setNotes}
           onBlur={commitNotes}
-          placeholder="Where, what the weather was, anything worth remembering"
+          placeholder={t('sunNotePlaceholder')}
           placeholderTextColor="#9AA3B2"
           multiline
           accessibilityLabel="Note about today's sun exposure"
@@ -345,7 +347,7 @@ export default function SunlightScreen() {
         </View>
 
         {history.length === 0 ? (
-          <Text style={styles.empty}>No sun logged yet.</Text>
+          <Text style={styles.empty}>{t('sunNoneYet')}</Text>
         ) : (
           history.map((h) => (
             <View key={h.date} style={styles.histRow}>
@@ -366,7 +368,7 @@ export default function SunlightScreen() {
           ))
         )}
         {history.some((h) => h.notes) ? (
-          <Text style={styles.note}>Days with a note keep it; open the day to read it.</Text>
+          <Text style={styles.note}>{t('sunNoteKept')}</Text>
         ) : null}
       </View>
     </ScrollView>

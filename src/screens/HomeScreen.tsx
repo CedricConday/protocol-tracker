@@ -24,6 +24,7 @@ import DoseRow from '../components/DoseRow';
 import StartDayButton from '../components/StartDayButton';
 import UpcomingAppointmentCard from '../components/UpcomingAppointmentCard';
 import { MEDICAL_DISCLAIMER } from '../config/links';
+import { t, useLanguage, locale } from '../i18n';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule } from '../engine/scheduler';
@@ -35,7 +36,9 @@ import type { ScheduledDose, MedicalEvent } from '../types';
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date): string {
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  // locale(), not a hardcoded 'en-US': in German this has to read
+  // "Sonntag, 14. September", which is a different order, not a translation.
+  return d.toLocaleDateString(locale(), { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 // ─── Progress Header Card ────────────────────────────────────────────────────
@@ -57,11 +60,11 @@ function ProgressHeader({ t0, doses }: ProgressHeaderProps) {
        <Text style={headerStyles.dateText}>{today}</Text>
        <View style={{ height: 12 }} />
        {allDone ? (
-         <Text style={[headerStyles.celebrationText, { fontSize: 18 }]}>All doses done! ✓</Text>
+         <Text style={[headerStyles.celebrationText, { fontSize: 18 }]}>{t('homeAllDosesDone')}</Text>
        ) : (
          <View style={headerStyles.summaryRow}>
            <Text style={headerStyles.summaryCount}>{taken}</Text>
-           <Text style={headerStyles.summaryOf}> of {total} doses</Text>
+           <Text style={headerStyles.summaryOf}> {t('homeDosesOf', { total })}</Text>
          </View>
        )}
      </View>
@@ -168,6 +171,7 @@ const headerStyles = StyleSheet.create({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation<any>();
   const {
     t0, setT0, dayLoaded, doses, setDoses, firstMealTime, setFirstMealTimeState,
@@ -234,15 +238,15 @@ export default function HomeScreen() {
      } catch (error: any) {
        if (error.message === 'BEDTIME_GATE') {
          Alert.alert(
-           'Too late to start',
-           "The last dose of the day would land after your bedtime. Start again tomorrow morning.",
+           t('startTooLate'),
+           t('startTooLateSub'),
            [{ text: 'OK', style: 'cancel' }]
          );
        } else {
          console.error('Error starting day:', error);
          Alert.alert(
-           'Error',
-           'Failed to start the day. Please try again.',
+           t('errorTitle'),
+           t('startFailed'),
            [{ text: 'OK', style: 'cancel' }]
          );
        }
@@ -261,7 +265,7 @@ export default function HomeScreen() {
 
   const handleLogMeal = async () => {
     const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = now.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
     await setFirstMealTime(todayStr(), timeStr);
     setFirstMealTimeState(timeStr);
     setShowMealPrompt(false);
@@ -271,7 +275,7 @@ export default function HomeScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       try {
         if (!dose.logId) {
-          Alert.alert('Error', 'Could not log dose. Please try again.');
+          Alert.alert(t('errorTitle'), t('logDoseFailed'));
           return;
         }
         {
@@ -287,7 +291,7 @@ export default function HomeScreen() {
         }
         await loadDay();
       } catch {
-        Alert.alert('Error', 'Could not log dose. Please try again.');
+        Alert.alert(t('errorTitle'), t('logDoseFailed'));
       } finally {
         setSelectedDose(null);
       }
@@ -301,7 +305,7 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       if (!dose.logId) {
-        Alert.alert('Error', 'Could not skip dose. Please try again.');
+        Alert.alert(t('errorTitle'), t('skipDoseFailed'));
         return;
       }
       {
@@ -313,7 +317,7 @@ export default function HomeScreen() {
       }
       await loadDay();
     } catch {
-      Alert.alert('Error', 'Could not log dose. Please try again.');
+      Alert.alert(t('errorTitle'), t('logDoseFailed'));
     } finally {
       setSelectedDose(null);
     }
@@ -380,7 +384,7 @@ export default function HomeScreen() {
           {renderHeader()}
           <WeatherCard />
           <Text style={styles.subtitle}>
-            {"Ready for today's doses?"}
+            {t('homeReadyPrompt')}
           </Text>
           <StartDayButton onPress={handleStartDay} loading={starting} />
         </View>
@@ -420,16 +424,16 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.reportReadyBanner}
             onPress={async () => {
-              await Sharing.shareAsync(reportReadyUri, { mimeType: 'application/pdf', dialogTitle: 'Weekly Protocol Report' });
+              await Sharing.shareAsync(reportReadyUri, { mimeType: 'application/pdf', dialogTitle: t('homeWeeklyReportTitle') });
               await AsyncStorage.removeItem('auto_report_ready_uri');
               setReportReadyUri(null);
             }}
             activeOpacity={0.8}
-            accessibilityLabel="Share weekly report"
+            accessibilityLabel={t('a11yShareWeekly')}
             accessibilityRole="button"
           >
             <Text style={styles.reportReadyText}>📄 Weekly report ready — tap to share</Text>
-            <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Dismiss report notification" accessibilityRole="button">
+            <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('a11yDismissReport')} accessibilityRole="button">
               <Text style={styles.reportReadyDismiss}>✕</Text>
             </TouchableOpacity>
           </TouchableOpacity>
@@ -443,8 +447,8 @@ export default function HomeScreen() {
 
         {showFatigueAlert ? (
           <View style={styles.fatigueBanner}>
-            <Text style={styles.fatigueBannerText} accessibilityLiveRegion="polite">You have logged some lower-mood days recently.</Text>
-            <TouchableOpacity onPress={() => setShowFatigueAlert(false)} accessibilityLabel="Dismiss fatigue alert" accessibilityRole="button">
+            <Text style={styles.fatigueBannerText} accessibilityLiveRegion="polite">{t('homeFatigueBanner')}</Text>
+            <TouchableOpacity onPress={() => setShowFatigueAlert(false)} accessibilityLabel={t('a11yDismissFatigue')} accessibilityRole="button">
               <Text style={styles.fatigueBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -457,7 +461,7 @@ export default function HomeScreen() {
               const week = new Date().toISOString().slice(0, 7);
               await AsyncStorage.setItem(`dismissed_reorder_${s.id}_${week}`, 'true');
               setLowStockSupps((prev) => prev.filter((x) => x.id !== s.id));
-            }} accessibilityLabel="Dismiss reorder reminder" accessibilityRole="button">
+            }} accessibilityLabel={t('a11yDismissReorder')} accessibilityRole="button">
               <Text style={styles.reorderBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -465,8 +469,8 @@ export default function HomeScreen() {
 
         {showEngagementNudge ? (
           <View style={styles.nudgeBanner}>
-            <Text style={styles.nudgeBannerText}>Welcome back. It looks like you have some unlogged days.</Text>
-            <TouchableOpacity onPress={() => setShowEngagementNudge(false)} accessibilityLabel="Dismiss engagement nudge" accessibilityRole="button">
+            <Text style={styles.nudgeBannerText}>{t('homeNudgeBanner')}</Text>
+            <TouchableOpacity onPress={() => setShowEngagementNudge(false)} accessibilityLabel={t('a11yDismissNudge')} accessibilityRole="button">
               <Text style={styles.nudgeBannerDismiss}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -474,7 +478,7 @@ export default function HomeScreen() {
 
         {insightText ? (
           <View style={styles.insightCard}>
-            <Text style={styles.insightLabel}>Protocol tip</Text>
+            <Text style={styles.insightLabel}>{t('homeProtocolTip')}</Text>
             <Text style={styles.insightText}>{insightText}</Text>
           </View>
         ) : null}
@@ -490,13 +494,13 @@ export default function HomeScreen() {
 
         {showFirstEntryWizard ? (
           <View style={styles.wizardCard}>
-            <Text style={styles.wizardTitle}>Your First Day Started</Text>
+            <Text style={styles.wizardTitle}>{t('homeWizardTitle')}</Text>
             <Text style={styles.wizardStep}>1 — Your T=0 anchor is now set. All supplements are scheduled from this moment.</Text>
             <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
             <Text style={styles.wizardStep}>3 — Track water, sunlight, exercise and food on the Trackers tab.</Text>
             <Text style={styles.wizardStep}>4 — History shows your compliance, streak and calendar.</Text>
-            <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel="Dismiss wizard, start using the app" accessibilityRole="button">
-              <Text style={styles.wizardBtnText}>Got it, let's start</Text>
+            <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel={t('a11yDismissWizard')} accessibilityRole="button">
+              <Text style={styles.wizardBtnText}>{t('homeWizardCta')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -506,7 +510,7 @@ export default function HomeScreen() {
         {doses.length > 0 ? (
           <>
             {doses.every((d) => d.status === 'taken') ? (
-              <Text style={styles.allDoneLabel}>All done ✓</Text>
+              <Text style={styles.allDoneLabel}>{t('homeAllDone')}</Text>
             ) : (
               // A single dose has nothing to collapse. The teaser read "0 more
               // doses today — tap to view all" over an empty stack, and the
@@ -530,7 +534,7 @@ export default function HomeScreen() {
                         setDosesExpanded(false);
                       }}
                       activeOpacity={0.7}
-                      accessibilityLabel="Collapse dose list"
+                      accessibilityLabel={t('a11yCollapseDoses')}
                       accessibilityRole="button"
                     >
                       <Text style={styles.collapseBtnText}>Collapse</Text>
@@ -549,7 +553,7 @@ export default function HomeScreen() {
                     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                     setDosesExpanded(true);
                   }}
-                  accessibilityLabel="Expand to see all doses"
+                  accessibilityLabel={t('a11yExpandDoses')}
                   accessibilityRole="button"
                 >
                   <View>
@@ -570,8 +574,8 @@ export default function HomeScreen() {
                         what." */}
                     <Text style={styles.stackLabel}>
                       {remainingDoses === 0
-                        ? `Tap to view today’s ${doses.length} doses`
-                        : `${remainingDoses} dose${remainingDoses !== 1 ? 's' : ''} left today — tap to view all`}
+                        ? t('homeTapToView', { count: doses.length })
+                        : t(remainingDoses === 1 ? 'homeDoseLeft' : 'homeDosesLeft', { count: remainingDoses })}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -581,8 +585,8 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.emptyDoses}>
             <Text style={styles.emptyDosesIcon}>💊</Text>
-            <Text style={styles.emptyDosesTitle}>No supplements scheduled</Text>
-            <Text style={styles.emptyDosesSub}>Go to Settings → Protocol to add your protocol supplements.</Text>
+            <Text style={styles.emptyDosesTitle}>{t('homeNoDoses')}</Text>
+            <Text style={styles.emptyDosesSub}>{t('homeNoDosesSub')}</Text>
         </View>
       )}
 
@@ -618,7 +622,7 @@ export default function HomeScreen() {
                 setMilestoneModalVisible(false);
               }}
               activeOpacity={0.8}
-              accessibilityLabel="Dismiss milestone notification"
+              accessibilityLabel={t('a11yDismissMilestone')}
               accessibilityRole="button"
             >
               <Text style={styles.modalButtonText}>Continue</Text>

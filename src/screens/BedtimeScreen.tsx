@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Pressable from '../components/Pressable';
 import { getProfile, updateProfile } from '../db/queries';
 import { getLatestStartTime } from '../engine/scheduler';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 import { C, space, radius, text as T } from '../theme';
 import { select as hSelect, success as hSuccess } from '../utils/haptics';
 
@@ -70,7 +70,7 @@ export default function BedtimeScreen() {
           <Text style={styles.heroValue}>{hhmm(hour, minute)}</Text>
           <Text style={styles.heroSub}>
             {cutoff
-              ? `Latest start for a full day: ${cutoff.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              ? `Latest start for a full day: ${cutoff.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
               : 'Set up your supplements to see the latest start time'}
           </Text>
         </View>

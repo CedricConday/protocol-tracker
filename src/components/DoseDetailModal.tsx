@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -48,15 +48,15 @@ export default function DoseDetailModal({
 
   if (!dose) return null;
 
-  const timeStr = dose.scheduledTime.toLocaleTimeString([], {
+  const timeStr = dose.scheduledTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const earliestStr = dose.earliestTime.toLocaleTimeString([], {
+  const earliestStr = dose.earliestTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const latestStr = dose.latestTime.toLocaleTimeString([], {
+  const latestStr = dose.latestTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   });

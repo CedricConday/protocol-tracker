@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import { getWeekSummary, getDaySummary, getAnchor } from '../db/queries';
 
+import { locale } from '../i18n';
 const LAST_REPORT_KEY = 'auto_report_last_week';
 
 function isoWeek(d: Date): string {
@@ -56,7 +57,7 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
 
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 6);
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmt = (d: Date) => d.toLocaleDateString(locale(), { month: 'short', day: 'numeric', year: 'numeric' });
 
   const html = `<html><body style="background:#0d0d0d;padding:24px;font-family:sans-serif">
     <h1 style="color:#22c55e;font-size:18px">Protocol Tracker — Weekly Report</h1>
