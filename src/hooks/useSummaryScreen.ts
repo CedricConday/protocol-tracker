@@ -5,6 +5,7 @@ import {
 } from '../db/queries';
 import type { DaySummary } from '../types';
 
+import { weekdaysShort } from '../i18n/dates';
 export function useSummaryScreen() {
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [weekData, setWeekData] = useState<{ date: string; compliancePct: number; totalDoses: number; waterMl: number }[]>([]);
@@ -33,7 +34,6 @@ export function useSummaryScreen() {
       setWeekData(enriched);
 
       const MOOD_SCORES: Record<string, number> = { '😄': 5, '🙂': 4, '😐': 3, '😔': 2, '😞': 1 };
-      const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const todayIdx = ((new Date().getDay() + 6) % 7);
       const journals = await getRecentJournalEntries(7);
       const moodData = [];
@@ -43,8 +43,8 @@ export function useSummaryScreen() {
         const dateStr = localDateStr(d);
         const entry = journals.find((j) => j.date === dateStr);
         const anchor = await getAnchor(dateStr);
-        moodData.push({ day: DAY3[(todayIdx - i + 7) % 7], score: entry ? (MOOD_SCORES[entry.mood] ?? null) : null });
-        waterData.push({ day: DAY3[(todayIdx - i + 7) % 7], ml: anchor?.water_ml ?? 0 });
+        moodData.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], score: entry ? (MOOD_SCORES[entry.mood] ?? null) : null });
+        waterData.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], ml: anchor?.water_ml ?? 0 });
       }
       setMoodWeek(moodData);
       setWaterWeek(waterData);

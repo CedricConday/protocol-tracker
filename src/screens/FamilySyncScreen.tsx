@@ -66,7 +66,7 @@ export default function FamilySyncScreen() {
   };
 
   const handleRemove = (id: number, name: string) => {
-    Alert.alert('Remove Family Member', `Remove ${name}?`, [
+    Alert.alert(t('famRemove'), `Remove ${name}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive', onPress: async () => {

@@ -169,7 +169,7 @@ export default function DoseDetailModal({
                 onPress={() => setShowSkipReasons(false)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel skipping this dose"
+                accessibilityLabel={t('doseCancelSkip')}
               >
                 <Text style={styles.cancelReasonText}>{t('cancel')}</Text>
               </TouchableOpacity>
@@ -208,7 +208,7 @@ export default function DoseDetailModal({
                 accessibilityRole="button"
                 accessibilityLabel={`Add a reason for skipping ${dose.supplementName}`}
               >
-                <Text style={styles.addReasonText}>Add a reason</Text>
+                <Text style={styles.addReasonText}>{t('doseAddReason')}</Text>
               </TouchableOpacity>
             </View>
           ) : isTaken ? (

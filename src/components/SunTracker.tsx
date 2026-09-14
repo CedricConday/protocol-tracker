@@ -59,7 +59,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
           style={styles.stepBtn}
           onPress={() => setBoth(amount - STEP)}
           activeOpacity={0.7}
-          accessibilityLabel="Decrease minutes"
+          accessibilityLabel={t('sunMinutesDown')}
           accessibilityRole="button"
         >
           <Text style={styles.stepBtnText}>−</Text>
@@ -75,7 +75,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
             keyboardType="number-pad"
             returnKeyType="done"
             onSubmitEditing={commitDraft}
-            accessibilityLabel="Minutes of sun to log"
+            accessibilityLabel={t('sunMinutesField')}
           />
           <Text style={styles.fieldUnit}>min</Text>
         </View>
@@ -84,7 +84,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
           style={styles.stepBtn}
           onPress={() => setBoth(amount + STEP)}
           activeOpacity={0.7}
-          accessibilityLabel="Increase minutes"
+          accessibilityLabel={t('sunMinutesUp')}
           accessibilityRole="button"
         >
           <Text style={styles.stepBtnText}>+</Text>

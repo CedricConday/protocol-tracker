@@ -11,6 +11,7 @@ import {
 } from '../db/queries';
 
 import { t, useLanguage, locale } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 /**
  * The Exercise screen (PT-trio round 3, C3).
  *
@@ -52,8 +53,6 @@ function formatDay(iso: string, today: string): string {
   // Midday so a timezone offset cannot roll the label onto the neighbouring day.
   return new Date(`${iso}T12:00:00`).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
-
-const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STEP = 5;
 const MIN_MINUTES = 5;
 const MAX_MINUTES = 600;
@@ -111,7 +110,7 @@ export default function ExerciseScreen() {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const day = await getTodayExercise(localDateStr(d));
-        days.push({ day: DAY3[(todayIdx - i + 7) % 7], minutes: day.totalMinutes });
+        days.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], minutes: day.totalMinutes });
       }
       setWeek(days);
     } catch (e) {

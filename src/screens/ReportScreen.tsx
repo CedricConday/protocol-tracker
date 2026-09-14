@@ -31,7 +31,7 @@ export default function ReportScreen() {
       setLastGenerated(new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }));
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
     } catch (e: any) {
-      Alert.alert('Could not create the report', e?.message ?? 'Please try again.');
+      Alert.alert(t('repFailed'), e?.message ?? 'Please try again.');
     } finally {
       setGenerating(false);
     }

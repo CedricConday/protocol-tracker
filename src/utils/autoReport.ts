@@ -3,6 +3,7 @@ import * as Print from 'expo-print';
 import { getWeekSummary, getDaySummary, getAnchor } from '../db/queries';
 
 import { locale } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 const LAST_REPORT_KEY = 'auto_report_last_week';
 
 function isoWeek(d: Date): string {
@@ -38,13 +39,11 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
       return { ...d, totalDoses: full.totalDoses, waterMl: anchor?.water_ml ?? 0 };
     }),
   );
-
-  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const todayIdx = ((now.getDay() + 6) % 7);
 
   const rows = enriched
     .map((d, i) => {
-      const dayName = DAYS[(todayIdx - 6 + i + 7) % 7];
+      const dayName = weekdaysShort()[(todayIdx - 6 + i + 7) % 7];
       const color = complianceColor(d.compliancePct);
       return `<tr style="border-bottom:1px solid #2a2a2a">
         <td style="padding:8px;color:#fff">${dayName}</td>

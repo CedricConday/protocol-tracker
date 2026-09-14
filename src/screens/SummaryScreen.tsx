@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { t, useLanguage, locale } from '../i18n';
+import { t, useLanguage, locale, plural } from '../i18n';
 import { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import { SUN_GOAL_FLAG } from './SunlightScreen';
 import { EXERCISE_GOAL_FLAG, DEFAULT_GOAL_MIN as DEFAULT_EXERCISE_GOAL_MIN } from './ExerciseScreen';
@@ -47,19 +47,21 @@ import {
 
 type Tracker = {
   route: 'Water' | 'Sunlight' | 'Exercise' | 'Food' | 'SupplementEditor' | 'Bedtime';
-  label: string;
-  sub: string;
+  labelKey: string;
+  subKey: string;
   icon: keyof typeof Ionicons.glyphMap;
   tint: string;
 };
 
+// Keys, not strings: this array is module scope, so literals would freeze the
+// language that happened to be active when the module was imported.
 const TRACKERS: Tracker[] = [
-  { route: 'SupplementEditor', label: 'Doses',       sub: 'Supplements, timing and order', icon: 'list-outline', tint: '#7A5BD6' },
-  { route: 'Water',    label: 'Water',    sub: 'Intake, goal and corrections', icon: 'water-outline',    tint: '#3B9AE1' },
-  { route: 'Sunlight', label: 'Sunlight', sub: 'Exposure minutes and history', icon: 'sunny-outline',    tint: '#E9A23C' },
-  { route: 'Exercise', label: 'Exercise', sub: 'Movement logged each day',     icon: 'walk-outline',     tint: '#2F8F5B' },
-  { route: 'Food',     label: 'Food',     sub: 'Meals and first-meal time',    icon: 'restaurant-outline', tint: '#A3623C' },
-  { route: 'Bedtime',  label: 'Bedtime',  sub: 'When the day closes',          icon: 'moon-outline',     tint: '#5B5BD6' },
+  { route: 'SupplementEditor', labelKey: 'doses',    subKey: 'sumDosesSub',    icon: 'list-outline',       tint: '#7A5BD6' },
+  { route: 'Water',    labelKey: 'water',    subKey: 'sumWaterSub',    icon: 'water-outline',      tint: '#3B9AE1' },
+  { route: 'Sunlight', labelKey: 'sunlight', subKey: 'sumSunSub',      icon: 'sunny-outline',      tint: '#E9A23C' },
+  { route: 'Exercise', labelKey: 'exercise', subKey: 'sumExerciseSub', icon: 'walk-outline',       tint: '#2F8F5B' },
+  { route: 'Food',     labelKey: 'food',     subKey: 'sumFoodSub',     icon: 'restaurant-outline', tint: '#A3623C' },
+  { route: 'Bedtime',  labelKey: 'navBedtime', subKey: 'sumBedtimeSub', icon: 'moon-outline',      tint: '#5B5BD6' },
 ];
 
 const GRID_GAP = 12;
@@ -132,49 +134,57 @@ export default function SummaryScreen() {
       const bedH = profile?.bedtime_hour ?? 22;
       const bedM = profile?.bedtime_minute ?? 0;
 
-      const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
       setToday({
         Water: {
-          value: `${waterMl} of ${goalMl} ml`,
+          value: t('sumOfUnit', { value: waterMl, goal: goalMl, unit: 'ml' }),
           detail: waterEntries.length
-            ? `${plural(waterEntries.length, 'entry', 'entries')} · ${Math.max(0, goalMl - waterMl)} ml to go`
-            : 'Nothing logged yet',
+            ? t('sumToGo', {
+                detail: plural(waterEntries.length, 'sumEntryOne', 'sumEntryOther'),
+                left: Math.max(0, goalMl - waterMl),
+              })
+            : t('sumNothingLogged'),
           progress: goalMl > 0 ? Math.min(1, waterMl / goalMl) : null,
         },
         Sunlight: {
-          value: `${sunMin} of ${sunGoal} min`,
+          value: t('sumOfUnit', { value: sunMin, goal: sunGoal, unit: t('unitMin') }),
           detail: sunEntries.length
-            ? `${plural(sunEntries.length, 'session', 'sessions')} · last ${new Date(sunEntries[0].logged_at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
-            : 'Nothing logged yet',
+            ? t('sumLastAt', {
+                detail: plural(sunEntries.length, 'sumSessionOne', 'sumSessionOther'),
+                time: new Date(sunEntries[0].logged_at).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }),
+              })
+            : t('sumNothingLogged'),
           progress: sunGoal > 0 ? Math.min(1, sunMin / sunGoal) : null,
         },
         Exercise: {
-          value: `${exercise.totalMinutes} of ${exGoal} min`,
+          value: t('sumOfUnit', { value: exercise.totalMinutes, goal: exGoal, unit: t('unitMin') }),
           detail: exEntries.length
-            ? `${plural(exEntries.length, 'session', 'sessions')} · ${exEntries[0].type}, ${exEntries[0].intensity}`
-            : 'Nothing logged yet',
+            ? t('sumExerciseKind', {
+                detail: plural(exEntries.length, 'sumSessionOne', 'sumSessionOther'),
+                type: exEntries[0].type,
+                intensity: exEntries[0].intensity,
+              })
+            : t('sumNothingLogged'),
           progress: exGoal > 0 ? Math.min(1, exercise.totalMinutes / exGoal) : null,
         },
         Food: {
-          value: firstMeal ? `First meal ${firstMeal}` : 'First meal not set',
+          value: firstMeal ? t('sumFirstMeal', { time: firstMeal }) : t('sumFirstMealUnset'),
           detail: meals.length
-            ? `${plural(meals.length, 'meal', 'meals')} logged today`
-            : 'Dose timing keys off your first meal',
+            ? plural(meals.length, 'sumMealOne', 'sumMealOther')
+            : t('sumFirstMealHint'),
           progress: null,
         },
         SupplementEditor: {
           value: supplements.length
-            ? plural(supplements.length, 'supplement', 'supplements')
-            : 'Nothing set up yet',
+            ? plural(supplements.length, 'sumSupplementOne', 'sumSupplementOther')
+            : t('sumNothingSetUp'),
           detail: d3?.dose_amount?.trim()
-            ? `Daily D3 ${d3.dose_amount.trim()} ${d3.dose_unit.trim() || 'IU'}`
-            : 'Add, edit and reorder your doses',
+            ? t('sumDailyD3', { dose: d3.dose_amount.trim(), unit: d3.dose_unit.trim() || 'IU' })
+            : t('sumDosesHint'),
           progress: null,
         },
         Bedtime: {
           value: `${String(bedH).padStart(2, '0')}:${String(bedM).padStart(2, '0')}`,
-          detail: 'A day cannot be started after this time',
+          detail: t('sumBedtimeHint'),
           progress: null,
         },
       });
@@ -222,8 +232,8 @@ export default function SummaryScreen() {
               accessibilityRole="button"
               accessibilityLabel={
                 today[tracker.route].value
-                  ? `${tracker.label} tracker. Today: ${today[tracker.route].value}. ${today[tracker.route].detail}`
-                  : `${tracker.label} tracker. ${tracker.sub}`
+                  ? t('sumTrackerA11y', { label: t(tracker.labelKey), value: today[tracker.route].value, detail: today[tracker.route].detail })
+                  : t('sumTrackerA11yEmpty', { label: t(tracker.labelKey), sub: t(tracker.subKey) })
               }
             >
               <View style={styles.cardHead}>
@@ -237,7 +247,7 @@ export default function SummaryScreen() {
                   <Ionicons name={tracker.icon} size={compact ? 20 : 24} color={tracker.tint} />
                 </View>
                 <Text style={[styles.cardLabel, compact && styles.cardLabelCompact]} numberOfLines={2}>
-                  {tracker.label}
+                  {t(tracker.labelKey)}
                 </Text>
               </View>
               <View>
@@ -249,7 +259,7 @@ export default function SummaryScreen() {
                   ]}
                   numberOfLines={2}
                 >
-                  {today[tracker.route].value || tracker.sub}
+                  {today[tracker.route].value || t(tracker.subKey)}
                 </Text>
                 {/* The third line is the first thing to go when the row is short:
                     it is context, and the number above it is the point. */}

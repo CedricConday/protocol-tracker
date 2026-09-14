@@ -465,7 +465,7 @@ export default function SettingsScreen() {
               <View style={styles.group}>
                 <Row
                   icon="flask-outline"
-                  label="Load 60-day demo history"
+                  label={t('setLoadDemo')}
                   sub="Uses your own supplements · leaves today alone"
                   onPress={() => {
                     Alert.alert(
@@ -496,7 +496,7 @@ export default function SettingsScreen() {
                 />
                 <Row
                   icon="trash-outline"
-                  label="Clear the last 60 days"
+                  label={t('setClearDemo')}
                   sub="Removes history before today, keeps your protocol"
                   onPress={() => {
                     Alert.alert('Clear 60 days of history?', 'Removes every tracked day before today. Your profile, supplements and schedule stay.', [

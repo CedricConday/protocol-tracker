@@ -18,6 +18,7 @@ import { useScheduleScreen } from '../hooks';
 import type { ScheduledDose } from '../types';
 import EmptyState from '../components/EmptyState';
 
+import { t, useLanguage } from '../i18n';
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 interface DayCell { date: string; dayNumber: number; compliancePct: number; totalDoses: number; isToday: boolean; }
@@ -48,6 +49,7 @@ function isoWeek(date: Date): string {
 }
 
 export default function ScheduleScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation<any>();
   const {
     doses, refreshing, setRefreshing, loaded, showHighDoseAlert, setShowHighDoseAlert,
@@ -69,7 +71,7 @@ export default function ScheduleScreen() {
       }
       await loadSchedule();
     } catch {
-      Alert.alert('Error', 'Could not log dose. Please try again.');
+      Alert.alert(t('errorTitle'), t('logDoseFailed'));
     } finally {
       setSelectedDose(null);
     }
@@ -82,7 +84,7 @@ export default function ScheduleScreen() {
       }
       await loadSchedule();
     } catch {
-      Alert.alert('Error', 'Could not log dose. Please try again.');
+      Alert.alert(t('errorTitle'), t('logDoseFailed'));
     } finally {
       setSelectedDose(null);
     }
@@ -152,7 +154,7 @@ export default function ScheduleScreen() {
         {renderToggle()}
         <EmptyState
           icon="⏱"
-          title="No doses scheduled yet"
+          title={t('schNoDoses')}
           subtitle="Tap 'Start Day' on the Home tab to anchor your schedule and activate dose reminders."
         />
       </View>
@@ -179,7 +181,7 @@ export default function ScheduleScreen() {
           <Text style={styles.highDoseBannerText}>
             ⚠ High-dose D3 detected. Ensure adequate hydration (2.5L/day), low-calcium diet, and regular kidney function monitoring per the Protocol guidelines.
           </Text>
-          <Text style={styles.highDoseBannerDismiss}>Got it</Text>
+          <Text style={styles.highDoseBannerDismiss}>{t('schGotIt')}</Text>
         </TouchableOpacity>
       ) : null}
 

@@ -9,6 +9,7 @@ import {
 } from '../db/queries';
 
 import { t, useLanguage, locale } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 /**
  * The Food screen (PT-trio round 3, C4).
  *
@@ -40,8 +41,6 @@ import { t, useLanguage, locale } from '../i18n';
  * write is read back and a failure is said out loud instead. The fix is an
  * upsert in `src/db/**`, which is Build A's this round — filed as handoff H15.
  */
-
-const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const MEAL_TYPES = [
   { id: 'breakfast', label: 'Breakfast' },
@@ -108,7 +107,7 @@ export default function FoodScreen() {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        days.push({ day: DAY3[(todayIdx - i + 7) % 7], time: await getFirstMealTime(localDateStr(d)) });
+        days.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], time: await getFirstMealTime(localDateStr(d)) });
       }
       setWeek(days);
     } catch (e) {

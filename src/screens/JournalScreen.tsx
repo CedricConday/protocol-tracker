@@ -14,10 +14,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getDb } from '../db/schema';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, logRelapseEvent, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
 import type { JournalEntry } from '../types';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 import { useJournalScreen } from '../hooks';
 import EmptyState from '../components/EmptyState';
 
+import { weekdaysShortSundayFirst, shortDate } from '../i18n/dates';
 const MOODS = [
   { emoji: '😄', label: 'Great' },
   { emoji: '🙂', label: 'Good' },
@@ -26,7 +27,6 @@ const MOODS = [
   { emoji: '😞', label: 'Struggling' },
 ];
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // Absorbed from the former standalone RelapseScreen (event type -> accent color / label).
 const EVENT_TYPES = ['relapse', 'cortisone', 'symptom', 'pain'] as const;
@@ -51,13 +51,12 @@ const PAIN_SUBTYPES = [
 
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  return `${days[d.getDay()]} ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  return `${weekdaysShortSundayFirst()[d.getDay()]} ${shortDate(d)}`;
 }
 
 function formatEventDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function complianceBadgeColor(pct: number): string {
@@ -407,7 +406,7 @@ export default function JournalScreen() {
               </View>
               {hasFever === true ? (
                 <View style={styles.feverWarning}>
-                  <Text style={styles.feverWarningText}>Fever can mimic or mask a relapse. Contact your neurologist if symptoms persist beyond 48h after fever resolves.</Text>
+                  <Text style={styles.feverWarningText}>{t('jrnFeverWarning')}</Text>
                 </View>
               ) : null}
             </>
@@ -427,7 +426,7 @@ export default function JournalScreen() {
 
           <TouchableOpacity
             style={[styles.logButton, eventSubmitDisabled ? styles.logButtonDisabled : null]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLogEvent().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLogEvent().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('jrnSaveFailed'), e?.message ?? 'Please try again')); }}
             disabled={eventSubmitDisabled}
             activeOpacity={0.8}
           >
@@ -513,7 +512,7 @@ export default function JournalScreen() {
           styles.saveButton,
           (selectedMood === null) ? styles.saveButtonDisabled : null,
         ]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('jrnSaveFailed'), e?.message ?? 'Please try again')); }}
         disabled={selectedMood === null}
         activeOpacity={0.8}
         accessibilityLabel={saved ? 'Journal entry saved' : 'Save journal entry'}

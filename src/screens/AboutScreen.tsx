@@ -7,7 +7,9 @@ import {
 } from 'react-native';
 import * as Application from 'expo-application';
 
+import { t, useLanguage } from '../i18n';
 export default function AboutScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function AboutScreen() {
       </Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Features</Text>
+        <Text style={styles.sectionTitle}>{t('aboutKeyFeatures')}</Text>
         <View style={styles.featuresList}>
           <Text style={styles.featureItem}>• Supplement schedule with timing windows</Text>
           <Text style={styles.featureItem}>• Daily compliance tracking</Text>

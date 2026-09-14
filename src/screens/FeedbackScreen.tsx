@@ -17,7 +17,9 @@ import { useNavigation } from '@react-navigation/native';
 import { getDb } from '../db/schema';
 import { FEEDBACK_EMAIL } from '../config/links';
 
+import { t, useLanguage } from '../i18n';
 export default function FeedbackScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -25,7 +27,7 @@ export default function FeedbackScreen() {
 
   async function handleSubmit() {
     if (!message.trim()) {
-      Alert.alert('Message required', 'Please write something before submitting.');
+      Alert.alert(t('fbRequired'), t('fbRequiredBody'));
       return;
     }
     setSubmitting(true);
@@ -49,7 +51,7 @@ export default function FeedbackScreen() {
       }
       setDone(true);
     } catch (e) {
-      Alert.alert('Error', 'Could not save feedback. Please try again.');
+      Alert.alert(t('errorTitle'), t('fbSaveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -60,10 +62,10 @@ export default function FeedbackScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.doneWrap}>
           <Ionicons name="checkmark-circle" size={64} color="#2F8F5B" />
-          <Text style={styles.doneTitle}>Thank you!</Text>
-          <Text style={styles.doneSub}>Saved on your device. If your mail app opened, send the message to reach us.</Text>
+          <Text style={styles.doneTitle}>{t('fbThanks')}</Text>
+          <Text style={styles.doneSub}>{t('fbThanksBody')}</Text>
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Text style={styles.doneBtnText}>Back to Settings</Text>
+            <Text style={styles.doneBtnText}>{t('fbBack')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -86,7 +88,7 @@ export default function FeedbackScreen() {
           />
 
           <Text style={styles.privacyNote}>
-            Feedback is saved on your device. Sending opens your own mail app — nothing is transmitted until you press send there.
+            {t('fbNote')}
           </Text>
 
           <TouchableOpacity

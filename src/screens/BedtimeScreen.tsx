@@ -77,7 +77,7 @@ export default function BedtimeScreen() {
       </View>
 
       <Text style={styles.note}>
-        You cannot start a day after this time — the last doses would fall past it.
+        {t('bedGateNote')}
       </Text>
 
       <Text style={styles.label}>{t('hour')}</Text>

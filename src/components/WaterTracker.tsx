@@ -83,7 +83,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
           style={styles.stepBtn}
           onPress={() => setBoth(amount - STEP)}
           activeOpacity={0.7}
-          accessibilityLabel="Decrease amount"
+          accessibilityLabel={t('waterAmountDown')}
           accessibilityRole="button"
         >
           <Text style={styles.stepBtnText}>−</Text>
@@ -99,7 +99,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
             keyboardType="number-pad"
             returnKeyType="done"
             onSubmitEditing={commitDraft}
-            accessibilityLabel="Millilitres of water to log"
+            accessibilityLabel={t('waterAmountField')}
           />
           <Text style={styles.fieldUnit}>ml</Text>
         </View>
@@ -108,7 +108,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
           style={styles.stepBtn}
           onPress={() => setBoth(amount + STEP)}
           activeOpacity={0.7}
-          accessibilityLabel="Increase amount"
+          accessibilityLabel={t('waterAmountUp')}
           accessibilityRole="button"
         >
           <Text style={styles.stepBtnText}>+</Text>
