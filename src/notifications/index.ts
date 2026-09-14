@@ -7,6 +7,7 @@ import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName,
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
 import { isQuietAt } from './quietHours';
+import { t } from '../i18n';
 
 export { registerBackgroundTask };
 export * from './quietHours';
@@ -67,8 +68,8 @@ export const scheduleSupplementNotification = async (params: {
     }
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: `Time for your ${params.doseAmount} ${params.supplementName}, ${patientName}`,
-        body: params.notes ?? 'Stay on schedule.',
+        title: t('notifDoseTitle', { dose: params.doseAmount, supplement: params.supplementName, name: patientName }),
+        body: params.notes ?? t('notifDoseBody'),
         sound: true,
         categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },
@@ -104,7 +105,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
         continue;
       }
       const progress = await getWaterProgress();
-      const body = `${patientName}, 500ml now — you're at ${progress.waterMl}ml of ${progress.goalMl}ml`;
+      const body = t('notifWaterBody', { name: patientName, ml: progress.waterMl, goal: progress.goalMl });
       // The catch goes on at push time, not at the Promise.allSettled below:
       // getWaterProgress() yields on every pass, so a promise parked in this array
       // with no handler yet rejects into an unhandled rejection before the loop
@@ -112,7 +113,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
-            title: 'Water Reminder',
+            title: t('notifWaterTitle'),
             body,
             sound: true,
             data: { type: 'water' },
@@ -150,8 +151,8 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
     }
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Exercise Time',
-        body: `30 minutes walking — your Protocol exercise for today, ${patientName}`,
+        title: t('notifExerciseTitle'),
+        body: t('notifExerciseBody', { name: patientName }),
         sound: true,
         data: { type: 'exercise' },
       },
@@ -183,18 +184,18 @@ export const scheduleMorningReminder = async (): Promise<void> => {
 
     const avgTime = await getAverageStartTime();
     let body = avgTime
-      ? `${patientName}, you usually start around ${avgTime}. Ready?`
-      : `${patientName}, time to start your protocol day`;
+      ? t('notifMorningKnown', { name: patientName, time: avgTime })
+      : t('notifMorningUnknown', { name: patientName });
 
     const lowStock = await getLowStockSupplements();
     if (lowStock.length > 0) {
-      const lowNames = lowStock.map(s => `${s.name} (${s.stock_days} days)`).join(', ');
-      body += ` ⚠️ Running low: ${lowNames}`;
+      const lowNames = lowStock.map((s) => t('notifLowStockDays', { name: s.name, days: s.stock_days })).join(', ');
+      body += t('notifLowStock', { names: lowNames });
     }
 
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Start Your Day',
+        title: t('notifMorningTitle'),
         body,
         sound: true,
         data: { type: 'morning' },
@@ -222,8 +223,8 @@ export const scheduleMissedDoseAlert = async (supplementName: string, scheduledT
     }
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Missed Dose',
-        body: `${patientName} — ${supplementName} window is closing`,
+        title: t('notifMissedTitle'),
+        body: t('notifMissedBody', { name: patientName, supplement: supplementName }),
         sound: true,
         data: { type: 'missed', supplementName },
       },
@@ -250,8 +251,8 @@ export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
     }
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Daily Summary Ready',
-        body: `${patientName}, check your compliance for today in the Summary tab`,
+        title: t('notifSummaryTitle'),
+        body: t('notifSummaryBody', { name: patientName }),
         sound: true,
         data: { type: 'summary' },
       },
@@ -310,7 +311,7 @@ export const confirmDoseFromNotification = async (doseId: number): Promise<void>
       [now, doseId]
     );
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Dose confirmed', body: 'Marked as taken' },
+      content: { title: t('notifDoseConfirmed'), body: t('notifMarkedTaken') },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
     });
   } catch (e) {
