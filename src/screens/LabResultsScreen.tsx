@@ -15,7 +15,7 @@ import { enqueueAction } from '../db/actionQueue';
 import EmptyState from '../components/EmptyState';
 import { DISEASE_PROFILES, getProfileById, type DiseaseProfile } from '../data/diseaseProfiles';
 import { getMiscFlag, todayStr } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 interface LabResult {
   id: number;
@@ -61,6 +61,7 @@ const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: st
 };
 
 export default function LabResultsScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [results, setResults] = useState<LabResult[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);

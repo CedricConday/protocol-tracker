@@ -9,9 +9,10 @@ import {
 import * as Sharing from 'expo-sharing';
 import { generateComplianceReport } from '../components/ComplianceReport';
 import { getProfile, getSupplementsWithRules } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 export default function ReportScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [generating, setGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
 

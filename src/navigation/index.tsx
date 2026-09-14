@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
@@ -260,6 +260,7 @@ interface NavigationProps {
 }
 
 export default function Navigation({ onReady }: NavigationProps) {
+  useLanguage(); // re-render this screen when the language changes
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
   useEffect(() => {

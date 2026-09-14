@@ -21,7 +21,7 @@ import {
   updateSupplementAndRule,
   deleteSupplement,
 } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 type SupRow = {
   id: string;
@@ -156,6 +156,7 @@ function FormFields({
 }
 
 export default function SupplementEditorScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [supplements, setSupplements] = useState<SupRow[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);

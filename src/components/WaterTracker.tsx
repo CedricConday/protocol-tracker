@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 // The goal is context, not a ceiling. High-dose D3 protocols ask for intake well
 // above 2.5 L, and the old card swapped its button for a "goal reached" banner at
@@ -23,6 +23,7 @@ interface Props {
 }
 
 const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl = DEFAULT_GOAL_ML }: Props) {
+  useLanguage(); // memoised: without this the language switch never reaches it
   const [amount, setAmount] = useState(250);
   const [draft, setDraft] = useState('250');
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 // The goal is context, not a ceiling. Someone who spent two hours outside should be
 // able to say so; the old card swapped its buttons for a "goal reached" banner at
@@ -19,6 +19,7 @@ interface Props {
 }
 
 const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin = DEFAULT_SUN_GOAL_MIN }: Props) {
+  useLanguage(); // memoised: without this the language switch never reaches it
   const [amount, setAmount] = useState(20);
   const [draft, setDraft] = useState('20');
 

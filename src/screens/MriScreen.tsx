@@ -16,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { todayStr } from '../db/queries';
 
 interface MriScan {
@@ -60,6 +60,7 @@ async function readSecret(key: string): Promise<string | null> {
 }
 
 export default function MriScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [scans, setScans] = useState<MriScan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);

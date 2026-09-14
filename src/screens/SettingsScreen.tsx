@@ -21,7 +21,7 @@ import {
 } from '../db/queries';
 import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
 import Pressable from '../components/Pressable';
-import { t, setLanguage, getLanguage } from '../i18n';
+import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
 import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
@@ -129,6 +129,7 @@ type SavedFields = {
 };
 
 export default function SettingsScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [name, setName] = useState('');
   // Display only: the daily D3 dose is edited in SupplementEditor.
   const [d3, setD3] = useState<D3Display>(null);

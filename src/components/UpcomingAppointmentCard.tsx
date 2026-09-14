@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { MedicalEvent } from '../types';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 interface Props {
   event: MedicalEvent;
@@ -37,6 +37,7 @@ function awayLabel(days: number): string {
 }
 
 const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ event, onViewDetails }: Props) {
+  useLanguage(); // memoised: without this the language switch never reaches it
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;

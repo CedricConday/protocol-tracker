@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -43,6 +43,7 @@ export default function DoseDetailModal({
   onSkip,
   correctable = false,
 }: Props) {
+  useLanguage(); // re-render this screen when the language changes
   const [showSkipReasons, setShowSkipReasons] = useState(false);
 
   if (!dose) return null;

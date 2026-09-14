@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -16,6 +16,7 @@ interface Props {
 }
 
 export default function PermissionPrimingModal({ visible, onComplete, onSkip }: Props) {
+  useLanguage(); // re-render this screen when the language changes
   const [requesting, setRequesting] = useState(false);
 
   const handleAllow = async () => {

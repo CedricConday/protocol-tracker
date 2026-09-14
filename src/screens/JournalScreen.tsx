@@ -14,7 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getDb } from '../db/schema';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, logRelapseEvent, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
 import type { JournalEntry } from '../types';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { useJournalScreen } from '../hooks';
 import EmptyState from '../components/EmptyState';
 
@@ -67,6 +67,7 @@ function complianceBadgeColor(pct: number): string {
 }
 
 export default function JournalScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
     semanticSummary, weekMoods, events, loadData,

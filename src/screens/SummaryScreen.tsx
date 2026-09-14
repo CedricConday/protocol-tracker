@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import { SUN_GOAL_FLAG } from './SunlightScreen';
 import { EXERCISE_GOAL_FLAG, DEFAULT_GOAL_MIN as DEFAULT_EXERCISE_GOAL_MIN } from './ExerciseScreen';
@@ -90,6 +90,7 @@ const PENDING: TodayValues = {
 };
 
 export default function SummaryScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation<any>();
   const [today, setToday] = useState<TodayValues>(PENDING);
   // What one row actually gets, measured rather than assumed: three rows plus

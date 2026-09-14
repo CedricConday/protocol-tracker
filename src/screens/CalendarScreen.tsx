@@ -21,7 +21,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import { getProfileById } from '../data/diseaseProfiles';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -117,6 +117,7 @@ type Slot = { date: string; day: number } | null;
 const FORWARD_MONTHS = 12;
 
 export default function CalendarScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation<any>();
   const { summary, streak, loadData: loadCompliance } = useSummaryScreen();
   const [profileBlurb, setProfileBlurb] = useState<string | null>(null);

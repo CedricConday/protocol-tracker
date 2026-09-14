@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Pressable from '../components/Pressable';
 import { useAppReset } from '../context/AppResetContext';
 import { getDb } from '../db/schema';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { C, space, radius, text as T } from '../theme';
 
 /**
@@ -15,6 +15,7 @@ import { C, space, radius, text as T } from '../theme';
  * Both still confirm before they run, and both say plainly what they erase.
  */
 export default function AccountSettingsScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const resetToOnboarding = useAppReset();
 
   const handleResetAll = () => {

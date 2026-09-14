@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Pressable from '../components/Pressable';
 import { getProfile, updateProfile } from '../db/queries';
 import { getLatestStartTime } from '../engine/scheduler';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { C, space, radius, text as T } from '../theme';
 import { select as hSelect, success as hSuccess } from '../utils/haptics';
 
@@ -29,6 +29,7 @@ const hhmm = (h: number, m: number) =>
   `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
 export default function BedtimeScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [hour, setHour] = useState(22);
   const [minute, setMinute] = useState(0);
   const [saved, setSaved] = useState<{ hour: number; minute: number } | null>(null);
