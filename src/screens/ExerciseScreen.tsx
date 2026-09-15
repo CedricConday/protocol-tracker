@@ -10,6 +10,8 @@ import {
   getTodayExercise, localDateStr, logExercise, setMiscFlag, todayStr,
 } from '../db/queries';
 
+import { t, useLanguage, locale } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 /**
  * The Exercise screen (PT-trio round 3, C3).
  *
@@ -43,16 +45,14 @@ type Entry = { id: number; duration_minutes: number; type: string; intensity: st
 type HistoryDay = { date: string; total_minutes: number; entries: number };
 
 function formatClock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDay(iso: string, today: string): string {
   if (iso === today) return 'Today';
   // Midday so a timezone offset cannot roll the label onto the neighbouring day.
-  return new Date(`${iso}T12:00:00`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  return new Date(`${iso}T12:00:00`).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
-
-const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const STEP = 5;
 const MIN_MINUTES = 5;
 const MAX_MINUTES = 600;
@@ -73,6 +73,7 @@ const INTENSITIES = [
 ];
 
 export default function ExerciseScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState({ totalMinutes: 0, logged: false, type: 'walk', intensity: 'moderate' });
   const [week, setWeek] = useState<{ day: string; minutes: number }[]>([]);
@@ -109,7 +110,7 @@ export default function ExerciseScreen() {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const day = await getTodayExercise(localDateStr(d));
-        days.push({ day: DAY3[(todayIdx - i + 7) % 7], minutes: day.totalMinutes });
+        days.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], minutes: day.totalMinutes });
       }
       setWeek(days);
     } catch (e) {
@@ -199,7 +200,7 @@ export default function ExerciseScreen() {
         <View style={styles.cardHeader}>
           <View style={styles.labelRow}>
             <Ionicons name="walk-outline" size={18} color="#2F8F5B" />
-            <Text style={styles.cardLabel}>Today</Text>
+            <Text style={styles.cardLabel}>{t('trkToday')}</Text>
           </View>
           <Text style={styles.cardValue}>
             {today.totalMinutes}
@@ -214,13 +215,13 @@ export default function ExerciseScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daily goal</Text>
+        <Text style={styles.sectionTitle}>{t('trkDailyGoal')}</Text>
         <View style={styles.goalRow}>
           <TouchableOpacity
             style={styles.goalBtn}
             onPress={() => nudgeGoal(-GOAL_STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Lower the daily exercise goal"
+            accessibilityLabel={t('exGoalDown')}
           >
             <Text style={styles.goalBtnText}>−</Text>
           </TouchableOpacity>
@@ -234,7 +235,7 @@ export default function ExerciseScreen() {
               onSubmitEditing={commitGoal}
               keyboardType="number-pad"
               autoFocus
-              accessibilityLabel="Daily exercise goal in minutes"
+              accessibilityLabel={t('exGoalField')}
             />
           ) : (
             <TouchableOpacity
@@ -251,7 +252,7 @@ export default function ExerciseScreen() {
             style={styles.goalBtn}
             onPress={() => nudgeGoal(GOAL_STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Raise the daily exercise goal"
+            accessibilityLabel={t('exGoalUp')}
           >
             <Text style={styles.goalBtnText}>+</Text>
           </TouchableOpacity>
@@ -259,13 +260,13 @@ export default function ExerciseScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>How long</Text>
+        <Text style={styles.sectionTitle}>{t('exHowLong')}</Text>
         <View style={styles.stepperRow}>
           <TouchableOpacity
             style={styles.stepBtn}
             onPress={() => setBoth(minutes - STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Decrease minutes"
+            accessibilityLabel={t('exMinutesDown')}
           >
             <Text style={styles.stepBtnText}>−</Text>
           </TouchableOpacity>
@@ -278,7 +279,7 @@ export default function ExerciseScreen() {
               onBlur={commitDraft}
               onSubmitEditing={commitDraft}
               keyboardType="number-pad"
-              accessibilityLabel="Minutes of exercise to log"
+              accessibilityLabel={t('exMinutesField')}
             />
             <Text style={styles.fieldUnit}>min</Text>
           </View>
@@ -287,7 +288,7 @@ export default function ExerciseScreen() {
             style={styles.stepBtn}
             onPress={() => setBoth(minutes + STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Increase minutes"
+            accessibilityLabel={t('exMinutesUp')}
           >
             <Text style={styles.stepBtnText}>+</Text>
           </TouchableOpacity>
@@ -309,7 +310,7 @@ export default function ExerciseScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>What kind</Text>
+        <Text style={styles.sectionTitle}>{t('exWhatKind')}</Text>
         <View style={styles.chipRow}>
           {TYPES.map((entry) => (
             <TouchableOpacity
@@ -328,7 +329,7 @@ export default function ExerciseScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>How hard</Text>
+        <Text style={styles.sectionTitle}>{t('exHowHard')}</Text>
         <View style={styles.chipRow}>
           {INTENSITIES.map((entry) => (
             <TouchableOpacity
@@ -356,7 +357,7 @@ export default function ExerciseScreen() {
       </TouchableOpacity>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Last 7 days</Text>
+        <Text style={styles.sectionTitle}>{t('trkLast7')}</Text>
         <View style={styles.weekRow}>
           {week.map((w) => (
             <View key={w.day} style={styles.weekCol}>
@@ -377,12 +378,12 @@ export default function ExerciseScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today&apos;s sessions</Text>
+          <Text style={styles.sectionTitle}>{t('trkTodaysSessions')}</Text>
           <Text style={styles.sectionCount}>{entries.length}</Text>
         </View>
 
         {entries.length === 0 ? (
-          <Text style={styles.empty}>Nothing logged yet today.</Text>
+          <Text style={styles.empty}>{t('trkNothingToday')}</Text>
         ) : (
           entries.map((entry) => (
             <View key={entry.id} style={styles.entryRow}>
@@ -417,7 +418,7 @@ export default function ExerciseScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove the ${entry.duration_minutes} minute ${entry.type} logged at ${formatClock(entry.logged_at)}`}
               >
-                <Text style={styles.removeBtnText}>Remove</Text>
+                <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
               </TouchableOpacity>
             </View>
           ))
@@ -431,7 +432,7 @@ export default function ExerciseScreen() {
         </View>
 
         {history.length === 0 ? (
-          <Text style={styles.empty}>No exercise logged yet.</Text>
+          <Text style={styles.empty}>{t('exNoneYet')}</Text>
         ) : (
           history.map((h) => (
             <View key={h.date} style={styles.histRow}>

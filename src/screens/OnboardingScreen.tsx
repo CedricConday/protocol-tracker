@@ -21,6 +21,7 @@ import * as Notifications from 'expo-notifications';
 import { DISEASE_PROFILES } from '../data/diseaseProfiles';
 import SunMascot from '../components/SunMascot';
 
+import { t, useLanguage } from '../i18n';
 const { width } = Dimensions.get('window');
 
 interface Props {
@@ -34,37 +35,26 @@ const CONDITION_ICONS: Record<string, string> = {
 
 // The welcome beat lives on the startup screen (SplashAnimation), so onboarding
 // opens straight on the profile step.
+// Titles and bodies are keys, not strings: this array is evaluated once at
+// module load, so literals here would freeze whatever language was active then.
 const STEPS = [
-  {
-    title: 'Set Up Your Profile',
-    icon: '👤',
-    body: 'Your health data stays on your device. None of it reaches our servers — we do not run one.',
-  },
-  {
-    title: 'Your Condition',
-    icon: '🏥',
-    body: 'Select your condition so the app can show the most relevant lab markers and protocol information.',
-  },
-  {
-    title: 'Almost Ready',
-    icon: '🔔',
-    body: 'Enable notifications so you never miss a dose. You can change this later in Settings.',
-  },
+  { titleKey: 'obProfileTitle',   icon: '👤', bodyKey: 'obPrivacy' },
+  { titleKey: 'obConditionTitle', icon: '🏥', bodyKey: 'obConditionBody' },
+  { titleKey: 'obAlmostTitle',    icon: '🔔', bodyKey: 'obAlmostBody' },
 ];
 
 export default function OnboardingScreen({ onComplete }: Props) {
+  useLanguage(); // re-render this screen when the language changes
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [weight, setWeight] = useState('');
   const [d3Dose, setD3Dose] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const nameRef = useRef<TextInput>(null);
-  const weightRef = useRef<TextInput>(null);
   // What the last Next tap found missing. Empty until the user actually taps,
   // so the screen does not greet them with errors for fields they have not
   // reached yet.
-  const [hint, setHint] = useState<{ key: 'name' | 'weight' | 'condition'; label: string }[]>([]);
+  const [hint, setHint] = useState<{ key: 'name' | 'condition'; label: string }[]>([]);
   const d3Ref = useRef<TextInput>(null);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -95,7 +85,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
     } else {
       setSaving(true);
       try {
-        await createDefaultProfile(name.trim(), parseFloat(weight));
+        await createDefaultProfile(name.trim());
         if (d3Dose.trim()) {
           // The dose entered here becomes the user's first supplement, created
           // through the same path as Manage supplements. Nothing is pre-seeded:
@@ -140,16 +130,12 @@ export default function OnboardingScreen({ onComplete }: Props) {
    * shake, no message, no hint about which field was wanted. Reported from the
    * device as "stays greyed out", which is exactly what it looks like from the
    * outside — the user had filled in the only field the screen visibly asked
-   * for, and nothing marked weight as required.
+   * for, and nothing marked the field as required.
    */
-  const missingFields = (): { key: 'name' | 'weight' | 'condition'; label: string }[] => {
+  const missingFields = (): { key: 'name' | 'condition'; label: string }[] => {
     if (step === 0) {
-      const out: { key: 'name' | 'weight' | 'condition'; label: string }[] = [];
+      const out: { key: 'name' | 'condition'; label: string }[] = [];
       if (name.trim().length === 0) out.push({ key: 'name', label: 'your name' });
-      // A weight that is present but unreadable ("kg 70", a bare comma) is as
-      // blocking as an empty one and looks filled in, so it gets its own words.
-      if (weight.trim().length === 0) out.push({ key: 'weight', label: 'your weight' });
-      else if (isNaN(parseFloat(weight))) out.push({ key: 'weight', label: 'a weight we can read, like 70 or 70,5' });
       return out;
     }
     if (step === 1 && selectedProfile === null) return [{ key: 'condition', label: 'a condition' }];
@@ -165,7 +151,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
     const still = missingFields();
     if (still.length !== hint.length) setHint(still);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, weight, selectedProfile]);
+  }, [name, selectedProfile]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,7 +178,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               scroll while step 1 could, and with the iOS keyboard up
               KeyboardAvoidingView shrinks the area under it: the form then had
               nowhere to go, overflowed its page, and painted through the
-              footer — the Next button landing on top of the weight label, and
+              footer — the Next button landing on top of the dose label, and
               the footer's top border cutting across the form. The D3 field was
               unreachable at the same time. */}
           <ScrollView
@@ -202,43 +188,27 @@ export default function OnboardingScreen({ onComplete }: Props) {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.icon}><SunMascot size={72} /></View>
-            <Text style={styles.title}>Set Up Your Profile</Text>
-            <Text style={styles.body}>Your health data stays on your device. None of it reaches our servers — we do not run one.</Text>
+            <Text style={styles.title}>{t('obProfileTitle')}</Text>
+            <Text style={styles.body}>{t('obPrivacy')}</Text>
 
             <View style={styles.form}>
               <Text style={styles.inputLabel}>
-                What should we call you? <Text style={styles.required}>Required</Text>
+                {t('obNameLabel')} <Text style={styles.required}>{t('obRequired')}</Text>
               </Text>
               <TextInput
                 ref={nameRef}
                 style={[styles.input, hint.some((h) => h.key === 'name') && styles.inputError]}
-                placeholder="e.g. Alex"
+                placeholder={t('obNamePlaceholder')}
                 placeholderTextColor="#9AA3B2"
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
                 returnKeyType="next"
                 submitBehavior="submit"
-                onSubmitEditing={() => weightRef.current?.focus()}
+                onSubmitEditing={() => d3Ref.current?.focus()}
               />
                 <Text style={styles.inputLabel}>
-                  What&apos;s your weight? <Text style={styles.required}>Required</Text>
-                </Text>
-                <Text style={styles.inputHelp}>We use this to work out your D3 dose. A comma is fine — 70,5.</Text>
-                <TextInput
-                  ref={weightRef}
-                  style={[styles.input, hint.some((h) => h.key === 'weight') && styles.inputError]}
-                  placeholder="e.g. 70"
-                  placeholderTextColor="#9AA3B2"
-                  value={weight}
-                  onChangeText={setWeight}
-                  keyboardType="numeric"
-                  returnKeyType="next"
-                  submitBehavior="submit"
-                  onSubmitEditing={() => d3Ref.current?.focus()}
-                />
-                <Text style={styles.inputLabel}>
-                  Daily Vitamin D3 Dose (IU) <Text style={styles.optional}>Optional</Text>
+                  {t('obD3Label')} <Text style={styles.optional}>{t('obOptional')}</Text>
                 </Text>
                 <TextInput
                   ref={d3Ref}
@@ -252,7 +222,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 <Text style={styles.hint}>
-                  Enter the dose your doctor prescribed.
+                  {t('obD3Help')}
                 </Text>
             </View>
           </ScrollView>
@@ -341,7 +311,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               style={styles.backButton}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStep(step - 1); }}
               activeOpacity={0.7}
-              accessibilityLabel="Go back to previous step"
+              accessibilityLabel={t('obBack')}
               accessibilityRole="button"
             >
               <Text style={styles.backText}>Back</Text>
@@ -369,7 +339,6 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 setHint(missing);
                 if (missing[0].key === 'name') nameRef.current?.focus();
-                if (missing[0].key === 'weight') weightRef.current?.focus();
                 return;
               }
               setHint([]);
@@ -378,11 +347,11 @@ export default function OnboardingScreen({ onComplete }: Props) {
             }}
             disabled={saving}
             activeOpacity={0.8}
-            accessibilityLabel={saving ? 'Saving' : step < STEPS.length - 1 ? 'Continue' : "Let's begin"}
+            accessibilityLabel={saving ? t('obSaving') : step < STEPS.length - 1 ? t('obContinue') : t('obBegin')}
             accessibilityRole="button"
           >
             <Text style={styles.nextText}>
-              {saving ? 'Saving...' : step < STEPS.length - 1 ? 'Continue' : "Let's begin →"}
+              {saving ? t('obSavingEllipsis') : step < STEPS.length - 1 ? t('obContinue') : `${t('obBegin')} →`}
             </Text>
           </TouchableOpacity>
           </View>

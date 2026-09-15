@@ -11,7 +11,7 @@ import {
 import * as Sharing from 'expo-sharing';
 import { getDb } from '../db/schema';
 import { getMiscFlag, setMiscFlag } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -27,6 +27,7 @@ interface FamilyMember {
 }
 
 export default function FamilySyncScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [syncCode, setSyncCode] = useState('');
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +66,7 @@ export default function FamilySyncScreen() {
   };
 
   const handleRemove = (id: number, name: string) => {
-    Alert.alert('Remove Family Member', `Remove ${name}?`, [
+    Alert.alert(t('famRemove'), `Remove ${name}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove', style: 'destructive', onPress: async () => {

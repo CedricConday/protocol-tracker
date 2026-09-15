@@ -15,7 +15,7 @@ import { enqueueAction } from '../db/actionQueue';
 import EmptyState from '../components/EmptyState';
 import { DISEASE_PROFILES, getProfileById, type DiseaseProfile } from '../data/diseaseProfiles';
 import { getMiscFlag, todayStr } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 interface LabResult {
   id: number;
@@ -61,6 +61,7 @@ const MARKER_FIELDS: Record<string, { stateKey: string; dbCol: string; label: st
 };
 
 export default function LabResultsScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [results, setResults] = useState<LabResult[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -122,7 +123,7 @@ export default function LabResultsScreen() {
   };
 
   const handleDelete = (id: number) => {
-    Alert.alert('Delete result?', 'This cannot be undone.', [
+    Alert.alert(t('labDelete'), t('commonUndone'), [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -155,7 +156,7 @@ export default function LabResultsScreen() {
           numbers and see their own history below. */}
 
       {!showForm ? (
-        <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8} accessibilityLabel="Add lab result" accessibilityRole="button">
+        <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8} accessibilityLabel={t('labAdd')} accessibilityRole="button">
           <Text style={styles.addBtnText}>+ Add Lab Result</Text>
         </TouchableOpacity>
       ) : (
@@ -167,7 +168,7 @@ export default function LabResultsScreen() {
 
           {(!profile || profile.keyMarkers.includes('VitD')) && (
             <>
-              <Text style={styles.label}>Vit D 25-OH (ng/mL)</Text>
+              <Text style={styles.label}>{t('labVitD')}</Text>
               <TextInput style={styles.input} value={vitD} onChangeText={setVitD} keyboardType="decimal-pad" placeholder="e.g. 180" placeholderTextColor="#9AA3B2" />
             </>
           )}
@@ -234,7 +235,7 @@ export default function LabResultsScreen() {
             <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7} accessibilityLabel="Cancel" accessibilityRole="button">
               <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert('Save failed', e?.message ?? 'Please try again')); }} disabled={saving} activeOpacity={0.8} accessibilityLabel={saving ? 'Saving lab result' : 'Save lab result'} accessibilityRole="button">
+            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('labSaveFailed'), e?.message ?? 'Please try again')); }} disabled={saving} activeOpacity={0.8} accessibilityLabel={saving ? 'Saving lab result' : 'Save lab result'} accessibilityRole="button">
               <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
@@ -245,7 +246,7 @@ export default function LabResultsScreen() {
       {results.length >= 2 ? (
         <View style={styles.trendSection}>
           <Text style={styles.trendTitle}>Trends (last {Math.min(6, results.length)})</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }} accessible={true} accessibilityLabel="Lab result trend charts for Vitamin D, Calcium, PTH, and Urinary Calcium">
+          <View style={{ flexDirection: 'row', gap: 8 }} accessible={true} accessibilityLabel={t('labChartsA11y')}>
             {(['vit_d_ngml', 'calcium_serum_mgdl', 'pth_pgml', 'calcium_urine_mg_g_cr'] as const).map((field) => {
               const data = results.slice(0, 6).reverse();
               const values = data.map((r) => r[field]).filter((v): v is number => v !== null);

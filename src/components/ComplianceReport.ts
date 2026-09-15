@@ -1,6 +1,8 @@
 import * as Print from 'expo-print';
+import { t } from '../i18n';
 import { getDaySummary, getStreak, getRelapseEvents, todayStr, localDateStr } from '../db/queries';
 
+import { locale } from '../i18n';
 function getBoxColor(pct: number, total: number): string {
   if (total === 0) return '#2a2a2a';
   if (pct >= 80) return '#22c55e';
@@ -10,7 +12,6 @@ function getBoxColor(pct: number, total: number): string {
 
 export async function generateComplianceReport(
   patientName: string,
-  weightKg: number,
   d3Dose: string
 ): Promise<string> {
   const days: string[] = [];
@@ -44,7 +45,7 @@ export async function generateComplianceReport(
   const events = await getRelapseEvents();
 
   const relapseHtml = events.length > 0 ? `
-    <h2 style="color:#ef4444;font-size:16px;margin-top:24px">Relapse Events</h2>
+    <h2 style="color:#ef4444;font-size:16px;margin-top:24px">${t('pdfRelapses')}</h2>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <tr style="background:#1a1a1a;color:#fff">
         <th style="padding:8px;text-align:left">Date</th>
@@ -76,23 +77,23 @@ export async function generateComplianceReport(
       </style>
     </head>
     <body>
-      <h1>the Protocol — Compliance Report</h1>
+      <h1>${t('pdfTitle')}</h1>
       <div class="sub">
-        <p>Patient: ${patientName} | Weight: ${weightKg}kg | D3 Dose: ${d3Dose} IU</p>
-        <p>Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p>${t('pdfPatientLine', { name: patientName, dose: d3Dose })}</p>
+        <p>Generated: ${new Date().toLocaleDateString(locale(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
-      <h2 style="color:#22c55e;font-size:16px">30-Day Compliance Calendar</h2>
+      <h2 style="color:#22c55e;font-size:16px">${t('pdfCalendar')}</h2>
       <table style="width:100%;border-collapse:separate;border-spacing:3px">
         ${weeklyRows.join('')}
       </table>
 
-      <h2 style="color:#22c55e;font-size:16px;margin-top:24px">Stats</h2>
+      <h2 style="color:#22c55e;font-size:16px;margin-top:24px">${t('pdfStats')}</h2>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">Current Streak</td><td style="padding:8px;font-weight:700">${streak} days</td></tr>
-        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">Best Day Compliance</td><td style="padding:8px;font-weight:700">${bestDayPct}%</td></tr>
-        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">Total Doses Taken</td><td style="padding:8px;font-weight:700">${totalTaken}</td></tr>
-        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">Total Doses Missed</td><td style="padding:8px;font-weight:700">${totalMissed}</td></tr>
+        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">${t('pdfStreak')}</td><td style="padding:8px;font-weight:700">${t('pdfStreakDays', { days: streak })}</td></tr>
+        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">${t('pdfBestDay')}</td><td style="padding:8px;font-weight:700">${bestDayPct}%</td></tr>
+        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">${t('pdfTotalTaken')}</td><td style="padding:8px;font-weight:700">${totalTaken}</td></tr>
+        <tr style="border-bottom:1px solid #2a2a2a"><td style="padding:8px;color:#888">${t('pdfTotalMissed')}</td><td style="padding:8px;font-weight:700">${totalMissed}</td></tr>
       </table>
 
       ${relapseHtml}

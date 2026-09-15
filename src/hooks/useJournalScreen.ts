@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, todayStr, localDateStr } from '../db/queries';
 import type { JournalEntry, RelapseEvent } from '../types';
 
+import { weekdaysShort } from '../i18n/dates';
 export function useJournalScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState({ takenDoses: 0, totalDoses: 0 });
@@ -63,7 +64,6 @@ export function useJournalScreen() {
     setSemanticSummary(summary);
 
     const weekDays: { day: string; emoji: string | null; compliancePct: number }[] = [];
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const todayIdx = ((new Date().getDay() + 6) % 7);
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -72,7 +72,7 @@ export function useJournalScreen() {
       const entry = all.find((e) => e.date === dateStr);
       const summary = await getDaySummary(dateStr);
       weekDays.push({
-        day: dayNames[(todayIdx - i + 7) % 7],
+        day: weekdaysShort()[(todayIdx - i + 7) % 7],
         emoji: entry?.mood ?? null,
         compliancePct: summary.compliancePct,
       });

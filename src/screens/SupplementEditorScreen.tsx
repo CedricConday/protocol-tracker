@@ -23,7 +23,7 @@ import {
   deleteSupplement,
   localDateStr,
 } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { FREQUENCIES, parseDaysOfWeek, describeCadence } from '../engine/cadence';
 
 type SupRow = {
@@ -201,7 +201,7 @@ function FormFields({
         style={styles.input}
         value={form.name}
         onChangeText={(v) => onChange({ ...form, name: v })}
-        placeholder="e.g. Magnesium Glycinate"
+        placeholder={t('supPlaceholder')}
         placeholderTextColor={C.textMuted}
         autoCapitalize="words"
       />
@@ -288,6 +288,7 @@ function FormFields({
 }
 
 export default function SupplementEditorScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [supplements, setSupplements] = useState<SupRow[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -328,7 +329,7 @@ export default function SupplementEditorScreen() {
 
   const handleSave = async (row: SupRow) => {
     const f = editForms[row.id];
-    if (!f?.name.trim()) { Alert.alert('Name required', 'Please enter a supplement name.'); return; }
+    if (!f?.name.trim()) { Alert.alert(t('supNameRequired'), t('supNameBody')); return; }
     setSaving(row.id);
     try {
       await updateSupplementAndRule({
@@ -358,7 +359,7 @@ export default function SupplementEditorScreen() {
 
   const handleDelete = (row: SupRow) => {
     Alert.alert(
-      'Delete Supplement',
+      t('supDelete'),
       `Remove "${row.name}" and all its dose history? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -376,7 +377,7 @@ export default function SupplementEditorScreen() {
   };
 
   const handleAdd = async () => {
-    if (!addForm.name.trim()) { Alert.alert('Name required', 'Please enter a supplement name.'); return; }
+    if (!addForm.name.trim()) { Alert.alert(t('supNameRequired'), t('supNameBody')); return; }
     setSaving('__add__');
     try {
       await addSupplement({
@@ -430,7 +431,7 @@ export default function SupplementEditorScreen() {
                 disabled={saving === '__add__'}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Add supplement"
+                accessibilityLabel={t('supAdd')}
               >
                 <Text style={styles.saveBtnText}>{saving === '__add__' ? 'Saving…' : 'Add Supplement'}</Text>
               </TouchableOpacity>

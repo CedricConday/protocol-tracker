@@ -6,7 +6,7 @@ import {
   Text,
   TouchableOpacity,
 } from 'react-native';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 interface Props {
   onPress: () => void;
@@ -14,6 +14,7 @@ interface Props {
 }
 
 export default function StartDayButton({ onPress, loading }: Props) {
+  useLanguage(); // re-render this screen when the language changes
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

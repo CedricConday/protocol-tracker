@@ -22,16 +22,12 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import { getProfileById } from '../data/diseaseProfiles';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+import { weekdaysShortSundayFirst, weekdaysShort, monthNames, longDate } from '../i18n/dates';
 
 // Monday-first, matching the PWA calendar.
-const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 
 // Monday-first offset for the 1st of the month (0 = Monday … 6 = Sunday).
 function mondayOffset(year: number, month: number): number {
@@ -102,7 +98,7 @@ function fmtMl(ml: number): string {
 
 function formatFullDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  return `${WEEKDAYS[d.getDay()]}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  return longDate(d);
 }
 function fmtTime(ts: number | null): string {
   if (!ts) return '';
@@ -131,6 +127,7 @@ type Slot = { date: string; day: number } | null;
 const FORWARD_MONTHS = 12;
 
 export default function CalendarScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation<any>();
   const { summary, streak, loadData: loadCompliance } = useSummaryScreen();
   const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
@@ -210,7 +207,7 @@ export default function CalendarScreen() {
     try {
       await confirmDose(dose.logId);
     } catch {
-      Alert.alert('Error', 'Could not update this dose. Please try again.');
+      Alert.alert(t('errorTitle'), t('calDoseFailed'));
     }
     await afterCorrection();
   }, [afterCorrection]);
@@ -222,7 +219,7 @@ export default function CalendarScreen() {
       if (reason) await skipDoseWithReason(dose.logId, reason);
       else await skipDose(dose.logId);
     } catch {
-      Alert.alert('Error', 'Could not update this dose. Please try again.');
+      Alert.alert(t('errorTitle'), t('calDoseFailed'));
     }
     await afterCorrection();
   }, [afterCorrection]);
@@ -272,17 +269,17 @@ export default function CalendarScreen() {
             c.eventCount > 0 ? `${c.eventCount} event(s)` : '',
             c.hasJournal ? 'journal' : '',
           ].filter(Boolean).join(' · ');
-          return `<tr><td style="border:1px solid #333;padding:8px">${WEEKDAYS[d.getDay()]} ${c.date}</td><td style="border:1px solid #333;padding:8px">${bits}</td></tr>`;
+          return `<tr><td style="border:1px solid #333;padding:8px">${weekdaysShortSundayFirst()[d.getDay()]} ${c.date}</td><td style="border:1px solid #333;padding:8px">${bits}</td></tr>`;
         })
         .join('');
       const html = `<html><body style="background:#F7F7F2;color:#14213D;font-family:sans-serif;padding:20px">
-        <h1 style="color:#1B58B8">${MONTH_NAMES[viewMonth]} ${viewYear}</h1>
+        <h1 style="color:#1B58B8">${monthNames()[viewMonth]} ${viewYear}</h1>
         <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows || `<tr><td>${t('noDataThisMonth')}</td></tr>`}</tbody></table>
         </body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, { mimeType: 'text/html' });
     } catch (e) {
-      Alert.alert('Share Failed', e instanceof Error ? e.message : 'Unknown error');
+      Alert.alert(t('calShareFailed'), e instanceof Error ? e.message : 'Unknown error');
     }
   };
 
@@ -295,28 +292,28 @@ export default function CalendarScreen() {
     >
       <View style={styles.headerRow}>
         <Text style={styles.heading}>{t('history')}</Text>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8} accessibilityLabel="Share this month" accessibilityRole="button">
+        <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8} accessibilityLabel={t('calShareMonth')} accessibilityRole="button">
           <Text style={styles.shareButtonText}>{t('share')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Month navigation + summary */}
       <View style={styles.monthNav}>
-        <TouchableOpacity onPress={() => shiftMonth(-1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Previous month" accessibilityRole="button">
+        <TouchableOpacity onPress={() => shiftMonth(-1)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('calPrevMonth')} accessibilityRole="button">
           <Text style={styles.navArrow}>‹</Text>
         </TouchableOpacity>
         <View style={styles.monthTitleWrap}>
-          <Text style={styles.monthTitle}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
+          <Text style={styles.monthTitle}>{monthNames()[viewMonth]} {viewYear}</Text>
           <Text style={styles.monthStats}>{monthStats}</Text>
         </View>
-        <TouchableOpacity onPress={() => shiftMonth(1)} disabled={!canGoNext} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Next month" accessibilityRole="button">
+        <TouchableOpacity onPress={() => shiftMonth(1)} disabled={!canGoNext} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel={t('calNextMonth')} accessibilityRole="button">
           <Text style={[styles.navArrow, !canGoNext && styles.navArrowDisabled]}>›</Text>
         </TouchableOpacity>
       </View>
 
       {/* Weekday header */}
       <View style={styles.weekHeader}>
-        {WEEKDAY_HEADERS.map((w) => (
+        {weekdaysShort().map((w) => (
           <Text key={w} style={styles.weekHeaderCell}>{w}</Text>
         ))}
       </View>
@@ -449,21 +446,21 @@ export default function CalendarScreen() {
           // navigator and its parents, never a sibling's nested stack, so the
           // bare form rendered a button that did nothing (H9, Build B).
           onPress={() => navigation.navigate('Summary', { screen: 'LabResults' })}
-          accessibilityLabel="Lab results"
+          accessibilityLabel={t('calLabCard')}
           accessibilityRole="button"
         >
-          <Text style={styles.medicalBtnLabel}>Lab Results</Text>
-          <Text style={styles.medicalBtnSub}>Vitamin D · PTH · calcium</Text>
+          <Text style={styles.medicalBtnLabel}>{t('calLabCard')}</Text>
+          <Text style={styles.medicalBtnSub}>{t('calLabCardSub')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.medicalBtn}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('Summary', { screen: 'MriTracker' })}
-          accessibilityLabel="MRI history"
+          accessibilityLabel={t('calMriCard')}
           accessibilityRole="button"
         >
-          <Text style={styles.medicalBtnLabel}>MRI History</Text>
-          <Text style={styles.medicalBtnSub}>Scans and findings</Text>
+          <Text style={styles.medicalBtnLabel}>{t('calMriCard')}</Text>
+          <Text style={styles.medicalBtnSub}>{t('calMriCardSub')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -471,7 +468,7 @@ export default function CalendarScreen() {
         style={styles.shareProgressBtn}
         activeOpacity={0.8}
         onPress={() => navigation.navigate('Summary', { screen: 'Report' })}
-        accessibilityLabel="Share your progress"
+        accessibilityLabel={t('calShareProgress')}
         accessibilityRole="button"
       >
         <Text style={styles.shareProgressBtnText}>{t('shareProgress')}</Text>
@@ -498,11 +495,11 @@ export default function CalendarScreen() {
           <View style={styles.modalCard}>
             <View style={styles.grabber} />
             <View style={styles.detailHeader}>
-              <TouchableOpacity onPress={() => stepDay(-1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Previous day" accessibilityRole="button">
+              <TouchableOpacity onPress={() => stepDay(-1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('calPrevDay')} accessibilityRole="button">
                 <Text style={styles.detailArrow}>‹</Text>
               </TouchableOpacity>
               <Text style={styles.detailDate}>{detailDate ? formatFullDate(detailDate) : ''}</Text>
-              <TouchableOpacity onPress={() => stepDay(1)} disabled={detailDate === null || detailDate >= today} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Next day" accessibilityRole="button">
+              <TouchableOpacity onPress={() => stepDay(1)} disabled={detailDate === null || detailDate >= today} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('calNextDay')} accessibilityRole="button">
                 <Text style={[styles.detailArrow, detailDate === today && styles.navArrowDisabled]}>›</Text>
               </TouchableOpacity>
             </View>

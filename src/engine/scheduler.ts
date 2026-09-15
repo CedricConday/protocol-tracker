@@ -4,21 +4,25 @@ import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningRemin
 import type { ScheduledDose, DoseStatus } from '../types';
 import { ruleFiresOn, cadenceOf } from './cadence';
 
+import { locale } from '../i18n';
 /**
  * Called when patient taps "Start My Day".
  * T=0 is the moment the first supplement goes in.
  * All dose times calculate forward from this anchor.
  */
 export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> {
-  // Bedtime gate check
+  // Bedtime gate check.
+  //
+  // The cutoff is bedtime MINUS the last supplement's offset, not bedtime
+  // itself: starting at 21:55 with a 22:00 bedtime and a +240 min last dose
+  // scheduled that dose for 01:55, well past the boundary this gate exists to
+  // protect. calculateBedtimeCutoff already did this arithmetic and had no
+  // caller. With no rules yet the offset is 0 and the cutoff is bedtime, which
+  // is the old behaviour.
   const profile = await getProfile();
   if (profile) {
-    const now = new Date();
-    const cutoffHour = profile.bedtime_hour ?? 22;
-    const cutoffMin = profile.bedtime_minute ?? 0;
-    const cutoff = new Date();
-    cutoff.setHours(cutoffHour, cutoffMin, 0, 0);
-    if (now >= cutoff) {
+    const cutoff = await getLatestStartTime();
+    if (cutoff && new Date() >= cutoff) {
       throw new Error('BEDTIME_GATE');
     }
   }
@@ -167,6 +171,6 @@ export function formatDoseTime(scheduledTime: Date): string {
   if (diffMin > 0 && diffMin < 60) return `In ${diffMin} min`;
   if (diffMin < 0 && diffMin > -60) return `${Math.abs(diffMin)} min ago`;
 
-  return scheduledTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return scheduledTime.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 

@@ -16,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { todayStr } from '../db/queries';
 
 interface MriScan {
@@ -60,6 +60,7 @@ async function readSecret(key: string): Promise<string | null> {
 }
 
 export default function MriScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [scans, setScans] = useState<MriScan[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -143,7 +144,7 @@ export default function MriScreen() {
   };
 
   const handleDelete = (id: number) => {
-    Alert.alert('Delete scan?', 'This cannot be undone.', [
+    Alert.alert(t('mriDeleteScan'), t('commonUndone'), [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -161,7 +162,7 @@ export default function MriScreen() {
   const handleCameraCapture = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to capture MRI reports.');
+      Alert.alert(t('mriPermTitle'), t('mriPermBody'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true });
@@ -175,8 +176,8 @@ export default function MriScreen() {
 
     if (!apiKey) {
       Alert.alert(
-        'AI key required',
-        'Go to Settings → Advanced → AI Workspace and add your API key to enable auto-fill.',
+        t('mriKeyTitle'),
+        t('mriKeyBody'),
       );
       return;
     }
@@ -195,11 +196,11 @@ export default function MriScreen() {
         }
         setShowForm(true);
       } else {
-        Alert.alert('Could not parse', 'The image could not be read automatically. Fill in the fields manually.');
+        Alert.alert(t('mriParseTitle'), t('mriParseBody'));
         setShowForm(true);
       }
     } catch {
-      Alert.alert('Scan failed', 'Could not connect to AI service. Fill in manually.');
+      Alert.alert(t('mriScanTitle'), t('mriScanBody'));
       setShowForm(true);
     } finally {
       setScanning(false);
@@ -307,7 +308,7 @@ export default function MriScreen() {
             style={styles.input}
             value={facility}
             onChangeText={setFacility}
-            placeholder="e.g. Bethel Bielefeld"
+            placeholder={t('mriCentre')}
             placeholderTextColor="#9AA3B2"
           />
 

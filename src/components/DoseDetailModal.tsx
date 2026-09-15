@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
-import { t } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -43,19 +43,20 @@ export default function DoseDetailModal({
   onSkip,
   correctable = false,
 }: Props) {
+  useLanguage(); // re-render this screen when the language changes
   const [showSkipReasons, setShowSkipReasons] = useState(false);
 
   if (!dose) return null;
 
-  const timeStr = dose.scheduledTime.toLocaleTimeString([], {
+  const timeStr = dose.scheduledTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const earliestStr = dose.earliestTime.toLocaleTimeString([], {
+  const earliestStr = dose.earliestTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const latestStr = dose.latestTime.toLocaleTimeString([], {
+  const latestStr = dose.latestTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -168,7 +169,7 @@ export default function DoseDetailModal({
                 onPress={() => setShowSkipReasons(false)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Cancel skipping this dose"
+                accessibilityLabel={t('doseCancelSkip')}
               >
                 <Text style={styles.cancelReasonText}>{t('cancel')}</Text>
               </TouchableOpacity>
@@ -207,7 +208,7 @@ export default function DoseDetailModal({
                 accessibilityRole="button"
                 accessibilityLabel={`Add a reason for skipping ${dose.supplementName}`}
               >
-                <Text style={styles.addReasonText}>Add a reason</Text>
+                <Text style={styles.addReasonText}>{t('doseAddReason')}</Text>
               </TouchableOpacity>
             </View>
           ) : isTaken ? (

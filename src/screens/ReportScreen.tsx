@@ -9,9 +9,10 @@ import {
 import * as Sharing from 'expo-sharing';
 import { generateComplianceReport } from '../components/ComplianceReport';
 import { getProfile, getSupplementsWithRules } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 
 export default function ReportScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [generating, setGenerating] = useState(false);
   const [lastGenerated, setLastGenerated] = useState<string | null>(null);
 
@@ -25,13 +26,12 @@ export default function ReportScreen() {
       const d3 = rows.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
       const uri = await generateComplianceReport(
         profile?.name ?? 'Patient',
-        70,   // weight is no longer collected; the report keeps its column shape
         d3?.dose_amount ?? '—'
       );
-      setLastGenerated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setLastGenerated(new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }));
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
     } catch (e: any) {
-      Alert.alert('Could not create the report', e?.message ?? 'Please try again.');
+      Alert.alert(t('repFailed'), e?.message ?? 'Please try again.');
     } finally {
       setGenerating(false);
     }

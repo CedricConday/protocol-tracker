@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAppReset } from '../context/AppResetContext';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,13 +19,13 @@ import {
   getProfile, updateProfile, getSupplementsWithRules,
   getMiscFlag, setMiscFlag, getWeatherEnabled, setWeatherEnabled,
 } from '../db/queries';
-import { getDb } from '../db/schema';
-import { SUPPORT_URL, MEDICAL_DISCLAIMER } from '../config/links';
+import { SUPPORT_URL, medicalDisclaimer } from '../config/links';
 import Pressable from '../components/Pressable';
-import { t, setLanguage, getLanguage } from '../i18n';
+import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
 import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
+import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
 
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -121,21 +120,19 @@ const NOTIF_TOPICS = ['supplements', 'water', 'exercise', 'morning_checkin', 'we
  *  there is anything to save. */
 type SavedFields = {
   name: string;
-  bedtimeHour: number;
-  bedtimeMinute: number;
   aiProvider: string;
   aiApiKey: string;
   notifPrefs: Record<string, boolean>;
+  quietOn: boolean;
   quietStart: string;
   quietEnd: string;
 };
 
 export default function SettingsScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [name, setName] = useState('');
   // Display only: the daily D3 dose is edited in SupplementEditor.
   const [d3, setD3] = useState<D3Display>(null);
-  const [bedtimeHour, setBedtimeHour] = useState(22);
-  const [bedtimeMinute, setBedtimeMinute] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('en');
@@ -146,8 +143,10 @@ export default function SettingsScreen() {
     supplements: true, water: true, exercise: true, morning_checkin: true, weekly_summary: true,
   });
   const [weatherOn, setWeatherOn] = useState(true);
-  const [quietStart, setQuietStart] = useState('22:00');
-  const [quietEnd, setQuietEnd] = useState('07:00');
+  // Opt-in: an install that never opens this panel notifies as it always did.
+  const [quietOn, setQuietOn] = useState(false);
+  const [quietStart, setQuietStart] = useState(DEFAULT_QUIET_START);
+  const [quietEnd, setQuietEnd] = useState(DEFAULT_QUIET_END);
   const [pulseDosing, setPulseDosing] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   // Set once the initial load finishes; null until then, which keeps the save
@@ -160,18 +159,13 @@ export default function SettingsScreen() {
   };
 
   const navigation = useNavigation<any>();
-  const resetToOnboarding = useAppReset();
 
   useEffect(() => {
     (async () => {
       const profile = await getProfile();
       const loadedName = profile ? profile.name : '';
-      const loadedBedtimeHour = profile?.bedtime_hour ?? 22;
-      const loadedBedtimeMinute = profile?.bedtime_minute ?? 0;
       if (profile) {
         setName(loadedName);
-        setBedtimeHour(loadedBedtimeHour);
-        setBedtimeMinute(loadedBedtimeMinute);
       }
       setD3(await readD3Display());
 
@@ -194,6 +188,8 @@ export default function SettingsScreen() {
       setWeatherOn(await getWeatherEnabled());
       const qe = await getMiscFlag('notif_quiet_end');
       if (qe) setQuietEnd(qe);
+      const qOn = await getMiscFlag(QUIET_ENABLED_FLAG);
+      setQuietOn(qOn === 'true');
       const pd = await getMiscFlag('pulse_dosing_enabled');
       if (pd) setPulseDosing(pd === 'true');
 
@@ -201,13 +197,12 @@ export default function SettingsScreen() {
       // footer can tell "nothing touched yet" from "unsaved edits".
       setBaseline({
         name: loadedName,
-        bedtimeHour: loadedBedtimeHour,
-        bedtimeMinute: loadedBedtimeMinute,
         aiProvider: savedAiProvider || 'groq',
         aiApiKey: savedAiApiKey || '',
         notifPrefs: loaded,
-        quietStart: qs || '22:00',
-        quietEnd: qe || '07:00',
+        quietOn: qOn === 'true',
+        quietStart: qs || DEFAULT_QUIET_START,
+        quietEnd: qe || DEFAULT_QUIET_END,
       });
     })();
   }, []);
@@ -223,21 +218,20 @@ export default function SettingsScreen() {
     try {
       await updateProfile({
         name: name.trim(),
-        bedtime_hour: bedtimeHour,
-        bedtime_minute: bedtimeMinute,
       });
       await AsyncStorage.setItem('ai_provider', aiProvider);
       await writeSecret('ai_api_key', aiApiKey || null);
       for (const [key, val] of Object.entries(notifPrefs)) {
         await setMiscFlag(`notif_pref_${key}`, val ? 'true' : 'false');
       }
+      await setMiscFlag(QUIET_ENABLED_FLAG, quietOn ? 'true' : 'false');
       await setMiscFlag('notif_quiet_start', quietStart);
       await setMiscFlag('notif_quiet_end', quietEnd);
       // Live values, not the trimmed copies written above — otherwise trailing
       // whitespace in a field would leave the footer stuck open after saving.
       setBaseline({
-        name, bedtimeHour, bedtimeMinute,
-        aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd,
+        name,
+        aiProvider, aiApiKey, notifPrefs, quietOn, quietStart, quietEnd,
       });
       setSaved(true);
       hSuccess();
@@ -247,78 +241,23 @@ export default function SettingsScreen() {
     } finally {
       setSaving(false);
     }
-  }, [name, bedtimeHour, bedtimeMinute, aiProvider, aiApiKey, notifPrefs, quietStart, quietEnd]);
+  }, [name, aiProvider, aiApiKey, notifPrefs, quietOn, quietStart, quietEnd]);
 
   const isDirty = useMemo(() => {
     if (!baseline) return false;
     return (
       name !== baseline.name ||
-      bedtimeHour !== baseline.bedtimeHour ||
-      bedtimeMinute !== baseline.bedtimeMinute ||
       aiProvider !== baseline.aiProvider ||
       aiApiKey !== baseline.aiApiKey ||
+      quietOn !== baseline.quietOn ||
       quietStart !== baseline.quietStart ||
       quietEnd !== baseline.quietEnd ||
       NOTIF_TOPICS.some((k) => (notifPrefs[k] ?? true) !== (baseline.notifPrefs[k] ?? true))
     );
   }, [
-    baseline, name, bedtimeHour, bedtimeMinute,
-    aiProvider, aiApiKey, quietStart, quietEnd, notifPrefs,
+    baseline, name,
+    aiProvider, aiApiKey, quietOn, quietStart, quietEnd, notifPrefs,
   ]);
-
-  const handleResetAll = () => {
-    Alert.alert(
-      'Reset tracking data',
-      'Clears dose logs, water, journal, exercise, meals. Your schedule and profile stay.\n\nThis cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset', style: 'destructive',
-          onPress: async () => {
-            const db = await getDb();
-            await db.withTransactionAsync(async () => {
-              await db.execAsync(`
-                DELETE FROM dose_logs; DELETE FROM water_logs; DELETE FROM daily_anchors;
-                DELETE FROM exercise_logs; DELETE FROM journal_entries; DELETE FROM sun_log;
-                DELETE FROM meal_log; DELETE FROM relapse_events; DELETE FROM calcium_logs;
-              `);
-            });
-            await AsyncStorage.multiRemove(['fatigue_alert_shown','last_care_survey_date','auto_report_last_week','review_prompted']);
-            Alert.alert('Done', 'Tracking data cleared.');
-          },
-        },
-      ],
-    );
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete account',
-      'Erases everything — profile, schedule, all logs. The app restarts at setup.\n\nThis cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete everything', style: 'destructive',
-          onPress: async () => {
-            const db = await getDb();
-            await db.withTransactionAsync(async () => {
-              await db.execAsync(`
-                DELETE FROM user_profile; DELETE FROM supplements; DELETE FROM schedule_rules;
-                DELETE FROM supplement_conflicts; DELETE FROM daily_anchors; DELETE FROM dose_logs;
-                DELETE FROM water_logs; DELETE FROM exercise_logs; DELETE FROM journal_entries;
-                DELETE FROM relapse_events; DELETE FROM sun_log; DELETE FROM meal_log;
-                DELETE FROM blood_test_reminders; DELETE FROM lab_results;
-                DELETE FROM mri_scans; DELETE FROM calcium_logs;
-              `);
-            });
-            await AsyncStorage.clear();
-            await writeSecret('ai_api_key', null);
-            resetToOnboarding();
-          },
-        },
-      ],
-    );
-  };
 
   const handleLanguageSwitch = async (lang: string) => {
     await setLanguage(lang);
@@ -329,9 +268,6 @@ export default function SettingsScreen() {
     if (!name.trim()) return '·';
     return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   }, [name]);
-
-  const BEDTIME_HOURS = [18, 19, 20, 21, 22, 23];
-  const BEDTIME_MINUTES = [0, 15, 30, 45];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -345,23 +281,32 @@ export default function SettingsScreen() {
 
           <Text style={styles.title}>{t('settings')}</Text>
 
-          {/* ── Profile Hero ──────────────────────────────────────────────── */}
-          <View style={styles.hero}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-            <View style={styles.heroInfo}>
-              <Text style={styles.heroName}>{name || 'Add your name'}</Text>
-              <Text style={styles.heroSub}>
-                {d3 ? `${d3.dose} ${d3.unit} D3 · daily` : 'Protocol not configured yet'}
-              </Text>
-            </View>
-            {pulseDosing ? <View style={styles.statusDot} /> : null}
-          </View>
-
-          {/* ── Protocol ──────────────────────────────────────────────────── */}
-          <Group label={t('protocolGroup')}>
-            <Row icon="person-outline" label={t('you')} sub={name ? name : 'Name, language'} onPress={() => toggleSection('profile')} />
+          {/* ── Profile Hero ──────────────────────────────────────────────
+              The old "You" row in the Protocol group edited the same name the
+              hero already displays, so its fields hang off the hero instead:
+              tap the card to open name and language. */}
+          <View style={styles.heroCard}>
+            <Pressable
+              onPress={() => toggleSection('profile')}
+              accessibilityLabel={t('you')} accessibilityRole="button"
+            >
+              <View style={styles.hero}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{initials}</Text>
+                </View>
+                <View style={styles.heroInfo}>
+                  <Text style={styles.heroName}>{name || 'Add your name'}</Text>
+                  <Text style={styles.heroSub}>
+                    {d3 ? `${d3.dose} ${d3.unit} D3 · daily` : 'Protocol not configured yet'}
+                  </Text>
+                </View>
+                {pulseDosing ? <View style={styles.statusDot} /> : null}
+                <Ionicons
+                  name={expandedSection === 'profile' ? 'chevron-up' : 'chevron-down'}
+                  size={16} color={C.textMuted} style={{ marginLeft: space.sm }}
+                />
+              </View>
+            </Pressable>
             <Expand open={expandedSection === 'profile'}>
               <Text style={styles.inputLabel}>{t('yourName')}</Text>
               <TextInput style={styles.input} placeholder="Alex" placeholderTextColor={C.textMuted} value={name} onChangeText={setName} autoCapitalize="words" />
@@ -379,78 +324,20 @@ export default function SettingsScreen() {
                 ))}
               </View>
             </Expand>
+          </View>
 
-            <Row icon="list-outline" label={t('manageSupplements')} sub={d3 ? `Daily D3 ${d3.dose} ${d3.unit} · add, edit, remove` : 'Set your daily D3 · add, edit, remove'} onPress={() => navigation.navigate('SupplementEditor')} />
+          {/* The Protocol group is gone as of 2026-09-14. Manage supplements
+              and Bedtime moved to the Trackers tab; Schedule & reminders,
+              Reminder tone, Family Sync and Caregiver mode were all removed at
+              Cedric's request. Caregiver went further — screen, route and Home
+              header deleted, to be its own app. ScheduleScreen, CoachingStyle
+              and FamilySync still exist as screens with no entry point. */}
 
-            {/* Entry points for screens that are registered in the navigator.
-                A route with no navigate() call anywhere is dead in the shipped
-                build — the app sets no linking config, so there is no URL to
-                reach it by either. If one of these features is meant to go, the
-                screen and its registration should go with it. */}
-            <Row icon="alarm-outline" label={t('scheduleReminders')} sub={t('doseTimesSub')} onPress={() => navigation.navigate('Schedule')} />
-
-            <Row icon="chatbubble-ellipses-outline" label={t('reminderTone')} sub={t('reminderToneSub')} onPress={() => navigation.navigate('CoachingStyle')} />
-
-            <Row
-              icon="people-outline"
-              label="Family Sync"
-              sub="Share your progress with family or a caregiver"
-              onPress={() => navigation.navigate('FamilySync')}
-            />
-
-            <Row
-              icon="heart-outline"
-              label={t('caregiverMode')}
-              sub={t('caregiverSub')}
-              onPress={() => navigation.navigate('Caregiver')}
-            />
-
-            <Row
-              icon="moon-outline" label={t('bedtime')}
-              sub={`${String(bedtimeHour).padStart(2, '0')}:${String(bedtimeMinute).padStart(2, '0')}`}
-              onPress={() => toggleSection('bedtime')}
-              last
-            />
-            <Expand open={expandedSection === 'bedtime'}>
-              <Text style={styles.miniLabel}>{t('hour')}</Text>
-              <View style={styles.chipWrap}>
-                {BEDTIME_HOURS.map((h) => (
-                  <Pressable
-                    key={h}
-                    style={[styles.chip, bedtimeHour === h && styles.chipActive]}
-                    onPress={() => setBedtimeHour(h)}
-                    accessibilityLabel={`Hour ${h}`} accessibilityRole="button"
-                  >
-                    <Text style={[styles.chipText, bedtimeHour === h && styles.chipTextActive]}>
-                      {String(h).padStart(2, '0')}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.miniLabel}>{t('minutes')}</Text>
-              <View style={styles.chipWrap}>
-                {BEDTIME_MINUTES.map((m) => (
-                  <Pressable
-                    key={m}
-                    style={[styles.chip, bedtimeMinute === m && styles.chipActive]}
-                    onPress={() => setBedtimeMinute(m)}
-                    accessibilityLabel={`Minute ${m}`} accessibilityRole="button"
-                  >
-                    <Text style={[styles.chipText, bedtimeMinute === m && styles.chipTextActive]}>
-                      :{String(m).padStart(2, '0')}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </Expand>
-          </Group>
-
-          {/* Sharing (Family sync, Caregiver) pulled from the menu 2026-09-10 to
-              keep Settings light. The screens and their routes are untouched —
-              re-expose them as a submenu when they are actually needed. */}
-
-          {/* ── App ───────────────────────────────────────────────────────── */}
-          <Group label={t('appGroup')}>
+          {/* ── App ──────────────────────────────────────────────────────
+              Unlabelled: with Protocol gone this is the first group on the
+              screen, and a caps heading over the only list reads as a section
+              of something larger than it is. */}
+          <Group>
             <Row icon="notifications-outline"     label={t('notifications')} sub={t('notificationsSub')} onPress={() => toggleSection('notif')} />
             <Expand open={expandedSection === 'notif'}>
               {[
@@ -470,12 +357,12 @@ export default function SettingsScreen() {
                 </View>
               ))}
               <View style={styles.notifRow}>
-                <Text style={styles.notifLabel}>Weather &amp; UV card</Text>
+                <Text style={styles.notifLabel}>{t('setWeatherCard')}</Text>
                 <Switch
                   value={weatherOn}
                   onValueChange={async (v) => { hSelect(); setWeatherOn(v); await setWeatherEnabled(v); }}
                   trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
-                  accessibilityLabel="Show the weather and UV card on Today"
+                  accessibilityLabel={t('setWeatherA11y')}
                 />
               </View>
               <Text style={styles.notifHint}>
@@ -484,16 +371,53 @@ export default function SettingsScreen() {
                 is sent.
               </Text>
 
-              <Text style={[styles.miniLabel, { marginTop: space.md }]}>{t('quietHours')}</Text>
-              <View style={styles.quietRow}>
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="22:00" placeholderTextColor={C.textMuted} value={quietStart} onChangeText={setQuietStart} autoCapitalize="none" />
-                <Text style={styles.quietSep}>to</Text>
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="07:00" placeholderTextColor={C.textMuted} value={quietEnd} onChangeText={setQuietEnd} autoCapitalize="none" />
+              <View style={[styles.notifRow, { marginTop: space.md }]}>
+                <Text style={styles.notifLabel}>{t('quietHours')}</Text>
+                <Switch
+                  value={quietOn}
+                  onValueChange={(v) => { hSelect(); setQuietOn(v); }}
+                  trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
+                  accessibilityLabel={t('setQuietA11y')}
+                />
               </View>
+              {quietOn ? (
+                <>
+                  <View style={styles.quietRow}>
+                    <TextInput style={[styles.input, { flex: 1 }]} placeholder={DEFAULT_QUIET_START} placeholderTextColor={C.textMuted} value={quietStart} onChangeText={setQuietStart} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
+                    <Text style={styles.quietSep}>to</Text>
+                    <TextInput style={[styles.input, { flex: 1 }]} placeholder={DEFAULT_QUIET_END} placeholderTextColor={C.textMuted} value={quietEnd} onChangeText={setQuietEnd} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
+                  </View>
+                  <Text style={styles.notifHint}>
+                    {parseHhMm(quietStart) === null || parseHhMm(quietEnd) === null
+                      ? 'Use 24-hour times like 22:00 and 07:00 — anything else is ignored and nothing is silenced.'
+                      : 'Reminders due in this window are not sent at all, rather than held until it ends. Doses still count as missed in your log.'}
+                  </Text>
+                </>
+              ) : null}
             </Expand>
-            <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert('Backup', 'Data export feature to be implemented')} />
+            <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert(t('setExportTitle'), t('setExportBody'))} />
             <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
-            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} last />
+            {/* Opens the community page in the system browser. Nothing is
+                collected in-app and nothing in the app unlocks from this —
+                Apple 3.2.2(iv) and 3.2.1(vii). Do not add a supporter tier. */}
+            <Row
+              icon="open-outline"
+              label={t('supportThisApp')}
+              sub={t('supportSub')}
+              onPress={() => {
+                if (!/^https?:\/\//.test(SUPPORT_URL)) {
+                  Alert.alert(t('setNotSetUp'), t('setNotSetUpSub'));
+                  return;
+                }
+                Linking.openURL(SUPPORT_URL).catch(() =>
+                  Alert.alert(t('setCouldNotOpen'), t('setCouldNotOpenSub')));
+              }}
+            />
+            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} />
+            <Row
+              icon="person-circle-outline" label={t('accountSettings')} sub={t('accountSettingsSub')}
+              onPress={() => navigation.navigate('AccountSettings')} last
+            />
           </Group>
 
           {/* ── Advanced ──────────────────────────────────────────────────
@@ -530,27 +454,6 @@ export default function SettingsScreen() {
             </Expand>
           </Group>
 
-          {/* ── Support ───────────────────────────────────────────────────
-              Opens the community page in the system browser. Nothing is
-              collected in-app and nothing in the app unlocks from this —
-              Apple 3.2.2(iv) and 3.2.1(vii). Do not add a supporter tier. */}
-          <Group label={t('supportGroup')}>
-            <Row
-              icon="open-outline"
-              label={t('supportThisApp')}
-              sub={t('supportSub')}
-              onPress={() => {
-                if (!/^https?:\/\//.test(SUPPORT_URL)) {
-                  Alert.alert('Not set up yet', 'The support link is still a placeholder.');
-                  return;
-                }
-                Linking.openURL(SUPPORT_URL).catch(() =>
-                  Alert.alert('Could not open', 'Please try again from your browser.'));
-              }}
-              last
-            />
-          </Group>
-
           {/* ── Developer ─────────────────────────────────────────────────
               __DEV__ only: never rendered in a release build. Backfills a
               plausible 60-day history against the schedule rules already on
@@ -562,7 +465,7 @@ export default function SettingsScreen() {
               <View style={styles.group}>
                 <Row
                   icon="flask-outline"
-                  label="Load 60-day demo history"
+                  label={t('setLoadDemo')}
                   sub="Uses your own supplements · leaves today alone"
                   onPress={() => {
                     Alert.alert(
@@ -593,7 +496,7 @@ export default function SettingsScreen() {
                 />
                 <Row
                   icon="trash-outline"
-                  label="Clear the last 60 days"
+                  label={t('setClearDemo')}
                   sub="Removes history before today, keeps your protocol"
                   onPress={() => {
                     Alert.alert('Clear 60 days of history?', 'Removes every tracked day before today. Your profile, supplements and schedule stay.', [
@@ -615,33 +518,9 @@ export default function SettingsScreen() {
             </>
           )}
 
-          <Text style={styles.disclaimer}>{MEDICAL_DISCLAIMER}</Text>
+          <Text style={styles.disclaimer}>{medicalDisclaimer()}</Text>
 
-          {/* ── Danger ────────────────────────────────────────────────────── */}
-          <Text style={[styles.groupLabel, { color: C.danger }]}>{t('dangerZone')}</Text>
-          <View style={[styles.group, styles.dangerGroup]}>
-            <Pressable onPress={handleResetAll} accessibilityLabel="Reset tracking data" accessibilityRole="button">
-              <View style={styles.dangerRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.dangerTitle}>{t('resetTracking')}</Text>
-                  <Text style={styles.dangerSub}>{t('resetTrackingSub')}</Text>
-                </View>
-                <Text style={styles.dangerCta}>{t('reset')}</Text>
-              </View>
-            </Pressable>
-            <View style={styles.dangerSep} />
-            <Pressable onPress={handleDeleteAccount} accessibilityLabel="Delete account" accessibilityRole="button">
-              <View style={styles.dangerRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.dangerTitle, { color: C.danger }]}>{t('deleteAccount')}</Text>
-                  <Text style={styles.dangerSub}>{t('deleteAccountSub')}</Text>
-                </View>
-                <Text style={[styles.dangerCta, { color: C.danger }]}>{t('delete')}</Text>
-              </View>
-            </Pressable>
-          </View>
-
-          <Text style={styles.version}>Protocol Tracker · v1.0.0 · © 2026</Text>
+          <Text style={styles.version}>{t('setVersionLine', { version: '1.0.0', year: 2026 })}</Text>
 
         </ScrollView>
 
@@ -675,13 +554,16 @@ const styles = StyleSheet.create({
   title: { ...T.display, color: C.text, marginBottom: space.lg },
 
   // Hero
-  hero: {
-    flexDirection: 'row', alignItems: 'center',
+  heroCard: {
     backgroundColor: '#fff',
     borderRadius: radius.xl,
-    padding: space.lg,
+    overflow: 'hidden',
     marginBottom: space.xl,
     ...shadow.medium,
+  },
+  hero: {
+    flexDirection: 'row', alignItems: 'center',
+    padding: space.lg,
   },
   avatar: {
     width: 56, height: 56, borderRadius: radius.pill,
@@ -762,17 +644,6 @@ const styles = StyleSheet.create({
   segmentText:      { ...T.body, color: C.textSub, fontWeight: '700' },
   segmentTextActive:{ color: C.primary },
 
-  // Chips
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: {
-    paddingHorizontal: space.md, paddingVertical: 10,
-    borderRadius: radius.md,
-    backgroundColor: C.surface,
-  },
-  chipActive:    { backgroundColor: C.primaryBg },
-  chipText:      { ...T.body, color: C.textSub, fontWeight: '600' },
-  chipTextActive:{ color: C.primary, fontWeight: '700' },
-
 
   // Notifications
   notifRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
@@ -781,17 +652,10 @@ const styles = StyleSheet.create({
   quietRow:  { flexDirection: 'row', gap: space.md, alignItems: 'center' },
   quietSep:  { ...T.body, color: C.textSub },
 
-  // Danger
-  dangerGroup: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#C0392B20' },
   disclaimer: {
     color: C.textMuted, fontSize: 12, lineHeight: 18,
     paddingHorizontal: space.md, marginTop: space.lg, marginBottom: space.md,
   },
-  dangerRow: { flexDirection: 'row', alignItems: 'center', padding: space.md, gap: space.sm },
-  dangerTitle: { ...T.body, color: C.text, fontWeight: '700' },
-  dangerSub:   { ...T.small, color: C.textSub, marginTop: 2 },
-  dangerCta:   { ...T.body, color: C.danger, fontWeight: '800' },
-  dangerSep:   { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginHorizontal: space.md },
 
   // Footer
   version: { ...T.small, color: C.textMuted, textAlign: 'center', marginTop: space.md, marginBottom: space.lg },

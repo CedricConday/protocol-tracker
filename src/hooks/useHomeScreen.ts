@@ -30,8 +30,6 @@ export function useHomeScreen(navigation: any) {
   const [exerciseIntensity, setExerciseIntensity] = useState('moderate');
   const [todayMeals, setTodayMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
   const [patientName, setPatientName] = useState('');
-  const [isCaregiver, setIsCaregiver] = useState(false);
-  const [caregiverPatientName, setCaregiverPatientName] = useState('');
   const [showFatigueAlert, setShowFatigueAlert] = useState(false);
   const [showSurveyPrompt, setShowSurveyPrompt] = useState(false);
   const [showMagnesiumHint, setShowMagnesiumHint] = useState(false);
@@ -87,10 +85,6 @@ export function useHomeScreen(navigation: any) {
     setLatestJournal(latest ? { mood: latest.mood, note: latest.note, date: latest.date } : null);
     const meals = await getTodayMeals(todayStr());
     setTodayMeals(meals);
-    const pt = await AsyncStorage.getItem('patient_type');
-    const caregiverName = await AsyncStorage.getItem('caregiver_patient_name');
-    setIsCaregiver(pt === 'caregiver');
-    if (caregiverName) setCaregiverPatientName(caregiverName);
   }, [navigation]);
 
   useEffect(() => {
@@ -190,7 +184,7 @@ export function useHomeScreen(navigation: any) {
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity,
     todayMeals, setTodayMeals,
-    patientName, isCaregiver, caregiverPatientName,
+    patientName,
     showFatigueAlert, setShowFatigueAlert,
     showSurveyPrompt, setShowSurveyPrompt,
     showMagnesiumHint, setShowMagnesiumHint,

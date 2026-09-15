@@ -8,6 +8,7 @@ import Navigation from './src/navigation';
 import { initDb, getDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
 import { runMigrations } from './src/db/migrations';
+import { getLanguage } from './src/i18n';
 import { loadPatientName, setupNotificationHandler, registerBackgroundTask } from './src/notifications';
 import { syncAll } from './src/api/syncClient';
 import { FontScaleProvider } from './src/context/FontScaleContext';
@@ -89,6 +90,12 @@ export default function App() {
         // SQLite; neither waits on the other, so they open in parallel.
         const [primed] = await Promise.all([
           readPrimingFlag(),
+          // The stored language, before the first screen paints. Without this
+          // `lang` sits at its 'en' default until something calls getLanguage()
+          // — which used to be Settings alone, so a German user's first launch
+          // came up in English, and any notification scheduled before they
+          // opened Settings was written in English too.
+          getLanguage().catch(() => 'en'),
           (async () => {
             const db = await getDb();
             await runMigrations(db);

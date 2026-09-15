@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
+import { t, useLanguage } from '../i18n';
 /**
  * The app's one startup screen.
  *
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export default function SplashAnimation({ children, onLayout }: Props) {
+  useLanguage(); // re-render when the language changes
   const captionAnim = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
 
@@ -58,7 +60,7 @@ export default function SplashAnimation({ children, onLayout }: Props) {
       />
       <Animated.View style={[styles.caption, { opacity: captionAnim }]}>
         <Text style={styles.appName}>Protocol Tracker</Text>
-        <Text style={styles.tagline}>Your protocol. Your pace.</Text>
+        <Text style={styles.tagline}>{t('splashTagline')}</Text>
         {children}
       </Animated.View>
     </View>

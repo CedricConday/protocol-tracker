@@ -14,12 +14,12 @@ export async function seedDb(): Promise<void> {
   );
 }
 
-export async function createDefaultProfile(name: string, weight_kg: number): Promise<void> {
+export async function createDefaultProfile(name: string): Promise<void> {
   const db = await getDb();
   const today = todayStr();
   await db.runAsync(
-    `INSERT OR REPLACE INTO user_profile (id, name, weight_kg, start_date, timezone, bedtime_hour, bedtime_minute)
-     VALUES (1, ?, ?, ?, 'Europe/Berlin', 22, 0)`,
-    [name, weight_kg, today]
+    `INSERT OR REPLACE INTO user_profile (id, name, start_date, timezone, bedtime_hour, bedtime_minute)
+     VALUES (1, ?, ?, 'Europe/Berlin', 22, 0)`,
+    [name, today]
   );
 }

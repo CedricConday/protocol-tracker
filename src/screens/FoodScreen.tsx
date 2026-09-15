@@ -8,6 +8,8 @@ import {
   getFirstMealTime, getTodayMeals, localDateStr, logMeal, setFirstMealTime, todayStr,
 } from '../db/queries';
 
+import { t, useLanguage, locale } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 /**
  * The Food screen (PT-trio round 3, C4).
  *
@@ -40,8 +42,6 @@ import {
  * upsert in `src/db/**`, which is Build A's this round — filed as handoff H15.
  */
 
-const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 const MEAL_TYPES = [
   { id: 'breakfast', label: 'Breakfast' },
   { id: 'lunch', label: 'Lunch' },
@@ -52,7 +52,7 @@ const MEAL_TYPES = [
 /** The one formatter. Both the button and the manual edit go through it, so the
  *  column never ends up holding "04:27 PM" on one day and "16:27" on the next. */
 function clockString(d: Date): string {
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 function clockNow(): string {
@@ -85,6 +85,7 @@ function normaliseTime(raw: string): string | null {
 }
 
 export default function FoodScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [loading, setLoading] = useState(true);
   const [firstMeal, setFirstMeal] = useState<string | null>(null);
   const [meals, setMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
@@ -106,7 +107,7 @@ export default function FoodScreen() {
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        days.push({ day: DAY3[(todayIdx - i + 7) % 7], time: await getFirstMealTime(localDateStr(d)) });
+        days.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], time: await getFirstMealTime(localDateStr(d)) });
       }
       setWeek(days);
     } catch (e) {
@@ -168,7 +169,7 @@ export default function FoodScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.cardLabel}>First meal today</Text>
+        <Text style={styles.cardLabel}>{t('foodFirstMeal')}</Text>
         {editing ? (
           <TextInput
             style={styles.cardField}
@@ -178,7 +179,7 @@ export default function FoodScreen() {
             onSubmitEditing={commitDraft}
             keyboardType="numbers-and-punctuation"
             autoFocus
-            accessibilityLabel="First meal time, 24 hour clock"
+            accessibilityLabel={t('foodTimeField')}
           />
         ) : (
           <TouchableOpacity
@@ -206,7 +207,7 @@ export default function FoodScreen() {
             style={styles.nowBtn}
             onPress={() => saveFirstMeal(clockNow())}
             accessibilityRole="button"
-            accessibilityLabel="Set the first meal time to now"
+            accessibilityLabel={t('foodSetNow')}
           >
             <Text style={styles.nowBtnText}>{firstMeal ? 'Set to now' : 'I just ate'}</Text>
           </TouchableOpacity>
@@ -214,7 +215,7 @@ export default function FoodScreen() {
 
         {writeFailed && (
           <View style={styles.failure}>
-            <Text style={styles.failureTitle}>That did not save.</Text>
+            <Text style={styles.failureTitle}>{t('foodSaveFailed')}</Text>
             <Text style={styles.failureBody}>
               Today has no anchor row yet, and the first-meal write cannot create one. Start
               the day on the Today tab — or log any water — and set the time again. Filed as
@@ -225,7 +226,7 @@ export default function FoodScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Log a meal</Text>
+        <Text style={styles.sectionTitle}>{t('foodLogMeal')}</Text>
         <View style={styles.chipRow}>
           {MEAL_TYPES.map((meal) => (
             <TouchableOpacity
@@ -247,11 +248,11 @@ export default function FoodScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today&apos;s meals</Text>
+          <Text style={styles.sectionTitle}>{t('foodTodaysMeals')}</Text>
           <Text style={styles.sectionCount}>{meals.length}</Text>
         </View>
         {meals.length === 0 ? (
-          <Text style={styles.empty}>Nothing logged yet today.</Text>
+          <Text style={styles.empty}>{t('trkNothingToday')}</Text>
         ) : (
           meals.map((meal) => (
             <View key={meal.id} style={styles.mealRow}>
@@ -265,7 +266,7 @@ export default function FoodScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>First meal, last 7 days</Text>
+        <Text style={styles.sectionTitle}>{t('foodFirstMeal7')}</Text>
         {week.map((w) => (
           <View key={w.day} style={styles.weekRow}>
             <Text style={styles.weekDay}>{w.day}</Text>

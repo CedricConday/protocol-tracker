@@ -7,11 +7,11 @@ import { StyleSheet, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
-import CaregiverScreen from '../screens/CaregiverScreen';
+import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CoachingStyleScreen from '../screens/CoachingStyleScreen';
 import FamilySyncScreen from '../screens/FamilySyncScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
@@ -25,6 +25,7 @@ import ReportScreen from '../screens/ReportScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
+import BedtimeScreen from '../screens/BedtimeScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import WaterScreen from '../screens/WaterScreen';
 import SunlightScreen from '../screens/SunlightScreen';
@@ -53,7 +54,7 @@ function HomeNavigator() {
       <HomeNav.Screen
         name="Calendar"
         component={CalendarScreen}
-        options={{ ...SUB_HEADER, title: 'History', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navHistory'), animation: 'slide_from_right' }}
       />
     </HomeNav.Navigator>
   );
@@ -76,18 +77,25 @@ function JournalNavigator() {
 }
 
 /**
- * The four tracker screens (PT-trio round 3, C5).
+ * The tracker screens (PT-trio round 3, C5).
+ *
+ * Six since 2026-09-14: Manage supplements and Bedtime moved here out of
+ * Settings, so everything a day is built from is on one tab.
  *
  * The route names were agreed before either round-2 lane started and registered
  * against a placeholder, so the Trackers tab has been navigable end to end since
  * the shell landed and this round only swapped `component`. Nothing else in this
  * file changed, which was the point of agreeing the names up front.
  */
-const TRACKER_ROUTES: { name: string; title: string; component: ComponentType<any> }[] = [
-  { name: 'Water', title: 'Water', component: WaterScreen },
-  { name: 'Sunlight', title: 'Sunlight', component: SunlightScreen },
-  { name: 'Exercise', title: 'Exercise', component: ExerciseScreen },
-  { name: 'Food', title: 'Food', component: FoodScreen },
+// `titleKey`, not `title`: this array is built once at module load, so a
+// literal here would be the language at import time and would never change.
+const TRACKER_ROUTES: { name: string; titleKey: string; component: ComponentType<any> }[] = [
+  { name: 'Water', titleKey: 'water', component: WaterScreen },
+  { name: 'Sunlight', titleKey: 'sunlight', component: SunlightScreen },
+  { name: 'Exercise', titleKey: 'exercise', component: ExerciseScreen },
+  { name: 'Food', titleKey: 'food', component: FoodScreen },
+  { name: 'SupplementEditor', titleKey: 'navManageSupplements', component: SupplementEditorScreen },
+  { name: 'Bedtime', titleKey: 'navBedtime', component: BedtimeScreen },
 ];
 
 function SummaryNavigator() {
@@ -97,24 +105,24 @@ function SummaryNavigator() {
       <SummaryNav.Screen
         name="Report"
         component={ReportScreen}
-        options={{ ...SUB_HEADER, title: 'Share with Doctor', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navShareWithDoctor'), animation: 'slide_from_right' }}
       />
       <SummaryNav.Screen
         name="MriTracker"
         component={MriScreen}
-        options={{ ...SUB_HEADER, title: 'MRI History', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navMriHistory'), animation: 'slide_from_right' }}
       />
       <SummaryNav.Screen
         name="LabResults"
         component={LabResultsScreen}
-        options={{ ...SUB_HEADER, title: 'Lab Results', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navLabResults'), animation: 'slide_from_right' }}
       />
       {TRACKER_ROUTES.map((route) => (
         <SummaryNav.Screen
           key={route.name}
           name={route.name}
           component={route.component}
-          options={{ ...SUB_HEADER, title: route.title, animation: 'slide_from_right' }}
+          options={{ ...SUB_HEADER, title: t(route.titleKey), animation: 'slide_from_right' }}
         />
       ))}
     </SummaryNav.Navigator>
@@ -126,39 +134,34 @@ function SettingsNavigator() {
     <SettingsNav.Navigator screenOptions={{ headerShown: false }}>
       <SettingsNav.Screen name="SettingsMain" component={SettingsScreen} />
       <SettingsNav.Screen
-        name="SupplementEditor"
-        component={SupplementEditorScreen}
-        options={{ ...SUB_HEADER, title: 'Manage Supplements', animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
         name="About"
         component={AboutScreen}
-        options={{ ...SUB_HEADER, title: 'About', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navAbout'), animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="AccountSettings"
+        component={AccountSettingsScreen}
+        options={{ ...SUB_HEADER, title: t('navAccountSettings'), animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Schedule"
         component={ScheduleScreen}
-        options={{ ...SUB_HEADER, title: 'Schedule & Reminders', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navSchedule'), animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="CoachingStyle"
         component={CoachingStyleScreen}
-        options={{ ...SUB_HEADER, title: 'Reminder Tone', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navReminderTone'), animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="FamilySync"
         component={FamilySyncScreen}
-        options={{ ...SUB_HEADER, title: 'Family Sync', animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
-        name="Caregiver"
-        component={CaregiverScreen}
-        options={{ ...SUB_HEADER, title: 'Caregiver', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navFamilySync'), animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Feedback"
         component={FeedbackScreen}
-        options={{ ...SUB_HEADER, title: 'Send Feedback', animation: 'slide_from_right' }}
+        options={{ ...SUB_HEADER, title: t('navSendFeedback'), animation: 'slide_from_right' }}
       />
     </SettingsNav.Navigator>
   );
@@ -194,7 +197,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Calendar"
         options={{
-          tabBarLabel: 'History',
+          tabBarLabel: t('navHistory'),
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       >
@@ -203,7 +206,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Journal"
         options={{
-          tabBarLabel: 'Journal',
+          tabBarLabel: t('journal'),
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="notebook-outline" size={size} color={color} />
           ),
@@ -214,7 +217,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Home"
         options={{
-          tabBarLabel: 'Today',
+          tabBarLabel: t('today'),
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
         }}
       >
@@ -237,7 +240,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Settings"
         options={{
-          tabBarLabel: 'Settings',
+          tabBarLabel: t('settings'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-sharp" size={size} color={color} />
           ),
@@ -259,6 +262,7 @@ interface NavigationProps {
 }
 
 export default function Navigation({ onReady }: NavigationProps) {
+  useLanguage(); // re-render this screen when the language changes
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
   useEffect(() => {

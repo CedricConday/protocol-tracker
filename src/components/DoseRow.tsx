@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScheduledDose } from '../types';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 const statusBorderColors: Record<string, string> = {
   taken:    '#2F8F5B',
@@ -17,6 +17,7 @@ interface Props {
 }
 
 const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
+  useLanguage(); // memoised: without this the language switch never reaches it
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const confirmScale = useRef(new Animated.Value(1)).current;
   const prevStatus = useRef(dose.status);

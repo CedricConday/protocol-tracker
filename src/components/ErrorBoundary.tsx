@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { t } from '../i18n';
 
 interface State { hasError: boolean; error: Error | null }
+// A class component, so it cannot subscribe to the language the way the rest
+// do. Deliberately left: it renders only after a crash has already taken the
+// screen down, where re-reading a language switch is not the problem.
 export class ErrorBoundary extends React.Component<React.PropsWithChildren, State> {
   state: State = { hasError: false, error: null };
   static getDerivedStateFromError(error: Error): State { return { hasError: true, error }; }

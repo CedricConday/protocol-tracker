@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Outbound links. Everything here opens in the system browser or mail client —
  * nothing is collected inside the app.
@@ -28,8 +29,14 @@ export const SUPPORT_URL = 'INSERT GOFUNDME HERE';
 /** Support address the Send Feedback screen hands to the user's mail app. */
 export const FEEDBACK_EMAIL = 'cedric@condaydigital.com';
 
-/** Shown wherever the app could be mistaken for giving medical guidance (Apple 1.4.1). */
-export const MEDICAL_DISCLAIMER =
-  'Protocol Tracker records what you enter. It does not give medical advice, ' +
-  'interpret your results, or recommend doses. Always talk to your doctor before ' +
-  'making any decision about your treatment.';
+/**
+ * Shown wherever the app could be mistaken for giving medical guidance
+ * (Apple 1.4.1). A function, not a constant: a constant is evaluated at import
+ * and would hold whichever language was active then — on the one string in the
+ * app that has to be right.
+ *
+ * THE GERMAN IS A WORKING TRANSLATION, NOT A REVIEWED ONE. It says what the
+ * English says, but this is the app's legal position and should be read by
+ * someone who writes German clinical copy before release.
+ */
+export const medicalDisclaimer = (): string => t('medicalDisclaimer');

@@ -10,6 +10,8 @@ import {
   localDateStr, setMiscFlag, todayStr, WATER_GOAL_FLAG,
 } from '../db/queries';
 
+import { locale, t, useLanguage } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 /**
  * The Water screen (PT-trio round 3, C1).
  *
@@ -34,8 +36,6 @@ import {
  */
 
 export { WATER_GOAL_FLAG };
-
-const DAY3 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const GOAL_STEP = 250;
 const GOAL_MIN = 250;
 const GOAL_MAX = 10000;
@@ -47,10 +47,11 @@ function formatMl(ml: number): string {
 }
 
 function formatClock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function WaterScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [loading, setLoading] = useState(true);
   const [waterMl, setWaterMl] = useState(0);
   const [goalMl, setGoalMl] = useState(DEFAULT_GOAL_ML);
@@ -82,7 +83,7 @@ export default function WaterScreen() {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const a = await getAnchor(localDateStr(d));
-        days.push({ day: DAY3[(todayIdx - i + 7) % 7], ml: a?.water_ml ?? 0 });
+        days.push({ day: weekdaysShort()[(todayIdx - i + 7) % 7], ml: a?.water_ml ?? 0 });
       }
       setWeek(days);
     } catch (e) {
@@ -105,7 +106,7 @@ export default function WaterScreen() {
     if (!removed) {
       // The row went while the screen was open — reload rather than claim
       // something happened.
-      Alert.alert('Already gone', 'That entry is no longer there.');
+      Alert.alert(t('trkAlreadyGone'), t('waterGoneSub'));
       await load();
       return;
     }
@@ -161,13 +162,13 @@ export default function WaterScreen() {
       <WaterTracker waterMl={waterMl} onAdd={handleAdd} goalMl={goalMl} />
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daily goal</Text>
+        <Text style={styles.sectionTitle}>{t('trkDailyGoal')}</Text>
         <View style={styles.goalRow}>
           <TouchableOpacity
             style={styles.goalBtn}
             onPress={() => nudgeGoal(-GOAL_STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Lower the daily water goal"
+            accessibilityLabel={t('waterGoalDown')}
           >
             <Text style={styles.goalBtnText}>−</Text>
           </TouchableOpacity>
@@ -181,7 +182,7 @@ export default function WaterScreen() {
               onSubmitEditing={commitGoal}
               keyboardType="number-pad"
               autoFocus
-              accessibilityLabel="Daily water goal in millilitres"
+              accessibilityLabel={t('waterGoalField')}
             />
           ) : (
             <TouchableOpacity
@@ -198,7 +199,7 @@ export default function WaterScreen() {
             style={styles.goalBtn}
             onPress={() => nudgeGoal(GOAL_STEP)}
             accessibilityRole="button"
-            accessibilityLabel="Raise the daily water goal"
+            accessibilityLabel={t('waterGoalUp')}
           >
             <Text style={styles.goalBtnText}>+</Text>
           </TouchableOpacity>
@@ -207,12 +208,12 @@ export default function WaterScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today&apos;s entries</Text>
+          <Text style={styles.sectionTitle}>{t('trkTodaysEntries')}</Text>
           <Text style={styles.sectionCount}>{entries.length}</Text>
         </View>
 
         {entries.length === 0 ? (
-          <Text style={styles.empty}>Nothing logged yet today.</Text>
+          <Text style={styles.empty}>{t('trkNothingToday')}</Text>
         ) : (
           entries.map((entry) => (
             <View key={entry.id} style={styles.entryRow}>
@@ -246,7 +247,7 @@ export default function WaterScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove the ${entry.amount_ml} millilitre entry logged at ${formatClock(entry.logged_at)}`}
               >
-                <Text style={styles.removeBtnText}>Remove</Text>
+                <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
               </TouchableOpacity>
             </View>
           ))
@@ -254,7 +255,7 @@ export default function WaterScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Last 7 days</Text>
+        <Text style={styles.sectionTitle}>{t('trkLast7')}</Text>
         <View style={styles.weekRow}>
           {week.map((w) => (
             <View key={w.day} style={styles.weekCol}>

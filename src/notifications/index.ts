@@ -6,8 +6,11 @@ import { CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
 import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
+import { isQuietAt } from './quietHours';
+import { t } from '../i18n';
 
 export { registerBackgroundTask };
+export * from './quietHours';
 
 let patientName = 'there';
 
@@ -59,10 +62,14 @@ export const scheduleSupplementNotification = async (params: {
   pendingCount?: number;
 }): Promise<string> => {
   try {
+    if (await isQuietAt(params.scheduledTime)) {
+      console.log('[Protocol Tracker Notifications] Supplement reminder falls in quiet hours — not scheduled');
+      return '';
+    }
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: `Time for your ${params.doseAmount} ${params.supplementName}, ${patientName}`,
-        body: params.notes ?? 'Stay on schedule.',
+        title: t('notifDoseTitle', { dose: params.doseAmount, supplement: params.supplementName, name: patientName }),
+        body: params.notes ?? t('notifDoseBody'),
         sound: true,
         categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },
@@ -88,9 +95,17 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
     const intervalMs = 90 * 60 * 1000;
 
     let currentTime = new Date(t0);
+    let skipped = 0;
     while (currentTime <= endTime) {
+      // Checked per reminder, not once: the 12-hour run can start outside the
+      // window and cross into it.
+      if (await isQuietAt(currentTime)) {
+        skipped++;
+        currentTime = new Date(currentTime.getTime() + intervalMs);
+        continue;
+      }
       const progress = await getWaterProgress();
-      const body = `${patientName}, 500ml now — you're at ${progress.waterMl}ml of ${progress.goalMl}ml`;
+      const body = t('notifWaterBody', { name: patientName, ml: progress.waterMl, goal: progress.goalMl });
       // The catch goes on at push time, not at the Promise.allSettled below:
       // getWaterProgress() yields on every pass, so a promise parked in this array
       // with no handler yet rejects into an unhandled rejection before the loop
@@ -98,7 +113,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
-            title: 'Water Reminder',
+            title: t('notifWaterTitle'),
             body,
             sound: true,
             data: { type: 'water' },
@@ -120,7 +135,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
         `[Protocol Tracker Notifications] ${results.length - scheduled} water reminders failed to schedule`,
       );
     }
-    console.log(`[Protocol Tracker Notifications] Scheduled ${scheduled} water reminders`);
+    console.log(`[Protocol Tracker Notifications] Scheduled ${scheduled} water reminders${skipped ? ` (${skipped} in quiet hours)` : ''}`);
   } catch (error) {
     console.error('[Protocol Tracker Notifications] Error scheduling water reminders:', error);
     throw error;
@@ -130,10 +145,14 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
 export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
   try {
     const exerciseTime = new Date(t0.getTime() + 4 * 60 * 60 * 1000);
+    if (await isQuietAt(exerciseTime)) {
+      console.log('[Protocol Tracker Notifications] Exercise reminder falls in quiet hours — not scheduled');
+      return;
+    }
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Exercise Time',
-        body: `30 minutes walking — your Protocol exercise for today, ${patientName}`,
+        title: t('notifExerciseTitle'),
+        body: t('notifExerciseBody', { name: patientName }),
         sound: true,
         data: { type: 'exercise' },
       },
@@ -156,20 +175,27 @@ export const scheduleMorningReminder = async (): Promise<void> => {
     const alreadySet = scheduled.some(n => n.content.data?.type === 'morning');
     if (alreadySet) return;
 
+    const morning = new Date();
+    morning.setHours(9, 0, 0, 0);
+    if (await isQuietAt(morning)) {
+      console.log('[Protocol Tracker Notifications] 09:00 start reminder falls in quiet hours — not scheduled');
+      return;
+    }
+
     const avgTime = await getAverageStartTime();
     let body = avgTime
-      ? `${patientName}, you usually start around ${avgTime}. Ready?`
-      : `${patientName}, time to start your protocol day`;
+      ? t('notifMorningKnown', { name: patientName, time: avgTime })
+      : t('notifMorningUnknown', { name: patientName });
 
     const lowStock = await getLowStockSupplements();
     if (lowStock.length > 0) {
-      const lowNames = lowStock.map(s => `${s.name} (${s.stock_days} days)`).join(', ');
-      body += ` ⚠️ Running low: ${lowNames}`;
+      const lowNames = lowStock.map((s) => t('notifLowStockDays', { name: s.name, days: s.stock_days })).join(', ');
+      body += t('notifLowStock', { names: lowNames });
     }
 
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Start Your Day',
+        title: t('notifMorningTitle'),
         body,
         sound: true,
         data: { type: 'morning' },
@@ -191,10 +217,14 @@ export const scheduleMorningReminder = async (): Promise<void> => {
 export const scheduleMissedDoseAlert = async (supplementName: string, scheduledTime: Date): Promise<string> => {
   try {
     const alertTime = new Date(scheduledTime.getTime() + 30 * 60 * 1000);
+    if (await isQuietAt(alertTime)) {
+      console.log('[Protocol Tracker Notifications] Missed-dose alert falls in quiet hours — not scheduled');
+      return '';
+    }
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Missed Dose',
-        body: `${patientName} — ${supplementName} window is closing`,
+        title: t('notifMissedTitle'),
+        body: t('notifMissedBody', { name: patientName, supplement: supplementName }),
         sound: true,
         data: { type: 'missed', supplementName },
       },
@@ -215,10 +245,14 @@ export const scheduleMissedDoseAlert = async (supplementName: string, scheduledT
 export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
   try {
     const summaryTime = new Date(t0.getTime() + 8 * 60 * 60 * 1000);
+    if (await isQuietAt(summaryTime)) {
+      console.log('[Protocol Tracker Notifications] End-of-day summary falls in quiet hours — not scheduled');
+      return;
+    }
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Daily Summary Ready',
-        body: `${patientName}, check your compliance for today in the Summary tab`,
+        title: t('notifSummaryTitle'),
+        body: t('notifSummaryBody', { name: patientName }),
         sound: true,
         data: { type: 'summary' },
       },
@@ -277,7 +311,7 @@ export const confirmDoseFromNotification = async (doseId: number): Promise<void>
       [now, doseId]
     );
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Dose confirmed', body: 'Marked as taken' },
+      content: { title: t('notifDoseConfirmed'), body: t('notifMarkedTaken') },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1 },
     });
   } catch (e) {

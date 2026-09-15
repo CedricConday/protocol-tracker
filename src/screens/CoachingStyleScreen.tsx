@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { getMiscFlag, setMiscFlag } from '../db/queries';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 
 const STYLES = [
   { key: 'gentle', label: 'Gentle', desc: 'Soft reminders, positive framing, no pressure' },
@@ -17,6 +17,7 @@ const STYLES = [
 ] as const;
 
 export default function CoachingStyleScreen() {
+  useLanguage(); // re-render this screen when the language changes
   const [selected, setSelected] = useState<string>('gentle');
   const [refreshing, setRefreshing] = useState(false);
 

@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import { getWeekSummary, getDaySummary, getAnchor } from '../db/queries';
 
+import { locale } from '../i18n';
+import { weekdaysShort } from '../i18n/dates';
 const LAST_REPORT_KEY = 'auto_report_last_week';
 
 function isoWeek(d: Date): string {
@@ -37,13 +39,11 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
       return { ...d, totalDoses: full.totalDoses, waterMl: anchor?.water_ml ?? 0 };
     }),
   );
-
-  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const todayIdx = ((now.getDay() + 6) % 7);
 
   const rows = enriched
     .map((d, i) => {
-      const dayName = DAYS[(todayIdx - 6 + i + 7) % 7];
+      const dayName = weekdaysShort()[(todayIdx - 6 + i + 7) % 7];
       const color = complianceColor(d.compliancePct);
       return `<tr style="border-bottom:1px solid #2a2a2a">
         <td style="padding:8px;color:#fff">${dayName}</td>
@@ -56,7 +56,7 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
 
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - 6);
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmt = (d: Date) => d.toLocaleDateString(locale(), { month: 'short', day: 'numeric', year: 'numeric' });
 
   const html = `<html><body style="background:#0d0d0d;padding:24px;font-family:sans-serif">
     <h1 style="color:#22c55e;font-size:18px">Protocol Tracker — Weekly Report</h1>
