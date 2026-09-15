@@ -76,8 +76,18 @@ while :; do
       exit 0
     fi
     printf '\a'
-    echo "run $CONCLUSION — log of the failing step:"
-    gh run view "$RUN_ID" --log-failed 2>/dev/null | tail -40
+    if [[ "$CONCLUSION" == "cancelled" ]]; then
+      # --log-failed prints nothing for a cancellation (a job killed by
+      # timeout-minutes lands here), so show the tail of the last live step.
+      echo "run cancelled — last step to run was:"
+      gh run view "$RUN_ID" --json jobs \
+        -q '[.jobs[].steps[] | select(.conclusion=="cancelled") | .name] | first // "-"'
+      echo "tail of its log:"
+      gh run view "$RUN_ID" --log 2>/dev/null | tail -30
+    else
+      echo "run $CONCLUSION — log of the failing step:"
+      gh run view "$RUN_ID" --log-failed 2>/dev/null | tail -40
+    fi
     exit 1
   fi
 
