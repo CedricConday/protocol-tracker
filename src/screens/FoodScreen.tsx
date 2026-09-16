@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -8,7 +8,8 @@ import {
   getFirstMealTime, getTodayMeals, localDateStr, logMeal, setFirstMealTime, todayStr,
 } from '../db/queries';
 
-import { t, useLanguage, locale } from '../i18n';
+import { t, useLanguage } from '../i18n';
+import { clockNow, formatHourMinute, parseTimeOfDay } from '../utils/time';
 import { weekdaysShort } from '../i18n/dates';
 /**
  * The Food screen (PT-trio round 3, C4).
@@ -32,14 +33,13 @@ import { weekdaysShort } from '../i18n/dates';
  * something does read it, which is why the manual edit below goes through the
  * same formatter as the button rather than emitting 24-hour text beside it.
  *
- * WHY THE SAVE IS READ BACK. `setFirstMealTime` is
- * `UPDATE daily_anchors SET first_meal_time = ? WHERE date = ?` — an UPDATE with
- * no INSERT. On a day with no anchor row yet (the row is created by `setT0` when
- * the day is started, or by the first `addWater`), it matches nothing and
- * succeeds, writing nothing. The Today tab has the same bug and shows the time
- * in local state afterwards, so it looks saved until the next reload. Here the
- * write is read back and a failure is said out loud instead. The fix is an
- * upsert in `src/db/**`, which is Build A's this round — filed as handoff H15.
+ * WHY THE SAVE IS READ BACK. `setFirstMealTime` used to be an UPDATE with no
+ * INSERT, so on a day with no anchor row yet it matched nothing, succeeded, and
+ * wrote nothing — the edit silently did not save. **Fixed 2026-09-16 (H15):**
+ * the query is now an upsert, the same shape as `setT0`. The read-back below
+ * stays anyway. It costs one SELECT and it is the only thing standing between a
+ * future write regression and a user who believes a time was recorded when it
+ * was not — which on a medical record is the failure worth paying a query for.
  */
 
 const MEAL_TYPES = [
@@ -49,39 +49,15 @@ const MEAL_TYPES = [
   { id: 'snack', label: 'Snack' },
 ];
 
-/** The one formatter. Both the button and the manual edit go through it, so the
- *  column never ends up holding "04:27 PM" on one day and "16:27" on the next. */
-function clockString(d: Date): string {
-  return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
-}
-
-function clockNow(): string {
-  return clockString(new Date());
-}
-
 /**
- * Accepts 7:5, 07:05, 0705, 7.05, and "4 30 pm" — anything that resolves to a
- * real time of day — and returns it in the same format the button writes.
- * Returns null rather than guessing: an unparseable edit leaves the stored time
- * alone, because a wrong first-meal time is worse than an unchanged one.
+ * Parse with the shared helper, then format with the shared formatter, so this
+ * column never ends up holding "04:27 PM" on one day and "16:27" on the next —
+ * and so Bedtime and Food accept exactly the same input. Returns null on an
+ * unparseable edit; the caller leaves the stored time alone rather than guessing.
  */
 function normaliseTime(raw: string): string | null {
-  const pm = /p\.?m/i.test(raw);
-  const am = /a\.?m/i.test(raw);
-  const digits = raw.replace(/[^0-9]/g, '');
-  let h: number;
-  let m: number;
-  if (digits.length === 3) { h = parseInt(digits.slice(0, 1), 10); m = parseInt(digits.slice(1), 10); }
-  else if (digits.length === 4) { h = parseInt(digits.slice(0, 2), 10); m = parseInt(digits.slice(2), 10); }
-  else if (digits.length <= 2 && digits.length > 0) { h = parseInt(digits, 10); m = 0; }
-  else return null;
-  if (!Number.isFinite(h) || !Number.isFinite(m) || m > 59) return null;
-  if (pm && h < 12) h += 12;
-  if (am && h === 12) h = 0;
-  if (h > 23) return null;
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return clockString(d);
+  const parsed = parseTimeOfDay(raw);
+  return parsed ? formatHourMinute(parsed.hour, parsed.minute) : null;
 }
 
 export default function FoodScreen() {
@@ -137,12 +113,28 @@ export default function FoodScreen() {
     await load();
   };
 
+  /**
+   * Guarded because the TextInput fires this twice for one edit. `onSubmitEditing`
+   * runs `commitDraft`, which sets `editing` false and unmounts the field, and
+   * unmounting a focused input fires `onBlur` — which is also wired here. The
+   * second pass raced the first: two writes and two `load()` calls, and whichever
+   * SELECT returned last won, so a good edit could be overwritten by a stale read
+   * of the value it had just replaced.
+   */
+  const committing = useRef(false);
+
   const commitDraft = async () => {
+    if (committing.current) return;
+    committing.current = true;
     setEditing(false);
-    const time = normaliseTime(draft);
-    if (!time) { setDraft(firstMeal ?? clockNow()); return; }
-    setDraft(time);
-    await saveFirstMeal(time);
+    try {
+      const time = normaliseTime(draft);
+      if (!time) { setDraft(firstMeal ?? clockNow()); return; }
+      setDraft(time);
+      await saveFirstMeal(time);
+    } finally {
+      committing.current = false;
+    }
   };
 
   const handleLogMeal = async (mealType: string) => {
@@ -217,9 +209,9 @@ export default function FoodScreen() {
           <View style={styles.failure}>
             <Text style={styles.failureTitle}>{t('foodSaveFailed')}</Text>
             <Text style={styles.failureBody}>
-              Today has no anchor row yet, and the first-meal write cannot create one. Start
-              the day on the Today tab — or log any water — and set the time again. Filed as
-              handoff H15.
+              The time was not stored. Nothing was lost — the value you see is the one still
+              on record. Try once more, and if it keeps failing the day&apos;s record may need
+              to be opened from the Today tab first.
             </Text>
           </View>
         )}

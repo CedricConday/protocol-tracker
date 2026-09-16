@@ -34,6 +34,7 @@ import {
   correctExerciseLog,
   getExerciseLogs,
   getExerciseHistory,
+  setFirstMealTime,
 } from '../queries';
 
 const mockDb = {
@@ -631,5 +632,22 @@ describe('getWaterProgress honours the stored goal', () => {
       .mockResolvedValueOnce({ value: '3200' });
     const r = await getWaterProgress('2026-09-13');
     expect(r).toEqual({ waterMl: 900, goalMl: 3200 });
+  });
+});
+
+// ── H15: the first-meal write could not create the day it wrote to ────────────
+
+describe('setFirstMealTime', () => {
+  it('creates the day\'s anchor row instead of matching nothing', async () => {
+    // The bug: a bare UPDATE against daily_anchors. On a day the user had not
+    // started, no row existed, so the statement matched nothing, resolved
+    // successfully, and the edit was silently discarded.
+    await setFirstMealTime('2026-09-16', '07:40');
+
+    const [sql, params] = mockDb.runAsync.mock.calls[0];
+    expect(String(sql)).toContain('INSERT INTO daily_anchors');
+    expect(String(sql)).toContain('ON CONFLICT(date) DO UPDATE SET first_meal_time');
+    expect(String(sql)).not.toMatch(/^\s*UPDATE/);
+    expect(params).toEqual(['2026-09-16', '07:40']);
   });
 });

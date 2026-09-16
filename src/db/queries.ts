@@ -835,11 +835,22 @@ export async function getAverageStartTime(): Promise<string | null> {
 }
 
 // ── First Meal Time ──────────────────────────────────────────────────────────
+/**
+ * Upsert, not UPDATE (H15, fixed 2026-09-16).
+ *
+ * This was `UPDATE daily_anchors SET first_meal_time = ? WHERE date = ?`. The
+ * row is only created by `setT0` or the first `addWater`, so on a day the user
+ * had not started yet the statement matched nothing, succeeded, and wrote
+ * nothing — the Food screen's edit silently did not save. Same shape as `setT0`
+ * above: create the day's anchor if it is missing, otherwise set the column.
+ */
 export async function setFirstMealTime(date: string, time: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(
-    'UPDATE daily_anchors SET first_meal_time = ? WHERE date = ?',
-    [time, date]
+    `INSERT INTO daily_anchors (date, t0_timestamp, water_ml, first_meal_time)
+     VALUES (?, NULL, 0, ?)
+     ON CONFLICT(date) DO UPDATE SET first_meal_time = excluded.first_meal_time`,
+    [date, time]
   );
 }
 
