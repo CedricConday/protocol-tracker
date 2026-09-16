@@ -121,40 +121,12 @@ async function readD3Display(): Promise<D3Display> {
 }
 
 
-// expo-secure-store has no web implementation: the module's default export has
-// no `getValueWithKeyAsync`, so every call throws there and the rejection
-// escapes as an uncaught error — the audit sees it on day 3, from Settings.
-// `await` sits INSIDE the try on purpose; returning a promise from a try block
-// does not bring that promise's rejection into the catch. Same stance as
-// `syncClient.getPatientJwt`.
-async function readSecret(key: string): Promise<string | null> {
-  try {
-    const { getItemAsync } = await import('expo-secure-store');
-    return await getItemAsync(key);
-  } catch {
-    return null;
-  }
-}
-
-/** Store or clear a secret. A platform without secure storage keeps neither. */
-async function writeSecret(key: string, value: string | null): Promise<void> {
-  try {
-    const { setItemAsync, deleteItemAsync } = await import('expo-secure-store');
-    if (value) await setItemAsync(key, value);
-    else await deleteItemAsync(key);
-  } catch {
-    /* no secure store on this platform — nothing was written, nothing to clear */
-  }
-}
-
 const NOTIF_TOPICS = ['supplements', 'water', 'exercise', 'morning_checkin', 'weekly_summary'];
 
 /** The fields handleSave writes. Compared against live state to decide whether
  *  there is anything to save. */
 type SavedFields = {
   name: string;
-  aiProvider: string;
-  aiApiKey: string;
   notifPrefs: Record<string, boolean>;
   quietOn: boolean;
   quietStart: string;
@@ -172,8 +144,6 @@ export default function SettingsScreen() {
   const [saved, setSaved] = useState(false);
   const [currentLanguage, setCurrentLanguage] = useState('en');
 
-  const [aiProvider, setAiProvider] = useState('groq');
-  const [aiApiKey, setAiApiKey] = useState('');
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({
     supplements: true, water: true, exercise: true, morning_checkin: true, weekly_summary: true,
   });
@@ -207,11 +177,6 @@ export default function SettingsScreen() {
       const lang = await getLanguage();
       setCurrentLanguage(lang);
 
-      const savedAiProvider = await AsyncStorage.getItem('ai_provider');
-      const savedAiApiKey = await readSecret('ai_api_key');
-      if (savedAiProvider) setAiProvider(savedAiProvider);
-      if (savedAiApiKey) setAiApiKey(savedAiApiKey);
-
       const loaded: Record<string, boolean> = {};
       for (const tp of NOTIF_TOPICS) {
         const val = await getMiscFlag(`notif_pref_${tp}`);
@@ -232,8 +197,6 @@ export default function SettingsScreen() {
       // footer can tell "nothing touched yet" from "unsaved edits".
       setBaseline({
         name: loadedName,
-        aiProvider: savedAiProvider || 'groq',
-        aiApiKey: savedAiApiKey || '',
         notifPrefs: loaded,
         quietOn: qOn === 'true',
         quietStart: qs || DEFAULT_QUIET_START,
@@ -254,8 +217,6 @@ export default function SettingsScreen() {
       await updateProfile({
         name: name.trim(),
       });
-      await AsyncStorage.setItem('ai_provider', aiProvider);
-      await writeSecret('ai_api_key', aiApiKey || null);
       for (const [key, val] of Object.entries(notifPrefs)) {
         await setMiscFlag(`notif_pref_${key}`, val ? 'true' : 'false');
       }
@@ -266,7 +227,7 @@ export default function SettingsScreen() {
       // whitespace in a field would leave the footer stuck open after saving.
       setBaseline({
         name,
-        aiProvider, aiApiKey, notifPrefs, quietOn, quietStart, quietEnd,
+        notifPrefs, quietOn, quietStart, quietEnd,
       });
       setSaved(true);
       hSuccess();
@@ -276,14 +237,12 @@ export default function SettingsScreen() {
     } finally {
       setSaving(false);
     }
-  }, [name, aiProvider, aiApiKey, notifPrefs, quietOn, quietStart, quietEnd]);
+  }, [name, notifPrefs, quietOn, quietStart, quietEnd]);
 
   const isDirty = useMemo(() => {
     if (!baseline) return false;
     return (
       name !== baseline.name ||
-      aiProvider !== baseline.aiProvider ||
-      aiApiKey !== baseline.aiApiKey ||
       quietOn !== baseline.quietOn ||
       quietStart !== baseline.quietStart ||
       quietEnd !== baseline.quietEnd ||
@@ -291,7 +250,7 @@ export default function SettingsScreen() {
     );
   }, [
     baseline, name,
-    aiProvider, aiApiKey, quietOn, quietStart, quietEnd, notifPrefs,
+    quietOn, quietStart, quietEnd, notifPrefs,
   ]);
 
   const handleLanguageSwitch = async (lang: string) => {
@@ -450,39 +409,6 @@ export default function SettingsScreen() {
             />
           </Group>
 
-          {/* ── Advanced ──────────────────────────────────────────────────
-              MRI camera auto-fill needs a vision-capable API key (see
-              MriScreen's callVisionApi). The key lives in SecureStore, not
-              AsyncStorage, alongside the patient_jwt in api/syncClient.ts. */}
-          <Group label={t('advancedGroup')}>
-            <Row
-              icon="hardware-chip-outline" label={t('aiWorkspace')} sub={t('aiWorkspaceSub')}
-              onPress={() => toggleSection('ai')} last
-            />
-            <Expand open={expandedSection === 'ai'}>
-              <Text style={styles.inputLabel}>{t('aiProviderLabel')}</Text>
-              <View style={styles.segment}>
-                {(['groq', 'openai', 'anthropic'] as const).map((p) => (
-                  <Pressable
-                    key={p}
-                    style={[styles.segmentBtn, aiProvider === p && styles.segmentBtnActive]}
-                    onPress={() => setAiProvider(p)}
-                    accessibilityLabel={`Use ${p}`} accessibilityRole="button"
-                  >
-                    <Text style={[styles.segmentText, aiProvider === p && styles.segmentTextActive]}>
-                      {p === 'openai' ? 'OpenAI' : p === 'groq' ? 'Groq' : 'Anthropic'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.inputLabel}>{t('aiApiKeyLabel')}</Text>
-              <TextInput
-                style={styles.input} placeholder="sk-..." placeholderTextColor={C.textMuted}
-                value={aiApiKey} onChangeText={setAiApiKey}
-                autoCapitalize="none" autoCorrect={false} secureTextEntry
-              />
-            </Expand>
-          </Group>
 
           {/* ── Developer ─────────────────────────────────────────────────
               __DEV__ only: never rendered in a release build. Backfills a

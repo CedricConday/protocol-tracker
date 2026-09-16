@@ -90,7 +90,27 @@ export default function JournalScreen() {
   // navigate there; the form now expands in place instead of leaving Journal).
   const [logEventOpen, setLogEventOpen] = useState(false);
   const [eventType, setEventType] = useState<string>('relapse');
-  const [eventDate, setEventDate] = useState(today);
+  // The event date is a DRAFT FOR A PARTICULAR DAY, so it carries that day with
+  // it — the same shape as `moodEntry` above, for the same reason, and it was
+  // the one field on this screen left without it.
+  //
+  // `useState(today)` seeded once, at mount. The tab stays mounted (React
+  // Navigation keeps it alive) and the app survives days in the background, so
+  // after a midnight roll this still held YESTERDAY's date: opening "+ Log
+  // Event" the next day prefilled the previous day and `handleLogEvent` wrote
+  // the event onto it. The only reset was `setEventDate(today)` AFTER a
+  // successful save, so the stale date outlived exactly the save it corrupted.
+  //
+  // Resolving against `today` on read closes it: a draft made on another day is
+  // not this day's draft and must not be offered as one.
+  const [eventDateDraft, setEventDateDraft] = useState<{ date: string; value: string }>(
+    { date: today, value: today },
+  );
+  const eventDate = eventDateDraft.date === today ? eventDateDraft.value : today;
+  const setEventDate = useCallback((value: string) => {
+    // todayStr(), not the render's `today`: a keystroke can land after the roll.
+    setEventDateDraft({ date: todayStr(), value });
+  }, []);
   const [cortisoneDose, setCortisoneDose] = useState('');
   const [severity, setSeverity] = useState<number | null>(null);
   const [eventNotes, setEventNotes] = useState('');
@@ -218,7 +238,7 @@ export default function JournalScreen() {
       has_fever: hasFever !== null ? (hasFever ? 1 : 0) : undefined,
     });
     setEventType('relapse');
-    setEventDate(today);
+    setEventDateDraft({ date: todayStr(), value: todayStr() });
     setCortisoneDose('');
     setSeverity(null);
     setEventNotes('');
@@ -228,7 +248,7 @@ export default function JournalScreen() {
     setEventLogged(true);
     setTimeout(() => setEventLogged(false), 2000);
     await loadData();
-  }, [eventType, eventDate, cortisoneDose, severity, eventNotes, painSubtype, lasted24h, hasFever, today, loadData]);
+  }, [eventType, eventDate, cortisoneDose, severity, eventNotes, painSubtype, lasted24h, hasFever, loadData]);
 
   const eventPlaceholder = eventType === 'cortisone'
     ? 'Pulse dose details...'
