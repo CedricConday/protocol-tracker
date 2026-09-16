@@ -1,11 +1,11 @@
-import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import Pressable from '../components/Pressable';
 import { getProfile, updateProfile } from '../db/queries';
 import { getLatestStartTime } from '../engine/scheduler';
 import { t, useLanguage, locale } from '../i18n';
+import { formatHourMinute, parseTimeOfDay } from '../utils/time';
 import { C, space, radius, text as T } from '../theme';
 import { select as hSelect, success as hSuccess } from '../utils/haptics';
 
@@ -15,18 +15,24 @@ import { select as hSelect, success as hSuccess } from '../utils/haptics';
  * Moved out of Settings on 2026-09-14: bedtime is not a preference, it is the
  * day's closing boundary, so it sits with the trackers.
  *
- * It is load-bearing. `startDay()` refuses to open a day once the clock is past
- * this time (`BEDTIME_GATE` in engine/scheduler.ts), and `getLatestStartTime()`
- * works back from it by the last supplement's offset. The cutoff line below is
- * that same figure, so the number being set is visibly connected to what it
- * does rather than being a time the app merely stores.
+ * REVAMPED 2026-09-16, on two counts.
+ *
+ * 1. **Any time, not a menu.** The picker offered hours 18–23 and minutes
+ *    0/15/30/45, so 01:30, 23:50 and every shift worker's bedtime were simply
+ *    not expressible. It is now a typed field sharing `parseTimeOfDay` with the
+ *    Food screen, which takes 7:5, 0705, "11 30 pm" and so on.
+ *
+ * 2. **It informs, it no longer forbids.** `startDay()` used to throw
+ *    `BEDTIME_GATE` once the clock passed this time minus the last dose's
+ *    offset — a fixed wall-clock boundary vetoing a T=0 system, so a patient who
+ *    woke at 14:00 could not open a day at all. The gate is gone; the same
+ *    arithmetic now feeds `dosesPastBedtime()`, which Today shows as a warning
+ *    before starting.
+ *
+ * `getLatestStartTime()` still works back from this time by the last
+ * supplement's offset, and the line below still shows it, so the number being
+ * set stays visibly connected to what it affects.
  */
-
-const HOURS = [18, 19, 20, 21, 22, 23];
-const MINUTES = [0, 15, 30, 45];
-
-const hhmm = (h: number, m: number) =>
-  `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
 export default function BedtimeScreen() {
   useLanguage(); // re-render this screen when the language changes
@@ -34,6 +40,8 @@ export default function BedtimeScreen() {
   const [minute, setMinute] = useState(0);
   const [saved, setSaved] = useState<{ hour: number; minute: number } | null>(null);
   const [cutoff, setCutoff] = useState<Date | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
 
   const load = useCallback(async () => {
     const profile = await getProfile();
@@ -41,22 +49,45 @@ export default function BedtimeScreen() {
     const m = profile?.bedtime_minute ?? 0;
     setHour(h);
     setMinute(m);
+    setDraft(formatHourMinute(h, m));
     setSaved({ hour: h, minute: m });
     setCutoff(await getLatestStartTime().catch(() => null));
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const dirty = saved !== null && (saved.hour !== hour || saved.minute !== minute);
+  /**
+   * Commits the typed draft. Guarded for the same reason as the Food screen:
+   * `onSubmitEditing` closes the field, unmounting a focused input fires
+   * `onBlur`, and both are wired here — so one edit would otherwise write twice
+   * and race its own reload.
+   */
+  const committing = useRef(false);
 
-  const save = async () => {
+  const commitDraft = async () => {
+    if (committing.current) return;
+    committing.current = true;
+    setEditing(false);
     try {
-      await updateProfile({ bedtime_hour: hour, bedtime_minute: minute });
-      setSaved({ hour, minute });
-      setCutoff(await getLatestStartTime().catch(() => null));
-      hSuccess();
-    } catch {
-      Alert.alert(t('saveFailed'), t('saveFailedSub'));
+      const parsed = parseTimeOfDay(draft);
+      // An unparseable entry leaves the stored bedtime alone. A wrong boundary
+      // silently mis-warns about every dose, so guessing is worse than refusing.
+      if (!parsed) { setDraft(formatHourMinute(hour, minute)); return; }
+
+      setHour(parsed.hour);
+      setMinute(parsed.minute);
+      setDraft(formatHourMinute(parsed.hour, parsed.minute));
+
+      try {
+        await updateProfile({ bedtime_hour: parsed.hour, bedtime_minute: parsed.minute });
+        setSaved({ hour: parsed.hour, minute: parsed.minute });
+        setCutoff(await getLatestStartTime().catch(() => null));
+        hSuccess();
+      } catch {
+        Alert.alert(t('saveFailed'), t('saveFailedSub'));
+      }
+    } finally {
+      committing.current = false;
     }
   };
 
@@ -67,7 +98,26 @@ export default function BedtimeScreen() {
           <Ionicons name="moon-outline" size={22} color="#5B5BD6" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.heroValue}>{hhmm(hour, minute)}</Text>
+          {editing ? (
+            <TextInput
+              style={styles.heroField}
+              value={draft}
+              onChangeText={setDraft}
+              onBlur={commitDraft}
+              onSubmitEditing={commitDraft}
+              keyboardType="numbers-and-punctuation"
+              autoFocus
+              accessibilityLabel={t('bedTimeField')}
+            />
+          ) : (
+            <TouchableOpacity
+              onPress={() => { hSelect(); setDraft(formatHourMinute(hour, minute)); setEditing(true); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Bedtime ${formatHourMinute(hour, minute)}. Tap to change.`}
+            >
+              <Text style={styles.heroValue}>{formatHourMinute(hour, minute)}</Text>
+            </TouchableOpacity>
+          )}
           <Text style={styles.heroSub}>
             {cutoff
               ? `Latest start for a full day: ${cutoff.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
@@ -80,43 +130,8 @@ export default function BedtimeScreen() {
         {t('bedGateNote')}
       </Text>
 
-      <Text style={styles.label}>{t('hour')}</Text>
-      <View style={styles.chipWrap}>
-        {HOURS.map((h) => (
-          <Pressable
-            key={h}
-            style={[styles.chip, hour === h && styles.chipActive]}
-            onPress={() => { hSelect(); setHour(h); }}
-            accessibilityLabel={`Hour ${h}`} accessibilityRole="button"
-          >
-            <Text style={[styles.chipText, hour === h && styles.chipTextActive]}>
-              {String(h).padStart(2, '0')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <Text style={styles.hint}>{t('bedTimeHint')}</Text>
 
-      <Text style={styles.label}>{t('minutes')}</Text>
-      <View style={styles.chipWrap}>
-        {MINUTES.map((m) => (
-          <Pressable
-            key={m}
-            style={[styles.chip, minute === m && styles.chipActive]}
-            onPress={() => { hSelect(); setMinute(m); }}
-            accessibilityLabel={`Minute ${m}`} accessibilityRole="button"
-          >
-            <Text style={[styles.chipText, minute === m && styles.chipTextActive]}>
-              :{String(m).padStart(2, '0')}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {dirty ? (
-        <Pressable onPress={save} style={styles.saveBtn} accessibilityLabel={t('save')} accessibilityRole="button">
-          <Text style={styles.saveBtnText}>{t('save')}</Text>
-        </Pressable>
-      ) : null}
     </ScrollView>
   );
 }
@@ -134,23 +149,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#5B5BD61A', alignItems: 'center', justifyContent: 'center',
   },
   heroValue: { ...T.display, color: C.text },
+  heroField: { ...T.display, color: C.text, padding: 0 },
   heroSub:   { ...T.small, color: C.textSub, marginTop: 2 },
 
   note:  { ...T.small, color: C.textSub, marginTop: space.md, lineHeight: 20 },
-  label: { ...T.caps, color: C.textSub, marginTop: space.lg, marginBottom: space.sm },
-
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  chip: {
-    paddingHorizontal: space.md, paddingVertical: space.sm,
-    borderRadius: radius.pill, backgroundColor: C.surface,
-  },
-  chipActive:     { backgroundColor: C.primaryBg },
-  chipText:       { ...T.body, color: C.textSub, fontWeight: '600' },
-  chipTextActive: { color: C.primary, fontWeight: '700' },
-
-  saveBtn: {
-    marginTop: space.xl, backgroundColor: C.primary,
-    borderRadius: radius.pill, paddingVertical: space.md, alignItems: 'center',
-  },
-  saveBtnText: { ...T.bodyLg, color: '#fff', fontWeight: '800' },
+  hint:  { ...T.small, color: C.textMuted, marginTop: space.sm, lineHeight: 20 },
 });

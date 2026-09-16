@@ -27,7 +27,8 @@ import { medicalDisclaimer } from '../config/links';
 import { t, useLanguage, locale } from '../i18n';
 import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
-import { startDay, getTodaySchedule } from '../engine/scheduler';
+import { startDay, getTodaySchedule, dosesPastBedtime } from '../engine/scheduler';
+import { formatClock } from '../utils/time';
 import { confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getLatestLabResult, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
@@ -227,33 +228,55 @@ export default function HomeScreen() {
     setDosesExpanded(false);
   }, [doses]);
 
-   const handleStartDay = async () => {
-     setStarting(true);
-     try {
-       const schedule = await startDay();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setT0(new Date());
-        setDoses(schedule);
-        setShowMealPrompt(true);
-     } catch (error: any) {
-       if (error.message === 'BEDTIME_GATE') {
-         Alert.alert(
-           t('startTooLate'),
-           t('startTooLateSub'),
-           [{ text: 'OK', style: 'cancel' }]
-         );
-       } else {
-         console.error('Error starting day:', error);
-         Alert.alert(
-           t('errorTitle'),
-           t('startFailed'),
-           [{ text: 'OK', style: 'cancel' }]
-         );
-       }
-     } finally {
-       setStarting(false);
-     }
-   };
+  /** Opens the day, after saying out loud what will not fit before bedtime. */
+  const runStartDay = async () => {
+    setStarting(true);
+    try {
+      const schedule = await startDay();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setT0(new Date());
+      setDoses(schedule);
+      setShowMealPrompt(true);
+    } catch (error: any) {
+      console.error('Error starting day:', error);
+      Alert.alert(t('errorTitle'), t('startFailed'), [{ text: 'OK', style: 'cancel' }]);
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  /**
+   * Starting late used to be refused outright (BEDTIME_GATE). It is now a
+   * warning: the doses that would land after bedtime are named, and starting is
+   * still the patient's call. A late start is a real day — refusing it recorded
+   * nothing at all, which is worse for the protocol than a dose at 01:55.
+   */
+  const handleStartDay = async () => {
+    let late: { name: string; at: Date }[] = [];
+    try {
+      late = await dosesPastBedtime();
+    } catch (e) {
+      // The warning is advisory. If it cannot be computed, start anyway rather
+      // than blocking the day on a failure in the thing that only informs it.
+      console.error('Could not check bedtime overlap:', e);
+    }
+
+    if (late.length === 0) {
+      await runStartDay();
+      return;
+    }
+
+    Alert.alert(
+      t('startLateTitle'),
+      `${t('startLateBody', { count: String(late.length) })}\n\n${late
+        .map((d) => `· ${d.name}  ${formatClock(d.at)}`)
+        .join('\n')}`,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('startAnyway'), onPress: () => { runStartDay(); } },
+      ],
+    );
+  };
 
   const handleLogExercise = async (minutes: number = 30, type: string = 'walk', intensity: string = 'moderate') => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

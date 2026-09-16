@@ -5,28 +5,22 @@ import type { ScheduledDose, DoseStatus } from '../types';
 import { ruleFiresOn, cadenceOf } from './cadence';
 
 import { locale } from '../i18n';
+import { bedtimeAfter } from '../utils/time';
 /**
  * Called when patient taps "Start My Day".
  * T=0 is the moment the first supplement goes in.
  * All dose times calculate forward from this anchor.
  */
 export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> {
-  // Bedtime gate check.
+  // No bedtime gate. This used to throw BEDTIME_GATE once the clock passed
+  // bedtime minus the last dose's offset, which refused to open the day at all
+  // — a fixed wall-clock boundary vetoing a T=0 system. Someone who woke at
+  // 14:00, or was up late, simply could not start, in an app whose whole premise
+  // is that the day begins when the patient begins it.
   //
-  // The cutoff is bedtime MINUS the last supplement's offset, not bedtime
-  // itself: starting at 21:55 with a 22:00 bedtime and a +240 min last dose
-  // scheduled that dose for 01:55, well past the boundary this gate exists to
-  // protect. calculateBedtimeCutoff already did this arithmetic and had no
-  // caller. With no rules yet the offset is 0 and the cutoff is bedtime, which
-  // is the old behaviour.
-  const profile = await getProfile();
-  if (profile) {
-    const cutoff = await getLatestStartTime();
-    if (cutoff && new Date() >= cutoff) {
-      throw new Error('BEDTIME_GATE');
-    }
-  }
-
+  // The information the gate carried was worth keeping, so it moved to
+  // `dosesPastBedtime()` below, which the caller shows as a warning before
+  // starting. Warn, then let them decide. See BedtimeScreen.
   const t0Ms = t0.getTime();
   const dateStr = localDateStr(t0);
 
@@ -129,35 +123,67 @@ export async function getTodaySchedule(): Promise<ScheduledDose[]> {
 }
 
 /**
- * Returns the latest T=0 that fits the full schedule before the user's bedtime.
- * Returns null if profile not set.
+ * The latest T=0 that still fits every dose in before bedtime.
+ *
+ * Informational since 2026-09-16 — nothing refuses a start past this any more.
+ * Bedtime shows it so the number the patient sets is visibly connected to what
+ * it affects. Returns null if there is no profile yet.
  */
-export async function getLatestStartTime(): Promise<Date | null> {
+export async function getLatestStartTime(from: Date = new Date()): Promise<Date | null> {
   const { getProfile, getScheduleRules } = await import('../db/queries');
   const profile = await getProfile();
   if (!profile) return null;
   const rules = await getScheduleRules();
   const lastOffset = rules.reduce((max, r) => Math.max(max, r.offset_minutes), 0);
-  return calculateBedtimeCutoff(profile.bedtime_hour, profile.bedtime_minute, lastOffset);
+  return calculateBedtimeCutoff(profile.bedtime_hour, profile.bedtime_minute, lastOffset, from);
 }
 
 /**
  * Latest T=0 that still allows all supplements before bedtime.
+ *
+ * Resolves bedtime through `bedtimeAfter`, so a bedtime of 01:30 is tonight
+ * after midnight rather than an instant that already passed this morning.
  */
 export function calculateBedtimeCutoff(
   bedtimeHour: number,
   bedtimeMinute: number,
-  lastSupplementOffsetMinutes: number
+  lastSupplementOffsetMinutes: number,
+  from: Date = new Date()
 ): Date {
-  const today = new Date();
-  const bedtime = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    bedtimeHour,
-    bedtimeMinute
-  );
+  const bedtime = bedtimeAfter(from, bedtimeHour, bedtimeMinute);
   return new Date(bedtime.getTime() - lastSupplementOffsetMinutes * 60 * 1000);
+}
+
+/**
+ * Which of today's doses would land after bedtime if the day started at `t0`.
+ *
+ * Replaces the BEDTIME_GATE throw: the caller asks first, shows the list, and
+ * the patient decides whether to start anyway. Only rules that actually fire
+ * today are considered, so a Mon/Wed/Fri supplement does not appear in a Sunday
+ * warning about doses that were never owed.
+ *
+ * Returns [] when there is no profile or nothing is due — an empty list means
+ * "nothing to warn about", never "could not tell".
+ */
+export async function dosesPastBedtime(
+  t0: Date = new Date(),
+): Promise<{ name: string; at: Date }[]> {
+  const { getProfile, getScheduleRules } = await import('../db/queries');
+  const profile = await getProfile();
+  if (!profile) return [];
+
+  const bedtime = bedtimeAfter(t0, profile.bedtime_hour, profile.bedtime_minute);
+  const rules = await getScheduleRules();
+  const dateStr = localDateStr(t0);
+
+  return rules
+    .filter((rule) => ruleFiresOn(cadenceOf(rule), dateStr))
+    .map((rule) => ({
+      name: rule.supplement_name,
+      at: new Date(t0.getTime() + rule.offset_minutes * 60 * 1000),
+    }))
+    .filter((dose) => dose.at.getTime() > bedtime.getTime())
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
 /**
