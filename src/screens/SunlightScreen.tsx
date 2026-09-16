@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 import SunTracker, { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import {
   clearSunLog, correctSunEntry, correctSunLog, deleteSunEntry, getMiscFlag,
-  getSunEntries, getSunHistory, getTodaySunLog, logSunExposure, setMiscFlag, todayStr,
+  getSunEntries, getSunHistory, getTodaySunLog, logSunExposure, setMiscFlag, setSunNote, todayStr,
 } from '../db/queries';
 
 import { t, useLanguage, locale } from '../i18n';
@@ -67,6 +67,12 @@ export default function SunlightScreen() {
   const [goalMin, setGoalMin] = useState(DEFAULT_SUN_GOAL_MIN);
   const [goalDraft, setGoalDraft] = useState(String(DEFAULT_SUN_GOAL_MIN));
   const [editingGoal, setEditingGoal] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  // What the row actually holds, and the write in flight against it. Both are
+  // refs because the two callers below fire within one tap and neither can wait
+  // for the other's setState — see commitNotes.
+  const savedRef = useRef('');
+  const writing = useRef<Promise<void> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -75,6 +81,7 @@ export default function SunlightScreen() {
       setMinutes(day?.minutes ?? 0);
       setNotes(day?.notes ?? '');
       setSavedNotes(day?.notes ?? '');
+      savedRef.current = day?.notes ?? '';
       setCorrectDraft(String(day?.minutes ?? 0));
       setEntries(await getSunEntries(today));
       setHistory(await getSunHistory(HISTORY_DAYS, today));
@@ -137,12 +144,61 @@ export default function SunlightScreen() {
     await load();
   };
 
-  const commitNotes = async () => {
-    if (notes === savedNotes) return;
-    // Passing the note explicitly IS the erase path when it is empty — the
-    // documented difference between `undefined` and `''` in correctSunLog.
-    await correctSunLog(minutes, undefined, notes);
-    setSavedNotes(notes);
+  /**
+   * Save the note.
+   *
+   * Two bugs meet here, and both were live.
+   *
+   * 1. This used to call `correctSunLog(minutes, undefined, notes)`, which sets
+   *    the day's TOTAL — and setting the total deletes the day's sessions and
+   *    writes one row in their place. Saving a note therefore collapsed three
+   *    separate sessions into a single entry, silently. `setSunNote` writes the
+   *    note and nothing else.
+   *
+   * 2. Tapping Save blurs the field first, so BOTH callers run for one tap. The
+   *    two `withTransactionAsync` writes overlapped, and on the web build that
+   *    wedges: the row lands, but neither promise ever settles, so nothing after
+   *    the await runs — no confirmation, no reload, a Save that reads as dead
+   *    while the note is in fact saved. Measured, not theorised: instrumented,
+   *    both calls entered and neither reached the line after the write.
+   *    So writes are serialised, and the second caller compares against
+   *    `savedRef` — the row as last written — because a setState from the first
+   *    cannot have landed in the second's closure yet.
+   *
+   * `flash` marks the explicit press. A blur must not flash, because the
+   * confirmation doubles as the button's accessibility name and renaming a
+   * control out from under a screen reader on an invisible event is not a
+   * confirmation. A press whose text was already written by the preceding blur
+   * still flashes: the note IS saved, and that is what the press asked about.
+   */
+  const commitNotes = async ({ flash = false }: { flash?: boolean } = {}) => {
+    const confirm = () => {
+      if (!flash) return;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2000);
+    };
+
+    const text = notes;
+    if (writing.current) await writing.current.catch(() => {});
+    if (text === savedRef.current) { confirm(); return; }
+
+    const job = (async () => {
+      await setSunNote(text);
+      savedRef.current = text;
+      setSavedNotes(text);
+      // The note belongs to the day, so the strip below has to be re-read —
+      // otherwise the note is saved and the history it was written for still
+      // says nothing about it until the screen is left and re-entered.
+      await load();
+    })();
+    writing.current = job;
+    try {
+      await job;
+    } finally {
+      if (writing.current === job) writing.current = null;
+    }
+    confirm();
   };
 
   const commitGoal = async () => {
@@ -328,16 +384,32 @@ export default function SunlightScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('trkNote')}</Text>
+        {/* onBlur stays as a backstop, but it was never a way to SAVE: a blur is
+            invisible, fires at the platform's discretion, and confirms nothing.
+            That is why this section read as having no save at all. */}
         <TextInput
           style={styles.noteField}
           value={notes}
           onChangeText={setNotes}
-          onBlur={commitNotes}
+          onBlur={() => commitNotes()}
           placeholder={t('sunNotePlaceholder')}
           placeholderTextColor="#9AA3B2"
           multiline
-          accessibilityLabel="Note about today's sun exposure"
+          accessibilityLabel={t('sunNoteLabel')}
         />
+        <TouchableOpacity
+          style={[styles.noteSaveBtn, notes === savedNotes && styles.noteSaveBtnIdle]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            commitNotes({ flash: true }).catch((e) => Alert.alert(t('saveFailed'), e?.message ?? t('saveFailedSub')));
+          }}
+          disabled={notes === savedNotes}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={noteSaved ? t('sunNoteSavedA11y') : t('sunNoteSaveA11y')}
+        >
+          <Text style={styles.noteSaveBtnText}>{noteSaved ? `${t('saved')} \u2713` : t('save')}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -349,27 +421,30 @@ export default function SunlightScreen() {
         {history.length === 0 ? (
           <Text style={styles.empty}>{t('sunNoneYet')}</Text>
         ) : (
+          // The note is printed on its own day rather than pointed at by a
+          // footnote. It was already read out of the database here and thrown
+          // away; a line saying notes are kept somewhere else is not the note.
           history.map((h) => (
-            <View key={h.date} style={styles.histRow}>
-              <Text style={[styles.histDay, h.date === today && styles.histDayToday]}>
-                {formatDay(h.date, today)}
-              </Text>
-              <View style={styles.histBarTrack}>
-                <View
-                  style={[
-                    styles.histBarFill,
-                    h.minutes >= goalMin && styles.histBarFillDone,
-                    { width: `${Math.min(100, (h.minutes / peak) * 100)}%` as `${number}%` },
-                  ]}
-                />
+            <View key={h.date}>
+              <View style={styles.histRow}>
+                <Text style={[styles.histDay, h.date === today && styles.histDayToday]}>
+                  {formatDay(h.date, today)}
+                </Text>
+                <View style={styles.histBarTrack}>
+                  <View
+                    style={[
+                      styles.histBarFill,
+                      h.minutes >= goalMin && styles.histBarFillDone,
+                      { width: `${Math.min(100, (h.minutes / peak) * 100)}%` as `${number}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.histValue}>{h.minutes} min</Text>
               </View>
-              <Text style={styles.histValue}>{h.minutes} min</Text>
+              {!!h.notes && <Text style={styles.histNote}>{h.notes}</Text>}
             </View>
           ))
         )}
-        {history.some((h) => h.notes) ? (
-          <Text style={styles.note}>{t('sunNoteKept')}</Text>
-        ) : null}
       </View>
     </ScrollView>
   );
@@ -409,6 +484,10 @@ const styles = StyleSheet.create({
   clearBtn: { paddingHorizontal: 16, height: 46, borderRadius: 12, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6', alignItems: 'center', justifyContent: 'center' },
   clearBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
 
+  noteSaveBtn: { marginTop: 10, height: 46, borderRadius: 12, backgroundColor: '#1B58B8', alignItems: 'center', justifyContent: 'center' },
+  noteSaveBtnIdle: { opacity: 0.4 },
+  noteSaveBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
+
   noteField: { minHeight: 84, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', padding: 12, color: '#14213D', fontSize: 14, lineHeight: 20, textAlignVertical: 'top' },
 
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
@@ -418,4 +497,5 @@ const styles = StyleSheet.create({
   histBarFill: { height: 8, borderRadius: 4, backgroundColor: '#F2CE86' },
   histBarFillDone: { backgroundColor: '#F2B233' },
   histValue: { color: '#14213D', fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
+  histNote: { color: '#5A6478', fontSize: 12, lineHeight: 17, fontStyle: 'italic', paddingLeft: 96, paddingBottom: 6 },
 });

@@ -343,6 +343,46 @@ export async function correctSunLog(
   });
 }
 
+/**
+ * Set a day's sun note, and nothing else.
+ *
+ * `correctSunLog` is the wrong tool for a note and the Sunlight screen was
+ * using it: that function sets the day's TOTAL, which means deleting the day's
+ * sessions and replacing them with a single row carrying that total. So typing
+ * "overcast, sat by the window" against three separate sessions silently
+ * collapsed them into one — the note cost the user their breakdown, with no
+ * warning and nothing on screen to undo.
+ *
+ * The note and the sessions are independent facts about the day. This writes
+ * only the note, and creates the day row if the note is the first thing said
+ * about it — a day can hold a note and no minutes.
+ *
+ * Clearing the note on a day that has nothing else removes the row, the same
+ * rule `recomputeSunDay` applies, so an empty day is never left behind reading
+ * as "went outside, got no sun".
+ */
+export async function setSunNote(notes: string, date: string = todayStr()): Promise<void> {
+  const db = await getDb();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO sun_log (date, minutes, uv_index, notes)
+       VALUES (?, 0, NULL, ?)
+       ON CONFLICT(date) DO UPDATE SET notes = excluded.notes`,
+      [date, notes]
+    );
+    if (!notes) {
+      // minutes = 0 is checked as well as the entries: a legacy row can carry a
+      // real total with no sessions behind it, and that total is not ours to drop.
+      await db.runAsync(
+        `DELETE FROM sun_log
+          WHERE date = ? AND notes = '' AND minutes = 0
+            AND NOT EXISTS (SELECT 1 FROM sun_entries WHERE date = ?)`,
+        [date, date]
+      );
+    }
+  });
+}
+
 // ── Schedule Rules ────────────────────────────────────────────────────────────
 
 export async function getScheduleRules(): Promise<(ScheduleRule & { supplement_name: string; supplement_form: string; notes: string })[]> {
@@ -614,11 +654,15 @@ export async function getCalendarMonth(year: number, month: number): Promise<Map
 
   // sun_log, not sun_entries: the day total is the aggregate this grid wants,
   // and it is the column the rest of the app reads for a day's sun.
-  const sunRows = await db.getAllAsync<{ date: string; minutes: number }>(
-    'SELECT date, minutes FROM sun_log WHERE date BETWEEN ? AND ?',
+  const sunRows = await db.getAllAsync<{ date: string; minutes: number; notes: string }>(
+    'SELECT date, minutes, notes FROM sun_log WHERE date BETWEEN ? AND ?',
     [start, end],
   );
-  for (const r of sunRows) if (r.minutes > 0) ensure(r.date).hasSun = true;
+  // A note counts as sun data even with no minutes behind it — sat in the shade
+  // and wrote down why. Keying the marker off minutes alone left that day
+  // unmarked and unopenable, so the note was written but unreachable from
+  // History, which is the one place it was meant to be read.
+  for (const r of sunRows) if (r.minutes > 0 || r.notes) ensure(r.date).hasSun = true;
 
   return map;
 }

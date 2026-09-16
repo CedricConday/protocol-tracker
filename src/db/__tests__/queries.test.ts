@@ -26,6 +26,7 @@ import {
   confirmDose,
   skipDose,
   correctSunLog,
+  setSunNote,
   deleteWaterLog,
   deleteSunEntry,
   getSunEntries,
@@ -444,6 +445,47 @@ describe('correctSunLog', () => {
   it('rounds fractional minutes', async () => {
     await correctSunLog(12.6, '2026-09-13');
     expect(dayWrite()![1][1]).toBe(13);
+  });
+});
+
+describe('setSunNote', () => {
+  const ran = (re: RegExp) => mockDb.runAsync.mock.calls.filter((c) => re.test(String(c[0])));
+
+  // The bug this function exists for: SunlightScreen saved its note through
+  // correctSunLog, which sets the day TOTAL — and setting the total deletes the
+  // day's sessions and writes one row in their place. Three sessions became one,
+  // for typing a note.
+  it('does not touch the day\'s sessions', async () => {
+    await setSunNote('overcast', '2026-09-13');
+    expect(ran(/DELETE FROM sun_entries/)).toEqual([]);
+    expect(ran(/INSERT INTO sun_entries/)).toEqual([]);
+  });
+
+  it('does not write the day total', async () => {
+    await setSunNote('overcast', '2026-09-13');
+    const [sql] = ran(/INSERT INTO sun_log/)[0];
+    expect(String(sql)).toContain('DO UPDATE SET notes = excluded.notes');
+    expect(String(sql)).not.toContain('minutes = excluded.minutes');
+  });
+
+  it('creates the day row when the note is the first thing said about the day', async () => {
+    await setSunNote('sat in the shade', '2026-09-13');
+    expect(ran(/INSERT INTO sun_log/)[0][1]).toEqual(['2026-09-13', 'sat in the shade']);
+  });
+
+  it('removes a day left holding nothing once the note is cleared', async () => {
+    await setSunNote('', '2026-09-13');
+    const del = ran(/DELETE FROM sun_log/)[0];
+    expect(del).toBeTruthy();
+    // minutes = 0 is part of the condition: a legacy row can carry a real total
+    // with no sessions behind it, and that total is not ours to drop.
+    expect(String(del[0])).toContain('minutes = 0');
+    expect(String(del[0])).toContain('NOT EXISTS');
+  });
+
+  it('keeps the row when the note is cleared but the day still has sun', async () => {
+    await setSunNote('anything', '2026-09-13');
+    expect(ran(/DELETE FROM sun_log/)).toEqual([]);
   });
 });
 
