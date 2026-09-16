@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -21,11 +22,13 @@ import {
 } from '../db/queries';
 import { SUPPORT_URL, medicalDisclaimer } from '../config/links';
 import Pressable from '../components/Pressable';
+import SunMascot from '../components/SunMascot';
 import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
 import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
+import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -73,6 +76,36 @@ const Group = ({ label, children }: { label?: string; children: React.ReactNode 
 
 const Expand = ({ open, children }: { open: boolean; children: React.ReactNode }) =>
   open ? <View style={styles.expand}>{children}</View> : null;
+
+// The update row is one Row in six states, so the copy and the icon are resolved
+// in one place rather than as nested ternaries in the middle of the tree.
+const updateRowContent = (state: UpdateState, lastChecked: Date | null) => {
+  switch (state) {
+    case 'unsupported':
+      return { icon: 'cloud-offline-outline', label: t('setUpdateOff'), sub: t('setUpdateOffSub') };
+    case 'checking':
+      return { icon: 'cloud-download-outline', label: t('setUpdateChecking'), sub: undefined };
+    case 'downloading':
+      return { icon: 'cloud-download-outline', label: t('setUpdateDownloading'), sub: undefined };
+    case 'ready':
+      return { icon: 'refresh-outline', label: t('setUpdateReady'), sub: t('setUpdateReadySub') };
+    case 'current':
+      return {
+        icon: 'checkmark-circle-outline',
+        label: t('setUpdateCurrent'),
+        sub: lastChecked
+          ? t('setUpdateCurrentSub', {
+              time: lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            })
+          : undefined,
+      };
+    case 'error':
+      return { icon: 'alert-circle-outline', label: t('setUpdateError'), sub: t('setUpdateErrorSub') };
+    default:
+      return { icon: 'cloud-download-outline', label: t('setUpdateCheck'), sub: t('setUpdateIdleSub') };
+  }
+};
+
 
 type D3Display = { dose: string; unit: string } | null;
 
@@ -130,6 +163,8 @@ type SavedFields = {
 
 export default function SettingsScreen() {
   useLanguage(); // re-render this screen when the language changes
+  const update = useAppUpdate();
+  const updateRow = updateRowContent(update.state, update.lastChecked);
   const [name, setName] = useState('');
   // Display only: the daily D3 dose is edited in SupplementEditor.
   const [d3, setD3] = useState<D3Display>(null);
@@ -264,11 +299,6 @@ export default function SettingsScreen() {
     setCurrentLanguage(lang);
   };
 
-  const initials = useMemo(() => {
-    if (!name.trim()) return '·';
-    return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-  }, [name]);
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -292,7 +322,7 @@ export default function SettingsScreen() {
             >
               <View style={styles.hero}>
                 <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{initials}</Text>
+                  <SunMascot size={40} />
                 </View>
                 <View style={styles.heroInfo}>
                   <Text style={styles.heroName}>{name || 'Add your name'}</Text>
@@ -518,6 +548,32 @@ export default function SettingsScreen() {
             </>
           )}
 
+          {/* Over-the-air updates. Deliberately the last actionable row: it is
+              maintenance, not something a patient needs mid-protocol. */}
+          <Group>
+            <Row
+              icon={updateRow.icon}
+              label={updateRow.label}
+              sub={updateRow.sub}
+              dim={update.state === 'unsupported'}
+              onPress={
+                update.state === 'unsupported' || update.state === 'checking' || update.state === 'downloading'
+                  ? undefined
+                  : () => {
+                      hPress();
+                      if (update.state === 'ready') update.restart();
+                      else update.check();
+                    }
+              }
+              right={
+                update.state === 'checking' || update.state === 'downloading'
+                  ? <ActivityIndicator size="small" color={C.textMuted} />
+                  : undefined
+              }
+              last
+            />
+          </Group>
+
           <Text style={styles.disclaimer}>{medicalDisclaimer()}</Text>
 
           <Text style={styles.version}>{t('setVersionLine', { version: '1.0.0', year: 2026 })}</Text>
@@ -571,7 +627,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginRight: space.md,
   },
-  avatarText: { ...T.subheading, color: C.primary },
   heroInfo:   { flex: 1 },
   heroName:   { ...T.subheading, color: C.text },
   heroSub:    { ...T.small, color: C.textSub, marginTop: 2 },
