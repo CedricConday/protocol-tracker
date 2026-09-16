@@ -55,6 +55,15 @@ describe('no first-party server', () => {
       'api.openai.com',
       'api.groq.com',
       'www.facebook.com',      // community link, opened only by a deliberate tap
+      // WhatsApp hand-off from Send Feedback, opened only by a deliberate tap.
+      // Worth knowing what it is: wa.me is Meta's, and on a device without
+      // WhatsApp installed the link resolves in a BROWSER, which puts the
+      // feedback text in a URL Meta's server sees. That is the cost of a
+      // universal link over the `whatsapp://` scheme, which would need an iOS
+      // LSApplicationQueriesSchemes entry and an Android <queries> block to be
+      // detectable at all. Nothing health-related is routed here — it is the
+      // free-text feedback box, and the user types it knowing where it goes.
+      'wa.me',
     ];
 
     const offenders: string[] = [];

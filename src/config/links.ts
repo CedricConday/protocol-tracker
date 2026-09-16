@@ -30,6 +30,21 @@ export const SUPPORT_URL = 'INSERT GOFUNDME HERE';
 export const FEEDBACK_EMAIL = 'cedric@condaydigital.com';
 
 /**
+ * Support number the Send Feedback screen hands to WhatsApp, in full
+ * international form, digits only — no `+`, spaces or dashes. wa.me rejects
+ * anything else.
+ *
+ * If this ever goes back to a placeholder, the WhatsApp button renders disabled
+ * and says why — the same stance SUPPORT_URL takes above. A contact route that
+ * silently opens a dead chat is worse than a button admitting it is not wired
+ * up.
+ */
+export const FEEDBACK_WHATSAPP = '491725327581';
+
+/** True once FEEDBACK_WHATSAPP is a plausible international number. */
+export const hasWhatsApp = (): boolean => /^[1-9]\d{7,14}$/.test(FEEDBACK_WHATSAPP);
+
+/**
  * Shown wherever the app could be mistaken for giving medical guidance
  * (Apple 1.4.1). A function, not a constant: a constant is evaluated at import
  * and would hold whichever language was active then — on the one string in the

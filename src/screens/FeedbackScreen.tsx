@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getDb } from '../db/schema';
-import { FEEDBACK_EMAIL } from '../config/links';
+import { FEEDBACK_EMAIL, FEEDBACK_WHATSAPP, hasWhatsApp } from '../config/links';
 
 import { t, useLanguage } from '../i18n';
 export default function FeedbackScreen() {
@@ -25,7 +25,17 @@ export default function FeedbackScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
-  async function handleSubmit() {
+  /**
+   * Both routes are a hand-off, never a post.
+   *
+   * The message is written to the local `feedback` table first and then given
+   * to an app the user already controls — their mail client or WhatsApp — so
+   * nothing leaves the device unless they press send there, and there is no
+   * cleartext endpoint for iOS App Transport Security to block. WhatsApp is the
+   * second route because mail is not how a lot of people write to anyone any
+   * more; it changes who the message travels through, not what the app sends.
+   */
+  async function handleSubmit(channel: 'email' | 'whatsapp') {
     if (!message.trim()) {
       Alert.alert(t('fbRequired'), t('fbRequiredBody'));
       return;
@@ -37,18 +47,25 @@ export default function FeedbackScreen() {
         `INSERT INTO feedback (type, message, email) VALUES (?, ?, ?)`,
         ['Feedback', message.trim(), ''],
       );
-      // Handed off to the user's mail client rather than posted to a server:
-      // nothing leaves the device unless they press send, and there is no
-      // cleartext endpoint for iOS App Transport Security to block.
-      const subject = 'Protocol Tracker feedback';
+
       const body = message.trim();
-      const mailto =
-        `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}` +
-        `&body=${encodeURIComponent(body)}`;
-      if (await Linking.canOpenURL(mailto)) {
-        await Linking.openURL(mailto);
-        await db.runAsync(`UPDATE feedback SET sent = 1 WHERE id = last_insert_rowid()`);
+      const url =
+        channel === 'email'
+          ? `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Protocol Tracker feedback')}` +
+            `&body=${encodeURIComponent(body)}`
+          : `https://wa.me/${FEEDBACK_WHATSAPP}?text=${encodeURIComponent(body)}`;
+
+      if (!(await Linking.canOpenURL(url))) {
+        // Say so rather than showing the thank-you screen. The old code fell
+        // through to `done` whether or not anything opened, which told the user
+        // their message was on its way when it had gone no further than the
+        // local table — and a missing WhatsApp is ordinary, not an edge case.
+        Alert.alert(t('errorTitle'), t('fbNoApp'));
+        return;
       }
+
+      await Linking.openURL(url);
+      await db.runAsync(`UPDATE feedback SET sent = 1 WHERE id = last_insert_rowid()`);
       setDone(true);
     } catch (e) {
       Alert.alert(t('errorTitle'), t('fbSaveFailed'));
@@ -93,11 +110,29 @@ export default function FeedbackScreen() {
 
           <TouchableOpacity
             style={[styles.submitBtn, (!message.trim() || submitting) && styles.submitBtnDisabled]}
-            onPress={handleSubmit}
+            onPress={() => handleSubmit('email')}
             disabled={!message.trim() || submitting}
             activeOpacity={0.8}
+            accessibilityRole="button"
           >
-            <Text style={styles.submitBtnText}>{submitting ? 'Preparing…' : 'Send Feedback'}</Text>
+            <Text style={styles.submitBtnText}>{submitting ? 'Preparing…' : t('fbSendEmail')}</Text>
+          </TouchableOpacity>
+
+          {/* Disabled, with the reason on it, until FEEDBACK_WHATSAPP is a real
+              number — the same stance links.ts takes on SUPPORT_URL. A button
+              that opens a dead chat is worse than one that admits it is not
+              wired up. */}
+          <TouchableOpacity
+            style={[styles.whatsappBtn, (!message.trim() || submitting || !hasWhatsApp()) && styles.submitBtnDisabled]}
+            onPress={() => handleSubmit('whatsapp')}
+            disabled={!message.trim() || submitting || !hasWhatsApp()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            <Ionicons name="logo-whatsapp" size={18} color="#F7F7F2" />
+            <Text style={styles.whatsappBtnText}>
+              {hasWhatsApp() ? t('fbSendWhatsApp') : t('fbWhatsAppUnset')}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -119,6 +154,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 28,
   },
   submitBtnDisabled: { opacity: 0.4 },
+  whatsappBtn: {
+    backgroundColor: '#25D366', borderRadius: 10, paddingVertical: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12,
+  },
+  whatsappBtnText: { color: '#F7F7F2', fontSize: 16, fontWeight: '800' },
   submitBtnText: { color: '#F7F7F2', fontSize: 16, fontWeight: '800' },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   doneTitle: { color: '#14213D', fontSize: 24, fontWeight: '800', marginTop: 20 },
