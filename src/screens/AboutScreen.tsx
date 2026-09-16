@@ -1,13 +1,37 @@
 import { useEffect, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Application from 'expo-application';
 
+import SunMascot from '../components/SunMascot';
 import { t, useLanguage } from '../i18n';
+import { C, space, radius, text as T } from '../theme';
+
+/**
+ * About.
+ *
+ * Rewritten 2026-09-16. Three things were wrong with it:
+ *
+ * 1. **It was English only.** Every string but the section heading was hardcoded,
+ *    so a German user reached this screen and the app stopped speaking German.
+ * 2. **It was off-brand.** A blue circle with a "C" in it — neither the sun
+ *    mascot the rest of the app draws nor the CondayDigital mark. The colours
+ *    were hardcoded hex that had drifted from the theme.
+ * 3. **It promised features that do not exist.** The list advertised a dietary
+ *    restriction guide, relapse and event logging, and a "mood journal with
+ *    compliance correlation". `dietary`, `relapse` and `awareness` appear only
+ *    in the schema and seed data — no screen reads them — and "correlation"
+ *    appeared nowhere in the codebase except this file. The list below was
+ *    rebuilt from the screens that actually ship.
+ *
+ * An About screen is the one place a patient goes to decide whether to trust the
+ * app, so a feature it cannot deliver costs more here than anywhere else.
+ */
+
+const FEATURES = [
+  'aboutFeat1', 'aboutFeat2', 'aboutFeat3', 'aboutFeat4', 'aboutFeat5',
+  'aboutFeat6', 'aboutFeat7', 'aboutFeat8', 'aboutFeat9', 'aboutFeat10',
+] as const;
+
 export default function AboutScreen() {
   useLanguage(); // re-render this screen when the language changes
   const [appVersion, setAppVersion] = useState('');
@@ -22,130 +46,53 @@ export default function AboutScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.logo}>
-        <View style={styles.logoCircle}>
-          <Text style={styles.logoLetter}>C</Text>
-        </View>
-      </View>
+      <SunMascot size={72} />
 
       <Text style={styles.appName}>Protocol Tracker</Text>
+      <Text style={styles.by}>{t('aboutBy')}</Text>
       <Text style={styles.version}>v{appVersion}</Text>
 
-      <Text style={styles.description}>
-        A personal companion for patients following the Protocol.
-        Track supplements, monitor compliance, manage events, and stay
-        connected with your care plan.
-      </Text>
+      <Text style={styles.description}>{t('aboutTagline')}</Text>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('aboutKeyFeatures')}</Text>
         <View style={styles.featuresList}>
-          <Text style={styles.featureItem}>• Supplement schedule with timing windows</Text>
-          <Text style={styles.featureItem}>• Daily compliance tracking</Text>
-          <Text style={styles.featureItem}>• Water intake logging</Text>
-          <Text style={styles.featureItem}>• Exercise tracking</Text>
-          <Text style={styles.featureItem}>• Mood journal with compliance correlation</Text>
-          <Text style={styles.featureItem}>• Relapse and event logging</Text>
-          <Text style={styles.featureItem}>• Awareness calendar with notifications</Text>
-          <Text style={styles.featureItem}>• Dietary restriction guide</Text>
-          <Text style={styles.featureItem}>• PDF compliance reports</Text>
-          <Text style={styles.featureItem}>• Personalized dose reminders</Text>
+          {FEATURES.map((key) => (
+            <Text key={key} style={styles.featureItem}>{'·  '}{t(key)}</Text>
+          ))}
         </View>
       </View>
 
-      <Text style={styles.footer}>
-        Data stored locally on device.{'\n'}
-        No information is shared without your consent.
-      </Text>
+      <Text style={styles.privacy}>{t('aboutPrivacy')}</Text>
+      <Text style={styles.disclaimer}>{t('aboutDisclaimer')}</Text>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7F7F2',
-  },
+  container: { flex: 1, backgroundColor: C.bg },
   content: {
-    paddingTop: 60,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingTop: space.xxl,
+    paddingHorizontal: space.lg,
+    paddingBottom: space.xxxl,
     alignItems: 'center',
   },
-  logo: {
-    marginBottom: 16,
-  },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#1B58B8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoLetter: {
-    color: '#F7F7F2',
-    fontSize: 34,
-    fontWeight: '900',
-    lineHeight: 40,
-  },
-  appName: {
-    color: '#14213D',
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  version: {
-    color: '#9AA3B2',
-    fontSize: 14,
-    marginBottom: 24,
-  },
-  description: {
-    color: '#5A6478',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 32,
-  },
-  section: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    color: '#5A6478',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  sectionBody: {
-    color: '#5A6478',
-    fontSize: 14,
-    lineHeight: 22,
-    backgroundColor: '#ECEDE6',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#DBDDD3',
-  },
+
+  appName:     { ...T.heading, color: C.text, marginTop: space.md },
+  by:          { ...T.small, color: C.primary, marginTop: 2 },
+  version:     { ...T.small, color: C.textMuted, marginTop: 2, marginBottom: space.xl },
+  description: { ...T.body, color: C.textSub, textAlign: 'center', lineHeight: 22, marginBottom: space.xl },
+
+  section:      { alignSelf: 'stretch', marginBottom: space.xl },
+  sectionTitle: { ...T.caps, color: C.textSub, marginBottom: space.md },
   featuresList: {
-    backgroundColor: '#ECEDE6',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#DBDDD3',
+    backgroundColor: C.surface,
+    borderRadius: radius.lg,
+    padding: space.lg,
+    gap: space.sm,
   },
-  featureItem: {
-    color: '#5A6478',
-    fontSize: 13,
-    lineHeight: 22,
-  },
-  footer: {
-    color: '#9AA3B2',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 16,
-  },
+  featureItem: { ...T.small, color: C.text, lineHeight: 20 },
+
+  privacy:    { ...T.small, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: space.md },
+  disclaimer: { ...T.small, color: C.textMuted, textAlign: 'center', lineHeight: 20 },
 });
