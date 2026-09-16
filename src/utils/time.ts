@@ -79,3 +79,43 @@ export function bedtimeAfter(from: Date, hour: number, minute: number): Date {
   if (bed.getTime() <= from.getTime()) bed.setDate(bed.getDate() + 1);
   return bed;
 }
+
+/**
+ * The usual time of day across a set of instants — the average of their local
+ * clock times, not the clock time of their average instant.
+ *
+ * Added 2026-09-16, replacing `strftime('%H:%M', AVG(strftime('%s',
+ * t0_timestamp)))` in `getAverageStartTime`, which was wrong twice over.
+ * `t0_timestamp` is an integer millisecond epoch and SQLite reads a bare number
+ * as a Julian day, so `strftime('%s', …)` was NULL for every row and the query
+ * returned null every time it has ever been called — the morning reminder has
+ * only ever used its "no usual time yet" copy. And averaging absolute epochs is
+ * not an average time of day in the first place: 08:00 on Monday and 09:00 on
+ * Tuesday average to 20:30 on Monday.
+ *
+ * Averaged on the circle, so times that straddle midnight behave — 23:00 and
+ * 01:00 give midnight, not noon. Bedtime already established that a
+ * post-midnight hour is ordinary here, not an outlier to clip.
+ */
+export function averageTimeOfDay(instants: number[]): { hour: number; minute: number } | null {
+  if (instants.length === 0) return null;
+
+  let x = 0;
+  let y = 0;
+  for (const ms of instants) {
+    const d = new Date(ms);
+    const angle = ((d.getHours() * 60 + d.getMinutes()) / 1440) * 2 * Math.PI;
+    x += Math.cos(angle);
+    y += Math.sin(angle);
+  }
+
+  // How tightly the times cluster: 1 is identical, 0 is no usual time at all.
+  // Spread evenly enough around the clock and the mean is a coin toss — the
+  // average of 06:00 and 18:00 is equally noon and midnight — so it returns
+  // null rather than print either one as "your usual start".
+  const clustering = Math.hypot(x, y) / instants.length;
+  if (clustering < 0.3) return null;
+
+  const minutes = ((Math.round((Math.atan2(y, x) / (2 * Math.PI)) * 1440) % 1440) + 1440) % 1440;
+  return { hour: Math.floor(minutes / 60), minute: minutes % 60 };
+}

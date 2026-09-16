@@ -3,6 +3,7 @@ import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 import { ruleFiresOn, cadenceOf, type Cadence } from '../engine/cadence';
+import { averageTimeOfDay } from '../utils/time';
 
 export function localDateStr(d: Date): string {
   // Local calendar date (YYYY-MM-DD). Used everywhere data is keyed by day so
@@ -820,18 +821,29 @@ export async function getPatientName(): Promise<string> {
   return profile?.name ?? 'there';
 }
 
+/**
+ * The patient's usual "Start My Day" time over the last fortnight, `HH:MM`, or
+ * null when there is no usual time to report.
+ *
+ * The averaging moved to `averageTimeOfDay` on 2026-09-16, out of SQL. The
+ * query it replaced — `strftime('%H:%M', AVG(strftime('%s', t0_timestamp)))` —
+ * returned null on every call ever made: `t0_timestamp` is an integer
+ * millisecond epoch, and SQLite reads a bare number as a Julian day, so the
+ * inner `strftime` was NULL for every row. The morning reminder has therefore
+ * only ever shown its "no usual time yet" wording. See the helper for why
+ * averaging the epochs would still have been wrong after a cast.
+ */
 export async function getAverageStartTime(): Promise<string | null> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ avg_time: string | null }>(
-    `SELECT strftime('%H:%M', AVG(strftime('%s', t0_timestamp))) as avg_time
-     FROM (
-       SELECT t0_timestamp FROM daily_anchors
-       WHERE t0_timestamp IS NOT NULL
-       ORDER BY date DESC
-       LIMIT 14
-     )`
+  const rows = await db.getAllAsync<{ t0_timestamp: number }>(
+    `SELECT t0_timestamp FROM daily_anchors
+     WHERE t0_timestamp IS NOT NULL
+     ORDER BY date DESC
+     LIMIT 14`
   );
-  return row?.avg_time ?? null;
+  const avg = averageTimeOfDay(rows.map((r) => r.t0_timestamp));
+  if (!avg) return null;
+  return `${String(avg.hour).padStart(2, '0')}:${String(avg.minute).padStart(2, '0')}`;
 }
 
 // ── First Meal Time ──────────────────────────────────────────────────────────

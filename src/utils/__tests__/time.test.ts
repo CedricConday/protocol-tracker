@@ -18,7 +18,7 @@ vi.mock('../../i18n', () => ({
   locale: () => 'en-GB',
 }));
 
-import { parseTimeOfDay, bedtimeAfter } from '../time';
+import { parseTimeOfDay, bedtimeAfter, averageTimeOfDay } from '../time';
 
 describe('parseTimeOfDay', () => {
   it('takes the shapes a person actually types', () => {
@@ -75,5 +75,36 @@ describe('bedtimeAfter', () => {
     const bed = bedtimeAfter(from, 1, 0);
     expect(bed.getMonth()).toBe(9);
     expect(bed.getDate()).toBe(1);
+  });
+});
+
+describe('averageTimeOfDay', () => {
+  // Built from local Date parts, because the function reads local clock times —
+  // a UTC literal here would test the harness's timezone, not the arithmetic.
+  const at = (day: number, hour: number, minute: number) =>
+    new Date(2026, 8, day, hour, minute).getTime();
+
+  it('is the mean clock time, not the clock time of the mean instant', () => {
+    // The bug this replaced: averaging the epochs of 08:00 Monday and 09:00
+    // Tuesday lands at 20:30 Monday, which was never anyone's start time.
+    expect(averageTimeOfDay([at(14, 8, 0), at(15, 9, 0)])).toEqual({ hour: 8, minute: 30 });
+  });
+
+  it('averages across midnight instead of through noon', () => {
+    expect(averageTimeOfDay([at(14, 23, 0), at(15, 1, 0)])).toEqual({ hour: 0, minute: 0 });
+  });
+
+  it('holds a single reading exactly', () => {
+    expect(averageTimeOfDay([at(16, 6, 45)])).toEqual({ hour: 6, minute: 45 });
+  });
+
+  it('has nothing to say about an empty history', () => {
+    expect(averageTimeOfDay([])).toBeNull();
+  });
+
+  it('refuses to name a usual time when there is not one', () => {
+    // Opposite sides of the clock: the mean is equally noon and midnight, so
+    // printing either as "your usual start" would be a confident lie.
+    expect(averageTimeOfDay([at(14, 6, 0), at(15, 18, 0)])).toBeNull();
   });
 });
