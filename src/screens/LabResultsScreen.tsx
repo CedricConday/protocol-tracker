@@ -67,7 +67,19 @@ export default function LabResultsScreen() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [date, setDate] = useState(todayStr());
+  // The form's date is a DRAFT FOR A PARTICULAR DAY, so it carries that day
+  // with it. `useState(todayStr())` seeded once, at mount, and the only reset
+  // was after a successful save — so once the app had been open across midnight
+  // (the tab stays mounted, and the app survives days backgrounded) this still
+  // held YESTERDAY's date and the entry was filed under the previous day.
+  // Same defect, same shape of fix as JournalScreen's event date.
+  const today = todayStr();
+  const [dateDraft, setDateDraft] = useState<{ date: string; value: string }>({ date: today, value: today });
+  const date = dateDraft.date === today ? dateDraft.value : today;
+  const setDate = useCallback((value: string) => {
+    // todayStr(), not the render's `today`: a keystroke can land after the roll.
+    setDateDraft({ date: todayStr(), value });
+  }, []);
   const [vitD, setVitD] = useState('');
   const [pth, setPth] = useState('');
   const [calciumSerum, setCalciumSerum] = useState('');
@@ -113,7 +125,7 @@ export default function LabResultsScreen() {
       await enqueueAction('lab_result_saved', { date, vit_d_ngml: vitD, calcium_serum_mgdl: calciumSerum, pth_pgml: pth });
       // Pure-tracker build: no "out of range" evaluation/alerting on lab values.
       setShowForm(false);
-      setDate(todayStr());
+      setDateDraft({ date: todayStr(), value: todayStr() });
       setVitD(''); setPth(''); setCalciumSerum(''); setCalciumUrine(''); setCreatinine(''); setNfl('');
       setSulkowitch(null); setNotes('');
       await load();

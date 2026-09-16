@@ -26,6 +26,10 @@ export async function generateComplianceReport(
   let bestDayPct = 0;
   const rows: string[] = [];
 
+  // `days` holds LOCAL day keys (localDateStr above), so they are parsed back
+  // at local midnight. `new Date('2026-09-16')` is UTC midnight, which is the
+  // previous day everywhere west of Greenwich — every cell in the doctor's
+  // grid would be numbered a day early for those users.
   for (const dateStr of days) {
     const summary = await getDaySummary(dateStr);
     totalTaken += summary.takenDoses;
@@ -33,7 +37,7 @@ export async function generateComplianceReport(
     if (summary.compliancePct > bestDayPct) bestDayPct = summary.compliancePct;
 
     const color = getBoxColor(summary.compliancePct, summary.totalDoses);
-    rows.push(`<td style="background:${color};text-align:center;padding:6px;font-size:11px;color:${color === '#2a2a2a' ? '#666' : '#0d0d0d'};font-weight:700;border-radius:4px">${new Date(dateStr).getDate()}</td>`);
+    rows.push(`<td style="background:${color};text-align:center;padding:6px;font-size:11px;color:${color === '#2a2a2a' ? '#666' : '#0d0d0d'};font-weight:700;border-radius:4px">${new Date(dateStr + 'T00:00:00').getDate()}</td>`);
   }
 
   const weeklyRows: string[] = [];

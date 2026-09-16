@@ -1,6 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 import { getDb } from '../db/schema';
+import { todayStr } from '../db/queries';
 import { scheduleMissedDoseAlert } from './index';
 
 export const CHECK_DOSES = 'CHECK_DOSES';
@@ -13,7 +14,15 @@ TaskManager.defineTask(CHECK_DOSES, async () => {
 
     const db = await getDb();
     
-    // Query today's pending dose logs
+    // Today's pending dose logs, keyed with the app's own clock.
+    //
+    // This was `dl.date = date('now')`, which SQLite evaluates in UTC while
+    // every date this app writes is local (todayStr/localDateStr). East of UTC
+    // that means the hours between local midnight and the UTC rollover read
+    // YESTERDAY's rows: in Europe/Berlin (UTC+2) a 00:30 run checked the
+    // previous day's doses, so a dose actually due after midnight was never
+    // alerted on and a settled one could be re-examined. Same clock-source bug
+    // already fixed in getWeightedAdherenceScore and buildHealthContext.
     type DoseRow = { id: number; supplement_name: string; scheduled_time: number; status: string; tolerance_window: number };
     const doseLogs = await db.getAllAsync<DoseRow>(`
       SELECT dl.id, s.name as supplement_name, dl.scheduled_time,
@@ -21,8 +30,8 @@ TaskManager.defineTask(CHECK_DOSES, async () => {
       FROM dose_logs dl
       JOIN schedule_rules sr ON dl.rule_id = sr.id
       JOIN supplements s ON sr.supplement_id = s.id
-      WHERE dl.date = date('now') AND dl.status = 'upcoming'
-    `);
+      WHERE dl.date = ? AND dl.status = 'upcoming'
+    `, [todayStr()]);
 
     for (const log of doseLogs) {
       const scheduledTime = new Date(log.scheduled_time);

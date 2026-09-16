@@ -12,6 +12,18 @@ import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { MedicalEvent } from '../types';
 
+/**
+ * Whole days from a stored LOCAL day key (`YYYY-MM-DD`) to now.
+ *
+ * The `T00:00:00` is load-bearing: `new Date('2026-09-16')` parses as UTC
+ * midnight, but every key these comparisons read was written by `todayStr()`,
+ * which is local. Mixing the two shifts the count by the UTC offset, which is
+ * enough to move a threshold across its boundary for most of a day.
+ */
+function daysSinceDayKey(key: string): number {
+  return Math.floor((Date.now() - new Date(`${key}T00:00:00`).getTime()) / 86_400_000);
+}
+
 export function useHomeScreen(navigation: any) {
   const [t0, setT0] = useState<Date | null>(null);
   // False until the first loadDay has read today's anchor. Until then neither
@@ -103,7 +115,7 @@ export function useHomeScreen(navigation: any) {
   useEffect(() => {
     AsyncStorage.getItem('last_care_survey_date').then((date) => {
       if (!date) { setShowSurveyPrompt(true); return; }
-      const daysSince = Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000);
+      const daysSince = daysSinceDayKey(date);
       if (daysSince >= 90) setShowSurveyPrompt(true);
     });
   }, []);
@@ -136,9 +148,9 @@ export function useHomeScreen(navigation: any) {
       ]);
       const now = todayStr();
       if (!installDate) await AsyncStorage.setItem('install_date', now);
-      const appAge = Math.floor((Date.now() - new Date(installDate ?? now).getTime()) / 86_400_000);
+      const appAge = daysSinceDayKey(installDate ?? now);
       if (appAge < 8 && last) {
-        const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000);
+        const daysSince = daysSinceDayKey(last);
         if (daysSince >= 2) setShowEngagementNudge(true);
       }
       await AsyncStorage.setItem('last_active_date', now);
