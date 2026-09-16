@@ -5,7 +5,7 @@ The promo pipeline and its assets lived at `marketing/` in this repo until
 `protocol-tracker/video/`, checked out here on this box at
 `~/workspace/marketing`.
 
-Moved because marketing stopped being a property of one product: the Concode
+Moved because marketing stopped being a property of one product: the CondayDigital
 brand video, reels and shorts share the renderer and the brand, and none of
 them belong in a product repo.
 
