@@ -92,7 +92,12 @@ export default function SupplementEditorScreen() {
 
   const reload = useCallback(async () => {
     const [rows, avg] = await Promise.all([getSupplementsWithRules(), getAverageStartTime()]);
-    setSupplements(rows);
+    // The query sorts by name; the stack has to read as the day does, so the
+    // list is re-sorted by when each one is taken, name only breaking a tie.
+    setSupplements(
+      [...rows].sort((a, b) =>
+        a.offset_minutes - b.offset_minutes || a.name.localeCompare(b.name)),
+    );
     setT0(avg);
   }, []);
 
@@ -171,12 +176,6 @@ export default function SupplementEditorScreen() {
     );
   };
 
-  const openWizard = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setEditing(null);
-    navigation.navigate('SupplementWizard');
-  };
-
   /**
    * The bubble's second line: dose, then when it is taken — "4 h after start",
    * not "T0 +240 min". The clock hint rides along when there is a usual start
@@ -202,27 +201,15 @@ export default function SupplementEditorScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('supplements')}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.severalBtn}
-            onPress={openWizard}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={t('wizAddSeveralA11y')}
-          >
-            <Ionicons name="list-outline" size={16} color={C.primary} />
-            <Text style={styles.severalBtnText}>{t('wizAddSeveral')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={openAdd}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={t('supAddA11y')}
-          >
-            <Ionicons name="add" size={22} color="#F7F7F2" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={openAdd}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('supAddA11y')}
+        >
+          <Ionicons name="add" size={22} color="#F7F7F2" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -231,15 +218,6 @@ export default function SupplementEditorScreen() {
             <Ionicons name="flask-outline" size={40} color={C.textMuted} />
             <Text style={styles.emptyText}>{t('protocolStartsHere')}</Text>
             <Text style={styles.emptySub}>{t('tapPlusToAdd')}</Text>
-            <TouchableOpacity
-              style={styles.emptyWizardBtn}
-              onPress={openWizard}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={t('wizAddSeveralA11y')}
-            >
-              <Text style={styles.emptyWizardBtnText}>{t('wizAddSeveral')}</Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -289,20 +267,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
   },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 22, fontWeight: '700', color: C.text },
-  severalBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: C.primaryBg,
-    borderWidth: 1,
-    borderColor: C.primary,
-  },
-  severalBtnText: { fontSize: 13, color: C.primary, fontWeight: '600' },
   addBtn: {
     backgroundColor: C.primary,
     borderRadius: 20,
@@ -312,11 +277,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // A wrap, not a column: a short protocol then reads as a handful of bubbles
-  // rather than a stack of near-empty full-width rows.
-  bubbles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 4 },
+  // A column, not a wrap: the protocol is a sequence, so the bubbles stack in
+  // the order they are taken and each one spans the full width to stay readable.
+  bubbles: { gap: 10, paddingTop: 4 },
   bubble: {
-    maxWidth: '100%',
+    width: '100%',
     backgroundColor: C.surface,
     borderRadius: 18,
     borderWidth: 1,
@@ -330,12 +295,4 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, color: C.text, fontWeight: '600' },
   emptySub: { fontSize: 13, color: C.textSub },
-  emptyWizardBtn: {
-    marginTop: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: C.primary,
-  },
-  emptyWizardBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '600' },
 });
