@@ -279,7 +279,7 @@ export const en: Record<string, string> = {
   notifDoseTitle: 'Time for your {dose} {supplement}, {name}',
   notifDoseBody: 'Stay on schedule.',
   notifWaterTitle: 'Water Reminder',
-  notifWaterBody: "{name}, 500ml now — you're at {ml}ml of {goal}ml",
+  notifWaterBody: '{name}, time for another {amount} ml — today\'s goal is {goal} ml',
   notifExerciseTitle: 'Exercise Time',
   notifExerciseBody: '30 minutes walking — your Protocol exercise for today, {name}',
   notifMorningTitle: 'Start Your Day',

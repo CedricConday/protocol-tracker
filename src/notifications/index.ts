@@ -3,10 +3,11 @@ import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
-import { getAnchor, getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, todayStr } from '../db/queries';
+import { getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress } from '../db/queries';
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
 import { isQuietAt } from './quietHours';
+import { waterReminderTimes, WATER_NUDGE_ML } from './waterCadence';
 import { t } from '../i18n';
 
 export { registerBackgroundTask };
@@ -89,27 +90,57 @@ export const scheduleSupplementNotification = async (params: {
   }
 };
 
+/**
+ * Drops every water reminder still pending.
+ *
+ * `startDay` cancelled supplement notifications and nothing else, so opening the
+ * day a second time — after an account reset, or a day re-anchored on purpose —
+ * stacked a fresh set on top of the set already scheduled.
+ */
+export const cancelWaterReminders = async (): Promise<void> => {
+  try {
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    const ids = all.filter((n) => n.content.data?.type === 'water').map((n) => n.identifier);
+    await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
+    if (ids.length) {
+      console.log('[Protocol Tracker Notifications] Cancelled water reminders:', ids.length);
+    }
+  } catch (error) {
+    console.error('[Protocol Tracker Notifications] Error cancelling water reminders:', error);
+  }
+};
+
 export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<void> => {
   try {
-    const notifications: Promise<string | null>[] = [];
-    const intervalMs = 90 * 60 * 1000;
+    // Replace, never add to. See cancelWaterReminders.
+    await cancelWaterReminders();
 
-    let currentTime = new Date(t0);
+    const progress = await getWaterProgress();
+    const times = waterReminderTimes(t0, endTime, progress.goalMl, progress.waterMl);
+    if (times.length === 0) {
+      console.log('[Protocol Tracker Notifications] No water reminders needed — the goal is already met');
+      return;
+    }
+
+    // The body cannot say how much has been drunk: a DATE-triggered notification
+    // carries the text it was written with, and these are written hours ahead.
+    // The old body interpolated the progress at SCHEDULE time, so every reminder
+    // for the rest of the day reported the same stale figure — usually "0 ml".
+    // It states the ask and the goal, both of which are still true when it fires.
+    const body = t('notifWaterBody', { name: patientName, amount: WATER_NUDGE_ML, goal: progress.goalMl });
+
     let skipped = 0;
-    while (currentTime <= endTime) {
-      // Checked per reminder, not once: the 12-hour run can start outside the
-      // window and cross into it.
-      if (await isQuietAt(currentTime)) {
+    const notifications: Promise<string | null>[] = [];
+    for (const at of times) {
+      // Checked per reminder, not once: a 12-hour window can start outside quiet
+      // hours and cross into them.
+      if (await isQuietAt(at)) {
         skipped++;
-        currentTime = new Date(currentTime.getTime() + intervalMs);
         continue;
       }
-      const progress = await getWaterProgress();
-      const body = t('notifWaterBody', { name: patientName, ml: progress.waterMl, goal: progress.goalMl });
-      // The catch goes on at push time, not at the Promise.allSettled below:
-      // getWaterProgress() yields on every pass, so a promise parked in this array
-      // with no handler yet rejects into an unhandled rejection before the loop
-      // ever finishes.
+      // The catch goes on at push time, not at the Promise.all below: `isQuietAt`
+      // yields on every pass, so a promise parked in this array with no handler
+      // yet rejects into an unhandled rejection before the loop finishes.
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
@@ -117,15 +148,17 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
             body,
             sound: true,
             data: { type: 'water' },
+            // Without this the reminder lands on the default channel instead of
+            // the DEFAULT-importance 'water' one declared in setupAndroidChannels,
+            // so it arrived with a dose reminder's urgency. Ignored on iOS.
+            ...(Platform.OS === 'android' ? { channelId: 'water' } : {}),
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: new Date(currentTime),
+            date: at,
           },
         }).catch(() => null)
       );
-
-      currentTime = new Date(currentTime.getTime() + intervalMs);
     }
 
     const results = await Promise.all(notifications);
@@ -363,8 +396,15 @@ export const setupNotificationHandler = (): void => {
 
     if (notificationType === 'water') {
       try {
-        const anchor = await getAnchor(todayStr());
-        if ((anchor?.water_ml ?? 0) >= 2500) {
+        // Against the user's own goal. This read a hardcoded 2500 while the goal
+        // has been editable on the Water screen since 2026-09-13, so anyone who
+        // raised or lowered it was measured against a number they had replaced.
+        const progress = await getWaterProgress();
+        if (progress.waterMl >= progress.goalMl) {
+          // The rest of the day goes with it. Cancelling only the notification
+          // that just arrived left every later one to fire, which is the
+          // complaint this whole path exists to answer.
+          await cancelWaterReminders();
           await cancelNotification(notification.request.identifier);
           return;
         }

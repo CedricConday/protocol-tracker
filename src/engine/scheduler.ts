@@ -63,9 +63,9 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
     }
   }
 
-  // Fire-and-forget — don't block the schedule return on notification errors
-  // Water reminders run from T=0 to T+12h, the window the daily 2.5 L goal
-  // is meant to be spread over.
+  // Fire-and-forget — don't block the schedule return on notification errors.
+  // T=0 → T+12h is the WINDOW; how many reminders fall inside it comes from the
+  // user's goal, not from this call. See notifications/waterCadence.ts.
   scheduleWaterReminders(t0, new Date(t0Ms + 12 * 60 * 60 * 1000)).catch(() => {});
   scheduleExerciseReminder(t0).catch(() => {});
   scheduleEndOfDaySummary(t0).catch(() => {});
