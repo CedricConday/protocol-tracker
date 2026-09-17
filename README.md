@@ -86,9 +86,12 @@ need a separate RN-aware setup.
 ### Publish an OTA update
 
 ```bash
-export EXPO_TOKEN=<token>
-CI=1 npx eas-cli update --branch preview --message "what changed"
+npx eas-cli update --branch preview --environment preview \
+  --message "what changed" --non-interactive
 ```
+
+`--environment` is required in non-interactive mode (eas-cli 24.x); it is a separate axis
+from `--branch` and the command refuses to run without it.
 
 **The branch must match the installed build's channel.** Internal testers run the
 `preview` profile APK, so they read the `preview` branch; `--branch production` only
