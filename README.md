@@ -87,8 +87,13 @@ need a separate RN-aware setup.
 
 ```bash
 export EXPO_TOKEN=<token>
-CI=1 npx eas-cli update --branch production --message "what changed"
+CI=1 npx eas-cli update --branch preview --message "what changed"
 ```
+
+**The branch must match the installed build's channel.** Internal testers run the
+`preview` profile APK, so they read the `preview` branch; `--branch production` only
+reaches store builds, of which there are none. Nothing publishes automatically — no CI
+job, hook or timer runs this, so a pushed commit is not a shipped commit.
 
 Requires `qemu-user-static` on aarch64 hosts, `runtimeVersion: exposdk:57.0.0`, and `platforms: ["ios","android"]`.
 
