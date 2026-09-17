@@ -95,6 +95,18 @@ export async function visibleTouchables(ctx) {
  * named `name` and one supplement ("Vitamin D3") when `d3Dose` is given.
  */
 export async function onboard(ctx, { name = 'Testuser', d3Dose = '10000', condition = 'Multiple Sclerosis' } = {}) {
+  // Wait the splash out instead of assuming it has gone.
+  //
+  // App.tsx holds SplashAnimation until `ready`, which is the other side of
+  // runMigrations + initDb + seedDb. The session's flat 2s after networkidle
+  // covers that on a warm laptop and does not on a slower box or a cold first
+  // migration — where every flow crashed on "onboarding did not open",
+  // describing the splash rather than anything the flow was testing.
+  for (let waited = 0; waited < 60000; waited += 500) {
+    if (await ctx.sees('Set Up Your Profile')) break;
+    if (await ctx.sees('Stay on Track')) break;
+    await ctx.page.waitForTimeout(500);
+  }
   if (await ctx.sees('Stay on Track')) {
     await ctx.tap('Not now');
   }
