@@ -7,25 +7,26 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Pressable,
-  Switch,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { C } from '../theme/colors';
 import {
   getSupplementsWithRules,
+  getAverageStartTime,
   addSupplement,
   updateSupplementAndRule,
   deleteSupplement,
   localDateStr,
 } from '../db/queries';
-import { t, useLanguage, locale } from '../i18n';
-import { weekdaysShortSundayFirst } from '../i18n/dates';
-import { FREQUENCIES, parseDaysOfWeek, describeCadence } from '../engine/cadence';
+import { t, useLanguage } from '../i18n';
+import { describeCadence } from '../engine/cadence';
+import SupplementFields, { BLANK_SUPPLEMENT, SupplementFormState } from '../components/SupplementFields';
+import DurationInput from '../components/DurationInput';
+import { clockPreview, formatOffsetLabel } from '../utils/duration';
 
 type SupRow = {
   id: string;
@@ -45,278 +46,30 @@ type SupRow = {
   cycle_start_date: string;
 };
 
-type FormState = {
-  name: string;
-  form: string;
-  dose_amount: string;
-  dose_unit: string;
-  offset_minutes: string;
-  with_food: boolean;
-  tolerance_window: string;
-  frequency: string;
-  days_of_week: string;
-  day_of_month: string;
-  cycle_on_days: string;
-  cycle_off_days: string;
-  cycle_start_date: string;
-};
-
-const BLANK: FormState = {
-  name: '',
-  form: 'capsule',
-  dose_amount: '',
-  dose_unit: '',
-  offset_minutes: '0',
-  with_food: false,
-  tolerance_window: '30',
-  frequency: 'daily',
-  days_of_week: '',
-  day_of_month: '',
-  cycle_on_days: '',
-  cycle_off_days: '',
-  cycle_start_date: '',
-};
-
-const FORMS = ['capsule', 'tablet', 'powder', 'liquid'] as const;
-
-const FREQ_KEYS: Record<string, string> = {
-  'daily': 'freqDaily',
-  'specific-days': 'freqSpecificDays',
-  'day-of-month': 'freqMonthly',
-  'cycle': 'freqCycle',
-  'as-needed': 'freqAsNeeded',
-};
-
-/**
- * One-letter day dots and their full names, both from Intl — German starts the
- * week on Monday and abbreviates differently, and a hardcoded S-M-T-W-T-F-S was
- * wrong in both respects. `getDay()` order (Sunday first) is kept because the
- * dot index IS the stored day number.
- */
-function weekdayInitials(): string[] {
-  return weekdaysShortSundayFirst().map((d) => d.charAt(0).toUpperCase());
-}
-
-function weekdayNames(): string[] {
-  const fmt = new Intl.DateTimeFormat(locale(), { weekday: 'long' });
-  // 2024-01-07 was a Sunday.
-  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 7 + i)));
-}
-
-/**
- * Cadence picker. Only the sub-control the chosen frequency actually reads is
- * shown — a weekday row under "Monthly" would be dead UI the user still has to
- * reason about.
- */
-function CadenceFields({ form, onChange }: { form: FormState; onChange: (f: FormState) => void }) {
-  const days = parseDaysOfWeek(form.days_of_week);
-  const toggleDay = (d: number) => {
-    const next = days.includes(d) ? days.filter((x) => x !== d) : [...days, d];
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onChange({ ...form, days_of_week: next.sort((a, b) => a - b).join(',') });
-  };
-
-  return (
-    <>
-      <Text style={styles.label}>{t('howOften')}</Text>
-      <View style={styles.chipRow}>
-        {FREQUENCIES.map((f) => (
-          <Pressable
-            key={f}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, frequency: f }); }}
-            style={[styles.chip, form.frequency === f && styles.chipActive]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: form.frequency === f }}
-            accessibilityLabel={t(FREQ_KEYS[f])}
-          >
-            <Text style={[styles.chipText, form.frequency === f && styles.chipTextActive]}>{t(FREQ_KEYS[f])}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {form.frequency === 'specific-days' && (
-        <View style={styles.dayRow}>
-          {weekdayInitials().map((label, d) => (
-            <Pressable
-              key={d}
-              onPress={() => toggleDay(d)}
-              style={[styles.dayDot, days.includes(d) && styles.dayDotOn]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: days.includes(d) }}
-              accessibilityLabel={weekdayNames()[d]}
-            >
-              <Text style={[styles.dayDotText, days.includes(d) && styles.dayDotTextOn]}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {form.frequency === 'day-of-month' && (
-        <View style={styles.row2}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>{t('dayOfMonth')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.day_of_month}
-              onChangeText={(v) => onChange({ ...form, day_of_month: v })}
-              placeholder="1"
-              placeholderTextColor={C.textMuted}
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={{ flex: 1 }} />
-        </View>
-      )}
-
-      {form.frequency === 'cycle' && (
-        <View style={styles.row2}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={styles.label}>{t('daysOn')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.cycle_on_days}
-              onChangeText={(v) => onChange({ ...form, cycle_on_days: v })}
-              placeholder="5"
-              placeholderTextColor={C.textMuted}
-              keyboardType="numeric"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.label}>{t('daysOff')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.cycle_off_days}
-              onChangeText={(v) => onChange({ ...form, cycle_off_days: v })}
-              placeholder="2"
-              placeholderTextColor={C.textMuted}
-              keyboardType="numeric"
-            />
-          </View>
-        </View>
-      )}
-
-      {form.frequency === 'as-needed' && (
-        <Text style={styles.cadenceNote}>{t('asNeededNote')}</Text>
-      )}
-    </>
-  );
-}
-
-function FormFields({
-  form,
-  onChange,
-}: {
-  form: FormState;
-  onChange: (f: FormState) => void;
-}) {
-  return (
-    <View style={styles.formBlock}>
-      <Text style={[styles.label, { marginTop: 0 }]}>{t('supplementName')}</Text>
-      <TextInput
-        style={styles.input}
-        value={form.name}
-        onChangeText={(v) => onChange({ ...form, name: v })}
-        placeholder={t('supPlaceholder')}
-        placeholderTextColor={C.textMuted}
-        autoCapitalize="words"
-      />
-
-      <Text style={styles.label}>{t('howYouTakeIt')}</Text>
-      <View style={styles.chipRow}>
-        {FORMS.map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.chip, form.form === f && styles.chipActive]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, form: f }); }}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.chipText, form.form === f && styles.chipTextActive]}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.row2}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.label}>{t('dose')}</Text>
-          <TextInput
-            style={styles.input}
-            value={form.dose_amount}
-            onChangeText={(v) => onChange({ ...form, dose_amount: v })}
-            placeholder="400"
-            placeholderTextColor={C.textMuted}
-            keyboardType="numeric"
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>{t('unit')}</Text>
-          <TextInput
-            style={styles.input}
-            value={form.dose_unit}
-            onChangeText={(v) => onChange({ ...form, dose_unit: v })}
-            placeholder={t('supUnitPlaceholder')}
-            placeholderTextColor={C.textMuted}
-            autoCapitalize="none"
-          />
-        </View>
-      </View>
-
-      <View style={styles.row2}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.label}>{t('minutesAfterFirst')}</Text>
-          <TextInput
-            style={styles.input}
-            value={form.offset_minutes}
-            onChangeText={(v) => onChange({ ...form, offset_minutes: v })}
-            placeholder="0"
-            placeholderTextColor={C.textMuted}
-            keyboardType="numeric"
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>{t('flexibility')}</Text>
-          <TextInput
-            style={styles.input}
-            value={form.tolerance_window}
-            onChangeText={(v) => onChange({ ...form, tolerance_window: v })}
-            placeholder="30"
-            placeholderTextColor={C.textMuted}
-            keyboardType="numeric"
-          />
-        </View>
-      </View>
-
-      <View style={[styles.row2, { alignItems: 'center', marginTop: 14, marginBottom: 4 }]}>
-        <Text style={[styles.label, { flex: 1, marginTop: 0, marginBottom: 0 }]}>{t('takeWithFood')}</Text>
-        <Switch
-          value={form.with_food}
-          onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange({ ...form, with_food: v }); }}
-          trackColor={{ false: C.border, true: C.primary }}
-          thumbColor="#ffffff"
-        />
-      </View>
-
-      <CadenceFields form={form} onChange={onChange} />
-    </View>
-  );
-}
-
 export default function SupplementEditorScreen() {
   useLanguage(); // re-render this screen when the language changes
+  const navigation = useNavigation<any>();
   const [supplements, setSupplements] = useState<SupRow[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editForms, setEditForms] = useState<Record<string, FormState>>({});
-  const [addForm, setAddForm] = useState<FormState>(BLANK);
+  const [editForms, setEditForms] = useState<Record<string, SupplementFormState>>({});
+  const [addForm, setAddForm] = useState<SupplementFormState>(BLANK_SUPPLEMENT);
   const [saving, setSaving] = useState<string | null>(null);
+  // The patient's usual start time, for the "about 11:00" hint beside a gap.
+  // Null until they have started a day or two, and the hint simply hides.
+  const [t0, setT0] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const rows = await getSupplementsWithRules();
+    const [rows, avg] = await Promise.all([getSupplementsWithRules(), getAverageStartTime()]);
     setSupplements(rows);
+    setT0(avg);
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', reload);
+    reload();
+    return unsubscribe;
+  }, [navigation, reload]);
 
   const toggleExpand = (id: string, row: SupRow) => {
     if (expandedId === id) { setExpandedId(null); return; }
@@ -341,6 +94,19 @@ export default function SupplementEditorScreen() {
     setExpandedId(id);
     setShowAddForm(false);
   };
+
+  /**
+   * The timing slot. Here it is the supplement's own place in the day, measured
+   * from the moment it starts — the wizard is the screen that asks in gaps.
+   */
+  const timingFor = (form: SupplementFormState, onChange: (f: SupplementFormState) => void) => () => (
+    <DurationInput
+      label={t('timingLabel')}
+      value={parseInt(form.offset_minutes, 10) || 0}
+      onChange={(minutes) => onChange({ ...form, offset_minutes: String(minutes) })}
+      t0={t0}
+    />
+  );
 
   const handleSave = async (row: SupRow) => {
     const f = editForms[row.id];
@@ -410,7 +176,7 @@ export default function SupplementEditorScreen() {
         cycle_off_days: parseInt(addForm.cycle_off_days, 10) || 0,
         cycle_start_date: localDateStr(new Date()),
       });
-      setAddForm(BLANK);
+      setAddForm(BLANK_SUPPLEMENT);
       setShowAddForm(false);
       await reload();
     } finally {
@@ -418,20 +184,39 @@ export default function SupplementEditorScreen() {
     }
   };
 
+  const openWizard = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowAddForm(false);
+    setExpandedId(null);
+    navigation.navigate('SupplementWizard');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('supplements')}</Text>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={showAddForm ? t('supCloseAddA11y') : t('supAddA11y')}
-          >
-            <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#F7F7F2" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.severalBtn}
+              onPress={openWizard}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t('wizAddSeveralA11y')}
+            >
+              <Ionicons name="list-outline" size={16} color={C.primary} />
+              <Text style={styles.severalBtnText}>{t('wizAddSeveral')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={showAddForm ? t('supCloseAddA11y') : t('supAddA11y')}
+            >
+              <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#F7F7F2" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -439,7 +224,11 @@ export default function SupplementEditorScreen() {
           {showAddForm && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>{t('newSupplement')}</Text>
-              <FormFields form={addForm} onChange={setAddForm} />
+              <SupplementFields
+                form={addForm}
+                onChange={setAddForm}
+                renderTiming={timingFor(addForm, setAddForm)}
+              />
               <TouchableOpacity
                 style={[styles.saveBtn, saving === '__add__' && styles.saveBtnDisabled]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdd().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
@@ -458,6 +247,15 @@ export default function SupplementEditorScreen() {
               <Ionicons name="flask-outline" size={40} color={C.textMuted} />
               <Text style={styles.emptyText}>{t('protocolStartsHere')}</Text>
               <Text style={styles.emptySub}>{t('tapPlusToAdd')}</Text>
+              <TouchableOpacity
+                style={styles.emptyWizardBtn}
+                onPress={openWizard}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={t('wizAddSeveralA11y')}
+              >
+                <Text style={styles.emptyWizardBtnText}>{t('wizAddSeveral')}</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -467,7 +265,11 @@ export default function SupplementEditorScreen() {
             const doseLabel = row.dose_amount && row.dose_unit
               ? `${row.dose_amount} ${row.dose_unit}`
               : row.dose_amount || '—';
-            const timingLabel = row.offset_minutes === 0 ? 'At T0' : `T0 +${row.offset_minutes} min`;
+            // "4 h after start", not "T0 +240 min". The clock hint rides along
+            // when there is a usual start time to measure it against.
+            const at = clockPreview(row.offset_minutes, t0);
+            const timingLabel = formatOffsetLabel(row.offset_minutes)
+              + (at ? ` · ${t('timingPreviewAt', { time: at })}` : '');
             // 'daily' is the overwhelming default — printing it on every row
             // would bury the two that are not.
             const cadenceLabel = row.frequency && row.frequency !== 'daily'
@@ -484,7 +286,7 @@ export default function SupplementEditorScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName}>{row.name}</Text>
                     <Text style={styles.cardSub}>
-                      {doseLabel} · {timingLabel}{cadenceLabel}{row.with_food ? ' · with food' : ''}
+                      {doseLabel} · {timingLabel}{cadenceLabel}{row.with_food ? ` · ${t('withFoodShort')}` : ''}
                     </Text>
                   </View>
                   <Ionicons
@@ -497,9 +299,10 @@ export default function SupplementEditorScreen() {
                 {isOpen && f && (
                   <>
                     <View style={styles.divider} />
-                    <FormFields
+                    <SupplementFields
                       form={f}
                       onChange={(next) => setEditForms((prev) => ({ ...prev, [row.id]: next }))}
+                      renderTiming={timingFor(f, (next) => setEditForms((prev) => ({ ...prev, [row.id]: next })))}
                     />
                     <View style={styles.actionRow}>
                       <TouchableOpacity style={styles.deleteBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleDelete(row); }} activeOpacity={0.7}>
@@ -512,7 +315,7 @@ export default function SupplementEditorScreen() {
                         disabled={saving === row.id}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.saveBtnText}>{saving === row.id ? 'Saving…' : 'Save'}</Text>
+                        <Text style={styles.saveBtnText}>{saving === row.id ? t('saving') : t('save')}</Text>
                       </TouchableOpacity>
                     </View>
                   </>
@@ -539,7 +342,20 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 22, fontWeight: '700', color: C.text },
+  severalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: C.primaryBg,
+    borderWidth: 1,
+    borderColor: C.primary,
+  },
+  severalBtnText: { fontSize: 13, color: C.primary, fontWeight: '600' },
   addBtn: {
     backgroundColor: C.primary,
     borderRadius: 20,
@@ -571,44 +387,6 @@ const styles = StyleSheet.create({
   cardName: { fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 2 },
   cardSub: { fontSize: 12, color: C.textSub },
   divider: { height: 1, backgroundColor: C.border, marginHorizontal: 16 },
-  formBlock: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  label: { fontSize: 12, fontWeight: '600', color: C.textSub, marginBottom: 6, marginTop: 12 },
-  input: {
-    backgroundColor: C.surface2,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: C.text,
-  },
-  row2: { flexDirection: 'row' },
-  chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: C.surface2,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  chipActive: { backgroundColor: C.primaryBg, borderColor: C.primary },
-  chipText: { fontSize: 13, color: C.textSub, fontWeight: '500' },
-  chipTextActive: { color: C.primary, fontWeight: '600' },
-  dayRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 6 },
-  dayDot: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.surface2,
-    borderWidth: 1,
-    borderColor: C.border,
-  },
-  dayDotOn: { backgroundColor: C.primary, borderColor: C.primary },
-  dayDotText: { fontSize: 13, fontWeight: '600', color: C.textSub },
-  dayDotTextOn: { color: '#ffffff' },
-  cadenceNote: { marginTop: 10, fontSize: 13, lineHeight: 19, color: C.textMuted },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -641,4 +419,12 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, color: C.text, fontWeight: '600' },
   emptySub: { fontSize: 13, color: C.textSub },
+  emptyWizardBtn: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: C.primary,
+  },
+  emptyWizardBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '600' },
 });
