@@ -29,7 +29,7 @@ import SkeletonCard from '../components/SkeletonCard';
 import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule, dosesPastBedtime } from '../engine/scheduler';
 import { formatClock } from '../utils/time';
-import { confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
+import { confirmDose, confirmDoseAt, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
 import { dismissWeeklyReport } from '../utils/autoReport';
 import ShareSheet from '../share/ShareSheet';
 import { clearAppBadge } from '../notifications';
@@ -295,6 +295,25 @@ export default function HomeScreen() {
     setFirstMealTimeState(timeStr);
     setShowMealPrompt(false);
   };
+
+    /**
+     * A dose the user is confirming after the fact, at a time they state.
+     * `confirmDoseAt` writes that time rather than stamping now, so a dose
+     * taken at 08:00 and logged at 11:00 reads 08:00 on the record.
+     */
+    const handleTookAt = async (dose: ScheduledDose, when: Date) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      try {
+        if (!dose.logId) {
+          Alert.alert(t('errorTitle'), t('logDoseFailed'));
+          return;
+        }
+        await confirmDoseAt(dose.logId, when.getTime());
+        await loadDay();
+      } catch {
+        Alert.alert(t('errorTitle'), t('logDoseFailed'));
+      }
+    };
 
     const handleTook = async (dose: ScheduledDose) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -613,6 +632,7 @@ export default function HomeScreen() {
         dose={selectedDose}
         onClose={() => setSelectedDose(null)}
         onTook={handleTook}
+        onTookAt={handleTookAt}
         onSkip={handleSkip}
       />
 

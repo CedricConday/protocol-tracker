@@ -14,7 +14,7 @@ import {
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DoseDetailModal from '../components/DoseDetailModal';
-import { confirmDose, skipDose, localDateStr } from '../db/queries';
+import { confirmDose, confirmDoseAt, skipDose, localDateStr } from '../db/queries';
 import { useScheduleScreen } from '../hooks';
 import type { ScheduledDose } from '../types';
 import EmptyState from '../components/EmptyState';
@@ -65,6 +65,18 @@ export default function ScheduleScreen() {
   useEffect(() => {
     if (activeView === 'history') loadCalendar();
   }, [activeView, loadCalendar]);
+
+  /** Taken, at a time the user states — the missed-dose path. */
+  const handleTookAt = async (dose: ScheduledDose, when: Date) => {
+    try {
+      if (dose.logId) await confirmDoseAt(dose.logId, when.getTime());
+      await loadSchedule();
+    } catch {
+      Alert.alert(t('errorTitle'), t('logDoseFailed'));
+    } finally {
+      setSelectedDose(null);
+    }
+  };
 
   const handleTook = async (dose: ScheduledDose) => {
     try {
@@ -232,6 +244,7 @@ export default function ScheduleScreen() {
         dose={selectedDose}
         onClose={() => setSelectedDose(null)}
         onTook={handleTook}
+        onTookAt={handleTookAt}
         onSkip={handleSkip}
       />
     </View>

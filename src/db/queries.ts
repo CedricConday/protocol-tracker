@@ -490,6 +490,8 @@ async function applyDoseStatus(
   logId: number,
   status: 'taken' | 'skipped',
   reason?: string,
+  /** An explicit time the dose was taken, for a dose confirmed after the fact. */
+  at?: number,
 ): Promise<{ supplement_id: string; date: string } | null> {
   const db = await getDb();
   const log = await db.getFirstAsync<{ supplement_id: string; date: string; status: string; scheduled_time: number }>(
@@ -498,7 +500,7 @@ async function applyDoseStatus(
   );
   if (!log) return null;
 
-  const loggedTime = log.date === todayStr() ? Date.now() : log.scheduled_time;
+  const loggedTime = at ?? (log.date === todayStr() ? Date.now() : log.scheduled_time);
   if (reason === undefined) {
     await db.runAsync('UPDATE dose_logs SET status = ?, logged_time = ? WHERE id = ?', [status, loggedTime, logId]);
   } else {
@@ -518,6 +520,24 @@ async function applyDoseStatus(
 export async function confirmDose(logId: number): Promise<void> {
   const log = await applyDoseStatus(logId, 'taken');
   if (log) await enqueueAction('dose_confirmed', { supplement_id: log.supplement_id, date: log.date, time: new Date().toISOString() });
+}
+
+/**
+ * Confirm a dose the user is telling us about after the fact, at the time they
+ * say they took it.
+ *
+ * A missed dose had no way back: `markOverdueDoses` moves it to 'missed' after
+ * the grace period and the sheet offered nothing but a banner, so a dose taken
+ * an hour late was recorded as not taken at all. On a medical record that is
+ * the wrong kind of wrong — it under-reports adherence and it is the patient's
+ * own data being refused.
+ *
+ * The time is theirs to state rather than ours to stamp, which is the whole
+ * difference from `confirmDose`: "now" is the default, not the truth.
+ */
+export async function confirmDoseAt(logId: number, at: number): Promise<void> {
+  const log = await applyDoseStatus(logId, 'taken', undefined, at);
+  if (log) await enqueueAction('dose_confirmed', { supplement_id: log.supplement_id, date: log.date, time: new Date(at).toISOString() });
 }
 
 export async function skipDose(logId: number): Promise<void> {

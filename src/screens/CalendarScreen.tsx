@@ -13,7 +13,7 @@ import {
   View,
   Alert,
 } from 'react-native';
-import { confirmDose, getCalendarMonth, getDayDetail, localDateStr, skipDose, skipDoseWithReason, todayStr, type CalendarDay, type DayDetail, type DayDetailDose } from '../db/queries';
+import { confirmDose, confirmDoseAt, getCalendarMonth, getDayDetail, localDateStr, skipDose, skipDoseWithReason, todayStr, type CalendarDay, type DayDetail, type DayDetailDose } from '../db/queries';
 import DoseDetailModal from '../components/DoseDetailModal';
 import type { ScheduledDose } from '../types';
 import SkeletonCard from '../components/SkeletonCard';
@@ -218,6 +218,18 @@ export default function CalendarScreen() {
     if (dose.logId == null) return;
     try {
       await confirmDose(dose.logId);
+    } catch {
+      Alert.alert(t('errorTitle'), t('calDoseFailed'));
+    }
+    await afterCorrection();
+  }, [afterCorrection]);
+
+  /** The same correction, with the time the user says the dose was taken. */
+  const correctTookAt = useCallback(async (dose: ScheduledDose, when: Date) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (dose.logId == null) return;
+    try {
+      await confirmDoseAt(dose.logId, when.getTime());
     } catch {
       Alert.alert(t('errorTitle'), t('calDoseFailed'));
     }
@@ -690,6 +702,7 @@ export default function CalendarScreen() {
           dose={selectedDose}
           correctable
           onClose={() => setSelectedDose(null)}
+          onTookAt={correctTookAt}
           onTook={correctTook}
           onSkip={correctSkip}
         />

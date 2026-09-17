@@ -5,17 +5,21 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { ScheduledDose } from '../types';
 import { t, useLanguage, locale } from '../i18n';
+import { clockNow, parseTimeOfDay } from '../utils/time';
 
 interface Props {
   visible: boolean;
   dose: ScheduledDose | null;
   onClose: () => void;
   onTook: (dose: ScheduledDose) => void;
+  /** Taken, but not now — the user states the time. Used by the missed path. */
+  onTookAt: (dose: ScheduledDose, when: Date) => void;
   onSkip: (dose: ScheduledDose, reason?: string) => void;
   /** Offer the actions whatever the dose's status is — the calendar opens this
    *  sheet against a day that is already over, where the point is to correct
@@ -67,6 +71,7 @@ export default function DoseDetailModal({
   onClose,
   onTook,
   onSkip,
+  onTookAt,
   correctable = false,
 }: Props) {
   useLanguage(); // re-render this screen when the language changes
@@ -105,6 +110,34 @@ export default function DoseDetailModal({
   // "Add a reason" and never gates the write — Cedric's call, 2026-09-13
   // (PT-trio round 3, A1). It was the gate that made the audit read "Skip
   // does not persist".
+  /**
+   * A missed dose can still be confirmed, at a time the user states.
+   *
+   * `markOverdueDoses` moves an untaken dose to 'missed' half an hour after it
+   * was due, and until now that was final: the sheet showed a banner and no way
+   * to say "I took it, just late". The default is the current time because that
+   * is the common case — they are logging it as they swallow it — but it is a
+   * default, not a claim, and the field is open.
+   */
+  const [askingTime, setAskingTime] = useState(false);
+  const [timeDraft, setTimeDraft] = useState('');
+
+  const openTimePrompt = () => {
+    setTimeDraft(clockNow());
+    setAskingTime(true);
+  };
+
+  const confirmTakenAt = () => {
+    const parsed = parseTimeOfDay(timeDraft);
+    if (!parsed) return;
+    // The dose's own day, not today's: a dose missed yesterday is confirmed
+    // against yesterday, or the record moves a day every time it is corrected.
+    const when = new Date(dose.scheduledTime);
+    when.setHours(parsed.hour, parsed.minute, 0, 0);
+    setAskingTime(false);
+    onTookAt(dose, when);
+  };
+
   const handleSkipPress = () => {
     onSkip(dose);
   };
@@ -116,6 +149,7 @@ export default function DoseDetailModal({
 
   const handleDismiss = () => {
     setShowSkipReasons(false);
+    setAskingTime(false);
     onClose();
   };
 
@@ -244,8 +278,51 @@ export default function DoseDetailModal({
               <Text style={styles.takenBannerText}>{t('doseLoggedBanner')}</Text>
             </View>
           ) : isMissed ? (
-            <View style={styles.missedBanner}>
-              <Text style={styles.missedBannerText}>{t('doseMissedBanner')}</Text>
+            <View>
+              <View style={styles.missedBanner}>
+                <Text style={styles.missedBannerText}>{t('doseMissedBanner')}</Text>
+              </View>
+              {dose.logId != null && (askingTime ? (
+                <View style={styles.timeAsk}>
+                  <Text style={styles.timeAskLabel}>{t('doseTookAtQuestion')}</Text>
+                  <TextInput
+                    style={styles.timeAskField}
+                    value={timeDraft}
+                    onChangeText={setTimeDraft}
+                    onSubmitEditing={confirmTakenAt}
+                    keyboardType="numbers-and-punctuation"
+                    autoFocus
+                    accessibilityLabel={t('doseTimeField')}
+                  />
+                  <View style={styles.timeAskActions}>
+                    <TouchableOpacity
+                      style={styles.timeAskCancel}
+                      onPress={() => setAskingTime(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('cancel')}
+                    >
+                      <Text style={styles.timeAskCancelText}>{t('cancel')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.timeAskSave}
+                      onPress={confirmTakenAt}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('doseTookAtSaveA11y', { supplement: dose.supplementName })}
+                    >
+                      <Text style={styles.timeAskSaveText}>{t('doseTookAtSave')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.tookLateButton}
+                  onPress={openTimePrompt}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('doseTookLateA11y', { supplement: dose.supplementName })}
+                >
+                  <Text style={styles.tookLateButtonText}>{t('doseTookLate')}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           ) : isSkipped ? (
             <View style={styles.skippedBanner}>
@@ -474,6 +551,28 @@ const styles = themed((C) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  tookLateButton: {
+    marginTop: 12, height: 48, borderRadius: 12,
+    backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
+  },
+  tookLateButtonText: { color: C.onPrimary, fontSize: 15, fontWeight: '700' },
+  timeAsk: { marginTop: 12 },
+  timeAskLabel: { color: C.textSub, fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  timeAskField: {
+    color: C.text, fontSize: 28, fontWeight: '800',
+    borderBottomWidth: 2, borderBottomColor: C.primary, paddingVertical: 2,
+  },
+  timeAskActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  timeAskCancel: {
+    flex: 1, height: 48, borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  timeAskCancelText: { color: C.textSub, fontSize: 15, fontWeight: '700' },
+  timeAskSave: {
+    flex: 1, height: 48, borderRadius: 12, backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  timeAskSaveText: { color: C.onPrimary, fontSize: 15, fontWeight: '700' },
   missedBanner: {
     backgroundColor: C.dangerBg,
     borderRadius: 12,
