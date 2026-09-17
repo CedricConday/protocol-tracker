@@ -77,6 +77,22 @@ export default function DoseDetailModal({
   useLanguage(); // re-render this screen when the language changes
   useTheme(); // ...and when the theme tier changes
   const [showSkipReasons, setShowSkipReasons] = useState(false);
+  /**
+   * A missed dose can still be confirmed, at a time the user states.
+   *
+   * `markOverdueDoses` moves an untaken dose to 'missed' half an hour after it
+   * was due, and until now that was final: the sheet showed a banner and no way
+   * to say "I took it, just late". The default is the current time because that
+   * is the common case — they are logging it as they swallow it — but it is a
+   * default, not a claim, and the field is open.
+   *
+   * Declared here, above the `if (!dose)` guard, with every other hook. Below
+   * it the hook count changes between a render with a dose and one without,
+   * which is a crash, not a warning.
+   */
+  const [askingTime, setAskingTime] = useState(false);
+  const [timeDraft, setTimeDraft] = useState('');
+
 
   if (!dose) return null;
 
@@ -105,23 +121,6 @@ export default function DoseDetailModal({
   // never reached this sheet from a past day (round 3, A4).
   const canCorrect = correctable && dose.logId != null;
 
-  // One tap skips: the write happens here, with no reason, and the parent
-  // closes the sheet. The reason picker is an optional second step behind
-  // "Add a reason" and never gates the write — Cedric's call, 2026-09-13
-  // (PT-trio round 3, A1). It was the gate that made the audit read "Skip
-  // does not persist".
-  /**
-   * A missed dose can still be confirmed, at a time the user states.
-   *
-   * `markOverdueDoses` moves an untaken dose to 'missed' half an hour after it
-   * was due, and until now that was final: the sheet showed a banner and no way
-   * to say "I took it, just late". The default is the current time because that
-   * is the common case — they are logging it as they swallow it — but it is a
-   * default, not a claim, and the field is open.
-   */
-  const [askingTime, setAskingTime] = useState(false);
-  const [timeDraft, setTimeDraft] = useState('');
-
   const openTimePrompt = () => {
     setTimeDraft(clockNow());
     setAskingTime(true);
@@ -138,6 +137,11 @@ export default function DoseDetailModal({
     onTookAt(dose, when);
   };
 
+  // One tap skips: the write happens here, with no reason, and the parent
+  // closes the sheet. The reason picker is an optional second step behind
+  // "Add a reason" and never gates the write — Cedric's call, 2026-09-13
+  // (PT-trio round 3, A1). It was the gate that made the audit read "Skip
+  // does not persist".
   const handleSkipPress = () => {
     onSkip(dose);
   };
