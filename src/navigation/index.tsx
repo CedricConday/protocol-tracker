@@ -21,7 +21,6 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
-import SupplementWizardScreen from '../screens/SupplementWizardScreen';
 import BedtimeScreen from '../screens/BedtimeScreen';
 import SummaryScreen from '../screens/SummaryScreen';
 import WaterScreen from '../screens/WaterScreen';
@@ -92,7 +91,6 @@ const TRACKER_ROUTES: { name: string; titleKey: string; component: ComponentType
   { name: 'Exercise', titleKey: 'exercise', component: ExerciseScreen },
   { name: 'Food', titleKey: 'food', component: FoodScreen },
   { name: 'SupplementEditor', titleKey: 'navManageSupplements', component: SupplementEditorScreen },
-  { name: 'SupplementWizard', titleKey: 'navSupplementWizard', component: SupplementWizardScreen },
   { name: 'Bedtime', titleKey: 'navBedtime', component: BedtimeScreen },
 ];
 

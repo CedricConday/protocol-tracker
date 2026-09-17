@@ -263,7 +263,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    // 16, the same gutter the list scrolls in: the + lines up with the bubbles' edge.
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
   },
