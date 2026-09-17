@@ -43,7 +43,6 @@ export function useHomeScreen(navigation: any) {
   const [exerciseIntensity, setExerciseIntensity] = useState('moderate');
   const [todayMeals, setTodayMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
   const [patientName, setPatientName] = useState('');
-  const [showFatigueAlert, setShowFatigueAlert] = useState(false);
   const [showSurveyPrompt, setShowSurveyPrompt] = useState(false);
   const [showMagnesiumHint, setShowMagnesiumHint] = useState(false);
   const [showD3MealHint, setShowD3MealHint] = useState(false);
@@ -111,13 +110,6 @@ export function useHomeScreen(navigation: any) {
     const interval = setInterval(loadDay, 60_000);
     return () => clearInterval(interval);
   }, [loadDay]);
-
-  useEffect(() => {
-    AsyncStorage.getItem('fatigue_alert_shown').then((date) => {
-      const today = todayStr();
-      setShowFatigueAlert(date === today);
-    });
-  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem('last_care_survey_date').then((date) => {
@@ -204,7 +196,6 @@ export function useHomeScreen(navigation: any) {
     exerciseIntensity, setExerciseIntensity,
     todayMeals, setTodayMeals,
     patientName,
-    showFatigueAlert, setShowFatigueAlert,
     showSurveyPrompt, setShowSurveyPrompt,
     showMagnesiumHint, setShowMagnesiumHint,
     showD3MealHint, setShowD3MealHint,

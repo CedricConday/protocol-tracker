@@ -22,7 +22,8 @@ TaskManager.defineTask(CHECK_DOSES, async () => {
     // YESTERDAY's rows: in Europe/Berlin (UTC+2) a 00:30 run checked the
     // previous day's doses, so a dose actually due after midnight was never
     // alerted on and a settled one could be re-examined. Same clock-source bug
-    // already fixed in getWeightedAdherenceScore and buildHealthContext.
+    // already fixed in getWeightedAdherenceScore (and in the since-deleted
+    // buildHealthContext, which had no callers after AI Workspace came out).
     type DoseRow = { id: number; supplement_name: string; scheduled_time: number; status: string; tolerance_window: number };
     const doseLogs = await db.getAllAsync<DoseRow>(`
       SELECT dl.id, s.name as supplement_name, dl.scheduled_time,

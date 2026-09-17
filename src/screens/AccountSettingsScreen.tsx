@@ -35,6 +35,9 @@ export default function AccountSettingsScreen() {
                 DELETE FROM meal_log; DELETE FROM relapse_events; DELETE FROM calcium_logs;
               `);
             });
+            // `fatigue_alert_shown` no longer has a banner behind it (removed
+            // 2026-09-17) — it stays in this list so a reset still clears the
+            // key on installs made before then.
             await AsyncStorage.multiRemove(['fatigue_alert_shown', 'last_care_survey_date', 'auto_report_last_week', 'review_prompted']);
             Alert.alert(t('accDone'), t('accClearedBody'));
           },

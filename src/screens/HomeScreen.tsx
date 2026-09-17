@@ -179,7 +179,7 @@ export default function HomeScreen() {
     exerciseMinutes, setExerciseMinutes, exerciseType, setExerciseType,
     exerciseIntensity, setExerciseIntensity,
     todayMeals, setTodayMeals, patientName,
-    showFatigueAlert, setShowFatigueAlert, showSurveyPrompt, setShowSurveyPrompt,
+    showSurveyPrompt, setShowSurveyPrompt,
     showMagnesiumHint, setShowMagnesiumHint, showD3MealHint, setShowD3MealHint,
     showEngagementNudge, setShowEngagementNudge, lowStockSupps, setLowStockSupps,
     vitDDanger, insightText, currentStreak, milestoneModalVisible, setMilestoneModalVisible,
@@ -468,15 +468,6 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        {showFatigueAlert ? (
-          <View style={styles.fatigueBanner}>
-            <Text style={styles.fatigueBannerText} accessibilityLiveRegion="polite">{t('homeFatigueBanner')}</Text>
-            <TouchableOpacity onPress={() => setShowFatigueAlert(false)} accessibilityLabel={t('a11yDismissFatigue')} accessibilityRole="button">
-              <Text style={styles.fatigueBannerDismiss}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
         {lowStockSupps.map((s) => (
           <View key={s.id} style={styles.reorderBanner}>
             <Text style={styles.reorderBannerText}>{t('homeReorderBanner', { name: s.name, doses: s.quantity_on_hand ?? 0 })}</Text>
@@ -729,31 +720,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   reorderBannerDismiss: {
-    color: '#9AA3B2',
-    fontSize: 16,
-    fontWeight: '700',
-    paddingHorizontal: 4,
-  },
-  fatigueBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF8EC',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#F2B233',
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 12,
-    gap: 10,
-  },
-  fatigueBannerText: {
-    flex: 1,
-    color: '#8A5A10',
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  fatigueBannerDismiss: {
     color: '#9AA3B2',
     fontSize: 16,
     fontWeight: '700',
