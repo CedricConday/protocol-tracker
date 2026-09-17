@@ -526,6 +526,26 @@ const migrations: Migration[] = [
     version: 17,
     up: ensureJournalAllowsManyPerDay,
   },
+  {
+    /**
+     * How a dose relates to a meal, in a word instead of a bit.
+     *
+     * `with_food` stays and stays in step — every reader of the schedule joins
+     * on it — but it cannot tell "with a meal" from "half an hour before one",
+     * and for some of the protocol that is the instruction itself.
+     *
+     * Existing rows carry their boolean across: a 1 meant "with a meal", which
+     * is what it becomes. Guarded per column, the same shape as v11 and v15,
+     * because the column is also in schema.ts's fresh-install block.
+     */
+    version: 18,
+    up: async (db) => {
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(schedule_rules)`);
+      if (cols.some((c) => c.name === 'food_relation')) return;
+      await db.execAsync(`ALTER TABLE schedule_rules ADD COLUMN food_relation TEXT NOT NULL DEFAULT 'none'`);
+      await db.execAsync(`UPDATE schedule_rules SET food_relation = 'with' WHERE with_food = 1`);
+    },
+  },
 ];
 
 async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {

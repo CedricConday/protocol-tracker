@@ -3,6 +3,7 @@ import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 import { ruleFiresOn, cadenceOf, type Cadence } from '../engine/cadence';
+import type { FoodRelation } from '../engine/food';
 import { t } from '../i18n';
 import { averageTimeOfDay } from '../utils/time';
 
@@ -1335,7 +1336,7 @@ export async function getAllSupplements(): Promise<{ id: string; name: string; s
 export async function getSupplementsWithRules(): Promise<{
   id: string; name: string; form: string;
   dose_amount: string; dose_unit: string; offset_minutes: number;
-  with_food: number; tolerance_window: number; rule_id: number | null;
+  with_food: number; food_relation: string; tolerance_window: number; rule_id: number | null;
   frequency: string; days_of_week: string; day_of_month: number;
   cycle_on_days: number; cycle_off_days: number; cycle_start_date: string;
 }[]> {
@@ -1346,6 +1347,7 @@ export async function getSupplementsWithRules(): Promise<{
        COALESCE(sr.dose_unit, '') as dose_unit,
        COALESCE(sr.offset_minutes, 0) as offset_minutes,
        COALESCE(sr.with_food, 0) as with_food,
+       COALESCE(sr.food_relation, 'none') as food_relation,
        COALESCE(sr.tolerance_window, 30) as tolerance_window,
        COALESCE(sr.frequency, 'daily') as frequency,
        COALESCE(sr.days_of_week, '') as days_of_week,
@@ -1410,10 +1412,24 @@ async function createDoseLogForNewRule(
   );
 }
 
+/**
+ * The food columns, from whichever of them the caller knows about.
+ *
+ * `food_relation` is the answer; `with_food` is the same answer as a bit, kept
+ * written because the schedule, the dose row and the reports all read it. A
+ * caller that still passes only the boolean (onboarding, the tests) means
+ * 'with' by `true`, which is what it always meant.
+ */
+function foodOf(data: { with_food?: boolean; food_relation?: FoodRelation }): { relation: FoodRelation; bit: number } {
+  const relation: FoodRelation = data.food_relation ?? (data.with_food ? 'with' : 'none');
+  return { relation, bit: relation === 'none' ? 0 : 1 };
+}
+
 export async function addSupplement(data: {
   name: string; form: string;
   dose_amount: string; dose_unit: string;
-  offset_minutes: number; with_food: boolean; tolerance_window: number;
+  offset_minutes: number; tolerance_window: number;
+  with_food?: boolean; food_relation?: FoodRelation;
 } & Partial<Cadence>): Promise<void> {
   const db = await getDb();
   const id = data.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now();
@@ -1422,11 +1438,12 @@ export async function addSupplement(data: {
     [id, data.name.trim(), data.form]
   );
   const c = cadenceOf(data);
+  const food = foodOf(data);
   const rule = await db.runAsync(
-    `INSERT INTO schedule_rules (supplement_id, dose_amount, dose_unit, offset_minutes, with_food, tolerance_window, anchor_type,
+    `INSERT INTO schedule_rules (supplement_id, dose_amount, dose_unit, offset_minutes, with_food, food_relation, tolerance_window, anchor_type,
                                  frequency, days_of_week, day_of_month, cycle_on_days, cycle_off_days, cycle_start_date)
-     VALUES (?, ?, ?, ?, ?, ?, 't0', ?, ?, ?, ?, ?, ?)`,
-    [id, data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window,
+     VALUES (?, ?, ?, ?, ?, ?, ?, 't0', ?, ?, ?, ?, ?, ?)`,
+    [id, data.dose_amount, data.dose_unit, data.offset_minutes, food.bit, food.relation, data.tolerance_window,
      c.frequency, c.days_of_week, c.day_of_month, c.cycle_on_days, c.cycle_off_days, c.cycle_start_date]
   );
   await createDoseLogForNewRule(id, rule.lastInsertRowId, data.offset_minutes, c);
@@ -1436,16 +1453,18 @@ export async function updateSupplementAndRule(data: {
   supplementId: string; ruleId: number;
   name: string; form: string;
   dose_amount: string; dose_unit: string;
-  offset_minutes: number; with_food: boolean; tolerance_window: number;
+  offset_minutes: number; tolerance_window: number;
+  with_food?: boolean; food_relation?: FoodRelation;
 } & Partial<Cadence>): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE supplements SET name = ?, form = ? WHERE id = ?', [data.name, data.form, data.supplementId]);
   const c = cadenceOf(data);
+  const food = foodOf(data);
   await db.runAsync(
-    `UPDATE schedule_rules SET dose_amount=?, dose_unit=?, offset_minutes=?, with_food=?, tolerance_window=?,
+    `UPDATE schedule_rules SET dose_amount=?, dose_unit=?, offset_minutes=?, with_food=?, food_relation=?, tolerance_window=?,
             frequency=?, days_of_week=?, day_of_month=?, cycle_on_days=?, cycle_off_days=?, cycle_start_date=?
      WHERE id=?`,
-    [data.dose_amount, data.dose_unit, data.offset_minutes, data.with_food ? 1 : 0, data.tolerance_window,
+    [data.dose_amount, data.dose_unit, data.offset_minutes, food.bit, food.relation, data.tolerance_window,
      c.frequency, c.days_of_week, c.day_of_month, c.cycle_on_days, c.cycle_off_days, c.cycle_start_date, data.ruleId]
   );
 }

@@ -53,6 +53,8 @@ describe('en/de parity', () => {
       'shFormatJson',         // JSON
       'shDialogTitle',        // Protocol Tracker — the product name
       'shSecJournal',         // Journal — German uses it unchanged
+      // Supplement form bubbles, 2026-09-17:
+      'fieldForm',            // Form — the dosage form, same word in German
     ]);
     const identical = Object.keys(en).filter(
       (k) => k in de && en[k] === de[k] && String(en[k]).trim().length > 3 && !allowed.has(k),

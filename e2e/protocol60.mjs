@@ -399,6 +399,15 @@ async function navViaApp(tab, screen) {
 }
 
 /** Fill the first input carrying this placeholder. Returns false if absent. */
+/** Open one of the supplement form's field bubbles by its accessible name. */
+const openBubble = async (name) => {
+  const el = page.locator(`[aria-label^="${name}: "]`).first();
+  if (!(await el.count().catch(() => 0))) return false;
+  await el.click({ force: true }).catch(() => {});
+  await wait(400);
+  return true;
+};
+
 const fillPlaceholder = async (ph, value) => {
   const el = await page.getByPlaceholder(ph, { exact: true }).first();
   if (!(await el.count().catch(() => 0))) return false;
@@ -751,9 +760,13 @@ async function addSupplements(n) {
       break;
     }
     await fillPlaceholder('e.g. Magnesium Glycinate', sup.name);
+    // Since 2026-09-17 every field but the name is a bubble that opens its own
+    // control, so the box has to be revealed before it can be filled.
+    await openBubble('Dose');
     await fillPlaceholder('400', sup.dose);
     await fillPlaceholder('mg · IU · mcg', sup.unit);
     await fillPlaceholder('0', sup.stock);
+    await openBubble('Flexibility');
     await fillPlaceholder('30', sup.days);
     await wait(300);
     await shot(`supplement-${sup.name.replace(/[^a-z0-9]+/gi, '-').slice(0, 20)}`);

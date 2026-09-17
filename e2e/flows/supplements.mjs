@@ -85,14 +85,32 @@ export default {
 
     if (opened) {
       await ctx.fill('e.g. Magnesium Glycinate', 'Magnesium Glycinate');
+
+      // Every field but the name is a bubble that opens its own control
+      // (2026-09-17), so each one has to be asked for before it can be filled.
+      // By aria-label, not by text: "Dose" and "Food" are also Trackers cards
+      // on the screen the sheet is covering, and that screen stays in the DOM.
+      const bubble = (name) => ctx.page.locator(`[aria-label^="${name}: "]`).first();
+
+      await bubble('Dose').click();
+      await ctx.page.waitForTimeout(400);
       // '0' is a substring of the '400' dose placeholder, so both of these need
       // an exact match to land in the right box.
       await ctx.page.getByPlaceholder('400', { exact: true }).first().fill('400');
       await ctx.fill('mg · IU · mcg', 'mg');
+
       // Timing is no longer a minutes box. The presets are the fast path and
       // "2 h" is 120 minutes, which is what the row label is checked against
       // below. Tapping the chip also covers the control the wizard shares.
+      await bubble('When').click();
+      await ctx.page.waitForTimeout(400);
       await ctx.tap('2 h', { exact: true });
+
+      // Food is four answers now, not a switch, and "before a meal" is the one
+      // a boolean could never hold.
+      await bubble('Food').click();
+      await ctx.page.waitForTimeout(400);
+      await ctx.tap('Before a meal', { exact: true });
       await ctx.page.waitForTimeout(300);
       await ctx.shot('add-form-filled');
 
@@ -111,6 +129,9 @@ export default {
       check(/2 h after start/.test(listed),
         'The saved timing is not shown on the supplement row in hours',
         listed.split('\n').filter((l) => /after start|Magnesium/.test(l)).join(' | '));
+      check(/Before a meal/.test(listed),
+        'The food relation chosen in the sheet is not shown on the supplement bubble',
+        listed.split('\n').filter((l) => /Magnesium|meal|food/i.test(l)).join(' | '));
       check(!/T0/.test(listed),
         'The supplement row still says "T0" at the patient',
         listed.split('\n').filter((l) => /T0/.test(l)).join(' | '));

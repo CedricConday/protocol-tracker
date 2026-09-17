@@ -15,6 +15,7 @@ import { C } from '../theme/colors';
 import { t, useLanguage } from '../i18n';
 import SupplementFields, { SupplementFormState } from './SupplementFields';
 import DurationInput from './DurationInput';
+import { formatOffsetLabel } from '../utils/duration';
 
 /**
  * The supplement form, on a screen of its own.
@@ -62,11 +63,14 @@ export default function SupplementSheet({
   /**
    * The timing slot. Here it is the supplement's own place in the day, measured
    * from the moment it starts — the wizard is the screen that asks in gaps.
+   *
+   * No label on the control: the When bubble above it is the label, and the
+   * question does not need asking twice on one screen.
    */
+  const offset = parseInt(form.offset_minutes, 10) || 0;
   const renderTiming = () => (
     <DurationInput
-      label={t('timingLabel')}
-      value={parseInt(form.offset_minutes, 10) || 0}
+      value={offset}
       onChange={(minutes) => onChange({ ...form, offset_minutes: String(minutes) })}
       t0={t0}
       zeroLabel={t('durAtStart')}
@@ -93,7 +97,13 @@ export default function SupplementSheet({
           </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <SupplementFields form={form} onChange={onChange} renderTiming={renderTiming} />
+            <SupplementFields
+              form={form}
+              onChange={onChange}
+              renderTiming={renderTiming}
+              timingLabel={t('fieldWhen')}
+              timingValue={formatOffsetLabel(offset)}
+            />
             <View style={{ height: 24 }} />
           </ScrollView>
 

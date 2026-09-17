@@ -52,6 +52,7 @@ export async function initDb(): Promise<void> {
       offset_minutes INTEGER NOT NULL DEFAULT 0,
       tolerance_window INTEGER NOT NULL DEFAULT 30,
       with_food INTEGER NOT NULL DEFAULT 0,
+      food_relation TEXT NOT NULL DEFAULT 'none',
       dose_amount TEXT NOT NULL DEFAULT '',
       dose_unit TEXT NOT NULL DEFAULT '',
       display_order INTEGER NOT NULL DEFAULT 0,

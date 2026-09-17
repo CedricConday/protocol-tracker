@@ -25,6 +25,7 @@ import {
 } from '../db/queries';
 import { t, useLanguage } from '../i18n';
 import { ChainLink, offsetsToGaps, reChainFrom } from '../engine/chain';
+import { toFoodRelation } from '../engine/food';
 import { clockPreview, formatDuration } from '../utils/duration';
 import SupplementFields, { BLANK_SUPPLEMENT, SupplementFormState } from '../components/SupplementFields';
 import DurationInput from '../components/DurationInput';
@@ -115,7 +116,7 @@ export default function SupplementWizardScreen() {
         dose_amount: form.dose_amount.trim(),
         dose_unit: form.dose_unit.trim(),
         offset_minutes: baseOffset + gap,
-        with_food: form.with_food,
+        food_relation: form.food_relation,
         tolerance_window: parseInt(form.tolerance_window, 10) || 30,
         frequency: form.frequency,
         days_of_week: form.days_of_week,
@@ -164,7 +165,7 @@ export default function SupplementWizardScreen() {
           dose_amount: row.dose_amount,
           dose_unit: row.dose_unit,
           offset_minutes: row.offset_minutes,
-          with_food: row.with_food === 1,
+          food_relation: toFoodRelation(row.food_relation, row.with_food),
           tolerance_window: row.tolerance_window,
           frequency: row.frequency,
           days_of_week: row.days_of_week,
@@ -209,11 +210,16 @@ export default function SupplementWizardScreen() {
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>{t('wizSupplementNo', { n: chain.length + 1 })}</Text>
                 <SupplementFields
+                  // A new supplement is a new card: remounting drops the bubble
+                  // that was left open on the last one, so #13 starts as a
+                  // summary rather than mid-edit of #12's flexibility.
+                  key={`supplement-${chain.length}`}
                   form={form}
                   onChange={setForm}
+                  timingLabel={timingQuestion}
+                  timingValue={gap === 0 && !last ? t('durAtStart') : `+${formatDuration(gap)}`}
                   renderTiming={() => (
                     <DurationInput
-                      label={timingQuestion}
                       value={gap}
                       onChange={setGap}
                       t0={t0}

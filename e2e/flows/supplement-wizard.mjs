@@ -40,8 +40,15 @@ export default {
 
     // --- Magnesium, 2 h after the D3 ---
     await ctx.fill('e.g. Magnesium Glycinate', 'Magnesium Glycinate');
+    // The fields are bubbles that open one control at a time (2026-09-17). The
+    // When bubble is labelled with the wizard's own question, which is also
+    // what makes it findable here.
+    await ctx.page.locator('[aria-label^="Dose: "]').first().click();
+    await ctx.page.waitForTimeout(400);
     await ctx.page.getByPlaceholder('400', { exact: true }).first().fill('400');
     await ctx.fill('mg · IU · mcg', 'mg');
+    await ctx.page.locator('[aria-label^="How long after"]').first().click();
+    await ctx.page.waitForTimeout(400);
     await ctx.tap('2 h', { exact: true });
     await ctx.page.waitForTimeout(300);
     await ctx.shot('wizard-first-filled');
@@ -59,6 +66,8 @@ export default {
 
     // --- Zinc, 30 min after the magnesium ---
     await ctx.fill('e.g. Magnesium Glycinate', 'Zinc');
+    await ctx.page.locator('[aria-label^="How long after"]').first().click();
+    await ctx.page.waitForTimeout(400);
     await ctx.tap('30 min', { exact: true });
     await ctx.page.waitForTimeout(300);
     await ctx.tap('Save and next');

@@ -22,6 +22,7 @@ import {
 } from '../db/queries';
 import { t, useLanguage } from '../i18n';
 import { describeCadence } from '../engine/cadence';
+import { FOOD_KEYS, toFoodRelation } from '../engine/food';
 import { BLANK_SUPPLEMENT, SupplementFormState } from '../components/SupplementFields';
 import SupplementSheet from '../components/SupplementSheet';
 import { clockPreview, formatOffsetLabel } from '../utils/duration';
@@ -34,6 +35,7 @@ type SupRow = {
   dose_unit: string;
   offset_minutes: number;
   with_food: number;
+  food_relation: string;
   tolerance_window: number;
   rule_id: number | null;
   frequency: string;
@@ -54,7 +56,7 @@ function formFor(row: SupRow): SupplementFormState {
     dose_amount: row.dose_amount,
     dose_unit: row.dose_unit,
     offset_minutes: String(row.offset_minutes),
-    with_food: row.with_food === 1,
+    food_relation: toFoodRelation(row.food_relation, row.with_food),
     tolerance_window: String(row.tolerance_window),
     frequency: row.frequency || 'daily',
     days_of_week: row.days_of_week || '',
@@ -123,7 +125,7 @@ export default function SupplementEditorScreen() {
         dose_amount: form.dose_amount.trim(),
         dose_unit: form.dose_unit.trim(),
         offset_minutes: parseInt(form.offset_minutes, 10) || 0,
-        with_food: form.with_food,
+        food_relation: form.food_relation,
         tolerance_window: parseInt(form.tolerance_window, 10) || 30,
         frequency: form.frequency,
         days_of_week: form.days_of_week,
@@ -191,7 +193,9 @@ export default function SupplementEditorScreen() {
     const cadence = row.frequency && row.frequency !== 'daily'
       ? ` · ${describeCadence(row, t)}`
       : '';
-    return `${dose} · ${timing}${cadence}${row.with_food ? ` · ${t('withFoodShort')}` : ''}`;
+    const relation = toFoodRelation(row.food_relation, row.with_food);
+    const food = relation === 'none' ? '' : ` · ${t(FOOD_KEYS[relation])}`;
+    return `${dose} · ${timing}${cadence}${food}`;
   };
 
   return (
