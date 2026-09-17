@@ -1,5 +1,10 @@
 # MRI report auto-fill — parked 2026-09-16, for a later update
 
+> **2026-09-17: the screen this filled in is gone too.** `MriScreen.tsx` and
+> `LabResultsScreen.tsx` were removed — hand-entered scans and panels went
+> nowhere once stored. Bringing the auto-fill back now means bringing back a
+> host screen with a reason to exist, not just re-adding `callVisionApi`.
+
 Removed from the shipped app, deliberately, to be brought back as a surprise
 feature. This is the note that makes that possible; the code itself is in git at
 `5ff8bcd~1` (`src/screens/MriScreen.tsx`, `callVisionApi`).

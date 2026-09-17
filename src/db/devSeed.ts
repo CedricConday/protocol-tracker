@@ -63,8 +63,6 @@ export interface SeedResult {
   dosesTaken: number;
   journalRows: number;
   waterRows: number;
-  labRows: number;
-  mriRows: number;
   eventRows: number;
   skippedExistingDays: number;
   stagedSupplements: string[];
@@ -111,8 +109,6 @@ export async function seedSimulatedHistory(
     for (const table of ['daily_anchors', 'dose_logs', 'water_logs', 'sun_log', 'journal_entries', 'relapse_events', 'exercise_logs']) {
       await db.runAsync(`DELETE FROM ${table} WHERE date >= ? AND date <= ?`, [from, to]);
     }
-    await db.runAsync('DELETE FROM lab_results WHERE date >= ? AND date <= ?', [from, to]);
-    await db.runAsync('DELETE FROM mri_scans WHERE date >= ? AND date <= ?', [from, to]);
   }
 
   const existing = await db.getAllAsync<{ date: string }>(
@@ -124,7 +120,7 @@ export async function seedSimulatedHistory(
   const rand = rng(20260911);
   const result: SeedResult = {
     days: 0, from, to, doseRows: 0, dosesTaken: 0, journalRows: 0,
-    waterRows: 0, labRows: 0, mriRows: 0, eventRows: 0,
+    waterRows: 0, eventRows: 0,
     skippedExistingDays: 0, stagedSupplements: staged,
   };
 
@@ -216,35 +212,6 @@ export async function seedSimulatedHistory(
     }
   }
 
-  // Lab panels bracketing the window. Urinary calcium climbs across them —
-  // that is the number this protocol is monitored on.
-  const labPoints: Array<[string, number, number, number, number, string]> = [
-    [dates[0], 32, 62, 9.2, 118, 'None'],
-    [dates[Math.floor(dates.length / 2)], 148, 24, 9.6, 214, 'Slight'],
-    [dates[dates.length - 1], 192, 13, 9.9, 268, 'Moderate'],
-  ];
-  for (const [date, vitD, pth, caS, caU, sulk] of labPoints) {
-    const dup = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM lab_results WHERE date = ?', [date]);
-    if (dup && dup.n > 0) continue;
-    await db.runAsync(
-      `INSERT INTO lab_results (date, vit_d_ngml, pth_pgml, calcium_serum_mgdl, calcium_urine_mg_g_cr, creatinine_mgdl, nfl_pgl, sulkowitch, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, 0.9, NULL, ?, '', ?)`,
-      [date, vitD, pth, caS, caU, sulk, new Date().toISOString()],
-    );
-    result.labRows += 1;
-  }
-
-  for (const [date, lesions] of [[dates[0], 'None'], [dates[dates.length - 1], 'None']] as Array<[string, string]>) {
-    const dup = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) n FROM mri_scans WHERE date = ?', [date]);
-    if (dup && dup.n > 0) continue;
-    await db.runAsync(
-      `INSERT INTO mri_scans (date, facility, scan_type, contrast, new_lesions, enhancing_lesions, overall_assessment, notes, created_at)
-       VALUES (?, '', 'Brain', 0, ?, NULL, 'Stable', '', ?)`,
-      [date, lesions, new Date().toISOString()],
-    );
-    result.mriRows += 1;
-  }
-
   return result;
 }
 
@@ -255,6 +222,9 @@ export async function clearSeededHistory(days: number = 60): Promise<void> {
   const end = new Date(); end.setDate(end.getDate() - 1);
   const from = localDateStr(start);
   const to = localDateStr(end);
+  // lab_results and mri_scans are no longer seeded — the screens that read them
+  // went on 2026-09-17 — but a dev box seeded before then still holds those rows,
+  // so they stay in the clear list.
   for (const table of ['daily_anchors', 'dose_logs', 'water_logs', 'sun_log', 'journal_entries', 'relapse_events', 'exercise_logs', 'lab_results', 'mri_scans']) {
     await db.runAsync(`DELETE FROM ${table} WHERE date >= ? AND date <= ?`, [from, to]);
   }

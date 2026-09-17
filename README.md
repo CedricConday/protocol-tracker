@@ -2,7 +2,7 @@
 
 > Mobile companion for high-dose Vitamin D3 protocol patients.
 
-Protocol Tracker is a React Native / Expo app for tracking supplement schedules, dose compliance, lab results, MRI scan history, symptoms, and recovery progress on a high-dose Vitamin D3 therapy protocol. Built for autoimmune-disease patients (multiple sclerosis, lupus, psoriasis, vitiligo, rheumatoid arthritis, Hashimoto's, Crohn's, type 1 diabetes) who follow strict daily protocols requiring precise timing, dose stacking discipline, and long-horizon tracking.
+Protocol Tracker is a React Native / Expo app for tracking supplement schedules, dose compliance, symptoms, and recovery progress on a high-dose Vitamin D3 therapy protocol. Built for autoimmune-disease patients (multiple sclerosis, lupus, psoriasis, vitiligo, rheumatoid arthritis, Hashimoto's, Crohn's, type 1 diabetes) who follow strict daily protocols requiring precise timing, dose stacking discipline, and long-horizon tracking.
 
 > **Origin**: built for one patient manage a high-dose Vitamin D3 therapy for autoimmune disease. Generalizes to any patient following a structured supplementation protocol with timing windows and lab-driven titration.
 
@@ -15,8 +15,6 @@ Protocol Tracker is a React Native / Expo app for tracking supplement schedules,
 - **Daily anchor (T0) schedule** — every reminder fires at `T0 + rule.offset_minutes`, so the day follows the user rather than a fixed clock. Pulse dosing supported.
 - **Supplement editor** with form (capsule / tablet / powder / liquid), dose tracking, and stock countdown
 - **Calendar** — real month grid with compliance rings, shape-coded markers, and a month summary; doses and journal entries surface on the cells
-- **Lab results tracking** — Vitamin D, calcium, PTH, creatinine, NFL/PGL and more, with 12-month trend charts
-- **MRI scan log** with photo/camera capture of reports
 - **Symptom journal**, **relapse log** with caregiver-facing export, **sleep hygiene scorecard**, **calcium reintroduction log**
 - **Compliance tracking** — daily, 30-day, 12-month and 2-year views; printable/shareable report
 - **Family sync + caregiver view** — invite-code based sharing screens
@@ -38,7 +36,6 @@ Navigation is five bottom tabs — **Calendar · Journal · Home · Summary · S
 - **expo-secure-store** for OS-keychain JWT storage
 - **expo-local-authentication** for the biometric gate
 - **expo-notifications** + **expo-background-fetch** / **expo-task-manager** for scheduling
-- **expo-camera** + **expo-image-picker** for MRI report capture
 - **expo-print** + **expo-sharing** for reports
 - **@react-navigation** (native-stack + bottom-tabs)
 - **Storybook** (react-native-web-vite) for presentational components

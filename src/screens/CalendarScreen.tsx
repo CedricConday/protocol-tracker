@@ -465,40 +465,12 @@ export default function CalendarScreen() {
         </View>
       ) : null}
 
-      {/* ── The protocol's clinical surfaces ───────────────────────────────
-          These came off the Records tab with the compliance block. They are
-          the ONLY tap path to lab monitoring, MRI history and the doctor
-          report: before they existed those three screens were registered in
-          the navigator and reachable by nothing, which is what the audit
-          reported as "no entry point on Records". They stay together with the
-          clinical record, not with the daily trackers. */}
-      <View style={styles.medicalRow}>
-        <TouchableOpacity
-          style={styles.medicalBtn}
-          activeOpacity={0.8}
-          // Nested target, not a bare route name: these three screens live in
-          // SummaryNavigator (the Trackers tab's stack) while this screen renders
-          // in CalendarTabNavigator. react-navigation resolves the current
-          // navigator and its parents, never a sibling's nested stack, so the
-          // bare form rendered a button that did nothing (H9, Build B).
-          onPress={() => navigation.navigate('Summary', { screen: 'LabResults' })}
-          accessibilityLabel={t('calLabCard')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.medicalBtnLabel}>{t('calLabCard')}</Text>
-          <Text style={styles.medicalBtnSub}>{t('calLabCardSub')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.medicalBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('Summary', { screen: 'MriTracker' })}
-          accessibilityLabel={t('calMriCard')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.medicalBtnLabel}>{t('calMriCard')}</Text>
-          <Text style={styles.medicalBtnSub}>{t('calMriCardSub')}</Text>
-        </TouchableOpacity>
-      </View>
+      {/* ── The doctor report ──────────────────────────────────────────────
+          The lab-results and MRI-history cards sat here too, next to this
+          button, and were the only tap path into those two screens. Both
+          screens went on 2026-09-17: a patient typing their own panel values
+          and radiology findings into the app had nothing done with them
+          afterwards, so the report is what is left of the clinical surface. */}
 
       <TouchableOpacity
         style={styles.shareProgressBtn}
@@ -751,10 +723,6 @@ const styles = StyleSheet.create({
   statLabel: { color: '#5A6478', fontSize: 12, marginTop: 2 },
   profileBlurbCard: { backgroundColor: '#E7EEFB', borderRadius: 14, padding: 16, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#1B58B8' },
   profileBlurbText: { color: '#5A6478', fontSize: 13, lineHeight: 20 },
-  medicalRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  medicalBtn: { flex: 1, backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#CFD2C6' },
-  medicalBtnLabel: { color: '#14213D', fontSize: 14, fontWeight: '700', marginBottom: 3 },
-  medicalBtnSub: { color: '#5A6478', fontSize: 11 },
   shareProgressBtn: { backgroundColor: '#1B58B8', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12 },
   shareProgressBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
 

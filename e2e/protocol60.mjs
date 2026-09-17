@@ -3,9 +3,8 @@
 //
 // Derived from thirtyday.mjs. Same machinery; three differences: 60 days instead
 // of 30, a fresh synthetic patient rather than the 30-day fixture, and the
-// protocol's clinical milestones — baseline/mid/end lab panels, two MRI entries,
-// the co-supplement set, and the doctor report — driven on the days a real
-// patient would hit them.
+// protocol's clinical milestones — the co-supplement set and the doctor report —
+// driven on the days a real patient would hit them.
 //
 // Why this exists: the per-flow harness in e2e/run.mjs starts each flow from a
 // fresh install, so it only ever sees day one. Bugs that need history — streaks,
@@ -81,17 +80,6 @@ const LOG_EVENT_EVERY = 4;                          // cadence for exercising th
 // 10000 IU placeholder the old fixture used.
 const PATIENT = { name: 'Testpatient', weightKg: '62', dailyIU: '62000' };
 
-// Clinical milestones. Lab panels bracket the run; urinary calcium climbs across
-// them, because that is the number this protocol exists to watch.
-const LAB_DAYS = {
-  1:  { vitD: '32',  pth: '62', caSerum: '9.2', caUrine: '118', creat: '0.8', nfl: '9.1', note: 'Baseline panel, before first dose.' },
-  30: { vitD: '148', pth: '24', caSerum: '9.6', caUrine: '214', creat: '0.9', nfl: '7.8', note: 'Week 4 panel. PTH falling as expected.' },
-  60: { vitD: '192', pth: '13', caSerum: '9.9', caUrine: '268', creat: '0.9', nfl: '6.9', note: 'Week 8 panel. Urinary calcium climbing - watch.' },
-};
-const MRI_DAYS = {
-  2:  { centre: 'Radiologie Mitte', lesions: 'None',                  note: 'Baseline scan.' },
-  57: { centre: 'Radiologie Mitte', lesions: '2 new periventricular', note: 'Follow-up scan at week 8.' },
-};
 const SUPPLEMENT_DAY = 3;   // the protocol's co-supplements, entered once
 const REPORT_DAY = 60;      // hand the run to a doctor
 const SUPPLEMENTS = [
@@ -391,11 +379,10 @@ async function checkDayKeyDrift(n, mark) {
 }
 
 // ── navigate through the app's own navigation API ────────────────────────────
-// Four registered screens (Report, MriTracker, LabResults, FamilySync) have no
-// navigate() call anywhere in src/, so no tap sequence reaches them and the app
-// has no linking config, so no URL does either. They are still real screens with
-// real code, and the protocol's lab and MRI surfaces are among them — so this
-// drives them through `src/navigation/navigationRef.ts`, which is the app's own
+// Registered screens (Report, FamilySync) have no navigate() call anywhere in
+// src/, so no tap sequence reaches them and the app has no linking config, so no
+// URL does either. They are still real screens with real code, so this drives
+// them through `src/navigation/navigationRef.ts`, which is the app's own
 // exported navigate(), called at runtime. No app code is modified; the
 // unreachability itself is filed as a finding, once, below.
 async function navViaApp(tab, screen) {
@@ -625,19 +612,6 @@ async function onboard() {
 // because they have different fixes.
 const CLINICAL = [
   {
-    name: 'Lab Results',
-    label: 'Lab results',
-    route: 'LabResults',
-    // Body text of the destination that History itself never renders.
-    landed: /add lab result|no lab results|creatinine|sulkowitch/i,
-  },
-  {
-    name: 'MRI History',
-    label: 'MRI history',
-    route: 'MriTracker',
-    landed: /log mri scan|log first scan|save scan|lesion/i,
-  },
-  {
     name: 'Share with Doctor',
     label: 'Share your progress',
     route: 'Report',
@@ -699,88 +673,6 @@ async function checkReachability() {
 }
 
 // ── the protocol's clinical milestones ───────────────────────────────────────
-async function labPanel(n) {
-  const lab = LAB_DAYS[n];
-  if (!lab) return;
-  // Lab Results / MRI History / Share Your Progress moved to the History tab
-  // with the compliance block on 2026-09-13. The routes are still registered
-  // under the Summary stack, so navViaApp's fallback is unchanged.
-  await gotoTab('History');
-  await wait(900);
-  let nav = (await clickLabel('Lab results')) ? 'ok' : null;
-  if (nav) { await wait(1800); } else { nav = await navViaApp('Summary', 'LabResults'); }
-  if (nav !== 'ok') {
-    note('high', 'LabResults', `Could not reach the Lab Results screen at all (navigationRef bridge said "${nav}")`, `day ${n}`, 'src/navigation/navigationRef.ts');
-    return;
-  }
-  await auditScreen('LabResults');
-  await shot('labs-open');
-  if (!(await clickLabel('Add lab result')) && !(await clickText('Add lab result'))) {
-    note('high', 'LabResults', 'No "Add lab result" control on the Lab Results screen — a lab panel cannot be entered', `day ${n}`, 'src/screens/LabResultsScreen.tsx:158');
-    return;
-  }
-  await wait(900);
-  await auditScreen('LabResults/form');
-  await fillPlaceholder('YYYY-MM-DD', dayDate(n));
-  const fields = [['e.g. 180', lab.vitD], ['e.g. 18', lab.pth], ['e.g. 9.4', lab.caSerum],
-                  ['e.g. 210', lab.caUrine], ['e.g. 0.8', lab.creat], ['e.g. 7.4', lab.nfl]];
-  for (const [ph, v] of fields) {
-    if (!(await fillPlaceholder(ph, v))) {
-      note('medium', 'LabResults/form', `Lab field with placeholder "${ph}" is missing from the form`, `day ${n}`, 'src/screens/LabResultsScreen.tsx');
-    }
-  }
-  const SULK = { 1: 'None', 30: 'Slight', 60: 'Moderate' };
-  if (SULK[n] && !(await clickLabel(`Sulkowitch: ${SULK[n]}`))) {
-    note('medium', 'LabResults/form', `Sulkowitch chip "${SULK[n]}" not selectable`, `day ${n}`, 'src/screens/LabResultsScreen.tsx:214');
-  }
-  await fillPlaceholder('Lab name, fasting status, doctor comments...', lab.note);
-  await wait(300);
-  await shot('labs-filled');
-  if (!(await clickLabel('Save lab result'))) {
-    note('high', 'LabResults/form', 'Save control not found on the lab form — the panel cannot be stored', `day ${n}`, 'src/screens/LabResultsScreen.tsx:237');
-    return;
-  }
-  await wait(1600);
-  await shot('labs-saved');
-  const rows = await sql('SELECT * FROM lab_results WHERE date = ?', [dayDate(n)]).catch(() => []);
-  if (!rows.length) {
-    note('high', 'LabResults', `Lab panel entered on ${dayDate(n)} was not written to lab_results`, `day ${n}: enter a full lab panel and save`, 'src/screens/LabResultsScreen.tsx handleSave');
-  }
-}
-
-async function mriEntry(n) {
-  const m = MRI_DAYS[n];
-  if (!m) return;
-  await gotoTab('History');
-  await wait(900);
-  let nav = (await clickLabel('MRI history')) ? 'ok' : null;
-  if (nav) { await wait(1800); } else { nav = await navViaApp('Summary', 'MriTracker'); }
-  if (nav !== 'ok') {
-    note('high', 'MriTracker', `Could not reach the MRI screen (navigationRef bridge said "${nav}")`, `day ${n}`, 'src/navigation/navigationRef.ts');
-    return;
-  }
-  await auditScreen('MriTracker');
-  await shot('mri-open');
-  if (!(await clickText('+ Log MRI Scan')) && !(await clickText('Log First Scan'))) {
-    note('high', 'MriTracker', 'No control to log an MRI scan', `day ${n}`, 'src/screens/MriScreen.tsx:260');
-    return;
-  }
-  await wait(900);
-  await auditScreen('MriTracker/form');
-  await fillPlaceholder('YYYY-MM-DD', dayDate(n));
-  await fillPlaceholder('e.g. Bethel Bielefeld', m.centre);
-  await fillPlaceholder('e.g. "None" or "2 new periventricular"', m.lesions);
-  await fillPlaceholder('Radiologist comments, key findings...', m.note);
-  await wait(300);
-  await shot('mri-filled');
-  if (!(await clickText('Save Scan'))) {
-    note('high', 'MriTracker/form', 'Save control not found on the MRI form — a scan cannot be stored', `day ${n}`, 'src/screens/MriScreen.tsx:365');
-    return;
-  }
-  await wait(1600);
-  await shot('mri-saved');
-}
-
 let namelessAddReported = false;
 async function addSupplements(n) {
   await gotoTab('Settings');
@@ -909,11 +801,9 @@ async function doctorReport(n) {
 }
 
 async function protocolMilestones(n) {
-  if (LAB_DAYS[n]) await step(`lab panel day ${n}`, () => labPanel(n));
-  if (MRI_DAYS[n]) await step(`mri entry day ${n}`, () => mriEntry(n));
   if (n === SUPPLEMENT_DAY) await step('co-supplements', () => addSupplements(n));
   if (n === REPORT_DAY) await step('doctor report', () => doctorReport(n));
-  if (LAB_DAYS[n] || MRI_DAYS[n] || n === REPORT_DAY) {
+  if (n === SUPPLEMENT_DAY || n === REPORT_DAY) {
     await navViaApp('Summary', 'SummaryMain');
     await gotoTab('Today');
   }
@@ -1530,7 +1420,7 @@ const dataJson = {
   simulatedDays: days.length,
   timezone: 'Europe/Berlin',
   patient: PATIENT,
-  plan: { skipped: [...SKIPPED], partial: [...PARTIAL], reschedule: [...RESCHEDULE_DAYS], timezoneCrossing: TZ_CROSS_DAYS, maxValues: MAX_DAY, emptyValues: EMPTY_DAY, labDays: Object.keys(LAB_DAYS).map(Number), mriDays: Object.keys(MRI_DAYS).map(Number), supplementDay: SUPPLEMENT_DAY, reportDay: REPORT_DAY },
+  plan: { skipped: [...SKIPPED], partial: [...PARTIAL], reschedule: [...RESCHEDULE_DAYS], timezoneCrossing: TZ_CROSS_DAYS, maxValues: MAX_DAY, emptyValues: EMPTY_DAY, supplementDay: SUPPLEMENT_DAY, reportDay: REPORT_DAY },
   days,
   tables,
 };
@@ -1585,10 +1475,6 @@ await step('patient record', async () => {
     dayRows.push(`| ${n} | ${d} | ${shape} | ${t0} | ${dl.length ? `${taken}/${dl.length}` : '—'}${skipped ? ` (${skipped} skipped)` : ''} | ${ml || '—'} | ${min || '—'} | ${ex || '—'} | ${j ? num(j.mood) : '—'} | ${j && j.note ? `${String(j.note).length} ch` : '—'} | ${ev || '—'} |`);
   }
 
-  const labRows = T('lab_results').sort((a, b) => String(a.date).localeCompare(String(b.date))).map((r) =>
-    `| ${r.date} | ${num(r.vit_d_ngml)} | ${num(r.pth_pgml)} | ${num(r.calcium_serum_mgdl)} | ${num(r.calcium_urine_mg_g_cr)} | ${num(r.creatinine_mgdl)} | ${num(r.nfl_pgl)} | ${num(r.sulkowitch)} | ${String(r.notes ?? '').replace(/\|/g, '/')} |`);
-  const mriRows = T('mri_scans').sort((a, b) => String(a.date).localeCompare(String(b.date))).map((r) =>
-    `| ${r.date} | ${num(r.facility)} | ${num(r.scan_type)} | ${r.contrast ? 'yes' : 'no'} | ${num(r.new_lesions)} | ${num(r.enhancing_lesions)} | ${num(r.overall_assessment)} | ${String(r.notes ?? '').replace(/\|/g, '/')} |`);
   const supRows = T('supplements').map((r) => `| ${num(r.name)} | ${num(r.form)} | ${num(r.category)} | ${String(r.notes ?? '').replace(/\|/g, '/')} |`);
   const profile = T('user_profile')[0] ?? {};
 
@@ -1629,24 +1515,12 @@ await step('patient record', async () => {
     `| total sun logged | ${sunTotal} min |`,
     `| journal entries | ${T('journal_entries').length} |`,
     `| medical events | ${T('relapse_events').length} |`,
-    `| lab panels | ${T('lab_results').length} |`,
-    `| MRI scans | ${T('mri_scans').length} |`,
     '',
     '## Day by day',
     '',
     '| day | date | shape | t0 | doses | water ml | sun min | exercise min | mood | journal | events |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...dayRows,
-    '',
-    '## Lab panels',
-    '',
-    labRows.length ? '| date | Vit D 25-OH ng/mL | PTH pg/mL | Ca serum mg/dL | Ca urine mg/g cr | creatinine mg/dL | NfL pg/mL | Sulkowitch | notes |' : '_No lab panels were stored._',
-    ...(labRows.length ? ['| --- | --- | --- | --- | --- | --- | --- | --- | --- |', ...labRows] : []),
-    '',
-    '## MRI scans',
-    '',
-    mriRows.length ? '| date | facility | type | contrast | new lesions | enhancing | assessment | notes |' : '_No MRI scans were stored._',
-    ...(mriRows.length ? ['| --- | --- | --- | --- | --- | --- | --- | --- |', ...mriRows] : []),
     '',
     '## Supplements',
     '',

@@ -1602,15 +1602,6 @@ export async function setMiscFlag(key: string, value: string): Promise<void> {
   );
 }
 
-// ── Lab Results ──────────────────────────────────────────────────────────────
-
-export async function getLatestLabResult(): Promise<{ vit_d_ngml: number | null; calcium_serum_mgdl: number | null } | null> {
-  const db = await getDb();
-  return db.getFirstAsync<{ vit_d_ngml: number | null; calcium_serum_mgdl: number | null }>(
-    'SELECT vit_d_ngml, calcium_serum_mgdl FROM lab_results ORDER BY date DESC LIMIT 1'
-  );
-}
-
 // ── Data Export ─────────────────────────────────────────────────────────────
 export async function exportAllData(): Promise<Record<string, any>> {
   const db = await getDb();
@@ -1628,6 +1619,9 @@ export async function exportAllData(): Promise<Record<string, any>> {
     'awareness_dates',
     'journal_entries',
     'relapse_events',
+    // No screen writes these two any more (the lab-results and MRI screens went
+    // on 2026-09-17), but an install from before then still holds what the user
+    // typed in, and an export is the only way left to get it out.
     'mri_scans',
     'lab_results',
     'contraindication_rules',

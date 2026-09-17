@@ -4,7 +4,7 @@ import {
   getAnchor, getDaySummary, getStreak, getMiscFlag, setMiscFlag,
   getProfile, getTodayExercise, getFirstMealTime,
   getJournalEntry, getLatestJournalEntry, getTodayMeals,
-  getNextMedicalEvent, getLatestLabResult, getSupplementsLowStock,
+  getNextMedicalEvent, getSupplementsLowStock,
   todayStr,
 } from '../db/queries';
 import { getTodaySchedule } from '../engine/scheduler';

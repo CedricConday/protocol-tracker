@@ -17,8 +17,6 @@ import FamilySyncScreen from '../screens/FamilySyncScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import HomeScreen from '../screens/HomeScreen';
-import LabResultsScreen from '../screens/LabResultsScreen';
-import MriScreen from '../screens/MriScreen';
 import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import ReportScreen from '../screens/ReportScreen';
@@ -106,16 +104,6 @@ function SummaryNavigator() {
         name="Report"
         component={ReportScreen}
         options={{ ...SUB_HEADER, title: t('navShareWithDoctor'), animation: 'slide_from_right' }}
-      />
-      <SummaryNav.Screen
-        name="MriTracker"
-        component={MriScreen}
-        options={{ ...SUB_HEADER, title: t('navMriHistory'), animation: 'slide_from_right' }}
-      />
-      <SummaryNav.Screen
-        name="LabResults"
-        component={LabResultsScreen}
-        options={{ ...SUB_HEADER, title: t('navLabResults'), animation: 'slide_from_right' }}
       />
       {TRACKER_ROUTES.map((route) => (
         <SummaryNav.Screen

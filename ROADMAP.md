@@ -23,6 +23,21 @@ corrected 2026-09-10).
 - **Protocol Guide screen** (educational content / news).
 - **Dietary "forbidden foods" list.**
 
+## Removed — lab results and MRI history (2026-09-17)
+
+Both screens are gone: entering a lab panel or a radiology finding by hand only
+put the numbers in a table the app then did nothing with. The path back is a
+single tap to log a result and something real done with it — trends the user
+did not have to draw themselves, or a report a doctor asked for. Until that
+exists, the screens are an empty promise on a medical app.
+
+What is left in place on purpose: the `lab_results` and `mri_scans` tables, the
+migrations that create them, and both tables in `exportAllData` — an install
+from before today still holds what its user typed, and an export is now the only
+way out. Nothing writes them any more. Code is in git at `HEAD` before this
+change (`src/screens/LabResultsScreen.tsx`, `src/screens/MriScreen.tsx`), and
+the parked vision auto-fill note is `docs/HANDOFF_MRI_AUTOFILL.md`.
+
 ## Under consideration
 
 ### Journal feature — LLM-backed structuring
@@ -41,9 +56,9 @@ Evaluate **NotebookLM CLI** as the LLM backend for the symptom journal — summa
 ## Known drift (2026-09-10)
 
 Some advisory surfaces survived the pure-tracker cut and are still live: the food-pairing
-block in `src/components/DoseDetailModal.tsx`, the 12-month MRI banner in
-`src/screens/MriScreen.tsx`, and contraindication fields in `src/db/schema.ts` /
-`queries.ts`. Keeping or stripping them is a product decision — see `STATUS.md`.
+block in `src/components/DoseDetailModal.tsx` and contraindication fields in
+`src/db/schema.ts` / `queries.ts`. Keeping or stripping them is a product decision —
+see `STATUS.md`. _(The 12-month MRI banner went with `MriScreen.tsx` on 2026-09-17.)_
 
 ## Open questions
 

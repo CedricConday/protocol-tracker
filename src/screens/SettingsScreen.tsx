@@ -429,14 +429,14 @@ export default function SettingsScreen() {
                   onPress={() => {
                     Alert.alert(
                       'Load 60 days of history?',
-                      'Writes dose, water, sun, journal, lab and MRI history for the 60 days before today, following the supplements set up on this device. If none are set up, a starter protocol is created first — placeholder amounts you can edit in Manage supplements. Today is left alone.',
+                      'Writes dose, water, sun and journal history for the 60 days before today, following the supplements set up on this device. If none are set up, a starter protocol is created first — placeholder amounts you can edit in Manage supplements. Today is left alone.',
                       [
                         { text: 'Cancel', style: 'cancel' },
                         {
                           text: 'Keep existing days',
                           onPress: () => {
                             seedSimulatedHistory(60, 'append')
-                              .then((r) => Alert.alert('Done', `${r.days} days written (${r.skippedExistingDays} already had data and were left alone).\n${r.dosesTaken}/${r.doseRows} doses taken, ${r.journalRows} journal entries, ${r.labRows} lab panels, ${r.mriRows} MRI scans.${r.stagedSupplements.length ? `\n\nStarter protocol created (edit in Manage supplements):\n· ${r.stagedSupplements.join('\n· ')}` : ''}`))
+                              .then((r) => Alert.alert('Done', `${r.days} days written (${r.skippedExistingDays} already had data and were left alone).\n${r.dosesTaken}/${r.doseRows} doses taken, ${r.journalRows} journal entries.${r.stagedSupplements.length ? `\n\nStarter protocol created (edit in Manage supplements):\n· ${r.stagedSupplements.join('\n· ')}` : ''}`))
                               .catch((e) => Alert.alert('Could not load history', e?.message ?? 'Please try again.'));
                           },
                         },
@@ -445,7 +445,7 @@ export default function SettingsScreen() {
                           style: 'destructive',
                           onPress: () => {
                             seedSimulatedHistory(60, 'replace')
-                              .then((r) => Alert.alert('Done', `${r.days} days written.\n${r.dosesTaken}/${r.doseRows} doses taken, ${r.journalRows} journal entries, ${r.labRows} lab panels, ${r.mriRows} MRI scans.${r.stagedSupplements.length ? `\n\nStarter protocol created (edit in Manage supplements):\n· ${r.stagedSupplements.join('\n· ')}` : ''}`))
+                              .then((r) => Alert.alert('Done', `${r.days} days written.\n${r.dosesTaken}/${r.doseRows} doses taken, ${r.journalRows} journal entries.${r.stagedSupplements.length ? `\n\nStarter protocol created (edit in Manage supplements):\n· ${r.stagedSupplements.join('\n· ')}` : ''}`))
                               .catch((e) => Alert.alert('Could not load history', e?.message ?? 'Please try again.'));
                           },
                         },
