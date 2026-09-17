@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { C, themed, useTheme } from '../theme/colors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -45,6 +46,7 @@ const STEPS = [
 
 export default function OnboardingScreen({ onComplete }: Props) {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [d3Dose, setD3Dose] = useState('');
@@ -199,7 +201,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 ref={nameRef}
                 style={[styles.input, hint.some((h) => h.key === 'name') && styles.inputError]}
                 placeholder={t('obNamePlaceholder')}
-                placeholderTextColor="#617285"
+                placeholderTextColor={C.textMuted}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -214,7 +216,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   ref={d3Ref}
                   style={styles.input}
                   placeholder="e.g. 5000"
-                  placeholderTextColor="#617285"
+                  placeholderTextColor={C.textMuted}
                   value={d3Dose}
                   onChangeText={setD3Dose}
                   keyboardType="numeric"
@@ -361,10 +363,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
   },
   flex: {
     flex: 1,
@@ -380,10 +382,10 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#D8E1EA',
+    backgroundColor: C.sunken,
   },
   dotActive: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     width: 28,
     borderRadius: 5,
   },
@@ -408,14 +410,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: '#112438',
+    color: C.text,
     fontSize: 26,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 12,
   },
   body: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
@@ -425,58 +427,58 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputLabel: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 6,
     marginTop: 16,
   },
-  required: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
-  optional: { color: '#617285', fontSize: 12, fontWeight: '600' },
-  inputHelp: { color: '#617285', fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 6 },
-  inputError: { borderColor: '#B3453E', borderWidth: 1.5 },
-  missingHint: { color: '#B3453E', fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 10 },
+  required: { color: C.dangerInk, fontSize: 12, fontWeight: '700' },
+  optional: { color: C.textMuted, fontSize: 12, fontWeight: '600' },
+  inputHelp: { color: C.textMuted, fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 6 },
+  inputError: { borderColor: C.dangerInk, borderWidth: 1.5 },
+  missingHint: { color: C.dangerInk, fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 10 },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#112438',
+    color: C.text,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
     marginBottom: 4,
   },
   hint: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     marginTop: 8,
     lineHeight: 20,
   },
   featureList: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   featureItem: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     lineHeight: 24,
   },
   infoNote: {
     width: '100%',
-    backgroundColor: '#FFF8EC',
+    backgroundColor: C.warningBg,
     borderRadius: 14,
     padding: 14,
     marginTop: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#eab308',
+    borderLeftColor: C.warningAlt,
   },
   infoNoteText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     lineHeight: 22,
   },
@@ -484,7 +486,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#8393A3',
+    borderTopColor: C.border,
   },
   footerRow: {
     flexDirection: 'row',
@@ -496,12 +498,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   backText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     fontWeight: '600',
   },
   nextButton: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 10,
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -517,14 +519,14 @@ const styles = StyleSheet.create({
   },
   // Full strength, because the button is tappable whatever is missing.
   nextText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 16,
     fontWeight: '800',
   },
-  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#8393A3', padding: 16, backgroundColor: '#FFFFFF' },
-  trackCardActive: { borderColor: '#1162B9', backgroundColor: '#DEEFFF' },
-  trackTitle: { color: '#495D72', fontSize: 15, fontWeight: '700' },
-  trackTitleActive: { color: '#1162B9' },
-  trackDesc: { color: '#617285', fontSize: 13, marginTop: 2 },
-  trackCode: { color: '#617285', fontSize: 12, fontWeight: '500' },
-});
+  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 16, backgroundColor: C.surface },
+  trackCardActive: { borderColor: C.primary, backgroundColor: C.primaryBg },
+  trackTitle: { color: C.textSub, fontSize: 15, fontWeight: '700' },
+  trackTitleActive: { color: C.primary },
+  trackDesc: { color: C.textMuted, fontSize: 13, marginTop: 2 },
+  trackCode: { color: C.textMuted, fontSize: 12, fontWeight: '500' },
+}));

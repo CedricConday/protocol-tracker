@@ -1,14 +1,15 @@
 import React, { useEffect, useRef } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScheduledDose } from '../types';
 import { t, useLanguage } from '../i18n';
 
 const statusBorderColors: Record<string, string> = {
-  taken:    '#227D4C',
-  due:      '#E7603F',
-  upcoming: '#2AA6B8',
-  missed:   '#C0392B',
-  skipped:  '#617285',
+  taken:    C.success,
+  due:      C.due,
+  upcoming: C.teal,
+  missed:   C.danger,
+  skipped:  C.textMuted,
 };
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 
 const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
   useLanguage(); // memoised: without this the language switch never reaches it
+  useTheme(); // ...and when the theme tier changes
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const confirmScale = useRef(new Animated.Value(1)).current;
   const prevStatus = useRef(dose.status);
@@ -56,11 +58,11 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
   const timeLabel = `${hour12}:${minStr}`;
 
   const timeColor =
-    dose.status === 'due'   ? '#E7603F' :
-    dose.status === 'taken' ? '#617285' :
-                              '#495D72';
+    dose.status === 'due'   ? C.due :
+    dose.status === 'taken' ? C.textMuted :
+                              C.textSub;
 
-  const cardBg = dose.status === 'due' ? '#DEEFFF' : '#FFFFFF';
+  const cardBg = dose.status === 'due' ? C.primaryBg : C.surface;
 
   let rightEl: React.ReactElement | null = null;
   if (dose.status === 'taken') {
@@ -75,7 +77,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     rightEl = <Text style={styles.rightUpcoming}>›</Text>;
   }
 
-  const borderColor = statusBorderColors[dose.status] ?? '#2AA6B8';
+  const borderColor = statusBorderColors[dose.status] ?? C.teal;
 
   const inner = (
     <Animated.View style={[styles.card, { backgroundColor: cardBg }, { paddingVertical: 22 }, { transform: [{ scale: confirmScale }] }]}>
@@ -87,7 +89,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
       {/* Left: time column */}
       <View style={styles.timeCol}>
         <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
-        <Text style={[styles.timeAmPm, { color: timeColor === '#495D72' ? '#617285' : timeColor }]}>
+        <Text style={[styles.timeAmPm, { color: timeColor === C.textSub ? C.textMuted : timeColor }]}>
           {ampm}
         </Text>
       </View>
@@ -153,7 +155,7 @@ const STATUS_KEYS: Record<string, string> = {
 
 export default DoseRow;
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -186,24 +188,24 @@ const styles = StyleSheet.create({
   separator: {
     width: 1,
     height: 36,
-    backgroundColor: '#D8E1EA',
+    backgroundColor: C.sunken,
     marginHorizontal: 12,
   },
   center: {
     flex: 1,
   },
   name: {
-    color: '#112438',
+    color: C.text,
     fontSize: 15,
     fontWeight: '600',
   },
   meta: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     marginTop: 2,
   },
   withFoodTag: {
-    color: '#F2B233',
+    color: C.warning,
     fontSize: 11,
     marginTop: 4,
   },
@@ -213,27 +215,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rightTaken: {
-    color: '#227D4C',
+    color: C.success,
     fontSize: 16,
     fontWeight: '700',
   },
   rightDue: {
-    color: '#E7603F',
+    color: C.due,
     fontSize: 11,
     fontWeight: '800',
   },
   rightMissed: {
-    color: '#C0392B',
+    color: C.danger,
     fontSize: 14,
     fontWeight: '700',
   },
   rightSkipped: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 14,
     fontWeight: '700',
   },
   rightUpcoming: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 18,
   },
-});
+}));

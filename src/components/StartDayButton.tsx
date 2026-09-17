@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   Animated,
   ActivityIndicator,
@@ -15,6 +16,7 @@ interface Props {
 
 export default function StartDayButton({ onPress, loading }: Props) {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function StartDayButton({ onPress, loading }: Props) {
          activeOpacity={0.8}
        >
         {loading ? (
-          <ActivityIndicator color="#F7FAFE" size="small" />
+          <ActivityIndicator color={C.bg} size="small" />
         ) : (
           <Text style={styles.text}>{t('startDay')}</Text>
         )}
@@ -58,16 +60,16 @@ export default function StartDayButton({ onPress, loading }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   button: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 16,
     paddingHorizontal: 48,
     paddingVertical: 20,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 220,
-    shadowColor: '#004593',
+    shadowColor: C.primaryDk,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -77,9 +79,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   text: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-});
+}));

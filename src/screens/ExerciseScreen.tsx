@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -88,6 +89,7 @@ function intensityLabel(id: string): string {
 
 export default function ExerciseScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [loading, setLoading] = useState(true);
   const [today, setToday] = useState({ totalMinutes: 0, logged: false, type: 'walk', intensity: 'moderate' });
   const [week, setWeek] = useState<{ day: string; minutes: number }[]>([]);
@@ -206,7 +208,7 @@ export default function ExerciseScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#227D4C" />
+        <ActivityIndicator color={C.success} />
       </View>
     );
   }
@@ -218,7 +220,7 @@ export default function ExerciseScreen() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.labelRow}>
-            <Ionicons name="walk-outline" size={18} color="#227D4C" />
+            <Ionicons name="walk-outline" size={18} color={C.success} />
             <Text style={styles.cardLabel}>{t('trkToday')}</Text>
           </View>
           <Text style={styles.cardValue}>
@@ -340,7 +342,7 @@ export default function ExerciseScreen() {
               accessibilityLabel={t('exTypeA11y', { type: t(entry.labelKey) })}
               accessibilityState={{ selected: type === entry.id }}
             >
-              <Ionicons name={entry.icon} size={16} color={type === entry.id ? '#227D4C' : '#495D72'} />
+              <Ionicons name={entry.icon} size={16} color={type === entry.id ? C.success : C.textSub} />
               <Text style={[styles.chipText, type === entry.id ? styles.chipTextActive : null]}>{t(entry.labelKey)}</Text>
             </TouchableOpacity>
           ))}
@@ -481,77 +483,77 @@ export default function ExerciseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7FAFE' },
+const styles = themed((C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingBottom: 40 },
-  loading: { flex: 1, backgroundColor: '#F7FAFE', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#8393A3' },
+  card: { backgroundColor: C.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardLabel: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  cardValue: { color: '#112438', fontSize: 22, fontWeight: '800' },
-  cardUnit: { color: '#617285', fontSize: 13, fontWeight: '500' },
-  cardSub: { color: '#495D72', fontSize: 13, marginTop: 6 },
+  cardLabel: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  cardValue: { color: C.text, fontSize: 22, fontWeight: '800' },
+  cardUnit: { color: C.textMuted, fontSize: 13, fontWeight: '500' },
+  cardSub: { color: C.textSub, fontSize: 13, marginTop: 6 },
 
   section: { marginTop: 22 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  sectionTitle: { color: '#112438', fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  sectionCount: { color: '#617285', fontSize: 13, fontWeight: '700', marginBottom: 10 },
-  empty: { color: '#617285', fontSize: 13, fontStyle: 'italic', paddingVertical: 8 },
-  note: { color: '#617285', fontSize: 11, lineHeight: 17, marginTop: 22 },
+  sectionTitle: { color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sectionCount: { color: C.textMuted, fontSize: 13, fontWeight: '700', marginBottom: 10 },
+  empty: { color: C.textMuted, fontSize: 13, fontStyle: 'italic', paddingVertical: 8 },
+  note: { color: C.textMuted, fontSize: 11, lineHeight: 17, marginTop: 22 },
 
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  goalBtnText: { color: '#112438', fontSize: 20, fontWeight: '700' },
-  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  goalValueText: { color: '#112438', fontSize: 17, fontWeight: '700' },
-  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#227D4C', textAlign: 'center', color: '#112438', fontSize: 17, fontWeight: '700' },
+  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  goalBtnText: { color: C.text, fontSize: 20, fontWeight: '700' },
+  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  goalValueText: { color: C.text, fontSize: 17, fontWeight: '700' },
+  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.success, textAlign: 'center', color: C.text, fontSize: 17, fontWeight: '700' },
 
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E9EFF6' },
-  entryTime: { color: '#617285', fontSize: 13, width: 58 },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.surfaceAlt },
+  entryTime: { color: C.textMuted, fontSize: 13, width: 58 },
   entryAmountWrap: { flex: 1 },
-  entryAmount: { color: '#112438', fontSize: 15, fontWeight: '700' },
-  entryMeta: { color: '#617285', fontSize: 11, marginTop: 1 },
-  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#227D4C', paddingHorizontal: 10, color: '#112438', fontSize: 15, fontWeight: '700' },
-  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
-  removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
+  entryAmount: { color: C.text, fontSize: 15, fontWeight: '700' },
+  entryMeta: { color: C.textMuted, fontSize: 11, marginTop: 1 },
+  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: C.surface, borderWidth: 1, borderColor: C.success, paddingHorizontal: 10, color: C.text, fontSize: 15, fontWeight: '700' },
+  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft },
+  removeBtnText: { color: C.dangerInk, fontSize: 12, fontWeight: '700' },
 
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
-  histDay: { color: '#495D72', fontSize: 12, width: 86 },
-  histDayToday: { color: '#112438', fontWeight: '700' },
-  histBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#E9EFF6', overflow: 'hidden' },
-  histBarFill: { height: 8, borderRadius: 4, backgroundColor: '#A8D5BC' },
-  histBarFillDone: { backgroundColor: '#227D4C' },
-  histValue: { color: '#112438', fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
+  histDay: { color: C.textSub, fontSize: 12, width: 86 },
+  histDayToday: { color: C.text, fontWeight: '700' },
+  histBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: C.surfaceAlt, overflow: 'hidden' },
+  histBarFill: { height: 8, borderRadius: 4, backgroundColor: C.successSoft },
+  histBarFillDone: { backgroundColor: C.success },
+  histValue: { color: C.text, fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
 
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  stepBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { color: '#495D72', fontSize: 22, fontWeight: '600', lineHeight: 26 },
-  field: { flex: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3' },
-  fieldInput: { minWidth: 56, textAlign: 'right', color: '#112438', fontSize: 19, fontWeight: '700', padding: 0 },
-  fieldUnit: { color: '#617285', fontSize: 14, fontWeight: '600' },
+  stepBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { color: C.textSub, fontSize: 22, fontWeight: '600', lineHeight: 26 },
+  field: { flex: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  fieldInput: { minWidth: 56, textAlign: 'right', color: C.text, fontSize: 19, fontWeight: '700', padding: 0 },
+  fieldUnit: { color: C.textMuted, fontSize: 14, fontWeight: '600' },
 
   presetRow: { flexDirection: 'row', gap: 7 },
-  preset: { flex: 1, height: 44, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  presetActive: { backgroundColor: '#EAF5EE', borderColor: '#227D4C' },
-  presetText: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  presetTextActive: { color: '#227D4C', fontWeight: '700' },
+  preset: { flex: 1, height: 44, borderRadius: 11, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  presetActive: { backgroundColor: C.successBg, borderColor: C.success },
+  presetText: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  presetTextActive: { color: C.success, fontWeight: '700' },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 40, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3' },
-  intensityChip: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 40, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3' },
-  typeChipActive: { backgroundColor: '#EAF5EE', borderColor: '#227D4C' },
-  chipText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
-  chipTextActive: { color: '#227D4C', fontWeight: '700' },
+  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 40, borderRadius: 11, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  intensityChip: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 40, borderRadius: 11, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  typeChipActive: { backgroundColor: C.successBg, borderColor: C.success },
+  chipText: { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  chipTextActive: { color: C.success, fontWeight: '700' },
 
-  logBtn: { height: 48, borderRadius: 12, backgroundColor: '#227D4C', alignItems: 'center', justifyContent: 'center', marginTop: 22 },
-  logBtnText: { color: '#F7FAFE', fontSize: 15, fontWeight: '700' },
+  logBtn: { height: 48, borderRadius: 12, backgroundColor: C.success, alignItems: 'center', justifyContent: 'center', marginTop: 22 },
+  logBtnText: { color: C.bg, fontSize: 15, fontWeight: '700' },
 
   weekRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 120 },
   weekCol: { flex: 1, alignItems: 'center' },
-  weekValue: { color: '#617285', fontSize: 10, height: 14 },
-  weekTrack: { width: '70%', height: 80, backgroundColor: '#D8E1EA', borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
-  weekFill: { width: '100%', borderRadius: 5, backgroundColor: '#227D4C' },
-  weekDay: { color: '#495D72', fontSize: 11, marginTop: 6 },
-});
+  weekValue: { color: C.textMuted, fontSize: 10, height: 14 },
+  weekTrack: { width: '70%', height: 80, backgroundColor: C.borderSoft, borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
+  weekFill: { width: '100%', borderRadius: 5, backgroundColor: C.success },
+  weekDay: { color: C.textSub, fontSize: 11, marginTop: 6 },
+}));

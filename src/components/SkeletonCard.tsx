@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet } from 'react-native';
-import { C, radius } from '../theme';
+import { C, radius, themed, useTheme } from '../theme';
 
 interface Props {
   height?: number;
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export default function SkeletonCard({ height = 80, width, borderRadius = radius.md }: Props) {
+  useTheme(); // re-render this component when the theme tier changes
   const opacity = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
@@ -27,6 +28,6 @@ export default function SkeletonCard({ height = 80, width, borderRadius = radius
   );
 }
 
-const styles = StyleSheet.create({
-  skeleton: { backgroundColor: C.surface2, marginBottom: 8 },
-});
+const styles = themed((C) => StyleSheet.create({
+  skeleton: { backgroundColor: C.sunken, marginBottom: 8 },
+}));

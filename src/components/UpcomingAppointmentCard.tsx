@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   Animated,
   StyleSheet,
@@ -40,6 +41,7 @@ function awayLabel(days: number): string {
 
 const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ event, onViewDetails }: Props) {
   useLanguage(); // memoised: without this the language switch never reaches it
+  useTheme(); // ...and when the theme tier changes
   const [expanded, setExpanded] = useState(false);
   const expandAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -155,14 +157,14 @@ const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ ev
 
 export default UpcomingAppointmentCard;
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   card: {
-    backgroundColor: '#DEEFFF',
+    backgroundColor: C.primaryBg,
     borderRadius: 14,
     padding: 16,
     paddingLeft: 19,
     borderLeftWidth: 3,
-    borderLeftColor: '#1162B9',
+    borderLeftColor: C.primary,
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -181,33 +183,33 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     position: 'absolute',
   },
   dotPulse: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     position: 'absolute',
   },
   label: {
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 1.4,
-    color: '#1162B9',
+    color: C.primary,
     textTransform: 'uppercase',
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#2A1F1B',
+    color: C.text,
     marginTop: 8,
     lineHeight: 22,
   },
   date: {
     fontSize: 13,
-    color: '#5B4A43',
+    color: C.textSub,
     marginTop: 4,
     lineHeight: 20,
   },
@@ -220,12 +222,12 @@ const styles = StyleSheet.create({
   away: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1162B9',
+    color: C.primary,
   },
   link: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#5B4A43',
+    color: C.textSub,
   },
   expandWrap: {
     overflow: 'hidden',
@@ -244,25 +246,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1.2,
-    color: '#8B7B73',
+    color: C.textMuted,
     textTransform: 'uppercase',
   },
   metaVal: {
     fontSize: 13,
-    color: '#2A1F1B',
+    color: C.text,
     fontWeight: '500',
     lineHeight: 19,
   },
   completeBtn: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 4,
   },
   completeBtnText: {
-    color: '#fff',
+    color: C.onPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
-});
+}));

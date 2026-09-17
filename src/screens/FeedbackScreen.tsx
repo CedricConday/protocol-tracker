@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { C, themed, useTheme } from '../theme/colors';
 import { useState } from 'react';
 import {
   Alert,
@@ -20,6 +21,7 @@ import { FEEDBACK_EMAIL, FEEDBACK_WHATSAPP, hasWhatsApp } from '../config/links'
 import { t, useLanguage } from '../i18n';
 export default function FeedbackScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const navigation = useNavigation();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -78,7 +80,7 @@ export default function FeedbackScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.doneWrap}>
-          <Ionicons name="checkmark-circle" size={64} color="#227D4C" />
+          <Ionicons name="checkmark-circle" size={64} color={C.success} />
           <Text style={styles.doneTitle}>{t('fbThanks')}</Text>
           <Text style={styles.doneSub}>{t('fbThanksBody')}</Text>
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
@@ -97,7 +99,7 @@ export default function FeedbackScreen() {
           <TextInput
             style={styles.messageInput}
             placeholder={t('fbPlaceholder')}
-            placeholderTextColor="#617285"
+            placeholderTextColor={C.textMuted}
             multiline
             value={message}
             onChangeText={setMessage}
@@ -129,7 +131,7 @@ export default function FeedbackScreen() {
             activeOpacity={0.8}
             accessibilityRole="button"
           >
-            <Ionicons name="logo-whatsapp" size={18} color="#F7FAFE" />
+            <Ionicons name="logo-whatsapp" size={18} color={C.bg} />
             <Text style={styles.whatsappBtnText}>
               {hasWhatsApp() ? t('fbSendWhatsApp') : t('fbWhatsAppUnset')}
             </Text>
@@ -140,29 +142,29 @@ export default function FeedbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7FAFE' },
+const styles = themed((C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   scroll: { padding: 24, paddingBottom: 60 },
-  sectionLabel: { color: '#495D72', fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10, marginTop: 20 },
+  sectionLabel: { color: C.textSub, fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10, marginTop: 20 },
   messageInput: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#8393A3',
-    color: '#112438', fontSize: 15, minHeight: 140, textAlignVertical: 'top',
+    backgroundColor: C.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border,
+    color: C.text, fontSize: 15, minHeight: 140, textAlignVertical: 'top',
   },
-  privacyNote: { color: '#617285', fontSize: 12, lineHeight: 18, marginTop: 16 },
+  privacyNote: { color: C.textMuted, fontSize: 12, lineHeight: 18, marginTop: 16 },
   submitBtn: {
-    backgroundColor: '#1162B9', borderRadius: 10, paddingVertical: 16,
+    backgroundColor: C.primary, borderRadius: 10, paddingVertical: 16,
     alignItems: 'center', marginTop: 28,
   },
   submitBtnDisabled: { opacity: 0.4 },
   whatsappBtn: {
-    backgroundColor: '#25D366', borderRadius: 10, paddingVertical: 16,
+    backgroundColor: C.successBright, borderRadius: 10, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12,
   },
-  whatsappBtnText: { color: '#F7FAFE', fontSize: 16, fontWeight: '800' },
-  submitBtnText: { color: '#F7FAFE', fontSize: 16, fontWeight: '800' },
+  whatsappBtnText: { color: C.bg, fontSize: 16, fontWeight: '800' },
+  submitBtnText: { color: C.bg, fontSize: 16, fontWeight: '800' },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  doneTitle: { color: '#112438', fontSize: 24, fontWeight: '800', marginTop: 20 },
-  doneSub: { color: '#495D72', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
-  doneBtn: { marginTop: 32, backgroundColor: '#1162B9', borderRadius: 10, paddingVertical: 16, paddingHorizontal: 40 },
-  doneBtnText: { color: '#F7FAFE', fontSize: 16, fontWeight: '700' },
-});
+  doneTitle: { color: C.text, fontSize: 24, fontWeight: '800', marginTop: 20 },
+  doneSub: { color: C.textSub, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
+  doneBtn: { marginTop: 32, backgroundColor: C.primary, borderRadius: 10, paddingVertical: 16, paddingHorizontal: 40 },
+  doneBtnText: { color: C.bg, fontSize: 16, fontWeight: '700' },
+}));

@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { C } from '../theme/colors';
+import { C, themed, useTheme } from '../theme/colors';
 import { t, useLanguage } from '../i18n';
 import SupplementFields, { SupplementFormState } from './SupplementFields';
 import DurationInput from './DurationInput';
@@ -59,6 +59,7 @@ export default function SupplementSheet({
   onDelete,
 }: Props) {
   useLanguage(); // re-render this sheet when the language changes
+  useTheme(); // ...and when the theme tier changes
 
   /**
    * The timing slot. Here it is the supplement's own place in the day, measured
@@ -139,7 +140,7 @@ export default function SupplementSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: 'row',
@@ -174,5 +175,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.55 },
-  saveBtnText: { color: '#F7FAFE', fontSize: 14, fontWeight: '600' },
-});
+  saveBtnText: { color: C.bg, fontSize: 14, fontWeight: '600' },
+}));

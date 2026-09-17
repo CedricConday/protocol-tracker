@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useWeather, aqiLabel } from '../hooks/useWeather';
 import { getWeatherEnabled } from '../db/queries';
 import SkeletonCard from './SkeletonCard';
-import { C, space, radius, text as T } from '../theme';
+import { C, space, radius, text as T, themed, useTheme } from '../theme';
 import { t, useLanguage } from '../i18n';
 
 function weatherEmoji(code: number): string {
@@ -34,6 +34,7 @@ function protocolInsight(temp: number, uv: number, peakStart: string | null, pea
 
 function WeatherCard() {
   useLanguage(); // re-render this card when the language changes
+  useTheme(); // ...and when the theme tier changes
   // `null` = not read yet. Render nothing until we know, so the card cannot
   // flash on for a user who turned it off.
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -76,7 +77,7 @@ function WeatherCard() {
 
 export default memo(WeatherCard);
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   card: {
     backgroundColor: C.surface,
     borderRadius: radius.lg,
@@ -97,4 +98,4 @@ const styles = StyleSheet.create({
   uvRow:      { ...T.small, color: C.text, fontWeight: '700' },
   aqiRow:     { ...T.small, color: C.textSub },
   insight:    { ...T.small, color: C.textSub, paddingTop: space.sm },
-});
+}));

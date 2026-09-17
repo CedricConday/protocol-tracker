@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -53,6 +54,7 @@ function formatClock(ms: number): string {
 
 export default function WaterScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [loading, setLoading] = useState(true);
   const [waterMl, setWaterMl] = useState(0);
   const [goalMl, setGoalMl] = useState(DEFAULT_GOAL_ML);
@@ -156,7 +158,7 @@ export default function WaterScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#2AA6B8" />
+        <ActivityIndicator color={C.teal} />
       </View>
     );
   }
@@ -279,7 +281,7 @@ export default function WaterScreen() {
                     styles.weekFill,
                     {
                       height: `${Math.min(100, (w.ml / peak) * 100)}%` as `${number}%`,
-                      backgroundColor: w.ml >= goalMl ? '#227D4C' : '#2AA6B8',
+                      backgroundColor: w.ml >= goalMl ? C.success : C.teal,
                     },
                   ]}
                 />
@@ -293,36 +295,36 @@ export default function WaterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7FAFE' },
+const styles = themed((C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingBottom: 40 },
-  loading: { flex: 1, backgroundColor: '#F7FAFE', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   section: { marginTop: 22 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#112438', fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  sectionCount: { color: '#617285', fontSize: 13, fontWeight: '600', marginBottom: 10 },
-  note: { color: '#617285', fontSize: 11, lineHeight: 16, marginTop: 8 },
-  empty: { color: '#617285', fontSize: 13, paddingVertical: 8 },
+  sectionTitle: { color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sectionCount: { color: C.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  note: { color: C.textMuted, fontSize: 11, lineHeight: 16, marginTop: 8 },
+  empty: { color: C.textMuted, fontSize: 13, paddingVertical: 8 },
 
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  goalBtnText: { color: '#495D72', fontSize: 22, fontWeight: '600', lineHeight: 26 },
-  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  goalValueText: { color: '#112438', fontSize: 17, fontWeight: '700' },
-  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#2AA6B8', textAlign: 'center', color: '#112438', fontSize: 17, fontWeight: '700' },
+  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  goalBtnText: { color: C.textSub, fontSize: 22, fontWeight: '600', lineHeight: 26 },
+  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  goalValueText: { color: C.text, fontSize: 17, fontWeight: '700' },
+  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: C.surface, borderWidth: 1, borderColor: C.teal, textAlign: 'center', color: C.text, fontSize: 17, fontWeight: '700' },
 
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
-  entryTime: { color: '#617285', fontSize: 13, width: 56 },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
+  entryTime: { color: C.textMuted, fontSize: 13, width: 56 },
   entryAmountWrap: { flex: 1 },
-  entryAmount: { color: '#112438', fontSize: 15, fontWeight: '600' },
-  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#2AA6B8', paddingHorizontal: 10, color: '#112438', fontSize: 15, fontWeight: '600' },
-  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
-  removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
+  entryAmount: { color: C.text, fontSize: 15, fontWeight: '600' },
+  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: C.surface, borderWidth: 1, borderColor: C.teal, paddingHorizontal: 10, color: C.text, fontSize: 15, fontWeight: '600' },
+  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft },
+  removeBtnText: { color: C.dangerInk, fontSize: 12, fontWeight: '700' },
 
   weekRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 120 },
   weekCol: { flex: 1, alignItems: 'center' },
-  weekValue: { color: '#617285', fontSize: 10, height: 14 },
-  weekTrack: { width: '70%', height: 80, backgroundColor: '#D8E1EA', borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
+  weekValue: { color: C.textMuted, fontSize: 10, height: 14 },
+  weekTrack: { width: '70%', height: 80, backgroundColor: C.borderSoft, borderRadius: 5, overflow: 'hidden', justifyContent: 'flex-end' },
   weekFill: { width: '100%', borderRadius: 5 },
-  weekDay: { color: '#495D72', fontSize: 11, marginTop: 6 },
-});
+  weekDay: { color: C.textSub, fontSize: 11, marginTop: 6 },
+}));

@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Pressable from './Pressable';
-import { C, space, radius, text as T } from '../theme';
+import { C, space, radius, text as T, themed, useTheme } from '../theme';
 
 interface Props {
   icon: string;
@@ -12,6 +12,7 @@ interface Props {
 }
 
 function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Props) {
+  useTheme(); // re-render this component when the theme tier changes
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>{icon}</Text>
@@ -28,7 +29,7 @@ function EmptyState({ icon, title, subtitle, actionLabel, onAction }: Props) {
 
 export default memo(EmptyState);
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -45,4 +46,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
   },
   btnText: { ...T.body, color: C.primary, fontWeight: '700' },
-});
+}));

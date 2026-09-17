@@ -9,6 +9,7 @@ import { initDb, getDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
 import { runMigrations } from './src/db/migrations';
 import { getLanguage } from './src/i18n';
+import { loadThemeMode, useTheme } from './src/theme/colors';
 import { loadPatientName, setupNotificationHandler, registerBackgroundTask } from './src/notifications';
 import { syncAll } from './src/api/syncClient';
 import { FontScaleProvider } from './src/context/FontScaleContext';
@@ -53,6 +54,10 @@ async function readPrimingFlag(): Promise<string | null> {
 const SLOW_BOOT_MS = 2500;
 
 export default function App() {
+  // The tier decides the status bar's own contents: dark glyphs on the light
+  // ground, light glyphs on dim and dark. It was pinned to "light", which put
+  // white icons on a near-white ground.
+  const themeMode = useTheme();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPriming, setShowPriming] = useState(false);
@@ -96,6 +101,9 @@ export default function App() {
           // came up in English, and any notification scheduled before they
           // opened Settings was written in English too.
           getLanguage().catch(() => 'en'),
+          // Same reason, for the theme tier: read it here and the app paints
+          // dim or dark from the first frame instead of flashing light.
+          loadThemeMode().catch(() => 'light' as const),
           (async () => {
             const db = await getDb();
             await runMigrations(db);
@@ -179,7 +187,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <FontScaleProvider>
-        <StatusBar style="light" />
+        <StatusBar style={themeMode === 'light' ? 'dark' : 'light'} />
         <Navigation onReady={onNavigationReady} />
       </FontScaleProvider>
     </ErrorBoundary>

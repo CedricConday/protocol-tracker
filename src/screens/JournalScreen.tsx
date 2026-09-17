@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { C, themed, useTheme } from '../theme/colors';
 import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
@@ -34,10 +35,10 @@ const MOODS = [
 // Absorbed from the former standalone RelapseScreen (event type -> accent color / label).
 const EVENT_TYPES = ['relapse', 'cortisone', 'symptom', 'pain'] as const;
 const TYPE_COLORS: Record<string, string> = {
-  relapse: '#C0392B',
-  cortisone: '#eab308',
-  symptom: '#888888',
-  pain: '#a855f7',
+  relapse: C.danger,
+  cortisone: C.warningAlt,
+  symptom: C.textMuted,
+  pain: C.purpleBright,
 };
 // Values, not words: `relapse_events.type` and `.pain_type` keep their English
 // ids so a row written in one language still reads in the other.
@@ -75,13 +76,14 @@ function formatEventDate(dateStr: string): string {
 }
 
 function complianceBadgeColor(pct: number): string {
-  if (pct >= 80) return '#22c55e';
-  if (pct >= 50) return '#eab308';
-  return '#ef4444';
+  if (pct >= 80) return C.successBright;
+  if (pct >= 50) return C.warningAlt;
+  return C.danger;
 }
 
 export default function JournalScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
     loadedDietaryNote, loadedId, loadedFor,
@@ -262,7 +264,7 @@ export default function JournalScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1162B9" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
       }
     >
       <View style={styles.headingRow}>
@@ -292,7 +294,7 @@ export default function JournalScreen() {
               value={eventDate}
               onChangeText={setEventDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#617285"
+              placeholderTextColor={C.textMuted}
               autoCapitalize="none"
             />
             <Text style={styles.datePreview}>{formatEventDate(eventDate)}</Text>
@@ -315,7 +317,7 @@ export default function JournalScreen() {
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEventType(et); }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.typeButtonText, { color: selected ? '#F7FAFE' : color }]}>
+                  <Text style={[styles.typeButtonText, { color: selected ? C.bg : color }]}>
                     {t(TYPE_LABELS[et])}
                   </Text>
                 </TouchableOpacity>
@@ -355,7 +357,7 @@ export default function JournalScreen() {
                   value={cortisoneDose}
                   onChangeText={setCortisoneDose}
                   placeholder="e.g. 1000"
-                  placeholderTextColor="#617285"
+                  placeholderTextColor={C.textMuted}
                   keyboardType="numeric"
                 />
               </View>
@@ -370,7 +372,7 @@ export default function JournalScreen() {
             {[1, 2, 3, 4, 5].map((s) => {
               const selected = severity === s;
               const hue = 120 - (s - 1) * 30;
-              const color = selected ? `hsl(${hue}, 80%, 50%)` : '#555555';
+              const color = selected ? `hsl(${hue}, 80%, 50%)` : C.textMuted;
               return (
                 <TouchableOpacity
                   key={s}
@@ -382,7 +384,7 @@ export default function JournalScreen() {
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeverity(s); }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.severityText, { color: selected ? '#F7FAFE' : '#495D72' }]}>
+                  <Text style={[styles.severityText, { color: selected ? C.bg : C.textSub }]}>
                     {s}
                   </Text>
                 </TouchableOpacity>
@@ -437,7 +439,7 @@ export default function JournalScreen() {
               value={eventNotes}
               onChangeText={setEventNotes}
               placeholder={eventPlaceholder}
-              placeholderTextColor="#617285"
+              placeholderTextColor={C.textMuted}
               multiline
             />
           </View>
@@ -486,7 +488,7 @@ export default function JournalScreen() {
         ref={noteRef}
         style={styles.noteInput}
         placeholder={t('howAreYouToday')}
-        placeholderTextColor="#617285"
+        placeholderTextColor={C.textMuted}
         multiline
         value={note}
         onChangeText={setNote}
@@ -593,7 +595,7 @@ export default function JournalScreen() {
       <Text style={styles.sectionTitle}>{t('thisWeek')}</Text>
       <View style={styles.weekRow}>
         {weekMoods.map((w, i) => {
-          const dotColor = w.compliancePct >= 80 ? '#22c55e' : w.compliancePct >= 50 ? '#eab308' : '#ef4444';
+          const dotColor = w.compliancePct >= 80 ? C.successBright : w.compliancePct >= 50 ? C.warningAlt : C.danger;
           return (
             <View key={i} style={styles.weekDayCol}>
               <View style={[styles.weekDayCircle, !w.emoji ? styles.weekDayEmpty : null]}>
@@ -617,10 +619,10 @@ export default function JournalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
   },
   content: {
     paddingTop: 60,
@@ -629,17 +631,17 @@ const styles = StyleSheet.create({
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   heading: {
-    color: '#112438',
+    color: C.text,
     fontSize: 22,
     fontWeight: '700',
   },
-  logEventBtn: { backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#C0392B' },
-  logEventBtnText: { color: '#C0392B', fontSize: 14, fontWeight: '600' },
-  logEventBtnActive: { backgroundColor: '#C0392B', borderColor: '#C0392B' },
-  logEventBtnTextActive: { color: '#F7FAFE' },
+  logEventBtn: { backgroundColor: C.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: C.danger },
+  logEventBtnText: { color: C.danger, fontSize: 14, fontWeight: '600' },
+  logEventBtnActive: { backgroundColor: C.danger, borderColor: C.danger },
+  logEventBtnTextActive: { color: C.bg },
   logEventPanel: { marginBottom: 20 },
   fieldLabel: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
@@ -648,16 +650,16 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   required: {
-    color: '#C0392B',
+    color: C.danger,
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#8393A3',
-    shadowColor: '#112438',
+    borderColor: C.border,
+    shadowColor: C.text,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -683,10 +685,10 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     paddingHorizontal: 0,
     paddingVertical: 12,
-    color: '#112438',
+    color: C.text,
     fontSize: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#8393A3',
+    borderBottomColor: C.border,
     marginBottom: 2,
   },
   inputLast: {
@@ -698,7 +700,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   datePreview: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     marginBottom: 8,
   },
@@ -720,7 +722,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logButton: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -731,17 +733,17 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   logButtonText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 16,
     fontWeight: '700',
   },
   dateSubtitle: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.1,
@@ -763,12 +765,12 @@ const styles = StyleSheet.create({
     minWidth: 58,
   },
   moodUnselected: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
   },
   moodSelected: {
-    backgroundColor: '#DEEFFF',
+    backgroundColor: C.primaryBg,
     borderWidth: 2,
-    borderColor: '#1162B9',
+    borderColor: C.primary,
   },
   moodEmoji: {
     fontSize: 24,
@@ -779,15 +781,15 @@ const styles = StyleSheet.create({
   },
   moodLabel: {
     fontSize: 10,
-    color: '#495D72',
+    color: C.textSub,
     fontWeight: '600',
   },
   moodLabelSelected: {
-    color: '#1162B9',
+    color: C.primary,
   },
   noteInput: {
-    backgroundColor: '#FFFFFF',
-    color: '#112438',
+    backgroundColor: C.surface,
+    color: C.text,
     borderRadius: 14,
     padding: 16,
     minHeight: 120,
@@ -796,10 +798,10 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   saveButton: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -809,21 +811,21 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 16,
     fontWeight: '700',
   },
   saveButtonTextSaved: {
-    color: '#F7FAFE',
+    color: C.bg,
   },
   emptyText: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 15,
     textAlign: 'center',
     marginTop: 20,
   },
   entryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 8,
@@ -837,14 +839,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   entryDate: {
-    color: '#112438',
+    color: C.text,
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
   },
   entryDateToday: { fontWeight: '800' },
   entryTime: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     fontWeight: '600',
     marginRight: 10,
@@ -871,15 +873,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   entryRemoveBtn: {
-    backgroundColor: '#FBEAEA',
-    borderColor: '#E7C6C6',
+    backgroundColor: C.dangerBg,
+    borderColor: C.dangerSoft,
   },
-  entryRemoveBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
+  entryRemoveBtnText: { color: C.dangerInk, fontSize: 13, fontWeight: '700' },
   entryCloseBtn: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#8393A3',
+    backgroundColor: C.surface,
+    borderColor: C.border,
   },
-  entryCloseBtnText: { color: '#495D72', fontSize: 13, fontWeight: '700' },
+  entryCloseBtnText: { color: C.textSub, fontSize: 13, fontWeight: '700' },
   complianceBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -890,7 +892,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   entryNote: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     marginTop: 10,
     lineHeight: 22,
@@ -908,13 +910,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayEmpty: {
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   weekDayEmoji: {
     fontSize: 16,
@@ -925,7 +927,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   weekDayLabel: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 10,
     fontWeight: '600',
   },
@@ -934,30 +936,30 @@ const styles = StyleSheet.create({
   },
   painSubtypeButton: {
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
   },
   painSubtypeSelected: {
-    borderColor: '#9B7FC0',
-    backgroundColor: '#F0EBF7',
+    borderColor: C.purpleAlt,
+    backgroundColor: C.purpleBg,
   },
   painSubtypeText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     fontWeight: '500',
   },
   painSubtypeTextSelected: {
-    color: '#6B4FBF',
+    color: C.purple,
     fontWeight: '700',
   },
   yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#8393A3', paddingVertical: 12, alignItems: 'center' },
-  yesNoBtnActive: { borderColor: '#227D4C', backgroundColor: '#EFF7EF' },
-  yesNoBtnText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
-  yesNoBtnTextActive: { color: '#227D4C' },
-  feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#F2B233' },
-  feverWarningText: { color: '#F2B233', fontSize: 12, lineHeight: 18 },
-});
+  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: C.border, paddingVertical: 12, alignItems: 'center' },
+  yesNoBtnActive: { borderColor: C.success, backgroundColor: C.successBg },
+  yesNoBtnText: { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  yesNoBtnTextActive: { color: C.success },
+  feverWarning: { backgroundColor: C.warningBg, borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: C.warning },
+  feverWarningText: { color: C.warning, fontSize: 12, lineHeight: 18 },
+}));

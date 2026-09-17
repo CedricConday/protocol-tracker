@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { t, useLanguage } from '../i18n';
 
@@ -20,6 +21,7 @@ interface Props {
 
 const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin = DEFAULT_SUN_GOAL_MIN }: Props) {
   useLanguage(); // memoised: without this the language switch never reaches it
+  useTheme(); // ...and when the theme tier changes
   const [amount, setAmount] = useState(20);
   const [draft, setDraft] = useState('20');
 
@@ -121,15 +123,15 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
 
 export default SunTracker;
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 16,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#8393A3',
-    shadowColor: '#112438',
+    borderColor: C.border,
+    shadowColor: C.text,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -144,31 +146,31 @@ const styles = StyleSheet.create({
   },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   icon: { fontSize: 16 },
-  label: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  amount: { color: '#112438', fontSize: 16, fontWeight: '700' },
-  amountDone: { color: '#227D4C' },
-  goal: { color: '#617285', fontSize: 13, fontWeight: '400' },
+  label: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  amount: { color: C.text, fontSize: 16, fontWeight: '700' },
+  amountDone: { color: C.success },
+  goal: { color: C.textMuted, fontSize: 13, fontWeight: '400' },
   barBg: {
     height: 8,
-    backgroundColor: '#D8E1EA',
+    backgroundColor: C.sunken,
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
   },
-  barFill: { height: 8, backgroundColor: '#F2B233', borderRadius: 4 },
-  barFillDone: { backgroundColor: '#227D4C' },
+  barFill: { height: 8, backgroundColor: C.warning, borderRadius: 4 },
+  barFillDone: { backgroundColor: C.success },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   stepBtn: {
     width: 46,
     height: 46,
     borderRadius: 12,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBtnText: { color: '#495D72', fontSize: 22, fontWeight: '600', lineHeight: 26 },
+  stepBtnText: { color: C.textSub, fontSize: 22, fontWeight: '600', lineHeight: 26 },
   field: {
     flex: 1,
     height: 46,
@@ -177,39 +179,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     borderRadius: 12,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   fieldInput: {
     minWidth: 56,
     textAlign: 'right',
-    color: '#112438',
+    color: C.text,
     fontSize: 19,
     fontWeight: '700',
     padding: 0,
   },
-  fieldUnit: { color: '#617285', fontSize: 14, fontWeight: '600' },
+  fieldUnit: { color: C.textMuted, fontSize: 14, fontWeight: '600' },
   presetRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
   preset: {
     flex: 1,
     height: 44,
     borderRadius: 11,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  presetActive: { backgroundColor: '#FFF8EC', borderColor: '#F2B233' },
-  presetText: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  presetTextActive: { color: '#F2B233', fontWeight: '700' },
+  presetActive: { backgroundColor: C.warningBg, borderColor: C.warning },
+  presetText: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  presetTextActive: { color: C.warning, fontWeight: '700' },
   logBtn: {
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#F2B233',
+    backgroundColor: C.warning,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logBtnText: { color: '#112438', fontSize: 15, fontWeight: '700' },
-});
+  logBtnText: { color: C.text, fontSize: 15, fontWeight: '700' },
+}));

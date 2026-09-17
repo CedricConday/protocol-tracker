@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { C } from '../theme/colors';
+import { C, themed, useTheme } from '../theme/colors';
 import { t } from '../i18n';
 import { clockPreview, formatDuration } from '../utils/duration';
 
@@ -40,6 +40,7 @@ type Props = {
 };
 
 export default function DurationInput({ value, onChange, t0 = null, baseOffset = 0, label, zeroLabel }: Props) {
+  useTheme(); // re-render this component when the theme tier changes
   // Custom opens by itself for a value the chips cannot express, so an existing
   // supplement at 47 minutes shows 47 rather than silently reading as a preset.
   const [custom, setCustom] = useState(() => !PRESETS.includes(value as (typeof PRESETS)[number]));
@@ -121,14 +122,14 @@ export default function DurationInput({ value, onChange, t0 = null, baseOffset =
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   label: { fontSize: 12, fontWeight: '600', color: C.textSub, marginBottom: 6, marginTop: 12 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: C.surface2,
+    backgroundColor: C.sunken,
     borderWidth: 1,
     borderColor: C.border,
   },
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
   customField: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: {
     flex: 1,
-    backgroundColor: C.surface2,
+    backgroundColor: C.sunken,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -148,4 +149,4 @@ const styles = StyleSheet.create({
   },
   unit: { fontSize: 13, color: C.textSub, fontWeight: '500' },
   summary: { marginTop: 8, fontSize: 13, color: C.textMuted },
-});
+}));

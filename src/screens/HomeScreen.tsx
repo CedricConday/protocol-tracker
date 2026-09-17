@@ -1,4 +1,5 @@
 import { Alert, Modal } from 'react-native';
+import { C, themed, useTheme } from '../theme/colors';
 import { useHomeScreen } from '../hooks';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -72,13 +73,13 @@ function ProgressHeader({ t0, doses }: ProgressHeaderProps) {
   );
 }
 
-const headerStyles = StyleSheet.create({
+const headerStyles = themed((C) => StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#112438',
+    shadowColor: C.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -94,15 +95,15 @@ const headerStyles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   dateText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
   },
   startedText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
   },
   mealText: {
-    color: '#F2B233',
+    color: C.warning,
     fontSize: 12,
     marginTop: 2,
   },
@@ -112,19 +113,19 @@ const headerStyles = StyleSheet.create({
     marginBottom: 4,
   },
   tick: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 10,
   },
   trackOuter: {
     height: 10,
-    backgroundColor: '#D8E1EA',
+    backgroundColor: C.sunken,
     borderRadius: 5,
     overflow: 'hidden',
     marginBottom: 14,
   },
   trackFill: {
     height: 10,
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 5,
   },
   summaryRow: {
@@ -132,17 +133,17 @@ const headerStyles = StyleSheet.create({
     alignItems: 'baseline',
   },
   summaryCount: {
-    color: '#112438',
+    color: C.text,
     fontSize: 20,
     fontWeight: '700',
   },
   summaryOf: {
-    color: '#112438',
+    color: C.text,
     fontSize: 20,
     fontWeight: '700',
   },
   summaryLabel: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
   },
   celebrationRow: {
@@ -151,21 +152,21 @@ const headerStyles = StyleSheet.create({
     gap: 8,
   },
   celebrationIcon: {
-    color: '#1162B9',
+    color: C.primary,
     fontSize: 22,
     fontWeight: '900',
   },
   celebrationText: {
-    color: '#1162B9',
+    color: C.primary,
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
   },
   readyText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
   },
-});
+}));
 
 
 
@@ -173,6 +174,7 @@ const headerStyles = StyleSheet.create({
 
 export default function HomeScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const navigation = useNavigation<any>();
   const {
     t0, setT0, dayLoaded, doses, setDoses, firstMealTime, setFirstMealTimeState,
@@ -437,7 +439,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#22c55e" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.successBright} />
         }
       >
         {renderHeader()}
@@ -650,17 +652,17 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
   },
-  lastEntryCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
+  lastEntryCard: { backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 12, marginHorizontal: 0 },
   lastEntryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   lastEntryEmoji: { fontSize: 22 },
-  lastEntryDate: { color: '#495D72', fontSize: 12 },
-  lastEntryNote: { color: '#112438', fontSize: 14, lineHeight: 20 },
-  lastEntryEmpty: { color: '#617285', fontSize: 14, textAlign: 'center' },
+  lastEntryDate: { color: C.textSub, fontSize: 12 },
+  lastEntryNote: { color: C.text, fontSize: 14, lineHeight: 20 },
+  lastEntryEmpty: { color: C.textMuted, fontSize: 14, textAlign: 'center' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -669,7 +671,7 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   modalContent: {
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     borderRadius: 20,
     padding: 28,
     width: '100%',
@@ -677,40 +679,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    color: '#112438',
+    color: C.text,
     fontSize: 22,
     fontWeight: '800',
     marginBottom: 16,
     textAlign: 'center',
   },
   modalBody: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 24,
   },
   modalButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: C.successBright,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 40,
   },
   modalButtonText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 16,
     fontWeight: '800',
   },
   quickLinksRow: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 16 },
-  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FFFFFF', borderRadius: 8, paddingVertical: 10 },
-  quickLinkText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
+  quickLink: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.surface, borderRadius: 8, paddingVertical: 10 },
+  quickLinkText: { color: C.textSub, fontSize: 13, fontWeight: '600' },
   reorderBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#DEEFFF',
+    backgroundColor: C.primaryBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1162B9',
+    borderColor: C.primary,
     marginHorizontal: 16,
     marginTop: 8,
     padding: 12,
@@ -718,13 +720,13 @@ const styles = StyleSheet.create({
   },
   reorderBannerText: {
     flex: 1,
-    color: '#004593',
+    color: C.primaryDk,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   reorderBannerDismiss: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: 4,
@@ -740,12 +742,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   greeting: {
-    color: '#112438',
+    color: C.text,
     fontSize: 28,
     fontWeight: '800',
   },
   subtitle: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 40,
@@ -757,54 +759,54 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   exerciseCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
   },
   exerciseLabel: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
   },
   exerciseDone: {
-    color: '#227D4C',
+    color: C.success,
     fontWeight: '700',
     marginTop: 8,
   },
   exerciseLogButton: {
-    backgroundColor: '#DEEFFF',
+    backgroundColor: C.primaryBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1162B9',
+    borderColor: C.primary,
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 8,
   },
   exerciseLogButtonText: {
-    color: '#1162B9',
+    color: C.primary,
     fontWeight: '600',
   },
   vitDBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEE2E2',
+    backgroundColor: C.dangerBg,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: C.danger,
     marginHorizontal: 0,
     marginBottom: 10,
     padding: 12,
   },
   vitDBannerText: {
     flex: 1,
-    color: '#991B1B',
+    color: C.dangerInk,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
   relapseButton: {
     borderWidth: 1.5,
-    borderColor: '#C0392B',
+    borderColor: C.danger,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 24,
@@ -812,17 +814,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
-  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#EBF0F5', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#2AA6B8' },
-  reportReadyText: { color: '#2AA6B8', fontSize: 13, fontWeight: '600', flex: 1 },
-  reportReadyDismiss: { color: '#617285', fontSize: 16, paddingLeft: 12 },
+  reportReadyBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.surfaceAlt, borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: C.teal },
+  reportReadyText: { color: C.teal, fontSize: 13, fontWeight: '600', flex: 1 },
+  reportReadyDismiss: { color: C.textMuted, fontSize: 16, paddingLeft: 12 },
   emptyDoses: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
   emptyDosesIcon: { fontSize: 40, marginBottom: 12 },
-  emptyDosesTitle: { color: '#112438', fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
-  emptyDosesSub: { color: '#617285', fontSize: 14, textAlign: 'center', lineHeight: 22 },
-  allDoneLabel: { color: '#22c55e', fontSize: 16, fontWeight: '700', textAlign: 'center', marginVertical: 12 },
+  emptyDosesTitle: { color: C.text, fontSize: 17, fontWeight: '700', marginBottom: 8, textAlign: 'center' },
+  emptyDosesSub: { color: C.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  allDoneLabel: { color: C.successBright, fontSize: 16, fontWeight: '700', textAlign: 'center', marginVertical: 12 },
   relapseButtonInline: {
     borderWidth: 1.5,
-    borderColor: '#C0392B',
+    borderColor: C.danger,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 24,
@@ -830,18 +832,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 4,
   },
-  sectionLabel: { color: '#617285', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
+  sectionLabel: { color: C.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8, marginTop: 4 },
   stackPeek: { height: 20, marginBottom: 8, position: 'relative' },
-  stackCard: { position: 'absolute', left: 0, right: 0, height: 8, backgroundColor: '#E9EFF6', borderRadius: 6, shadowColor: '#112438', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
-  stackLabel: { color: '#1162B9', fontSize: 13, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
-  collapseBtn: { backgroundColor: '#FFFFFF', borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4, borderWidth: 1, borderColor: '#8393A3' },
-  collapseBtnText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
-  energyCard: { backgroundColor: '#F0FDF4', borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#22c55e30' },
-  energyLabel: { color: '#166534', fontSize: 13, fontWeight: '600' },
-  energyCount: { color: '#166534', fontSize: 13, fontWeight: '700' },
+  stackCard: { position: 'absolute', left: 0, right: 0, height: 8, backgroundColor: C.surfaceAlt, borderRadius: 6, shadowColor: C.text, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 1 },
+  stackLabel: { color: C.primary, fontSize: 13, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  collapseBtn: { backgroundColor: C.surface, borderRadius: 8, paddingVertical: 8, alignItems: 'center', marginTop: 4, borderWidth: 1, borderColor: C.border },
+  collapseBtnText: { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  energyCard: { backgroundColor: C.successBg, borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: '#22c55e30' },
+  energyLabel: { color: C.successInk, fontSize: 13, fontWeight: '600' },
+  energyCount: { color: C.successInk, fontSize: 13, fontWeight: '700' },
   energyDot: { width: 20, height: 20, borderRadius: 10, flex: 1 },
   relapseButtonText: {
-    color: '#C0392B',
+    color: C.danger,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -854,33 +856,33 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
     paddingVertical: 8,
     alignItems: 'center',
   },
   exercisePillActive: {
-    borderColor: '#1162B9',
-    backgroundColor: '#DEEFFF',
+    borderColor: C.primary,
+    backgroundColor: C.primaryBg,
   },
   exercisePillText: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   exercisePillTextActive: {
-    color: '#1162B9',
+    color: C.primary,
   },
   exerciseIntensityPill: {
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
     paddingVertical: 8,
     alignItems: 'center',
   },
   exerciseIntensityActive: {
-    borderColor: '#F2B233',
-    backgroundColor: '#FFF8EC',
+    borderColor: C.warning,
+    backgroundColor: C.warningBg,
   },
   exerciseMinRow: {
     flexDirection: 'row',
@@ -890,19 +892,19 @@ const styles = StyleSheet.create({
   exerciseMinButton: {
     flex: 1,
     borderRadius: 8,
-    backgroundColor: '#DEEFFF',
+    backgroundColor: C.primaryBg,
     borderWidth: 1,
     borderColor: '#1162B930',
     paddingVertical: 10,
     alignItems: 'center',
   },
   exerciseMinButtonText: {
-    color: '#1162B9',
+    color: C.primary,
     fontSize: 14,
     fontWeight: '700',
   },
   mealPromptCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -911,25 +913,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   mealPromptTitle: {
-    color: '#112438',
+    color: C.text,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
     marginRight: 12,
   },
   mealPromptButton: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
   mealPromptButtonText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 14,
     fontWeight: '800',
   },
   journalSummaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -944,53 +946,53 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   journalSummaryTitle: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     fontWeight: '600',
   },
   journalSummaryPreview: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     fontStyle: 'italic',
   },
   journalSummaryPrompt: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 13,
     fontWeight: '600',
     textDecorationLine: 'underline',
-    textDecorationColor: '#1162B9',
+    textDecorationColor: C.primary,
   },
-  consentBanner: { backgroundColor: '#EBF0F5', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#2AA6B8' },
-  consentBannerTitle: { color: '#2AA6B8', fontSize: 13, fontWeight: '800', marginBottom: 6 },
-  consentBannerText: { color: '#495D72', fontSize: 13, lineHeight: 18, marginBottom: 12 },
-  consentBannerBtn: { backgroundColor: '#2AA6B8', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  consentBannerBtnText: { color: '#F7FAFE', fontSize: 13, fontWeight: '700' },
-  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#F2B233', gap: 10 },
-  nudgeBannerText: { flex: 1, color: '#8A5A10', fontSize: 13, lineHeight: 18 },
-  nudgeBannerDismiss: { color: '#617285', fontSize: 16, fontWeight: '700' },
-  insightCard: { backgroundColor: '#DEEFFF', borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#1162B9' },
-  insightLabel: { color: '#1162B9', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
-  insightText: { color: '#495D72', fontSize: 14, lineHeight: 22 },
-  homeDisclaimer: { color: '#617285', fontSize: 11, lineHeight: 17, marginTop: 28 },
-  strictBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8EC', borderRadius: 8, padding: 10, marginBottom: 10, gap: 8, borderWidth: 1, borderColor: '#eab308' },
-  strictAmberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#eab308' },
-  strictBadgeText: { color: '#8A5A10', fontSize: 13, fontWeight: '600', flex: 1 },
-  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FFF8EC', borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#F2B233', gap: 10 },
+  consentBanner: { backgroundColor: C.surfaceAlt, borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.teal },
+  consentBannerTitle: { color: C.teal, fontSize: 13, fontWeight: '800', marginBottom: 6 },
+  consentBannerText: { color: C.textSub, fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  consentBannerBtn: { backgroundColor: C.teal, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  consentBannerBtnText: { color: C.bg, fontSize: 13, fontWeight: '700' },
+  nudgeBanner: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.warningBg, borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: C.warning, gap: 10 },
+  nudgeBannerText: { flex: 1, color: C.warningInk, fontSize: 13, lineHeight: 18 },
+  nudgeBannerDismiss: { color: C.textMuted, fontSize: 16, fontWeight: '700' },
+  insightCard: { backgroundColor: C.primaryBg, borderRadius: 12, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: C.primary },
+  insightLabel: { color: C.primary, fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 6 },
+  insightText: { color: C.textSub, fontSize: 14, lineHeight: 22 },
+  homeDisclaimer: { color: C.textMuted, fontSize: 11, lineHeight: 17, marginTop: 28 },
+  strictBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.warningBg, borderRadius: 8, padding: 10, marginBottom: 10, gap: 8, borderWidth: 1, borderColor: C.warningAlt },
+  strictAmberDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.warningAlt },
+  strictBadgeText: { color: C.warningInk, fontSize: 13, fontWeight: '600', flex: 1 },
+  hintCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.warningBg, borderRadius: 10, padding: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: C.warning, gap: 10 },
   hintCardInner: { flex: 1 },
-  hintCardTitle: { color: '#F2B233', fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
-  hintCardText: { color: '#495D72', fontSize: 12, lineHeight: 18 },
-  hintCardDismiss: { color: '#617285', fontSize: 16, fontWeight: '700' },
-  wizardCard: { backgroundColor: '#DEEFFF', borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#1162B940' },
-  wizardTitle: { color: '#1162B9', fontSize: 15, fontWeight: '800', marginBottom: 12 },
-  wizardStep: { color: '#495D72', fontSize: 13, lineHeight: 20, marginBottom: 8 },
-  wizardBtn: { backgroundColor: '#1162B9', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
-  wizardBtnText: { color: '#F7FAFE', fontSize: 14, fontWeight: '800' },
-  mealCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 14, marginBottom: 12 },
-  mealCardTitle: { color: '#495D72', fontSize: 12, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10 },
+  hintCardTitle: { color: C.warning, fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
+  hintCardText: { color: C.textSub, fontSize: 12, lineHeight: 18 },
+  hintCardDismiss: { color: C.textMuted, fontSize: 16, fontWeight: '700' },
+  wizardCard: { backgroundColor: C.primaryBg, borderRadius: 14, padding: 18, marginBottom: 14, borderWidth: 1, borderColor: '#1162B940' },
+  wizardTitle: { color: C.primary, fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  wizardStep: { color: C.textSub, fontSize: 13, lineHeight: 20, marginBottom: 8 },
+  wizardBtn: { backgroundColor: C.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
+  wizardBtnText: { color: C.bg, fontSize: 14, fontWeight: '800' },
+  mealCard: { backgroundColor: C.surface, borderRadius: 12, padding: 14, marginBottom: 12 },
+  mealCardTitle: { color: C.textSub, fontSize: 12, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10 },
   mealButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  mealTypeBtn: { flex: 1, backgroundColor: '#D8E1EA', borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
-  mealTypeBtnText: { color: '#1162B9', fontSize: 12, fontWeight: '700' },
+  mealTypeBtn: { flex: 1, backgroundColor: C.borderSoft, borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
+  mealTypeBtnText: { color: C.primary, fontSize: 12, fontWeight: '700' },
   mealChipScroll: { marginTop: 4 },
-  mealChip: { backgroundColor: '#DEEFFF', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#1162B930' },
-  mealChipText: { color: '#1162B9', fontSize: 12 },
-});
+  mealChip: { backgroundColor: C.primaryBg, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginRight: 8, borderWidth: 1, borderColor: '#1162B930' },
+  mealChipText: { color: C.primary, fontSize: 12 },
+}));

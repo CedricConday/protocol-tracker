@@ -24,7 +24,7 @@ import Pressable from '../components/Pressable';
 import SunMascot from '../components/SunMascot';
 import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
 import ShareSheet from '../share/ShareSheet';
-import { C, space, radius, shadow, text as T } from '../theme';
+import { C, space, radius, shadow, text as T, themed, useTheme, setThemeMode, THEME_MODES } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
@@ -133,8 +133,12 @@ type SavedFields = {
   quietEnd: string;
 };
 
+/** One string key per tier, so the row's subtitle and its buttons agree. */
+const THEME_LABEL = { light: 'themeLight', dim: 'themeDim', dark: 'themeDark' } as const;
+
 export default function SettingsScreen() {
   useLanguage(); // re-render this screen when the language changes
+  const themeMode = useTheme(); // the tier, and a re-render when it changes
   const [shareOpen, setShareOpen] = useState(false);
   const update = useAppUpdate();
   const updateRow = updateRowContent(update.state, update.lastChecked);
@@ -330,6 +334,26 @@ export default function SettingsScreen() {
               screen, and a caps heading over the only list reads as a section
               of something larger than it is. */}
           <Group>
+            {/* Appearance sits above Notifications because it is the first
+                thing a light-sensitive patient goes looking for, and because
+                dim — not dark — is the tier most of them settle on. */}
+            <Row icon="contrast-outline" label={t('appearance')} sub={t(THEME_LABEL[themeMode])} onPress={() => toggleSection('theme')} />
+            <Expand open={expandedSection === 'theme'}>
+              <View style={styles.segment}>
+                {THEME_MODES.map((tier) => (
+                  <Pressable
+                    key={tier}
+                    style={[styles.segmentBtn, themeMode === tier && styles.segmentBtnActive]}
+                    onPress={() => setThemeMode(tier)}
+                    accessibilityLabel={t('setSwitchThemeA11y', { theme: t(THEME_LABEL[tier]) })}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.segmentText, themeMode === tier && styles.segmentTextActive]}>{t(THEME_LABEL[tier])}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.themeHint}>{t('themeHint')}</Text>
+            </Expand>
             <Row icon="notifications-outline"     label={t('notifications')} sub={t('notificationsSub')} onPress={() => toggleSection('notif')} />
             <Expand open={expandedSection === 'notif'}>
               {[
@@ -344,7 +368,7 @@ export default function SettingsScreen() {
                   <Switch
                     value={notifPrefs[item.key]}
                     onValueChange={(v) => { hSelect(); setNotifPrefs((prev) => ({ ...prev, [item.key]: v })); }}
-                    trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
+                    trackColor={{ false: C.sunken, true: C.primary }} thumbColor={C.surface}
                   />
                 </View>
               ))}
@@ -353,7 +377,7 @@ export default function SettingsScreen() {
                 <Switch
                   value={weatherOn}
                   onValueChange={async (v) => { hSelect(); setWeatherOn(v); await setWeatherEnabled(v); }}
-                  trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
+                  trackColor={{ false: C.sunken, true: C.primary }} thumbColor={C.surface}
                   accessibilityLabel={t('setWeatherA11y')}
                 />
               </View>
@@ -368,7 +392,7 @@ export default function SettingsScreen() {
                 <Switch
                   value={quietOn}
                   onValueChange={(v) => { hSelect(); setQuietOn(v); }}
-                  trackColor={{ false: C.surface2, true: C.primary }} thumbColor="#fff"
+                  trackColor={{ false: C.sunken, true: C.primary }} thumbColor={C.surface}
                   accessibilityLabel={t('setQuietA11y')}
                 />
               </View>
@@ -534,7 +558,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container:    { flex: 1, backgroundColor: C.bg },
   flex:         { flex: 1 },
   scrollView:   { flex: 1 },
@@ -544,7 +568,7 @@ const styles = StyleSheet.create({
 
   // Hero
   heroCard: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: radius.xl,
     overflow: 'hidden',
     marginBottom: space.xl,
@@ -569,7 +593,7 @@ const styles = StyleSheet.create({
   groupWrap:  { marginBottom: space.xl },
   groupLabel: { ...T.caps, color: C.textSub, marginBottom: space.sm, marginLeft: space.sm },
   group: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: radius.lg,
     overflow: 'hidden',
     ...shadow.subtle,
@@ -600,7 +624,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginRight: space.sm,
   },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  badgeText: { color: C.onPrimary, fontSize: 12, fontWeight: '800' },
 
   // Expand panels
   expand: {
@@ -622,6 +646,7 @@ const styles = StyleSheet.create({
 
   // Segment (language)
   segment: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
+  themeHint: { ...T.caption, color: C.textMuted, marginTop: space.sm },
   segmentBtn: {
     flex: 1, paddingVertical: 12,
     borderRadius: radius.md,
@@ -653,5 +678,5 @@ const styles = StyleSheet.create({
     paddingVertical: 18, alignItems: 'center',
     ...shadow.medium,
   },
-  saveBtnText: { ...T.bodyLg, color: '#fff', fontWeight: '800' },
-});
+  saveBtnText: { ...T.bodyLg, color: C.onPrimary, fontWeight: '800' },
+}));

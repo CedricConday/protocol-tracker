@@ -4,7 +4,7 @@ import {
   Switch, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { t, useLanguage } from '../i18n';
-import { C, space, radius, text as T } from '../theme';
+import { C, space, radius, text as T, themed, useTheme } from '../theme';
 import { collectShareData, countSections, resolveRange } from './data';
 import { shareFromConfig } from './send';
 import {
@@ -43,6 +43,7 @@ export default function ShareSheet({
   visible, onClose, initialPreset = '30d', initialRange, initialFormat = 'pdf',
 }: ShareSheetProps) {
   useLanguage();
+  useTheme(); // ...and when the theme tier changes
   const [preset, setPreset] = useState<RangePreset>(initialPreset);
   const [custom, setCustom] = useState({ from: initialRange?.from ?? '', to: initialRange?.to ?? '' });
   const [range, setRange] = useState<{ from: string; to: string } | null>(initialRange ?? null);
@@ -222,7 +223,7 @@ export default function ShareSheet({
               accessibilityRole="button"
               accessibilityLabel={t('shSend')}
             >
-              {sending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.btnPrimaryText}>{t('shSend')}</Text>}
+              {sending ? <ActivityIndicator color={C.onPrimary} /> : <Text style={styles.btnPrimaryText}>{t('shSend')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -231,7 +232,7 @@ export default function ShareSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(20,33,61,0.45)', justifyContent: 'flex-end' },
   card: {
     backgroundColor: C.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20,
@@ -260,7 +261,7 @@ const styles = StyleSheet.create({
     flex: 1,
     // RN Web gives a flex child an auto min-width, so a date wider than the
     // share left it overflowed the card instead of shrinking into it.
-    minWidth: 0, backgroundColor: '#FFFFFF', borderRadius: radius.md, borderWidth: 1,
+    minWidth: 0, backgroundColor: C.surface, borderRadius: radius.md, borderWidth: 1,
     borderColor: C.border, paddingHorizontal: 12, paddingVertical: 10, color: C.text,
   },
   toJoiner: { ...T.small, color: C.textSub },
@@ -277,6 +278,6 @@ const styles = StyleSheet.create({
   btnGhost: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
   btnGhostText: { ...T.body, color: C.textSub, fontWeight: '700' },
   btnPrimary: { backgroundColor: C.primary },
-  btnPrimaryText: { ...T.body, color: '#FFFFFF', fontWeight: '700' },
+  btnPrimaryText: { ...T.body, color: C.onPrimary, fontWeight: '700' },
   btnDisabled: { opacity: 0.5 },
-});
+}));

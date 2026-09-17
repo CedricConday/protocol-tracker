@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -57,12 +58,12 @@ type Tracker = {
 // Keys, not strings: this array is module scope, so literals would freeze the
 // language that happened to be active when the module was imported.
 const TRACKERS: Tracker[] = [
-  { route: 'SupplementEditor', labelKey: 'doses',    subKey: 'sumDosesSub',    icon: 'list-outline',       tint: '#7A5BD6' },
-  { route: 'Water',    labelKey: 'water',    subKey: 'sumWaterSub',    icon: 'water-outline',      tint: '#3B9AE1' },
-  { route: 'Sunlight', labelKey: 'sunlight', subKey: 'sumSunSub',      icon: 'sunny-outline',      tint: '#E9A23C' },
-  { route: 'Exercise', labelKey: 'exercise', subKey: 'sumExerciseSub', icon: 'walk-outline',       tint: '#227D4C' },
-  { route: 'Food',     labelKey: 'food',     subKey: 'sumFoodSub',     icon: 'restaurant-outline', tint: '#A3623C' },
-  { route: 'Bedtime',  labelKey: 'navBedtime', subKey: 'sumBedtimeSub', icon: 'moon-outline',      tint: '#5B5BD6' },
+  { route: 'SupplementEditor', labelKey: 'doses',    subKey: 'sumDosesSub',    icon: 'list-outline',       tint: C.purpleAlt },
+  { route: 'Water',    labelKey: 'water',    subKey: 'sumWaterSub',    icon: 'water-outline',      tint: C.blueBright },
+  { route: 'Sunlight', labelKey: 'sunlight', subKey: 'sumSunSub',      icon: 'sunny-outline',      tint: C.warningAlt },
+  { route: 'Exercise', labelKey: 'exercise', subKey: 'sumExerciseSub', icon: 'walk-outline',       tint: C.success },
+  { route: 'Food',     labelKey: 'food',     subKey: 'sumFoodSub',     icon: 'restaurant-outline', tint: C.warningInk },
+  { route: 'Bedtime',  labelKey: 'navBedtime', subKey: 'sumBedtimeSub', icon: 'moon-outline',      tint: C.purpleAlt },
 ];
 
 const GRID_GAP = 12;
@@ -94,6 +95,7 @@ const PENDING: TodayValues = {
 
 export default function SummaryScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const navigation = useNavigation<any>();
   const [today, setToday] = useState<TodayValues>(PENDING);
   // What one row actually gets, measured rather than assumed: three rows plus
@@ -293,15 +295,15 @@ export default function SummaryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7FAFE' },
+const styles = themed((C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   // The tab is one page: the grid takes whatever is left under the heading and
   // the three rows divide it, so the cards grow with the screen instead of
   // sitting small above a blank half. flexGrow on the content container is what
   // gives the grid a height to divide in the first place.
   content: { padding: 20, paddingTop: 52, paddingBottom: 20, flexGrow: 1 },
-  heading: { color: '#112438', fontSize: 26, fontWeight: '800', marginBottom: 4 },
-  standfirst: { color: '#495D72', fontSize: 13, lineHeight: 18, marginBottom: 16 },
+  heading: { color: C.text, fontSize: 26, fontWeight: '800', marginBottom: 4 },
+  standfirst: { color: C.textSub, fontSize: 13, lineHeight: 18, marginBottom: 16 },
 
   grid: { flex: 1, gap: GRID_GAP },
   row:  { flex: 1, flexDirection: 'row', gap: GRID_GAP },
@@ -313,22 +315,22 @@ const styles = StyleSheet.create({
     // space inside the card. As one block in the middle they read at any height.
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconWrap: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   iconWrapCompact: { width: 34, height: 34, borderRadius: 17 },
-  cardLabel: { flex: 1, color: '#112438', fontSize: 17, fontWeight: '700' },
+  cardLabel: { flex: 1, color: C.text, fontSize: 17, fontWeight: '700' },
   cardLabelCompact: { fontSize: 15 },
-  cardSub: { color: '#495D72', fontSize: 13, lineHeight: 18 },
+  cardSub: { color: C.textSub, fontSize: 13, lineHeight: 18 },
   cardSubCompact: { fontSize: 12, lineHeight: 16 },
-  cardToday: { color: '#112438', fontSize: 16, fontWeight: '700', lineHeight: 21 },
+  cardToday: { color: C.text, fontSize: 16, fontWeight: '700', lineHeight: 21 },
   cardTodayCompact: { fontSize: 14, lineHeight: 18 },
-  cardDetail: { color: '#617285', fontSize: 12, lineHeight: 16, marginTop: 3 },
-  barTrack: { height: 6, borderRadius: 3, backgroundColor: '#D8E1EA', overflow: 'hidden', marginTop: 9 },
+  cardDetail: { color: C.textMuted, fontSize: 12, lineHeight: 16, marginTop: 3 },
+  barTrack: { height: 6, borderRadius: 3, backgroundColor: C.borderSoft, overflow: 'hidden', marginTop: 9 },
   barFill: { height: 6, borderRadius: 3 },
-});
+}));

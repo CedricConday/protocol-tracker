@@ -1,4 +1,5 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { C, themed, useTheme } from '../theme/colors';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
@@ -37,8 +38,8 @@ const SettingsNav = createNativeStackNavigator();
 
 const SUB_HEADER = {
   headerShown: true,
-  headerStyle: { backgroundColor: '#F7FAFE' },
-  headerTintColor: '#112438',
+  headerStyle: { backgroundColor: C.bg },
+  headerTintColor: C.text,
   headerShadowVisible: false,
   headerBackTitleVisible: false,
 } as const;
@@ -151,15 +152,15 @@ function TabNavigator() {
         headerShown: false,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          backgroundColor: '#F7FAFE',
-          borderTopColor: '#8393A3',
+          backgroundColor: C.bg,
+          borderTopColor: C.border,
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: 16,
           height: 72,
         },
-        tabBarActiveTintColor: '#1162B9',
-        tabBarInactiveTintColor: '#617285',
+        tabBarActiveTintColor: C.primary,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -250,6 +251,7 @@ interface NavigationProps {
 
 export default function Navigation({ onReady }: NavigationProps) {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -281,6 +283,6 @@ export default function Navigation({ onReady }: NavigationProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   root: { flex: 1 },
-});
+}));

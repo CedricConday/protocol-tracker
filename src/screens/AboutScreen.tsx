@@ -4,7 +4,7 @@ import * as Application from 'expo-application';
 
 import SunMascot from '../components/SunMascot';
 import { t, useLanguage } from '../i18n';
-import { C, space, radius, text as T } from '../theme';
+import { C, space, radius, text as T, themed, useTheme } from '../theme';
 
 /**
  * About.
@@ -39,6 +39,7 @@ const FEATURES = [
 
 export default function AboutScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [appVersion, setAppVersion] = useState('');
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content: {
     paddingTop: space.xxl,
@@ -100,4 +101,4 @@ const styles = StyleSheet.create({
 
   privacy:    { ...T.small, color: C.textSub, textAlign: 'center', lineHeight: 20, marginBottom: space.md },
   disclaimer: { ...T.small, color: C.textMuted, textAlign: 'center', lineHeight: 20 },
-});
+}));

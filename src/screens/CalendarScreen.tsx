@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { C, themed, useTheme } from '../theme/colors';
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
@@ -49,17 +50,13 @@ function getAwarenessDate(dateStr: string): { label: string; message: string } |
 }
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const BG = '#F7FAFE';
-const ACCENT = '#1162B9';
-const INK = '#112438';
-const INK_MUTED = '#495D72';
 
 // Dose-compliance ring color.
 function getComplianceColor(compliancePct: number, totalDoses: number): string {
-  if (totalDoses === 0) return '#D8E1EA';
-  if (compliancePct >= 80) return '#227D4C';
-  if (compliancePct >= 50) return '#F2B233';
-  return '#C0392B';
+  if (totalDoses === 0) return C.sunken;
+  if (compliancePct >= 80) return C.success;
+  if (compliancePct >= 50) return C.warning;
+  return C.danger;
 }
 
 // Health-app style compliance ring: a track plus an arc that fills by compliance %.
@@ -73,7 +70,7 @@ function ComplianceRing({ pct, color }: { pct: number; color: string }) {
   const c = RING_SIZE / 2;
   return (
     <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
-      <Circle cx={c} cy={c} r={RING_R} fill="none" stroke="#E9EFF6" strokeWidth={RING_STROKE} />
+      <Circle cx={c} cy={c} r={RING_R} fill="none" stroke={C.surfaceAlt} strokeWidth={RING_STROKE} />
       <Circle
         cx={c} cy={c} r={RING_R} fill="none" stroke={color} strokeWidth={RING_STROKE}
         strokeLinecap="round" strokeDasharray={`${dash} ${RING_C}`}
@@ -85,14 +82,8 @@ function ComplianceRing({ pct, color }: { pct: number; color: string }) {
 
 // Colorblind-safe markers: distinct SHAPE per data type, not color alone.
 // Event → diamond, Journal → square, Water → circle.
-const EVENT_COLOR = '#C0392B';
-const JOURNAL_COLOR = '#7C6FB8';
-const WATER_COLOR = '#3B9AE1';
 // Row dots in the day sheet only — the grid markers stay three shapes, because
 // six of them in a 44pt cell is unreadable.
-const FOOD_COLOR = '#A3623C';
-const EXERCISE_COLOR = '#227D4C';
-const SUN_COLOR = '#F2B233';
 
 // The day total reads as litres past 1000 ml, matching WaterScreen.
 function fmtMl(ml: number): string {
@@ -110,7 +101,7 @@ function fmtTime(ts: number | null): string {
 }
 
 const DOSE_STATUS_COLOR: Record<string, string> = {
-  taken: '#227D4C', missed: '#C0392B', skipped: '#617285', due: '#F2B233', upcoming: '#495D72',
+  taken: C.success, missed: C.danger, skipped: C.textMuted, due: C.warning, upcoming: C.textSub,
 };
 // Keys, not words: the value in the row is the English id the table stores.
 const EVENT_LABEL: Record<string, string> = {
@@ -140,6 +131,7 @@ const FORWARD_MONTHS = 12;
 
 export default function CalendarScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const navigation = useNavigation<any>();
   const { summary, streak, loadData: loadCompliance } = useSummaryScreen();
   const [profileBlurb, setProfileBlurb] = useState<string | null>(null);
@@ -310,7 +302,7 @@ export default function CalendarScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ACCENT} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
     >
       <View style={styles.headerRow}>
         <Text style={styles.heading}>{t('history')}</Text>
@@ -364,9 +356,9 @@ export default function CalendarScreen() {
                   || c.hasFood || c.hasExercise || c.hasSun || c.started);
                 // Ring: calm cream card, dark legible number, a compliance ring around it.
                 // Event/journal/water-only days are still a data card (just no ring).
-                const cellBg = hasData ? '#FFFFFF' : 'transparent';
-                const cellBorder = hasData ? '#E9EFF6' : 'transparent';
-                const textColor = hasData ? INK : (isFuture ? '#D8E1EA' : '#D8E1EA');
+                const cellBg = hasData ? C.surface : 'transparent';
+                const cellBorder = hasData ? C.surfaceAlt : 'transparent';
+                const textColor = hasData ? C.text : (isFuture ? C.sunken : C.sunken);
                 const awareness = getAwarenessDate(slot.date);
                 // Openability turns on data, not on the date. A future day holding a
                 // real saved event was previously as unopenable as an empty one.
@@ -423,9 +415,9 @@ export default function CalendarScreen() {
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendRow}>
-          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#227D4C' }]} /><Text style={styles.legendLabel}>≥80%</Text></View>
-          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#F2B233' }]} /><Text style={styles.legendLabel}>50–79%</Text></View>
-          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: '#C0392B' }]} /><Text style={styles.legendLabel}>&lt;50%</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: C.success }]} /><Text style={styles.legendLabel}>≥80%</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: C.warning }]} /><Text style={styles.legendLabel}>50–79%</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendChip, { backgroundColor: C.danger }]} /><Text style={styles.legendLabel}>&lt;50%</Text></View>
         </View>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}><View style={styles.legendDiamond} /><Text style={styles.legendLabel}>{t('event')}</Text></View>
@@ -546,7 +538,7 @@ export default function CalendarScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={t('calCorrectDoseA11y', { supplement: d.supplementName, status: labelFor(DOSE_STATUS_LABEL, d.status) })}
                       >
-                        <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#495D72' }]} />
+                        <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? C.textSub }]} />
                         <Text style={styles.detailRowText}>{d.supplementName}</Text>
                         <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.loggedTime ? fmtTime(d.loggedTime) : labelFor(DOSE_STATUS_LABEL, d.status)}</Text>
                         <Text style={styles.detailRowChevron}>›</Text>
@@ -571,7 +563,7 @@ export default function CalendarScreen() {
                   ) : (
                     detail.waterLogs.map((w) => (
                       <View key={w.id} style={styles.detailRow}>
-                        <View style={[styles.detailDot, { backgroundColor: WATER_COLOR }]} />
+                        <View style={[styles.detailDot, { backgroundColor: C.blueBright }]} />
                         <Text style={styles.detailRowText}>{w.amount_ml} ml</Text>
                         <Text style={styles.detailRowMeta}>{fmtTime(w.logged_at)}</Text>
                       </View>
@@ -589,7 +581,7 @@ export default function CalendarScreen() {
                   ) : (
                     detail.meals.map((m) => (
                       <View key={m.id} style={styles.detailRow}>
-                        <View style={[styles.detailDot, { backgroundColor: FOOD_COLOR }]} />
+                        <View style={[styles.detailDot, { backgroundColor: C.warningInk }]} />
                         <Text style={styles.detailRowText}>{labelFor(MEAL_LABEL, m.meal_type)}</Text>
                         <Text style={styles.detailRowMeta}>{m.time}</Text>
                       </View>
@@ -607,7 +599,7 @@ export default function CalendarScreen() {
                   ) : (
                     detail.exerciseLogs.map((e) => (
                       <View key={e.id} style={styles.detailRow}>
-                        <View style={[styles.detailDot, { backgroundColor: EXERCISE_COLOR }]} />
+                        <View style={[styles.detailDot, { backgroundColor: C.success }]} />
                         <Text style={styles.detailRowText}>{`${e.duration_minutes} ${t('unitMin')} ${e.type}`}</Text>
                         <Text style={styles.detailRowMeta}>{e.intensity}</Text>
                       </View>
@@ -628,13 +620,13 @@ export default function CalendarScreen() {
                     // sun_entries table was never created. The total is real
                     // either way, so it is shown rather than hidden.
                     <View style={styles.detailRow}>
-                      <View style={[styles.detailDot, { backgroundColor: SUN_COLOR }]} />
+                      <View style={[styles.detailDot, { backgroundColor: C.warning }]} />
                       <Text style={styles.detailRowText}>{detail.sunMinutes} min</Text>
                     </View>
                   ) : (
                     detail.sunEntries.map((s) => (
                       <View key={s.id} style={styles.detailRow}>
-                        <View style={[styles.detailDot, { backgroundColor: SUN_COLOR }]} />
+                        <View style={[styles.detailDot, { backgroundColor: C.warning }]} />
                         <Text style={styles.detailRowText}>{s.minutes} min</Text>
                         <Text style={styles.detailRowMeta}>{fmtTime(s.logged_at)}</Text>
                       </View>
@@ -706,81 +698,81 @@ export default function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+const styles = themed((C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  heading: { color: INK, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
-  shareButton: { backgroundColor: '#FFFFFF', borderRadius: 11, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#8393A3' },
-  shareButtonText: { color: ACCENT, fontSize: 14, fontWeight: '700' },
+  heading: { color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
+  shareButton: { backgroundColor: C.surface, borderRadius: 11, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.border },
+  shareButtonText: { color: C.primary, fontSize: 14, fontWeight: '700' },
 
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  navArrow: { color: ACCENT, fontSize: 32, fontWeight: '700', paddingHorizontal: 8, width: 40, textAlign: 'center' },
-  navArrowDisabled: { color: '#8393A3' },
+  navArrow: { color: C.primary, fontSize: 32, fontWeight: '700', paddingHorizontal: 8, width: 40, textAlign: 'center' },
+  navArrowDisabled: { color: C.textFaint },
   monthTitleWrap: { alignItems: 'center' },
-  monthTitle: { color: INK, fontSize: 18, fontWeight: '800' },
-  monthStats: { color: '#617285', fontSize: 12, fontWeight: '600', marginTop: 1 },
+  monthTitle: { color: C.text, fontSize: 18, fontWeight: '800' },
+  monthStats: { color: C.textMuted, fontSize: 12, fontWeight: '600', marginTop: 1 },
 
   weekHeader: { flexDirection: 'row', marginTop: 10, marginBottom: 8 },
-  weekHeaderCell: { flex: 1, textAlign: 'center', color: '#617285', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  weekHeaderCell: { flex: 1, textAlign: 'center', color: C.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
 
   week: { flexDirection: 'row', gap: 6 },
   slot: { flex: 1, aspectRatio: 1 },
   cell: { flex: 1, borderRadius: 12, borderWidth: 1, minHeight: 44, position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  cellToday: { borderWidth: 2, borderColor: ACCENT },
+  cellToday: { borderWidth: 2, borderColor: C.primary },
   ringWrap: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   cellText: { fontSize: 14, fontWeight: '800' },
 
   markers: { position: 'absolute', bottom: 3, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  markerDiamond: { width: 7, height: 7, backgroundColor: EVENT_COLOR, transform: [{ rotate: '45deg' }] },
-  markerSquare: { width: 7, height: 7, borderRadius: 2, backgroundColor: JOURNAL_COLOR },
-  markerCircle: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: WATER_COLOR },
-  awarenessDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#F97316', position: 'absolute', top: 5, right: 5 },
+  markerDiamond: { width: 7, height: 7, backgroundColor: C.danger, transform: [{ rotate: '45deg' }] },
+  markerSquare: { width: 7, height: 7, borderRadius: 2, backgroundColor: C.purpleAlt },
+  markerCircle: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: C.blueBright },
+  awarenessDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.orange, position: 'absolute', top: 5, right: 5 },
 
   // ── Compliance block, moved from SummaryScreen 2026-09-13 ──────────────
   statRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
-  statCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#8393A3' },
-  statValue: { color: '#112438', fontSize: 22, fontWeight: '700' },
-  statLabel: { color: '#495D72', fontSize: 12, marginTop: 2 },
-  profileBlurbCard: { backgroundColor: '#DEEFFF', borderRadius: 14, padding: 16, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#1162B9' },
-  profileBlurbText: { color: '#495D72', fontSize: 13, lineHeight: 20 },
-  shareProgressBtn: { backgroundColor: '#1162B9', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12 },
-  shareProgressBtnText: { color: '#F7FAFE', fontSize: 15, fontWeight: '700' },
+  statCard: { flex: 1, backgroundColor: C.surface, borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: C.border },
+  statValue: { color: C.text, fontSize: 22, fontWeight: '700' },
+  statLabel: { color: C.textSub, fontSize: 12, marginTop: 2 },
+  profileBlurbCard: { backgroundColor: C.primaryBg, borderRadius: 14, padding: 16, marginTop: 12, borderLeftWidth: 3, borderLeftColor: C.primary },
+  profileBlurbText: { color: C.textSub, fontSize: 13, lineHeight: 20 },
+  shareProgressBtn: { backgroundColor: C.primary, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 12 },
+  shareProgressBtnText: { color: C.bg, fontSize: 15, fontWeight: '700' },
 
   legend: { paddingTop: 18, marginTop: 4, gap: 10 },
   legendRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 16 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendChip: { width: 11, height: 11, borderRadius: 3 },
-  legendDiamond: { width: 9, height: 9, backgroundColor: EVENT_COLOR, transform: [{ rotate: '45deg' }] },
-  legendSquare: { width: 9, height: 9, borderRadius: 2, backgroundColor: JOURNAL_COLOR },
-  legendCircle: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: WATER_COLOR },
-  legendLabel: { color: INK_MUTED, fontSize: 12, fontWeight: '600' },
+  legendDiamond: { width: 9, height: 9, backgroundColor: C.danger, transform: [{ rotate: '45deg' }] },
+  legendSquare: { width: 9, height: 9, borderRadius: 2, backgroundColor: C.purpleAlt },
+  legendCircle: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: C.blueBright },
+  legendLabel: { color: C.textSub, fontSize: 12, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(30,22,18,0.45)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: BG, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '82%' },
-  grabber: { width: 38, height: 4, borderRadius: 3, backgroundColor: '#D8E1EA', alignSelf: 'center', marginBottom: 12 },
+  modalCard: { backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '82%' },
+  grabber: { width: 38, height: 4, borderRadius: 3, backgroundColor: C.borderSoft, alignSelf: 'center', marginBottom: 12 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  detailArrow: { color: ACCENT, fontSize: 28, fontWeight: '700', paddingHorizontal: 8 },
-  detailDate: { color: INK, fontSize: 15, fontWeight: '800', flex: 1, textAlign: 'center' },
+  detailArrow: { color: C.primary, fontSize: 28, fontWeight: '700', paddingHorizontal: 8 },
+  detailDate: { color: C.text, fontSize: 15, fontWeight: '800', flex: 1, textAlign: 'center' },
   detailBody: { marginBottom: 12 },
   detailSectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 8 },
-  detailSection: { color: '#8A7A70', fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 16, marginBottom: 8 },
-  detailSummary: { fontSize: 13, fontWeight: '700', color: INK_MUTED },
-  detailSunNote: { color: '#3A302A', fontSize: 13, lineHeight: 19, paddingVertical: 4, fontStyle: 'italic' },
-  detailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, gap: 10, borderBottomWidth: 1, borderBottomColor: '#E9EFF6' },
+  detailSection: { color: C.textMuted, fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 16, marginBottom: 8 },
+  detailSummary: { fontSize: 13, fontWeight: '700', color: C.textSub },
+  detailSunNote: { color: C.text, fontSize: 13, lineHeight: 19, paddingVertical: 4, fontStyle: 'italic' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, gap: 10, borderBottomWidth: 1, borderBottomColor: C.surfaceAlt },
   detailDot: { width: 9, height: 9, borderRadius: 4.5 },
-  detailRowText: { color: INK, fontSize: 14, fontWeight: '600', flex: 1 },
-  detailRowMeta: { color: '#617285', fontSize: 13, fontWeight: '600' },
-  detailRowChevron: { color: '#8393A3', fontSize: 16, fontWeight: '700' },
+  detailRowText: { color: C.text, fontSize: 14, fontWeight: '600', flex: 1 },
+  detailRowMeta: { color: C.textMuted, fontSize: 13, fontWeight: '600' },
+  detailRowChevron: { color: C.textFaint, fontSize: 16, fontWeight: '700' },
   journalList: { gap: 8 },
-  journalCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#F5EEE7', borderRadius: 14, padding: 13 },
+  journalCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: C.surfaceAlt, borderRadius: 14, padding: 13 },
   detailMood: { fontSize: 24, lineHeight: 26 },
-  journalNote: { color: '#3A302A', fontSize: 14, flex: 1, lineHeight: 20 },
-  detailMuted: { color: '#617285', fontSize: 14, fontStyle: 'italic', paddingVertical: 2 },
-  detailEvent: { flexDirection: 'row', gap: 11, alignItems: 'flex-start', paddingVertical: 11, paddingHorizontal: 14, backgroundColor: '#FBEDEA', borderWidth: 1, borderColor: '#F3D9D3', borderRadius: 14, marginBottom: 8 },
-  detailEventDiamond: { width: 10, height: 10, backgroundColor: EVENT_COLOR, transform: [{ rotate: '45deg' }], marginTop: 5 },
-  detailEventTitle: { color: '#8F2E2E', fontSize: 14, fontWeight: '800' },
-  detailEventNotes: { color: '#6A5850', fontSize: 13, marginTop: 2, lineHeight: 18 },
-  detailClose: { backgroundColor: ACCENT, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
-  detailCloseText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-});
+  journalNote: { color: C.text, fontSize: 14, flex: 1, lineHeight: 20 },
+  detailMuted: { color: C.textMuted, fontSize: 14, fontStyle: 'italic', paddingVertical: 2 },
+  detailEvent: { flexDirection: 'row', gap: 11, alignItems: 'flex-start', paddingVertical: 11, paddingHorizontal: 14, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft, borderRadius: 14, marginBottom: 8 },
+  detailEventDiamond: { width: 10, height: 10, backgroundColor: C.danger, transform: [{ rotate: '45deg' }], marginTop: 5 },
+  detailEventTitle: { color: C.dangerInk, fontSize: 14, fontWeight: '800' },
+  detailEventNotes: { color: C.textSub, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  detailClose: { backgroundColor: C.primary, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  detailCloseText: { color: C.onPrimary, fontSize: 16, fontWeight: '800' },
+}));

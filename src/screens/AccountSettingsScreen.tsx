@@ -6,7 +6,7 @@ import { useAppReset } from '../context/AppResetContext';
 import { getDb } from '../db/schema';
 import { getMigrationStatus } from '../db/migrations';
 import { t, useLanguage } from '../i18n';
-import { C, space, radius, text as T } from '../theme';
+import { C, space, radius, text as T, themed, useTheme } from '../theme';
 
 /**
  * Account settings.
@@ -18,6 +18,7 @@ import { C, space, radius, text as T } from '../theme';
  */
 export default function AccountSettingsScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const resetToOnboarding = useAppReset();
 
   // Shown only when something is actually wrong. A schema line on a healthy
@@ -128,32 +129,32 @@ export default function AccountSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content:   { padding: space.lg },
   intro:     { ...T.small, color: C.textSub, lineHeight: 20, marginBottom: space.lg },
   group: {
-    backgroundColor: '#fff',
+    backgroundColor: C.surface,
     borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#C0392B20',
   },
   schemaWarn: {
-    backgroundColor: '#FFF8EC',
+    backgroundColor: C.warningBg,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: '#F2B233',
+    borderColor: C.warning,
     padding: space.md,
     marginBottom: space.lg,
     gap: 4,
   },
-  schemaWarnTitle:  { ...T.body, color: '#8A5A10', fontWeight: '700' },
-  schemaWarnBody:   { ...T.small, color: '#8A5A10', lineHeight: 19 },
-  schemaWarnDetail: { ...T.small, color: '#8A5A10', opacity: 0.8, fontSize: 11 },
+  schemaWarnTitle:  { ...T.body, color: C.warningInk, fontWeight: '700' },
+  schemaWarnBody:   { ...T.small, color: C.warningInk, lineHeight: 19 },
+  schemaWarnDetail: { ...T.small, color: C.warningInk, opacity: 0.8, fontSize: 11 },
   row:      { flexDirection: 'row', alignItems: 'center', padding: space.md, gap: space.sm },
   rowTitle: { ...T.body, color: C.text, fontWeight: '700' },
   rowSub:   { ...T.small, color: C.textSub, marginTop: 2 },
   cta:      { ...T.body, color: C.danger, fontWeight: '800' },
   sep:      { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginHorizontal: space.md },
-});
+}));

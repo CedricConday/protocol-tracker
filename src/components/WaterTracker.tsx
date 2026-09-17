@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { t, useLanguage } from '../i18n';
 
@@ -24,6 +25,7 @@ interface Props {
 
 const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl = DEFAULT_GOAL_ML }: Props) {
   useLanguage(); // memoised: without this the language switch never reaches it
+  useTheme(); // ...and when the theme tier changes
   const [amount, setAmount] = useState(250);
   const [draft, setDraft] = useState('250');
 
@@ -145,34 +147,34 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
 
 export default WaterTracker;
 
-const styles = StyleSheet.create({
-  container: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#8393A3', shadowColor: '#112438', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+const styles = themed((C) => StyleSheet.create({
+  container: { backgroundColor: C.surface, borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: C.border, shadowColor: C.text, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   droplet: { fontSize: 16 },
-  label: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  amount: { color: '#112438', fontSize: 16, fontWeight: '700' },
-  amountDone: { color: '#227D4C' },
-  goal: { color: '#617285', fontSize: 13, fontWeight: '400' },
+  label: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  amount: { color: C.text, fontSize: 16, fontWeight: '700' },
+  amountDone: { color: C.success },
+  goal: { color: C.textMuted, fontSize: 13, fontWeight: '400' },
   segmentRow: { flexDirection: 'row', gap: 4, marginBottom: 14 },
-  segmentTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#D8E1EA' },
+  segmentTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.borderSoft },
   segmentFill: { height: '100%', borderRadius: 5 },
-  segmentFull: { width: '100%', backgroundColor: '#2AA6B8' },
-  segmentDone: { width: '100%', backgroundColor: '#227D4C' },
+  segmentFull: { width: '100%', backgroundColor: C.teal },
+  segmentDone: { width: '100%', backgroundColor: C.success },
   segmentPartialContainer: { width: '100%', height: '100%', flexDirection: 'row' },
-  segmentPartial: { backgroundColor: '#63C2D1' },
+  segmentPartial: { backgroundColor: C.tealSoft },
   segmentEmpty: { width: '100%', backgroundColor: 'transparent' },
   stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  stepBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#F7FAFE', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { color: '#495D72', fontSize: 22, fontWeight: '600', lineHeight: 26 },
-  field: { flex: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, backgroundColor: '#F7FAFE', borderWidth: 1, borderColor: '#8393A3' },
-  fieldInput: { minWidth: 64, textAlign: 'right', color: '#112438', fontSize: 19, fontWeight: '700', padding: 0 },
-  fieldUnit: { color: '#617285', fontSize: 14, fontWeight: '600' },
+  stepBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { color: C.textSub, fontSize: 22, fontWeight: '600', lineHeight: 26 },
+  field: { flex: 1, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border },
+  fieldInput: { minWidth: 64, textAlign: 'right', color: C.text, fontSize: 19, fontWeight: '700', padding: 0 },
+  fieldUnit: { color: C.textMuted, fontSize: 14, fontWeight: '600' },
   presetRow: { flexDirection: 'row', gap: 7, marginBottom: 10 },
-  preset: { flex: 1, height: 44, borderRadius: 11, backgroundColor: '#F7FAFE', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  presetActive: { backgroundColor: '#EAF7F9', borderColor: '#2AA6B8' },
-  presetText: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  presetTextActive: { color: '#2AA6B8', fontWeight: '700' },
-  logBtn: { height: 48, borderRadius: 12, backgroundColor: '#2AA6B8', alignItems: 'center', justifyContent: 'center' },
-  logBtnText: { color: '#F7FAFE', fontSize: 15, fontWeight: '700' },
-});
+  preset: { flex: 1, height: 44, borderRadius: 11, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  presetActive: { backgroundColor: C.tealBg, borderColor: C.teal },
+  presetText: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  presetTextActive: { color: C.teal, fontWeight: '700' },
+  logBtn: { height: 48, borderRadius: 12, backgroundColor: C.teal, alignItems: 'center', justifyContent: 'center' },
+  logBtnText: { color: C.bg, fontSize: 15, fontWeight: '700' },
+}));

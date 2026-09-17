@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   Modal,
   StyleSheet,
@@ -17,6 +18,7 @@ interface Props {
 
 export default function PermissionPrimingModal({ visible, onComplete, onSkip }: Props) {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [requesting, setRequesting] = useState(false);
 
   const handleAllow = async () => {
@@ -73,7 +75,7 @@ export default function PermissionPrimingModal({ visible, onComplete, onSkip }: 
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -82,12 +84,12 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   card: {
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     borderRadius: 20,
     padding: 28,
     alignItems: 'center',
     width: '100%',
-    shadowColor: '#112438',
+    shadowColor: C.text,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 20,
@@ -97,7 +99,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#DEEFFF',
+    backgroundColor: C.primaryBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -106,20 +108,20 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   title: {
-    color: '#112438',
+    color: C.text,
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 12,
   },
   body: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 8,
   },
   primaryButton: {
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -130,7 +132,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   primaryButtonText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 17,
     fontWeight: '800',
   },
@@ -139,8 +141,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   skipText: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },
-});
+}));

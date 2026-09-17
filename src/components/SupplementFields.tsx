@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { StyleSheet, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { C } from '../theme/colors';
+import { C, themed, useTheme } from '../theme/colors';
 import { t, locale } from '../i18n';
 import { weekdaysShortSundayFirst } from '../i18n/dates';
 import { FREQUENCIES, parseDaysOfWeek } from '../engine/cadence';
@@ -78,6 +78,7 @@ const FORM_KEYS: Record<string, string> = {
 };
 
 function formLabel(form: string): string {
+  useTheme(); // re-render this component when the theme tier changes
   return FORM_KEYS[form] ? t(FORM_KEYS[form]) : form;
 }
 
@@ -384,11 +385,11 @@ export default function SupplementFields({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   formBlock: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   label: { fontSize: 12, fontWeight: '600', color: C.textSub, marginBottom: 6, marginTop: 12 },
   input: {
-    backgroundColor: C.surface2,
+    backgroundColor: C.sunken,
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: C.surface2,
+    backgroundColor: C.sunken,
     borderWidth: 1,
     borderColor: C.border,
   },
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: C.surface2,
+    backgroundColor: C.sunken,
     borderWidth: 1,
     borderColor: C.border,
   },
@@ -434,12 +435,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: C.surface2,
+    backgroundColor: C.sunken,
     borderWidth: 1,
     borderColor: C.border,
   },
   dayDotOn: { backgroundColor: C.primary, borderColor: C.primary },
   dayDotText: { fontSize: 13, fontWeight: '600', color: C.textSub },
-  dayDotTextOn: { color: '#ffffff' },
+  dayDotTextOn: { color: C.onPrimary },
   cadenceNote: { marginTop: 10, fontSize: 13, lineHeight: 19, color: C.textMuted },
-});
+}));

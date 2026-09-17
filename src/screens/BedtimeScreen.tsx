@@ -6,7 +6,7 @@ import { getProfile, updateProfile } from '../db/queries';
 import { getLatestStartTime } from '../engine/scheduler';
 import { t, useLanguage, locale } from '../i18n';
 import { formatHourMinute, parseTimeOfDay } from '../utils/time';
-import { C, space, radius, text as T } from '../theme';
+import { C, space, radius, text as T, themed, useTheme } from '../theme';
 import { select as hSelect, success as hSuccess } from '../utils/haptics';
 
 /**
@@ -36,6 +36,7 @@ import { select as hSelect, success as hSuccess } from '../utils/haptics';
 
 export default function BedtimeScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [hour, setHour] = useState(22);
   const [minute, setMinute] = useState(0);
   const [saved, setSaved] = useState<{ hour: number; minute: number } | null>(null);
@@ -95,7 +96,7 @@ export default function BedtimeScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.hero}>
         <View style={styles.iconWrap}>
-          <Ionicons name="moon-outline" size={22} color="#5B5BD6" />
+          <Ionicons name="moon-outline" size={22} color={C.purpleAlt} />
         </View>
         <View style={{ flex: 1 }}>
           {editing ? (
@@ -136,13 +137,13 @@ export default function BedtimeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   content:   { padding: space.lg, paddingBottom: space.xxxl },
 
   hero: {
     flexDirection: 'row', alignItems: 'center', gap: space.md,
-    backgroundColor: '#fff', borderRadius: radius.lg, padding: space.lg,
+    backgroundColor: C.surface, borderRadius: radius.lg, padding: space.lg,
   },
   iconWrap: {
     width: 44, height: 44, borderRadius: radius.pill,
@@ -154,4 +155,4 @@ const styles = StyleSheet.create({
 
   note:  { ...T.small, color: C.textSub, marginTop: space.md, lineHeight: 20 },
   hint:  { ...T.small, color: C.textMuted, marginTop: space.sm, lineHeight: 20 },
-});
+}));

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   Modal,
   Pressable,
@@ -51,12 +52,12 @@ function statusLabel(status: string): string {
 
 function getStatusAccentColor(status: ScheduledDose['status']): string {
   switch (status) {
-    case 'taken': return '#22c55e';
-    case 'due': return '#f97316';
-    case 'upcoming': return '#3b82f6';
-    case 'missed': return '#ef4444';
-    case 'skipped': return '#94a3b8';
-    default: return '#555555';
+    case 'taken': return C.successBright;
+    case 'due': return C.orange;
+    case 'upcoming': return C.blueBright;
+    case 'missed': return C.danger;
+    case 'skipped': return C.textFaint;
+    default: return C.textMuted;
   }
 }
 
@@ -69,6 +70,7 @@ export default function DoseDetailModal({
   correctable = false,
 }: Props) {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [showSkipReasons, setShowSkipReasons] = useState(false);
 
   if (!dose) return null;
@@ -262,21 +264,21 @@ export default function DoseDetailModal({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(44,36,32,0.5)',
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
     paddingBottom: 40,
     paddingTop: 0,
     overflow: 'hidden',
-    shadowColor: '#112438',
+    shadowColor: C.text,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -291,7 +293,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D8E1EA',
+    backgroundColor: C.sunken,
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 20,
@@ -304,20 +306,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   name: {
-    color: '#112438',
+    color: C.text,
     fontSize: 22,
     fontWeight: '700',
   },
   formBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   formBadgeText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -326,40 +328,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#D8E1EA',
+    borderBottomColor: C.borderSoft,
   },
   label: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
   },
   value: {
-    color: '#112438',
+    color: C.text,
     fontSize: 14,
     fontWeight: '600',
   },
   foodWarning: {
-    backgroundColor: '#FFF8EC',
+    backgroundColor: C.warningBg,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#F2B233',
+    borderColor: C.warning,
   },
   foodWarningText: {
-    color: '#8A5A10',
+    color: C.warningInk,
     fontSize: 13,
     fontWeight: '600',
   },
   notesStyle: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginTop: 12,
   },
   notesTextStyle: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -367,23 +369,23 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   skipReasonsTitle: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 10,
   },
   skipReasonButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   skipReasonText: {
-    color: '#112438',
+    color: C.text,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -392,7 +394,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelReasonText: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 14,
   },
   actions: {
@@ -402,32 +404,32 @@ const styles = StyleSheet.create({
   },
   tookButton: {
     flex: 1,
-    backgroundColor: '#1162B9',
+    backgroundColor: C.primary,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
   },
   tookButtonText: {
-    color: '#F7FAFE',
+    color: C.bg,
     fontSize: 16,
     fontWeight: '800',
   },
   skipButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   skipButtonText: {
-    color: '#C0392B',
+    color: C.danger,
     fontSize: 16,
     fontWeight: '700',
   },
   correctionHint: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     marginTop: 20,
     marginBottom: -8,
@@ -439,57 +441,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addReasonText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   skippedBanner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: C.surface,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
     borderWidth: 1,
-    borderColor: '#8393A3',
+    borderColor: C.border,
   },
   skippedBannerText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     fontWeight: '700',
   },
   takenBanner: {
-    backgroundColor: '#F0F7F0',
+    backgroundColor: C.successBg,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
     borderWidth: 1,
-    borderColor: '#227D4C',
+    borderColor: C.success,
   },
   takenBannerText: {
-    color: '#227D4C',
+    color: C.success,
     fontSize: 15,
     fontWeight: '700',
   },
   missedBanner: {
-    backgroundColor: '#FDF0F0',
+    backgroundColor: C.dangerBg,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
     borderWidth: 1,
-    borderColor: '#C0392B',
+    borderColor: C.danger,
   },
   missedBannerText: {
-    color: '#C0392B',
+    color: C.danger,
     fontSize: 15,
     fontWeight: '700',
   },
   statusText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
   },
-});
+}));

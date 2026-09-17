@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { C } from '../theme/colors';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   getSupplementsWithRules,
   getAverageStartTime,
@@ -81,6 +81,7 @@ function formFor(row: SupRow): SupplementFormState {
  */
 export default function SupplementEditorScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const navigation = useNavigation<any>();
   const [supplements, setSupplements] = useState<SupRow[]>([]);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -208,7 +209,7 @@ export default function SupplementEditorScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('supAddA11y')}
         >
-          <Ionicons name="add" size={22} color="#F7FAFE" />
+          <Ionicons name="add" size={22} color={C.bg} />
         </TouchableOpacity>
       </View>
 
@@ -256,7 +257,7 @@ export default function SupplementEditorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   scroll: { flex: 1, paddingHorizontal: 16 },
   header: {
@@ -296,4 +297,4 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, color: C.text, fontWeight: '600' },
   emptySub: { fontSize: 13, color: C.textSub },
-});
+}));

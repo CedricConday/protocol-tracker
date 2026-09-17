@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { t, useLanguage } from '../i18n';
@@ -29,6 +30,7 @@ interface Props {
 
 export default function SplashAnimation({ children, onLayout }: Props) {
   useLanguage(); // re-render when the language changes
+  useTheme(); // ...and when the theme tier changes
   const captionAnim = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
 
@@ -67,14 +69,14 @@ export default function SplashAnimation({ children, onLayout }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
@@ -99,13 +101,13 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '300',
-    color: '#112438',
+    color: C.text,
     letterSpacing: 4,
     marginBottom: 8,
   },
   tagline: {
     fontSize: 13,
-    color: '#617285',
+    color: C.textMuted,
     letterSpacing: 1,
   },
-});
+}));

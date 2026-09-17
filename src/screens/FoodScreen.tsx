@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { C, themed, useTheme } from '../theme/colors';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -65,6 +66,7 @@ function normaliseTime(raw: string): string | null {
 
 export default function FoodScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const [loading, setLoading] = useState(true);
   const [firstMeal, setFirstMeal] = useState<string | null>(null);
   const [meals, setMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
@@ -189,7 +191,7 @@ export default function FoodScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#A3623C" />
+        <ActivityIndicator color={C.warningInk} />
       </View>
     );
   }
@@ -320,46 +322,46 @@ export default function FoodScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7FAFE' },
+const styles = themed((C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   content: { padding: 20, paddingBottom: 40 },
-  loading: { flex: 1, backgroundColor: '#F7FAFE', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#8393A3' },
-  cardLabel: { color: '#495D72', fontSize: 14, fontWeight: '600' },
-  cardValue: { color: '#112438', fontSize: 34, fontWeight: '800', marginTop: 4 },
-  cardValueUnset: { color: '#617285', fontSize: 26 },
-  cardField: { color: '#112438', fontSize: 34, fontWeight: '800', marginTop: 4, borderBottomWidth: 2, borderBottomColor: '#A3623C', padding: 0 },
-  cardSub: { color: '#495D72', fontSize: 13, lineHeight: 19, marginTop: 8 },
-  nowBtn: { marginTop: 14, height: 44, borderRadius: 11, backgroundColor: '#A3623C', alignItems: 'center', justifyContent: 'center' },
-  nowBtnText: { color: '#F7FAFE', fontSize: 14, fontWeight: '700' },
+  card: { backgroundColor: C.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border },
+  cardLabel: { color: C.textSub, fontSize: 14, fontWeight: '600' },
+  cardValue: { color: C.text, fontSize: 34, fontWeight: '800', marginTop: 4 },
+  cardValueUnset: { color: C.textMuted, fontSize: 26 },
+  cardField: { color: C.text, fontSize: 34, fontWeight: '800', marginTop: 4, borderBottomWidth: 2, borderBottomColor: C.warningInk, padding: 0 },
+  cardSub: { color: C.textSub, fontSize: 13, lineHeight: 19, marginTop: 8 },
+  nowBtn: { marginTop: 14, height: 44, borderRadius: 11, backgroundColor: C.warningInk, alignItems: 'center', justifyContent: 'center' },
+  nowBtnText: { color: C.bg, fontSize: 14, fontWeight: '700' },
 
-  failure: { marginTop: 14, borderRadius: 11, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6', padding: 12 },
-  failureTitle: { color: '#B3453E', fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  failureBody: { color: '#8C5450', fontSize: 12, lineHeight: 18 },
+  failure: { marginTop: 14, borderRadius: 11, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft, padding: 12 },
+  failureTitle: { color: C.dangerInk, fontSize: 13, fontWeight: '700', marginBottom: 4 },
+  failureBody: { color: C.dangerInk, fontSize: 12, lineHeight: 18 },
 
   section: { marginTop: 22 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#112438', fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  sectionCount: { color: '#617285', fontSize: 13, fontWeight: '600', marginBottom: 10 },
-  note: { color: '#617285', fontSize: 11, lineHeight: 17, marginTop: 10 },
-  empty: { color: '#617285', fontSize: 13, paddingVertical: 8 },
+  sectionTitle: { color: C.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sectionCount: { color: C.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  note: { color: C.textMuted, fontSize: 11, lineHeight: 17, marginTop: 10 },
+  empty: { color: C.textMuted, fontSize: 13, paddingVertical: 8 },
 
   // Four buttons, one row, equal columns. They used to be content-width chips
   // that wrapped, so the row read as three-and-one on a narrow phone and the
   // German labels (Mittagessen, Abendessen) pushed Snack onto its own line.
   chipRow: { flexDirection: 'row', gap: 8 },
-  mealChip: { flex: 1, paddingHorizontal: 2, height: 42, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  mealChipText: { color: '#495D72', fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  mealChip: { flex: 1, paddingHorizontal: 2, height: 42, borderRadius: 11, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  mealChipText: { color: C.textSub, fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
-  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
-  mealTime: { color: '#112438', fontSize: 15, fontWeight: '700', width: 62 },
-  mealType: { color: '#495D72', fontSize: 14, flex: 1 },
-  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
-  removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
+  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
+  mealTime: { color: C.text, fontSize: 15, fontWeight: '700', width: 62 },
+  mealType: { color: C.textSub, fontSize: 14, flex: 1 },
+  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft },
+  removeBtnText: { color: C.dangerInk, fontSize: 12, fontWeight: '700' },
 
-  weekRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
-  weekDay: { color: '#495D72', fontSize: 13, fontWeight: '600' },
-  weekTime: { color: '#112438', fontSize: 14, fontWeight: '600' },
-  weekTimeUnset: { color: '#C2C7CF', fontWeight: '400' },
-});
+  weekRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
+  weekDay: { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  weekTime: { color: C.text, fontSize: 14, fontWeight: '600' },
+  weekTimeUnset: { color: C.textFaint, fontWeight: '400' },
+}));

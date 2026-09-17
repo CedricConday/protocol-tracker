@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { C, themed, useTheme } from '../theme/colors';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -33,10 +34,10 @@ function buildLast30Days(): string[] {
 }
 
 function getCellColor(pct: number, total: number) {
-  if (total === 0) return '#D8E1EA';
-  if (pct >= 80) return '#227D4C';
-  if (pct >= 50) return '#F2B233';
-  return '#C0392B';
+  if (total === 0) return C.sunken;
+  if (pct >= 80) return C.success;
+  if (pct >= 50) return C.warning;
+  return C.danger;
 }
 
 
@@ -50,6 +51,7 @@ function isoWeek(date: Date): string {
 
 export default function ScheduleScreen() {
   useLanguage(); // re-render this screen when the language changes
+  useTheme(); // ...and when the theme tier changes
   const navigation = useNavigation<any>();
   const {
     doses, refreshing, setRefreshing, loaded, showHighDoseAlert, setShowHighDoseAlert,
@@ -122,7 +124,7 @@ export default function ScheduleScreen() {
             <View key={ri} style={styles.calRow}>
               {row.map((cell) => {
                 const bg = cell.isToday
-                  ? (cell.totalDoses === 0 ? '#617285' : cell.compliancePct >= 80 ? '#4A7A4A' : cell.compliancePct >= 50 ? '#B07820' : '#A03030')
+                  ? (cell.totalDoses === 0 ? C.textMuted : cell.compliancePct >= 80 ? C.successInk : cell.compliancePct >= 50 ? C.warningInk : C.dangerInk)
                   : getCellColor(cell.compliancePct, cell.totalDoses);
                 return (
                   <View key={cell.date} style={styles.calCellWrapper}>
@@ -135,9 +137,9 @@ export default function ScheduleScreen() {
             </View>
           ))}
           <View style={styles.legend}>
-            {[['#227D4C','≥80%'],['#F2B233','50–79%'],['#C0392B','<50%'],['#D8E1EA',t('noData')]].map(([color, label]) => (
+            {[[C.success,'≥80%'],[C.warning,'50–79%'],[C.danger,'<50%'],[C.sunken,t('noData')]].map(([color, label]) => (
               <View key={label} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: color, borderWidth: color === '#2a2a2a' ? 1 : 0, borderColor: '#444' }]} />
+                <View style={[styles.legendDot, { backgroundColor: color, borderWidth: color === C.text ? 1 : 0, borderColor: C.textSub }]} />
                 <Text style={styles.legendLabel}>{label}</Text>
               </View>
             ))}
@@ -203,14 +205,14 @@ export default function ScheduleScreen() {
 
                 <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
                   {item.status === 'taken' ? (
-                    <Text style={{ color: '#227D4C', fontWeight: '700' }}>{t('taken')}</Text>
+                    <Text style={{ color: C.success, fontWeight: '700' }}>{t('taken')}</Text>
                   ) : item.status === 'missed' ? (
-                    <Text style={{ color: '#C0392B', fontWeight: '700' }}>{t('missed')}</Text>
+                    <Text style={{ color: C.danger, fontWeight: '700' }}>{t('missed')}</Text>
                   ) : item.status === 'skipped' ? (
-                    <Text style={{ color: '#495D72', fontWeight: '700' }}>{t('skipped')}</Text>
+                    <Text style={{ color: C.textSub, fontWeight: '700' }}>{t('skipped')}</Text>
                   ) : (
-                    <View style={{ backgroundColor: item.status === 'due' ? '#1162B9' : '#FFFFFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#1162B9' }}>
-                      <Text style={{ color: item.status === 'due' ? '#F7FAFE' : '#1162B9', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? t('schTake') : t('schWait')}</Text>
+                    <View style={{ backgroundColor: item.status === 'due' ? C.primary : C.surface, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: C.primary }}>
+                      <Text style={{ color: item.status === 'due' ? C.bg : C.primary, fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? t('schTake') : t('schWait')}</Text>
                     </View>
                   )}
                 </View>
@@ -221,7 +223,7 @@ export default function ScheduleScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1162B9" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />
         }
       />
 
@@ -236,23 +238,23 @@ export default function ScheduleScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed((C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7FAFE',
+    backgroundColor: C.bg,
     paddingTop: 60,
     paddingHorizontal: 20,
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   heading: {
-    color: '#112438',
+    color: C.text,
     fontSize: 22,
     fontWeight: '700',
   },
-  scanBtn: { backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#1162B9' },
-  scanBtnText: { color: '#1162B9', fontSize: 14, fontWeight: '600' },
+  scanBtn: { backgroundColor: C.surface, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: C.primary },
+  scanBtnText: { color: C.primary, fontSize: 14, fontWeight: '600' },
   highDoseBanner: {
-    backgroundColor: '#FDF3E0',
+    backgroundColor: C.warningBg,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#F2B23360',
@@ -260,14 +262,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   highDoseBannerText: {
-    color: '#F2B233',
+    color: C.warning,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
     marginBottom: 8,
   },
   highDoseBannerDismiss: {
-    color: '#F2B233',
+    color: C.warning,
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'right',
@@ -288,17 +290,17 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   timeText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'right',
     lineHeight: 18,
   },
   timeTextDimmed: {
-    color: '#617285',
+    color: C.textMuted,
   },
   timeTextDue: {
-    color: '#1162B9',
+    color: C.primary,
   },
   trackCol: {
     width: 20,
@@ -308,7 +310,7 @@ const styles = StyleSheet.create({
   lineSegment: {
     flex: 1,
     width: 1,
-    backgroundColor: '#D8E1EA',
+    backgroundColor: C.sunken,
   },
   lineSegmentInvisible: {
     backgroundColor: 'transparent',
@@ -325,26 +327,26 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     justifyContent: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#D8E1EA',
+    borderBottomColor: C.borderSoft,
   },
   name: {
-    color: '#112438',
+    color: C.text,
     fontSize: 15,
     fontWeight: '600',
   },
   doseAmount: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     marginTop: 2,
   },
   foodTag: {
-    color: '#F2B233',
+    color: C.warning,
     fontSize: 13,
     fontWeight: '600',
     marginTop: 3,
   },
   skipReasonText: {
-    color: '#617285',
+    color: C.textMuted,
     fontSize: 13,
     fontStyle: 'italic',
     marginTop: 3,
@@ -362,23 +364,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    color: '#495D72',
+    color: C.textSub,
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
   },
-  toggleRow: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#8393A3' },
+  toggleRow: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: C.border },
   toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: '#F7FAFE' },
-  toggleBtnText: { color: '#617285', fontSize: 13, fontWeight: '700' },
-  toggleBtnTextActive: { color: '#1162B9' },
+  toggleBtnActive: { backgroundColor: C.bg },
+  toggleBtnText: { color: C.textMuted, fontSize: 13, fontWeight: '700' },
+  toggleBtnTextActive: { color: C.primary },
   calRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   calCellWrapper: { flex: 1, aspectRatio: 1 },
   calCell: { flex: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', minHeight: 48, minWidth: 48 },
-  calCellToday: { borderWidth: 2, borderColor: '#112438' },
-  calCellText: { color: '#F7FAFE', fontSize: 12, fontWeight: '700' },
+  calCellToday: { borderWidth: 2, borderColor: C.text },
+  calCellText: { color: C.bg, fontSize: 12, fontWeight: '700' },
   legend: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, paddingTop: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendLabel: { color: '#495D72', fontSize: 11, fontWeight: '500' },
-});
+  legendLabel: { color: C.textSub, fontSize: 11, fontWeight: '500' },
+}));
