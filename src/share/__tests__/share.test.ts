@@ -52,6 +52,30 @@ const only = (...keys: SectionKey[]): Record<SectionKey, boolean> => {
   return out;
 };
 
+describe('the written notes', () => {
+  it('start on their own sheet when they are included', () => {
+    const withNotes = { ...DEFAULT_SECTIONS, journal: true, journalNotes: true };
+    const html = buildShareHtml(bundle, withNotes);
+    expect(html).toContain('page-break-before:always');
+    // The break belongs to the notes and to nothing else on the page.
+    expect((html.match(/page-break-before:always/g) ?? []).length).toBe(1);
+    const breakAt = html.indexOf('page-break-before:always');
+    expect(html.slice(breakAt)).toContain('SECRET DIARY TEXT');
+    expect(html.slice(breakAt, breakAt + 200)).toContain('Journal');
+  });
+
+  it('spends no sheet on notes that do not exist', () => {
+    const empty = { ...bundle, journal: bundle.journal.map((e) => ({ ...e, note: '' })) };
+    const html = buildShareHtml(empty, { ...DEFAULT_SECTIONS, journal: true, journalNotes: true });
+    expect(html).not.toContain('page-break-before:always');
+  });
+
+  it('adds no break when the notes were withheld', () => {
+    const html = buildShareHtml(bundle, { ...DEFAULT_SECTIONS, journalNotes: false });
+    expect(html).not.toContain('page-break-before:always');
+  });
+});
+
 describe('the protocol table', () => {
   it('buckets a dose by its offset from the day start, medication-plan style', () => {
     const html = buildShareHtml(bundle, DEFAULT_SECTIONS);

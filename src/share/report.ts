@@ -42,9 +42,9 @@ function complianceColor(pct: number, total: number): string {
   return '#C0392B';
 }
 
-function section(title: string, from: string, to: string, body: string): string {
+function section(title: string, from: string, to: string, body: string, topMargin = 26): string {
   return `
-    <h2 style="color:#112438;font-size:15px;margin:26px 0 2px">${esc(title)}</h2>
+    <h2 style="color:#112438;font-size:15px;margin:${topMargin}px 0 2px">${esc(title)}</h2>
     <p style="color:#495D72;font-size:11px;margin:0 0 10px">${esc(rangeLabel(from, to))}</p>
     ${body}`;
 }
@@ -314,11 +314,23 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
   }
 
   // The one part of the journal that is not a number, and only on request.
-  if (on('journal') && on('journalNotes')) {
-    const rows = b.journal
-      .filter((e) => (e.note ?? '').trim().length > 0)
-      .map((e) => [fmtDate(e.date), e.mood ?? '', (e.note ?? '').trim()]);
-    parts.push(section(t('shSecJournalNotes'), b.from, b.to, table([t('date'), t('shMood'), t('notes')], rows)));
+  //
+  // It starts on a fresh sheet. Everything above is figures a doctor reads at
+  // the desk; this is the patient in their own words, and it is the one section
+  // whose length is unbounded. Breaking here keeps the clinical page whole
+  // however much was written, and it means the notes can be handed over — or
+  // held back — as their own pages.
+  const noteRows = b.journal
+    .filter((e) => (e.note ?? '').trim().length > 0)
+    .map((e) => [fmtDate(e.date), e.mood ?? '', (e.note ?? '').trim()]);
+  // A whole sheet reading "nothing recorded" is worse than no sheet. The dialog
+  // will not let an empty section be ticked, but the builder is callable
+  // directly and a page break is not free.
+  if (on('journal') && on('journalNotes') && noteRows.length > 0) {
+    const rows = noteRows;
+    parts.push(`<div style="page-break-before:always;break-before:page">${
+      section(t('shSecJournalNotes'), b.from, b.to, table([t('date'), t('shMood'), t('notes')], rows), 0)
+    }</div>`);
   }
 
   // Legacy clinical tables: no screen writes these any more, but anyone with
