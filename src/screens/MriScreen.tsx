@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
 import { t, useLanguage } from '../i18n';
+import { useToday } from '../hooks/useToday';
 import { todayStr } from '../db/queries';
 
 interface MriScan {
@@ -89,7 +90,10 @@ export default function MriScreen() {
   // (the tab stays mounted, and the app survives days backgrounded) this still
   // held YESTERDAY's date and the entry was filed under the previous day.
   // Same defect, same shape of fix as JournalScreen's event date.
-  const today = todayStr();
+  // `useToday()` rather than `todayStr()`: both answer the same on the render
+  // that reads them, but only the hook re-renders this screen when the local day
+  // actually rolls, so a form left open overnight prefills the new day.
+  const today = useToday();
   const [dateDraft, setDateDraft] = useState<{ date: string; value: string }>({ date: today, value: today });
   const date = dateDraft.date === today ? dateDraft.value : today;
   const setDate = useCallback((value: string) => {

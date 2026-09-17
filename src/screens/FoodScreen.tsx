@@ -9,6 +9,7 @@ import {
 } from '../db/queries';
 
 import { t, useLanguage } from '../i18n';
+import { useToday } from '../hooks/useToday';
 import { clockNow, formatHourMinute, parseTimeOfDay } from '../utils/time';
 import { weekdaysShort } from '../i18n/dates';
 /**
@@ -70,9 +71,14 @@ export default function FoodScreen() {
   const [draft, setDraft] = useState('');
   const [writeFailed, setWriteFailed] = useState(false);
 
+  // Not `todayStr()` inside load: the screen stays mounted across midnight, and
+  // a load keyed on a value read once would keep reporting yesterday. The hook
+  // changes at the boundary, which re-creates `load` and re-fires the focus
+  // effect below.
+  const today = useToday();
+
   const load = useCallback(async () => {
     try {
-      const today = todayStr();
       const first = await getFirstMealTime(today);
       setFirstMeal(first);
       setDraft(first ?? clockNow());
@@ -91,7 +97,7 @@ export default function FoodScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [today]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

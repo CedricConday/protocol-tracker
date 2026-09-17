@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, todayStr, localDateStr } from '../db/queries';
+import { getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, localDateStr } from '../db/queries';
 import type { JournalEntry, RelapseEvent } from '../types';
 
 import { weekdaysShort } from '../i18n/dates';
+import { useToday } from './useToday';
 export function useJournalScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState({ takenDoses: 0, totalDoses: 0 });
@@ -33,7 +34,10 @@ export function useJournalScreen() {
   const [weekMoods, setWeekMoods] = useState<{ day: string; emoji: string | null; compliancePct: number }[]>([]);
   const [events, setEvents] = useState<RelapseEvent[]>([]);
 
-  const today = todayStr();
+  // `useToday()` rather than `todayStr()`: both answer the same on the render
+  // that reads them, but only the hook re-renders when the local day rolls, so
+  // a screen left open overnight moves to the new day on its own.
+  const today = useToday();
 
   const loadData = useCallback(async () => {
     const daySummary = await getDaySummary(today);

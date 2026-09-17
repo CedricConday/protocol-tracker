@@ -16,6 +16,7 @@ import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJou
 import type { JournalEntry } from '../types';
 import { t, useLanguage, locale } from '../i18n';
 import { useJournalScreen } from '../hooks';
+import { useToday } from '../hooks/useToday';
 import EmptyState from '../components/EmptyState';
 
 import { weekdaysShortSundayFirst, shortDate } from '../i18n/dates';
@@ -71,7 +72,10 @@ export default function JournalScreen() {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
     semanticSummary, weekMoods, events, loadData,
   } = useJournalScreen();
-  const today = todayStr();
+  // `useToday()` rather than `todayStr()`: both answer the same on the render
+  // that reads them, but only the hook re-renders when the local day rolls, so
+  // a screen left open overnight moves to the new day on its own.
+  const today = useToday();
 
   const [note, setNote] = useState('');
   const [dietaryNote, setDietaryNote] = useState('');
@@ -562,13 +566,13 @@ export default function JournalScreen() {
               style={styles.entryCard}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpandedId(isExpanded ? null : entry.id); }}
               activeOpacity={0.7}
-              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} entry from ${entry.date === todayStr() ? 'today' : entry.date}`}
+              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} entry from ${entry.date === today ? 'today' : entry.date}`}
               accessibilityRole="button"
             >
               <View style={styles.entryTop}>
                 <Text style={styles.entryMood}>{entry.mood}</Text>
-                <Text style={[styles.entryDate, entry.date === todayStr() && styles.entryDateToday]}>
-                  {entry.date === todayStr() ? 'Today' : formatDateLabel(entry.date)}
+                <Text style={[styles.entryDate, entry.date === today && styles.entryDateToday]}>
+                  {entry.date === today ? 'Today' : formatDateLabel(entry.date)}
                 </Text>
                 <View style={[styles.complianceBadge, { backgroundColor: complianceBadgeColor(entry.compliance_pct) + '30' }]}>
                   <Text style={[styles.complianceBadgeText, { color: complianceBadgeColor(entry.compliance_pct) }]}>

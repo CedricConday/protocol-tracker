@@ -3,13 +3,14 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { t, useLanguage, locale, plural } from '../i18n';
+import { useToday } from '../hooks/useToday';
 import { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import { SUN_GOAL_FLAG } from './SunlightScreen';
 import { EXERCISE_GOAL_FLAG, DEFAULT_GOAL_MIN as DEFAULT_EXERCISE_GOAL_MIN } from './ExerciseScreen';
 import { DEFAULT_GOAL_ML } from '../components/WaterTracker';
 import { WATER_GOAL_FLAG } from './WaterScreen';
 import {
-  getAnchor, getFirstMealTime, getMiscFlag, getTodayExercise, getTodaySunLog, todayStr,
+  getAnchor, getFirstMealTime, getMiscFlag, getTodayExercise, getTodaySunLog,
   getSunEntries, getExerciseLogs, getWaterLogs, getTodayMeals,
   getSupplementsWithRules, getProfile,
 } from '../db/queries';
@@ -102,9 +103,14 @@ export default function SummaryScreen() {
   const [rowHeight, setRowHeight] = useState<number | null>(null);
   const compact = rowHeight !== null && rowHeight < 140;
 
+  // `useToday()` rather than `todayStr()`: both answer the same on the render
+  // that reads them, but only the hook re-renders when the local day rolls, so
+  // a screen left open overnight moves to the new day on its own.
+  const dayKey = useToday();
+
   const load = useCallback(async () => {
     try {
-      const date = todayStr();
+      const date = dayKey;
 
       const anchor = await getAnchor(date);
       const storedGoal = await getMiscFlag(WATER_GOAL_FLAG);
@@ -193,7 +199,7 @@ export default function SummaryScreen() {
       // descriptions and every route still opens.
       console.error('[Trackers] today read failed:', e);
     }
-  }, []);
+  }, [dayKey]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

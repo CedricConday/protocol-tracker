@@ -7,10 +7,11 @@ import * as Haptics from 'expo-haptics';
 import WaterTracker, { DEFAULT_GOAL_ML } from '../components/WaterTracker';
 import {
   addWater, correctWaterLog, deleteWaterLog, getAnchor, getWaterGoalMl, getWaterLogs,
-  localDateStr, setMiscFlag, todayStr, WATER_GOAL_FLAG,
+  localDateStr, setMiscFlag, WATER_GOAL_FLAG,
 } from '../db/queries';
 
 import { locale, t, useLanguage } from '../i18n';
+import { useToday } from '../hooks/useToday';
 import { weekdaysShort } from '../i18n/dates';
 /**
  * The Water screen (PT-trio round 3, C1).
@@ -62,9 +63,14 @@ export default function WaterScreen() {
   const [goalDraft, setGoalDraft] = useState(String(DEFAULT_GOAL_ML));
   const [editingGoal, setEditingGoal] = useState(false);
 
+  // Not `todayStr()` inside load: the screen stays mounted across midnight, and
+  // a load keyed on a value read once would keep reporting yesterday. The hook
+  // changes at the boundary, which re-creates `load` and re-fires the focus
+  // effect below.
+  const today = useToday();
+
   const load = useCallback(async () => {
     try {
-      const today = todayStr();
       const anchor = await getAnchor(today);
       setWaterMl(anchor?.water_ml ?? 0);
       setEntries(await getWaterLogs(today));
@@ -91,7 +97,7 @@ export default function WaterScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [today]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

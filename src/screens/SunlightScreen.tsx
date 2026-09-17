@@ -7,10 +7,11 @@ import * as Haptics from 'expo-haptics';
 import SunTracker, { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import {
   clearSunLog, correctSunEntry, deleteSunEntry, getMiscFlag,
-  getSunEntries, getSunHistory, getTodaySunLog, logSunExposure, setMiscFlag, setSunNote, todayStr,
+  getSunEntries, getSunHistory, getTodaySunLog, logSunExposure, setMiscFlag, setSunNote,
 } from '../db/queries';
 
 import { t, useLanguage, locale } from '../i18n';
+import { useToday } from '../hooks/useToday';
 /**
  * The Sunlight screen.
  *
@@ -72,9 +73,14 @@ export default function SunlightScreen() {
   const savedRef = useRef('');
   const writing = useRef<Promise<void> | null>(null);
 
+  // Not `todayStr()` inside load: the screen stays mounted across midnight, and
+  // a load keyed on a value read once would keep reporting yesterday. The hook
+  // changes at the boundary, which re-creates `load` and re-fires the focus
+  // effect below.
+  const today = useToday();
+
   const load = useCallback(async () => {
     try {
-      const today = todayStr();
       const day = await getTodaySunLog();
       setMinutes(day?.minutes ?? 0);
       setNotes(day?.notes ?? '');
@@ -93,7 +99,7 @@ export default function SunlightScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [today]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -228,7 +234,6 @@ export default function SunlightScreen() {
     );
   }
 
-  const today = todayStr();
   const peak = Math.max(goalMin, ...history.map((h) => h.minutes), 1);
 
   return (

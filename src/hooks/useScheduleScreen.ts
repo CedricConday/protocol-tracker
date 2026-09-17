@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDoseLogs, getDaySummary, getScheduleRules, localDateStr, todayStr } from '../db/queries';
+import { getDoseLogs, getDaySummary, getScheduleRules, localDateStr } from '../db/queries';
 import { formatDoseTime } from '../engine/scheduler';
 import type { DoseLog, DoseStatus, ScheduledDose } from '../types';
+import { useToday } from './useToday';
 
 interface DayCell { date: string; dayNumber: number; compliancePct: number; totalDoses: number; isToday: boolean; }
 
@@ -69,9 +70,11 @@ export function useScheduleScreen() {
   const [calCells, setCalCells] = useState<DayCell[]>([]);
   const [calLoaded, setCalLoaded] = useState(false);
 
+  // Live, so the 30-day strip re-anchors when the day rolls under an open tab.
+  const today = useToday();
+
   const loadCalendar = useCallback(async () => {
     const dateStrs = buildLast30Days();
-    const today = todayStr();
     const results = await Promise.all(
       dateStrs.map(async (dateStr) => {
         const summary = await getDaySummary(dateStr);
@@ -80,7 +83,7 @@ export function useScheduleScreen() {
     );
     setCalCells(results);
     setCalLoaded(true);
-  }, []);
+  }, [today]);
 
   const loadSchedule = useCallback(async () => {
     const logs = await getDoseLogs();

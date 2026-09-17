@@ -11,6 +11,7 @@ import {
 } from '../db/queries';
 
 import { t, useLanguage, locale } from '../i18n';
+import { useToday } from '../hooks/useToday';
 import { weekdaysShort } from '../i18n/dates';
 /**
  * The Exercise screen (PT-trio round 3, C3).
@@ -91,9 +92,14 @@ export default function ExerciseScreen() {
   const [type, setType] = useState('walk');
   const [intensity, setIntensity] = useState('moderate');
 
+  // Not `todayStr()` inside load: the screen stays mounted across midnight, and
+  // a load keyed on a value read once would keep reporting yesterday. The hook
+  // changes at the boundary, which re-creates `load` and re-fires the focus
+  // effect below.
+  const day = useToday();
+
   const load = useCallback(async () => {
     try {
-      const day = todayStr();
       setToday(await getTodayExercise(day));
       setEntries(await getExerciseLogs(day));
       setHistory(await getExerciseHistory(HISTORY_DAYS, day));
@@ -118,7 +124,7 @@ export default function ExerciseScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [day]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -436,8 +442,8 @@ export default function ExerciseScreen() {
         ) : (
           history.map((h) => (
             <View key={h.date} style={styles.histRow}>
-              <Text style={[styles.histDay, h.date === todayStr() && styles.histDayToday]}>
-                {formatDay(h.date, todayStr())}
+              <Text style={[styles.histDay, h.date === day && styles.histDayToday]}>
+                {formatDay(h.date, day)}
               </Text>
               <View style={styles.histBarTrack}>
                 <View

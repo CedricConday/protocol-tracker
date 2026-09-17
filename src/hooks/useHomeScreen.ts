@@ -11,6 +11,7 @@ import { getTodaySchedule } from '../engine/scheduler';
 import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { MedicalEvent } from '../types';
+import { useToday } from './useToday';
 
 /**
  * Whole days from a stored LOCAL day key (`YYYY-MM-DD`) to now.
@@ -62,6 +63,12 @@ export function useHomeScreen(navigation: any) {
   const [showMealPrompt, setShowMealPrompt] = useState(false);
   const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
 
+  // The 60-second poll below already re-reads the database on a timer, so Home's
+  // DATA follows the day on its own. `today` is here for the boundary itself:
+  // the poll is paused while the app is backgrounded, and this fires the moment
+  // it returns to the foreground on a new day rather than up to a minute later.
+  const today = useToday();
+
   const loadDay = useCallback(async () => {
     // The anchor decides WHICH Home the user sees, so it is read and published
     // before anything else. Everything below is detail on a screen the user is
@@ -90,14 +97,14 @@ export function useHomeScreen(navigation: any) {
     setExerciseIntensity(ex.intensity);
     const mealTime = await getFirstMealTime();
     setFirstMealTimeState(mealTime);
-    const journal = await getJournalEntry(todayStr());
+    const journal = await getJournalEntry(today);
     setTodayMood(journal?.mood ?? null);
     setTodayNotePreview(journal?.note?.slice(0, 60) ?? '');
     const latest = await getLatestJournalEntry();
     setLatestJournal(latest ? { mood: latest.mood, note: latest.note, date: latest.date } : null);
-    const meals = await getTodayMeals(todayStr());
+    const meals = await getTodayMeals(today);
     setTodayMeals(meals);
-  }, [navigation]);
+  }, [navigation, today]);
 
   useEffect(() => {
     loadDay();

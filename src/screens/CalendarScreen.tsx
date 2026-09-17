@@ -23,6 +23,7 @@ import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import { getProfileById } from '../data/diseaseProfiles';
 import { t, useLanguage } from '../i18n';
+import { useToday } from '../hooks/useToday';
 
 import { weekdaysShortSundayFirst, weekdaysShort, monthNames, longDate } from '../i18n/dates';
 
@@ -144,16 +145,24 @@ export default function CalendarScreen() {
   const horizonYear = horizon.getFullYear();
   const horizonMonth = horizon.getMonth();
 
+  // `useToday()` rather than `todayStr()`: both answer the same on the render
+  // that reads them, but only the hook re-renders this screen when the local day
+  // actually rolls, so a form left open overnight prefills the new day.
+  const today = useToday();
+
   const loadMonth = useCallback(async (year: number, month: number) => {
     const map = await getCalendarMonth(year, month);
     setData(map);
     setLoaded(true);
   }, []);
 
+  // `today` is in the dependency list so the grid reloads when the day rolls
+  // under an open Calendar — the "today" highlight and the newly-available cell
+  // both come from data this effect fetches.
   useFocusEffect(useCallback(() => {
     loadMonth(viewYear, viewMonth);
     loadCompliance();
-  }, [loadMonth, viewYear, viewMonth, loadCompliance]));
+  }, [loadMonth, viewYear, viewMonth, loadCompliance, today]));
 
   useEffect(() => {
     getMiscFlag('disease_profile').then((id) => {
@@ -236,7 +245,6 @@ export default function CalendarScreen() {
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const offset = mondayOffset(viewYear, viewMonth);
   const mm = String(viewMonth + 1).padStart(2, '0');
-  const today = todayStr();
   const slots: Slot[] = [];
   for (let i = 0; i < offset; i++) slots.push(null);
   for (let d = 1; d <= daysInMonth; d++) {
