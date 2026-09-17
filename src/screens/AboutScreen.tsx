@@ -27,9 +27,14 @@ import { C, space, radius, text as T } from '../theme';
  * app, so a feature it cannot deliver costs more here than anywhere else.
  */
 
+// `aboutFeat6` — "MRI scans and lab results" — was removed on 2026-09-17 with
+// the screens behind it. The doc above is the reason: this is where a patient
+// decides whether to trust the app, so a line promising something it no longer
+// does costs more here than anywhere else. The keys are names, not an ordering,
+// so the rest keep theirs rather than shifting by one.
 const FEATURES = [
   'aboutFeat1', 'aboutFeat2', 'aboutFeat3', 'aboutFeat4', 'aboutFeat5',
-  'aboutFeat6', 'aboutFeat7', 'aboutFeat8', 'aboutFeat9', 'aboutFeat10',
+  'aboutFeat7', 'aboutFeat8', 'aboutFeat9', 'aboutFeat10',
 ] as const;
 
 export default function AboutScreen() {

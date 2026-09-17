@@ -12,7 +12,6 @@ import {
   View,
   Alert,
   ScrollView,
-  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +19,7 @@ import {
   getProfile, updateProfile, getSupplementsWithRules,
   getMiscFlag, setMiscFlag, getWeatherEnabled, setWeatherEnabled,
 } from '../db/queries';
-import { SUPPORT_URL, medicalDisclaimer } from '../config/links';
+import { medicalDisclaimer } from '../config/links';
 import Pressable from '../components/Pressable';
 import SunMascot from '../components/SunMascot';
 import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
@@ -386,6 +385,10 @@ export default function SettingsScreen() {
                 </>
               ) : null}
             </Expand>
+            <Row
+              icon="person-circle-outline" label={t('accountSettings')} sub={t('accountSettingsSub')}
+              onPress={() => navigation.navigate('AccountSettings')}
+            />
             {/* Was an alert reading "Data export feature to be implemented"
                 while `exportAllData()` sat in queries.ts with no caller. It
                 opens the share sheet now, preset to everything as a JSON
@@ -398,27 +401,7 @@ export default function SettingsScreen() {
               onPress={() => setShareOpen(true)}
             />
             <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
-            {/* Opens the community page in the system browser. Nothing is
-                collected in-app and nothing in the app unlocks from this —
-                Apple 3.2.2(iv) and 3.2.1(vii). Do not add a supporter tier. */}
-            <Row
-              icon="open-outline"
-              label={t('supportThisApp')}
-              sub={t('supportSub')}
-              onPress={() => {
-                if (!/^https?:\/\//.test(SUPPORT_URL)) {
-                  Alert.alert(t('setNotSetUp'), t('setNotSetUpSub'));
-                  return;
-                }
-                Linking.openURL(SUPPORT_URL).catch(() =>
-                  Alert.alert(t('setCouldNotOpen'), t('setCouldNotOpenSub')));
-              }}
-            />
-            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} />
-            <Row
-              icon="person-circle-outline" label={t('accountSettings')} sub={t('accountSettingsSub')}
-              onPress={() => navigation.navigate('AccountSettings')} last
-            />
+            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} last />
           </Group>
 
 

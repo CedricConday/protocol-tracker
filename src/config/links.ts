@@ -17,14 +17,13 @@ import { t } from '../i18n';
 /** TODO(cedric): real Facebook page URL — placeholder, will not open as-is. */
 export const COMMUNITY_URL = 'https://www.facebook.com/REPLACE-ME-protocol-tracker';
 
-/**
- * Where the "Support this app" row goes.
- * TODO(cedric): INSERT GOFUNDME HERE — the row stays disabled until this is a
- * real https:// URL. Note the Play rule above: Google has enforced against the
- * destination link, not just in-app collection, so a direct fundraiser URL is
- * the risk to weigh before shipping to Play.
+/*
+ * SUPPORT_URL and the Settings row that opened it were removed on 2026-09-17 at
+ * Cedric's request. The store rules above are kept because they are the reason
+ * this is not a small decision to reverse: if a support link ever returns it
+ * must still be a link OUT, nothing in the app may unlock from it, and Google
+ * has enforced against the destination, not just in-app collection.
  */
-export const SUPPORT_URL = 'INSERT GOFUNDME HERE';
 
 /** Support address the Send Feedback screen hands to the user's mail app. */
 export const FEEDBACK_EMAIL = 'cedric@condaydigital.com';
