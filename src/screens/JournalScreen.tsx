@@ -597,18 +597,34 @@ export default function JournalScreen() {
                 <Text style={styles.entryNote}>{entry.note}</Text>
               ) : null}
               {isExpanded ? (
-                <TouchableOpacity
-                  style={styles.entryRemoveBtn}
-                  onPress={() => handleRemoveEntry(entry)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('jrnRemoveEntryA11y', {
-                    date: entry.date === today ? t('today') : formatDateLabel(entry.date),
-                    time: formatEntryTime(entry.created_at),
-                  })}
-                >
-                  <Text style={styles.entryRemoveBtnText}>{t('remove')}</Text>
-                </TouchableOpacity>
+                <View style={styles.entryActions}>
+                  <TouchableOpacity
+                    style={[styles.entryActionBtn, styles.entryRemoveBtn]}
+                    onPress={() => handleRemoveEntry(entry)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('jrnRemoveEntryA11y', {
+                      date: entry.date === today ? t('today') : formatDateLabel(entry.date),
+                      time: formatEntryTime(entry.created_at),
+                    })}
+                  >
+                    <Text style={styles.entryRemoveBtnText}>{t('remove')}</Text>
+                  </TouchableOpacity>
+                  {/* The card itself already collapses on tap; this is the same
+                      action with a name on it, so leaving is as explicit as
+                      removing and the two read as a pair. */}
+                  <TouchableOpacity
+                    style={[styles.entryActionBtn, styles.entryCloseBtn]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpandedId(null); }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('jrnCollapseEntryA11y', {
+                      date: entry.date === today ? t('today') : formatDateLabel(entry.date),
+                    })}
+                  >
+                    <Text style={styles.entryCloseBtnText}>{t('close')}</Text>
+                  </TouchableOpacity>
+                </View>
               ) : null}
             </TouchableOpacity>
           );
@@ -869,17 +885,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginRight: 10,
   },
-  entryRemoveBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 9,
-    backgroundColor: '#FBEAEA',
+  // Remove and Close are one pair: same metrics, different weight. Only the
+  // colour says which one is destructive, so they cannot be told apart by size
+  // in a hurry — which is the point, since the destructive one is not the one
+  // being aimed for most of the time.
+  entryActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  entryActionBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
+    minWidth: 92,
+    alignItems: 'center',
+  },
+  entryRemoveBtn: {
+    backgroundColor: '#FBEAEA',
     borderColor: '#E7C6C6',
   },
-  entryRemoveBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
+  entryRemoveBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
+  entryCloseBtn: {
+    backgroundColor: '#ECEDE6',
+    borderColor: '#D8D9D0',
+  },
+  entryCloseBtnText: { color: '#5A6478', fontSize: 13, fontWeight: '700' },
   complianceBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,
