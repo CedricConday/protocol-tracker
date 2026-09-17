@@ -199,7 +199,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                 ref={nameRef}
                 style={[styles.input, hint.some((h) => h.key === 'name') && styles.inputError]}
                 placeholder={t('obNamePlaceholder')}
-                placeholderTextColor="#9AA3B2"
+                placeholderTextColor="#617285"
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -214,7 +214,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   ref={d3Ref}
                   style={styles.input}
                   placeholder="e.g. 5000"
-                  placeholderTextColor="#9AA3B2"
+                  placeholderTextColor="#617285"
                   value={d3Dose}
                   onChangeText={setD3Dose}
                   keyboardType="numeric"
@@ -364,7 +364,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F2',
+    backgroundColor: '#F7FAFE',
   },
   flex: {
     flex: 1,
@@ -380,10 +380,10 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#CFD2C6',
+    backgroundColor: '#D8E1EA',
   },
   dotActive: {
-    backgroundColor: '#1B58B8',
+    backgroundColor: '#1162B9',
     width: 28,
     borderRadius: 5,
   },
@@ -408,14 +408,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: '#14213D',
+    color: '#112438',
     fontSize: 26,
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: 12,
   },
   body: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
@@ -425,30 +425,30 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputLabel: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 13,
     fontWeight: '600',
     marginBottom: 6,
     marginTop: 16,
   },
   required: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
-  optional: { color: '#9AA3B2', fontSize: 12, fontWeight: '600' },
-  inputHelp: { color: '#9AA3B2', fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 6 },
+  optional: { color: '#617285', fontSize: 12, fontWeight: '600' },
+  inputHelp: { color: '#617285', fontSize: 12, lineHeight: 17, marginTop: -4, marginBottom: 6 },
   inputError: { borderColor: '#B3453E', borderWidth: 1.5 },
   missingHint: { color: '#B3453E', fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 10 },
   input: {
-    backgroundColor: '#ECEDE6',
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#14213D',
+    color: '#112438',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#DBDDD3',
+    borderColor: '#D8E1EA',
     marginBottom: 4,
   },
   hint: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 13,
     marginTop: 8,
     lineHeight: 20,
@@ -459,10 +459,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F0EDEA',
+    borderColor: '#E9EFF6',
   },
   featureItem: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 15,
     lineHeight: 24,
   },
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     borderLeftColor: '#eab308',
   },
   infoNoteText: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 15,
     lineHeight: 22,
   },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#CFD2C6',
+    borderTopColor: '#8393A3',
   },
   footerRow: {
     flexDirection: 'row',
@@ -496,12 +496,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   backText: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 15,
     fontWeight: '600',
   },
   nextButton: {
-    backgroundColor: '#1B58B8',
+    backgroundColor: '#1162B9',
     borderRadius: 10,
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -517,14 +517,14 @@ const styles = StyleSheet.create({
   },
   // Full strength, because the button is tappable whatever is missing.
   nextText: {
-    color: '#F7F7F2',
+    color: '#F7FAFE',
     fontSize: 16,
     fontWeight: '800',
   },
-  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#DBDDD3', padding: 16, backgroundColor: '#ECEDE6' },
-  trackCardActive: { borderColor: '#1B58B8', backgroundColor: '#E7EEFB' },
-  trackTitle: { color: '#5A6478', fontSize: 15, fontWeight: '700' },
-  trackTitleActive: { color: '#1B58B8' },
-  trackDesc: { color: '#9AA3B2', fontSize: 13, marginTop: 2 },
-  trackCode: { color: '#9AA3B2', fontSize: 12, fontWeight: '500' },
+  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#D8E1EA', padding: 16, backgroundColor: '#FFFFFF' },
+  trackCardActive: { borderColor: '#1162B9', backgroundColor: '#DEEFFF' },
+  trackTitle: { color: '#495D72', fontSize: 15, fontWeight: '700' },
+  trackTitleActive: { color: '#1162B9' },
+  trackDesc: { color: '#617285', fontSize: 13, marginTop: 2 },
+  trackCode: { color: '#617285', fontSize: 12, fontWeight: '500' },
 });

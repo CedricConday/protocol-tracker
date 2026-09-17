@@ -37,8 +37,8 @@ const SettingsNav = createNativeStackNavigator();
 
 const SUB_HEADER = {
   headerShown: true,
-  headerStyle: { backgroundColor: '#F7F7F2' },
-  headerTintColor: '#14213D',
+  headerStyle: { backgroundColor: '#F7FAFE' },
+  headerTintColor: '#112438',
   headerShadowVisible: false,
   headerBackTitleVisible: false,
 } as const;
@@ -151,15 +151,15 @@ function TabNavigator() {
         headerShown: false,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
-          backgroundColor: '#F7F7F2',
-          borderTopColor: '#CFD2C6',
+          backgroundColor: '#F7FAFE',
+          borderTopColor: '#8393A3',
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: 16,
           height: 72,
         },
-        tabBarActiveTintColor: '#1B58B8',
-        tabBarInactiveTintColor: '#9AA3B2',
+        tabBarActiveTintColor: '#1162B9',
+        tabBarInactiveTintColor: '#617285',
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',

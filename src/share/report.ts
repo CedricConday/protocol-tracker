@@ -36,27 +36,27 @@ function rangeLabel(from: string, to: string): string {
 }
 
 function complianceColor(pct: number, total: number): string {
-  if (total === 0) return '#E9E9E4';
-  if (pct >= 80) return '#2F8F5B';
+  if (total === 0) return '#E9EFF6';
+  if (pct >= 80) return '#227D4C';
   if (pct >= 50) return '#E9A23C';
   return '#C0392B';
 }
 
 function section(title: string, from: string, to: string, body: string): string {
   return `
-    <h2 style="color:#14213D;font-size:15px;margin:26px 0 2px">${esc(title)}</h2>
-    <p style="color:#7A8395;font-size:11px;margin:0 0 10px">${esc(rangeLabel(from, to))}</p>
+    <h2 style="color:#112438;font-size:15px;margin:26px 0 2px">${esc(title)}</h2>
+    <p style="color:#495D72;font-size:11px;margin:0 0 10px">${esc(rangeLabel(from, to))}</p>
     ${body}`;
 }
 
 function table(headers: string[], rows: string[][]): string {
   if (rows.length === 0) {
-    return `<p style="color:#7A8395;font-size:12px;margin:0">${esc(t('shNoRows'))}</p>`;
+    return `<p style="color:#495D72;font-size:12px;margin:0">${esc(t('shNoRows'))}</p>`;
   }
   return `
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <tr>${headers.map((h) => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #14213D;color:#14213D">${esc(h)}</th>`).join('')}</tr>
-      ${rows.map((r) => `<tr>${r.map((c) => `<td style="padding:6px 8px;border-bottom:1px solid #E4E4DE;color:#24324B">${esc(c)}</td>`).join('')}</tr>`).join('')}
+      <tr>${headers.map((h) => `<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #112438;color:#112438">${esc(h)}</th>`).join('')}</tr>
+      ${rows.map((r) => `<tr>${r.map((c) => `<td style="padding:6px 8px;border-bottom:1px solid #E9EFF6;color:#24324B">${esc(c)}</td>`).join('')}</tr>`).join('')}
     </table>`;
 }
 
@@ -100,11 +100,11 @@ function complianceGrid(b: ShareBundle): string {
       const pct = day?.compliancePct ?? 0;
       const total = day?.totalDoses ?? 0;
       const bg = inRange ? complianceColor(pct, total) : '#FFFFFF';
-      const fg = !inRange ? '#FFFFFF' : total === 0 ? '#9AA3B2' : '#FFFFFF';
+      const fg = !inRange ? '#FFFFFF' : total === 0 ? '#617285' : '#FFFFFF';
       cells.push(`<td style="background:${bg};color:${fg};text-align:center;padding:5px;font-size:10px;font-weight:700;border-radius:3px">${inRange ? cursor.getDate() : ''}</td>`);
       cursor.setDate(cursor.getDate() + 1);
     }
-    rows.push(`<tr><td style="font-size:10px;color:#7A8395;padding-right:6px;white-space:nowrap">${esc(weekLabel)}</td>${cells.join('')}</tr>`);
+    rows.push(`<tr><td style="font-size:10px;color:#495D72;padding-right:6px;white-space:nowrap">${esc(weekLabel)}</td>${cells.join('')}</tr>`);
   }
 
   const totals = b.days.reduce(
@@ -115,7 +115,7 @@ function complianceGrid(b: ShareBundle): string {
 
   return `
     <table style="border-collapse:separate;border-spacing:2px">
-      <tr><td></td>${weekdayNames.map((w) => `<th style="font-size:9px;color:#7A8395;font-weight:600;padding-bottom:2px">${esc(w)}</th>`).join('')}</tr>
+      <tr><td></td>${weekdayNames.map((w) => `<th style="font-size:9px;color:#495D72;font-weight:600;padding-bottom:2px">${esc(w)}</th>`).join('')}</tr>
       ${rows.join('')}
     </table>
     <p style="font-size:12px;color:#24324B;margin-top:10px">
@@ -142,7 +142,7 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
     parts.push(section(t('shSecJournal'), b.from, b.to, table(headers, rows)
       // Stated in the document, not only in the dialog: a doctor reading moods
       // with no text should know text was withheld rather than absent.
-      + (on('journalNotes') ? '' : `<p style="color:#7A8395;font-size:11px;margin-top:6px">${esc(t('shNotesWithheld'))}</p>`)));
+      + (on('journalNotes') ? '' : `<p style="color:#495D72;font-size:11px;margin-top:6px">${esc(t('shNotesWithheld'))}</p>`)));
   }
 
   if (on('symptoms')) {
@@ -214,14 +214,14 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
   }
 
   const header = `
-    <h1 style="color:#1B58B8;font-size:20px;margin:0 0 2px">${esc(t('shDocTitle'))}</h1>
+    <h1 style="color:#1162B9;font-size:20px;margin:0 0 2px">${esc(t('shDocTitle'))}</h1>
     <p style="color:#24324B;font-size:13px;margin:0">${esc(
       b.patientName
         ? t('shDocPatient', { name: b.patientName, dose: b.d3Dose || '—' })
         : t('shDocPatientAnon', { dose: b.d3Dose || '—' }),
     )}</p>
-    <p style="color:#7A8395;font-size:12px;margin:2px 0 0">${esc(t('shDocRange', { range: rangeLabel(b.from, b.to) }))}</p>
-    <p style="color:#7A8395;font-size:11px;margin:2px 0 0">${esc(t('shDocGenerated', {
+    <p style="color:#495D72;font-size:12px;margin:2px 0 0">${esc(t('shDocRange', { range: rangeLabel(b.from, b.to) }))}</p>
+    <p style="color:#495D72;font-size:11px;margin:2px 0 0">${esc(t('shDocGenerated', {
       date: new Date().toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' }),
     }))}</p>`;
 
@@ -235,6 +235,6 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
     <body>
       ${header}
       ${parts.join('\n')}
-      <p style="color:#9AA3B2;font-size:10px;margin-top:32px;text-align:center">${esc(t('shDocFooter'))}</p>
+      <p style="color:#617285;font-size:10px;margin-top:32px;text-align:center">${esc(t('shDocFooter'))}</p>
     </body></html>`;
 }

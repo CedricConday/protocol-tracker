@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#F7F7F2',
+    backgroundColor: '#F7FAFE',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
@@ -99,13 +99,13 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 28,
     fontWeight: '300',
-    color: '#14213D',
+    color: '#112438',
     letterSpacing: 4,
     marginBottom: 8,
   },
   tagline: {
     fontSize: 13,
-    color: '#9A8A82',
+    color: '#617285',
     letterSpacing: 1,
   },
 });

@@ -78,7 +78,7 @@ export default function FeedbackScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.doneWrap}>
-          <Ionicons name="checkmark-circle" size={64} color="#2F8F5B" />
+          <Ionicons name="checkmark-circle" size={64} color="#227D4C" />
           <Text style={styles.doneTitle}>{t('fbThanks')}</Text>
           <Text style={styles.doneSub}>{t('fbThanksBody')}</Text>
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
@@ -97,7 +97,7 @@ export default function FeedbackScreen() {
           <TextInput
             style={styles.messageInput}
             placeholder={t('fbPlaceholder')}
-            placeholderTextColor="#9AA3B2"
+            placeholderTextColor="#617285"
             multiline
             value={message}
             onChangeText={setMessage}
@@ -129,7 +129,7 @@ export default function FeedbackScreen() {
             activeOpacity={0.8}
             accessibilityRole="button"
           >
-            <Ionicons name="logo-whatsapp" size={18} color="#F7F7F2" />
+            <Ionicons name="logo-whatsapp" size={18} color="#F7FAFE" />
             <Text style={styles.whatsappBtnText}>
               {hasWhatsApp() ? t('fbSendWhatsApp') : t('fbWhatsAppUnset')}
             </Text>
@@ -141,16 +141,16 @@ export default function FeedbackScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F7F2' },
+  container: { flex: 1, backgroundColor: '#F7FAFE' },
   scroll: { padding: 24, paddingBottom: 60 },
-  sectionLabel: { color: '#5A6478', fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10, marginTop: 20 },
+  sectionLabel: { color: '#495D72', fontSize: 13, fontWeight: '600', letterSpacing: 0.2, marginBottom: 10, marginTop: 20 },
   messageInput: {
-    backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#CFD2C6',
-    color: '#14213D', fontSize: 15, minHeight: 140, textAlignVertical: 'top',
+    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#8393A3',
+    color: '#112438', fontSize: 15, minHeight: 140, textAlignVertical: 'top',
   },
-  privacyNote: { color: '#9AA3B2', fontSize: 12, lineHeight: 18, marginTop: 16 },
+  privacyNote: { color: '#617285', fontSize: 12, lineHeight: 18, marginTop: 16 },
   submitBtn: {
-    backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 16,
+    backgroundColor: '#1162B9', borderRadius: 10, paddingVertical: 16,
     alignItems: 'center', marginTop: 28,
   },
   submitBtnDisabled: { opacity: 0.4 },
@@ -158,11 +158,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#25D366', borderRadius: 10, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12,
   },
-  whatsappBtnText: { color: '#F7F7F2', fontSize: 16, fontWeight: '800' },
-  submitBtnText: { color: '#F7F7F2', fontSize: 16, fontWeight: '800' },
+  whatsappBtnText: { color: '#F7FAFE', fontSize: 16, fontWeight: '800' },
+  submitBtnText: { color: '#F7FAFE', fontSize: 16, fontWeight: '800' },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  doneTitle: { color: '#14213D', fontSize: 24, fontWeight: '800', marginTop: 20 },
-  doneSub: { color: '#5A6478', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
-  doneBtn: { marginTop: 32, backgroundColor: '#1B58B8', borderRadius: 10, paddingVertical: 16, paddingHorizontal: 40 },
-  doneBtnText: { color: '#F7F7F2', fontSize: 16, fontWeight: '700' },
+  doneTitle: { color: '#112438', fontSize: 24, fontWeight: '800', marginTop: 20 },
+  doneSub: { color: '#495D72', fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
+  doneBtn: { marginTop: 32, backgroundColor: '#1162B9', borderRadius: 10, paddingVertical: 16, paddingHorizontal: 40 },
+  doneBtnText: { color: '#F7FAFE', fontSize: 16, fontWeight: '700' },
 });

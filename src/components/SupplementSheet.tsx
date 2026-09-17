@@ -174,5 +174,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.55 },
-  saveBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '600' },
+  saveBtnText: { color: '#F7FAFE', fontSize: 14, fontWeight: '600' },
 });

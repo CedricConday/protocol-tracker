@@ -33,8 +33,8 @@ function buildLast30Days(): string[] {
 }
 
 function getCellColor(pct: number, total: number) {
-  if (total === 0) return '#DBDDD3';
-  if (pct >= 80) return '#2F8F5B';
+  if (total === 0) return '#D8E1EA';
+  if (pct >= 80) return '#227D4C';
   if (pct >= 50) return '#F2B233';
   return '#C0392B';
 }
@@ -122,7 +122,7 @@ export default function ScheduleScreen() {
             <View key={ri} style={styles.calRow}>
               {row.map((cell) => {
                 const bg = cell.isToday
-                  ? (cell.totalDoses === 0 ? '#9AA3B2' : cell.compliancePct >= 80 ? '#4A7A4A' : cell.compliancePct >= 50 ? '#B07820' : '#A03030')
+                  ? (cell.totalDoses === 0 ? '#617285' : cell.compliancePct >= 80 ? '#4A7A4A' : cell.compliancePct >= 50 ? '#B07820' : '#A03030')
                   : getCellColor(cell.compliancePct, cell.totalDoses);
                 return (
                   <View key={cell.date} style={styles.calCellWrapper}>
@@ -135,7 +135,7 @@ export default function ScheduleScreen() {
             </View>
           ))}
           <View style={styles.legend}>
-            {[['#2F8F5B','≥80%'],['#F2B233','50–79%'],['#C0392B','<50%'],['#DBDDD3',t('noData')]].map(([color, label]) => (
+            {[['#227D4C','≥80%'],['#F2B233','50–79%'],['#C0392B','<50%'],['#D8E1EA',t('noData')]].map(([color, label]) => (
               <View key={label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color, borderWidth: color === '#2a2a2a' ? 1 : 0, borderColor: '#444' }]} />
                 <Text style={styles.legendLabel}>{label}</Text>
@@ -203,14 +203,14 @@ export default function ScheduleScreen() {
 
                 <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
                   {item.status === 'taken' ? (
-                    <Text style={{ color: '#2F8F5B', fontWeight: '700' }}>{t('taken')}</Text>
+                    <Text style={{ color: '#227D4C', fontWeight: '700' }}>{t('taken')}</Text>
                   ) : item.status === 'missed' ? (
                     <Text style={{ color: '#C0392B', fontWeight: '700' }}>{t('missed')}</Text>
                   ) : item.status === 'skipped' ? (
-                    <Text style={{ color: '#5A6478', fontWeight: '700' }}>{t('skipped')}</Text>
+                    <Text style={{ color: '#495D72', fontWeight: '700' }}>{t('skipped')}</Text>
                   ) : (
-                    <View style={{ backgroundColor: item.status === 'due' ? '#1B58B8' : '#ECEDE6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#1B58B8' }}>
-                      <Text style={{ color: item.status === 'due' ? '#F7F7F2' : '#1B58B8', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? t('schTake') : t('schWait')}</Text>
+                    <View style={{ backgroundColor: item.status === 'due' ? '#1162B9' : '#FFFFFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#1162B9' }}>
+                      <Text style={{ color: item.status === 'due' ? '#F7FAFE' : '#1162B9', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? t('schTake') : t('schWait')}</Text>
                     </View>
                   )}
                 </View>
@@ -221,7 +221,7 @@ export default function ScheduleScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1162B9" />
         }
       />
 
@@ -239,18 +239,18 @@ export default function ScheduleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F2',
+    backgroundColor: '#F7FAFE',
     paddingTop: 60,
     paddingHorizontal: 20,
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   heading: {
-    color: '#14213D',
+    color: '#112438',
     fontSize: 22,
     fontWeight: '700',
   },
-  scanBtn: { backgroundColor: '#ECEDE6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#1B58B8' },
-  scanBtnText: { color: '#1B58B8', fontSize: 14, fontWeight: '600' },
+  scanBtn: { backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#1162B9' },
+  scanBtnText: { color: '#1162B9', fontSize: 14, fontWeight: '600' },
   highDoseBanner: {
     backgroundColor: '#FDF3E0',
     borderRadius: 14,
@@ -288,17 +288,17 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   timeText: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'right',
     lineHeight: 18,
   },
   timeTextDimmed: {
-    color: '#9AA3B2',
+    color: '#617285',
   },
   timeTextDue: {
-    color: '#1B58B8',
+    color: '#1162B9',
   },
   trackCol: {
     width: 20,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   lineSegment: {
     flex: 1,
     width: 1,
-    backgroundColor: '#CFD2C6',
+    backgroundColor: '#D8E1EA',
   },
   lineSegmentInvisible: {
     backgroundColor: 'transparent',
@@ -325,15 +325,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     justifyContent: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#DBDDD3',
+    borderBottomColor: '#D8E1EA',
   },
   name: {
-    color: '#14213D',
+    color: '#112438',
     fontSize: 15,
     fontWeight: '600',
   },
   doseAmount: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 15,
     marginTop: 2,
   },
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   skipReasonText: {
-    color: '#9AA3B2',
+    color: '#617285',
     fontSize: 13,
     fontStyle: 'italic',
     marginTop: 3,
@@ -362,23 +362,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
   },
-  toggleRow: { flexDirection: 'row', backgroundColor: '#ECEDE6', borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#CFD2C6' },
+  toggleRow: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: 14, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#8393A3' },
   toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: '#F7F7F2' },
-  toggleBtnText: { color: '#9AA3B2', fontSize: 13, fontWeight: '700' },
-  toggleBtnTextActive: { color: '#1B58B8' },
+  toggleBtnActive: { backgroundColor: '#F7FAFE' },
+  toggleBtnText: { color: '#617285', fontSize: 13, fontWeight: '700' },
+  toggleBtnTextActive: { color: '#1162B9' },
   calRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
   calCellWrapper: { flex: 1, aspectRatio: 1 },
   calCell: { flex: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', minHeight: 48, minWidth: 48 },
-  calCellToday: { borderWidth: 2, borderColor: '#14213D' },
-  calCellText: { color: '#F7F7F2', fontSize: 12, fontWeight: '700' },
+  calCellToday: { borderWidth: 2, borderColor: '#112438' },
+  calCellText: { color: '#F7FAFE', fontSize: 12, fontWeight: '700' },
   legend: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, paddingTop: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
-  legendLabel: { color: '#5A6478', fontSize: 11, fontWeight: '500' },
+  legendLabel: { color: '#495D72', fontSize: 11, fontWeight: '500' },
 });

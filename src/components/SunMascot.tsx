@@ -19,7 +19,7 @@ import Svg, { Circle, G, Path } from 'react-native-svg';
 // unchanged, and native parses transform strings the same way.
 
 const AMBER = '#E9A23C';
-const INK = '#14213D';
+const INK = '#112438';
 
 /** One ray, pointing along +x, with a rounded tip. Rotated into place below. */
 const RAY = 'M 185.1 -67.4 Q 306.6 -80.0 386.0 -44.0 A 44.0 44.0 0 0 1 386.0 44.0 Q 306.6 80.0 185.1 67.4 Z';

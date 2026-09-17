@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F7F7F2"
+        "backgroundColor": "#F7FAFE"
       },
       "package": "com.protocoltracker.app",
       "versionCode": 1,
@@ -52,7 +52,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 168,
           "resizeMode": "contain",
-          "backgroundColor": "#F7F7F2"
+          "backgroundColor": "#F7FAFE"
         }
       ]
     ],

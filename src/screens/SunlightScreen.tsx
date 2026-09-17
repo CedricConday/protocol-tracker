@@ -359,7 +359,7 @@ export default function SunlightScreen() {
           onChangeText={setNotes}
           onBlur={() => commitNotes()}
           placeholder={t('sunNotePlaceholder')}
-          placeholderTextColor="#9AA3B2"
+          placeholderTextColor="#617285"
           multiline
           accessibilityLabel={t('sunNoteLabel')}
         />
@@ -417,47 +417,47 @@ export default function SunlightScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F7F2' },
+  container: { flex: 1, backgroundColor: '#F7FAFE' },
   content: { padding: 20, paddingBottom: 40 },
-  loading: { flex: 1, backgroundColor: '#F7F7F2', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: '#F7FAFE', alignItems: 'center', justifyContent: 'center' },
   section: { marginTop: 22 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  sectionTitle: { color: '#14213D', fontSize: 15, fontWeight: '700', marginBottom: 6 },
-  sectionCount: { color: '#9AA3B2', fontSize: 13, fontWeight: '700', marginBottom: 6 },
-  sectionBody: { color: '#5A6478', fontSize: 13, lineHeight: 19, marginBottom: 10 },
-  empty: { color: '#9AA3B2', fontSize: 13, fontStyle: 'italic', paddingVertical: 8 },
-  note: { color: '#9AA3B2', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  sectionTitle: { color: '#112438', fontSize: 15, fontWeight: '700', marginBottom: 6 },
+  sectionCount: { color: '#617285', fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  sectionBody: { color: '#495D72', fontSize: 13, lineHeight: 19, marginBottom: 10 },
+  empty: { color: '#617285', fontSize: 13, fontStyle: 'italic', paddingVertical: 8 },
+  note: { color: '#617285', fontSize: 12, lineHeight: 18, marginTop: 8 },
 
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
-  goalBtnText: { color: '#14213D', fontSize: 20, fontWeight: '700' },
-  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
-  goalValueText: { color: '#14213D', fontSize: 17, fontWeight: '700' },
-  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2B233', textAlign: 'center', color: '#14213D', fontSize: 17, fontWeight: '700' },
+  goalBtn: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
+  goalBtnText: { color: '#112438', fontSize: 20, fontWeight: '700' },
+  goalValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
+  goalValueText: { color: '#112438', fontSize: 17, fontWeight: '700' },
+  goalField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2B233', textAlign: 'center', color: '#112438', fontSize: 17, fontWeight: '700' },
 
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E6E7DF' },
-  entryTime: { color: '#9AA3B2', fontSize: 13, width: 58 },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E9EFF6' },
+  entryTime: { color: '#617285', fontSize: 13, width: 58 },
   entryAmountWrap: { flex: 1 },
-  entryAmount: { color: '#14213D', fontSize: 15, fontWeight: '700' },
-  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2B233', paddingHorizontal: 10, color: '#14213D', fontSize: 15, fontWeight: '700' },
+  entryAmount: { color: '#112438', fontSize: 15, fontWeight: '700' },
+  entryField: { flex: 1, height: 38, borderRadius: 9, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2B233', paddingHorizontal: 10, color: '#112438', fontSize: 15, fontWeight: '700' },
   removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
   removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
 
   clearBtn: { alignSelf: 'flex-start', marginTop: 14, paddingHorizontal: 16, height: 46, borderRadius: 12, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6', alignItems: 'center', justifyContent: 'center' },
   clearBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
 
-  noteSaveBtn: { marginTop: 10, height: 46, borderRadius: 12, backgroundColor: '#1B58B8', alignItems: 'center', justifyContent: 'center' },
+  noteSaveBtn: { marginTop: 10, height: 46, borderRadius: 12, backgroundColor: '#1162B9', alignItems: 'center', justifyContent: 'center' },
   noteSaveBtnIdle: { opacity: 0.4 },
-  noteSaveBtnText: { color: '#F7F7F2', fontSize: 15, fontWeight: '700' },
+  noteSaveBtnText: { color: '#F7FAFE', fontSize: 15, fontWeight: '700' },
 
-  noteField: { minHeight: 84, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', padding: 12, color: '#14213D', fontSize: 14, lineHeight: 20, textAlignVertical: 'top' },
+  noteField: { minHeight: 84, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', padding: 12, color: '#112438', fontSize: 14, lineHeight: 20, textAlignVertical: 'top' },
 
   histRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5 },
-  histDay: { color: '#5A6478', fontSize: 12, width: 86 },
-  histDayToday: { color: '#14213D', fontWeight: '700' },
-  histBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#E6E7DF', overflow: 'hidden' },
+  histDay: { color: '#495D72', fontSize: 12, width: 86 },
+  histDayToday: { color: '#112438', fontWeight: '700' },
+  histBarTrack: { flex: 1, height: 8, borderRadius: 4, backgroundColor: '#E9EFF6', overflow: 'hidden' },
   histBarFill: { height: 8, borderRadius: 4, backgroundColor: '#F2CE86' },
   histBarFillDone: { backgroundColor: '#F2B233' },
-  histValue: { color: '#14213D', fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
-  histNote: { color: '#5A6478', fontSize: 12, lineHeight: 17, fontStyle: 'italic', paddingLeft: 96, paddingBottom: 6 },
+  histValue: { color: '#112438', fontSize: 12, fontWeight: '700', width: 56, textAlign: 'right' },
+  histNote: { color: '#495D72', fontSize: 12, lineHeight: 17, fontStyle: 'italic', paddingLeft: 96, paddingBottom: 6 },
 });

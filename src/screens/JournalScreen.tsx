@@ -262,7 +262,7 @@ export default function JournalScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1B58B8" />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1162B9" />
       }
     >
       <View style={styles.headingRow}>
@@ -292,7 +292,7 @@ export default function JournalScreen() {
               value={eventDate}
               onChangeText={setEventDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9AA3B2"
+              placeholderTextColor="#617285"
               autoCapitalize="none"
             />
             <Text style={styles.datePreview}>{formatEventDate(eventDate)}</Text>
@@ -315,7 +315,7 @@ export default function JournalScreen() {
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEventType(et); }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.typeButtonText, { color: selected ? '#F7F7F2' : color }]}>
+                  <Text style={[styles.typeButtonText, { color: selected ? '#F7FAFE' : color }]}>
                     {t(TYPE_LABELS[et])}
                   </Text>
                 </TouchableOpacity>
@@ -355,7 +355,7 @@ export default function JournalScreen() {
                   value={cortisoneDose}
                   onChangeText={setCortisoneDose}
                   placeholder="e.g. 1000"
-                  placeholderTextColor="#9AA3B2"
+                  placeholderTextColor="#617285"
                   keyboardType="numeric"
                 />
               </View>
@@ -382,7 +382,7 @@ export default function JournalScreen() {
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeverity(s); }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.severityText, { color: selected ? '#F7F7F2' : '#5A6478' }]}>
+                  <Text style={[styles.severityText, { color: selected ? '#F7FAFE' : '#495D72' }]}>
                     {s}
                   </Text>
                 </TouchableOpacity>
@@ -437,7 +437,7 @@ export default function JournalScreen() {
               value={eventNotes}
               onChangeText={setEventNotes}
               placeholder={eventPlaceholder}
-              placeholderTextColor="#9AA3B2"
+              placeholderTextColor="#617285"
               multiline
             />
           </View>
@@ -486,7 +486,7 @@ export default function JournalScreen() {
         ref={noteRef}
         style={styles.noteInput}
         placeholder={t('howAreYouToday')}
-        placeholderTextColor="#9AA3B2"
+        placeholderTextColor="#617285"
         multiline
         value={note}
         onChangeText={setNote}
@@ -620,7 +620,7 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F7F2',
+    backgroundColor: '#F7FAFE',
   },
   content: {
     paddingTop: 60,
@@ -629,17 +629,17 @@ const styles = StyleSheet.create({
   },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   heading: {
-    color: '#14213D',
+    color: '#112438',
     fontSize: 22,
     fontWeight: '700',
   },
-  logEventBtn: { backgroundColor: '#ECEDE6', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#C0392B' },
+  logEventBtn: { backgroundColor: '#FFFFFF', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: '#C0392B' },
   logEventBtnText: { color: '#C0392B', fontSize: 14, fontWeight: '600' },
   logEventBtnActive: { backgroundColor: '#C0392B', borderColor: '#C0392B' },
-  logEventBtnTextActive: { color: '#F7F7F2' },
+  logEventBtnTextActive: { color: '#F7FAFE' },
   logEventPanel: { marginBottom: 20 },
   fieldLabel: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
@@ -651,13 +651,13 @@ const styles = StyleSheet.create({
     color: '#C0392B',
   },
   sectionCard: {
-    backgroundColor: '#ECEDE6',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#DBDDD3',
-    shadowColor: '#14213D',
+    borderColor: '#D8E1EA',
+    shadowColor: '#112438',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -683,10 +683,10 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     paddingHorizontal: 0,
     paddingVertical: 12,
-    color: '#14213D',
+    color: '#112438',
     fontSize: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#CFD2C6',
+    borderBottomColor: '#8393A3',
     marginBottom: 2,
   },
   inputLast: {
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   datePreview: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 13,
     marginBottom: 8,
   },
@@ -720,7 +720,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logButton: {
-    backgroundColor: '#1B58B8',
+    backgroundColor: '#1162B9',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -731,17 +731,17 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   logButtonText: {
-    color: '#F7F7F2',
+    color: '#F7FAFE',
     fontSize: 16,
     fontWeight: '700',
   },
   dateSubtitle: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 14,
     marginBottom: 24,
   },
   sectionTitle: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.1,
@@ -763,12 +763,12 @@ const styles = StyleSheet.create({
     minWidth: 58,
   },
   moodUnselected: {
-    backgroundColor: '#ECEDE6',
+    backgroundColor: '#FFFFFF',
   },
   moodSelected: {
-    backgroundColor: '#E7EEFB',
+    backgroundColor: '#DEEFFF',
     borderWidth: 2,
-    borderColor: '#1B58B8',
+    borderColor: '#1162B9',
   },
   moodEmoji: {
     fontSize: 24,
@@ -779,15 +779,15 @@ const styles = StyleSheet.create({
   },
   moodLabel: {
     fontSize: 10,
-    color: '#5A6478',
+    color: '#495D72',
     fontWeight: '600',
   },
   moodLabelSelected: {
-    color: '#1B58B8',
+    color: '#1162B9',
   },
   noteInput: {
-    backgroundColor: '#ECEDE6',
-    color: '#14213D',
+    backgroundColor: '#FFFFFF',
+    color: '#112438',
     borderRadius: 14,
     padding: 16,
     minHeight: 120,
@@ -796,10 +796,10 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#CFD2C6',
+    borderColor: '#8393A3',
   },
   saveButton: {
-    backgroundColor: '#1B58B8',
+    backgroundColor: '#1162B9',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -809,21 +809,21 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   saveButtonText: {
-    color: '#F7F7F2',
+    color: '#F7FAFE',
     fontSize: 16,
     fontWeight: '700',
   },
   saveButtonTextSaved: {
-    color: '#F7F7F2',
+    color: '#F7FAFE',
   },
   emptyText: {
-    color: '#9AA3B2',
+    color: '#617285',
     fontSize: 15,
     textAlign: 'center',
     marginTop: 20,
   },
   entryCard: {
-    backgroundColor: '#ECEDE6',
+    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
     marginBottom: 8,
@@ -837,14 +837,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   entryDate: {
-    color: '#14213D',
+    color: '#112438',
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
   },
   entryDateToday: { fontWeight: '800' },
   entryTime: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 13,
     fontWeight: '600',
     marginRight: 10,
@@ -876,10 +876,10 @@ const styles = StyleSheet.create({
   },
   entryRemoveBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
   entryCloseBtn: {
-    backgroundColor: '#ECEDE6',
-    borderColor: '#D8D9D0',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8E1EA',
   },
-  entryCloseBtnText: { color: '#5A6478', fontSize: 13, fontWeight: '700' },
+  entryCloseBtnText: { color: '#495D72', fontSize: 13, fontWeight: '700' },
   complianceBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   entryNote: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 15,
     marginTop: 10,
     lineHeight: 22,
@@ -908,13 +908,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ECEDE6',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   weekDayEmpty: {
     borderWidth: 1,
-    borderColor: '#CFD2C6',
+    borderColor: '#8393A3',
   },
   weekDayEmoji: {
     fontSize: 16,
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   weekDayLabel: {
-    color: '#9AA3B2',
+    color: '#617285',
     fontSize: 10,
     fontWeight: '600',
   },
@@ -934,18 +934,18 @@ const styles = StyleSheet.create({
   },
   painSubtypeButton: {
     borderWidth: 1,
-    borderColor: '#CFD2C6',
+    borderColor: '#8393A3',
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: '#ECEDE6',
+    backgroundColor: '#FFFFFF',
   },
   painSubtypeSelected: {
     borderColor: '#9B7FC0',
     backgroundColor: '#F0EBF7',
   },
   painSubtypeText: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -954,10 +954,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#CFD2C6', paddingVertical: 12, alignItems: 'center' },
-  yesNoBtnActive: { borderColor: '#2F8F5B', backgroundColor: '#EFF7EF' },
-  yesNoBtnText: { color: '#5A6478', fontSize: 13, fontWeight: '600' },
-  yesNoBtnTextActive: { color: '#2F8F5B' },
+  yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#8393A3', paddingVertical: 12, alignItems: 'center' },
+  yesNoBtnActive: { borderColor: '#227D4C', backgroundColor: '#EFF7EF' },
+  yesNoBtnText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
+  yesNoBtnTextActive: { color: '#227D4C' },
   feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#F2B233' },
   feverWarningText: { color: '#F2B233', fontSize: 12, lineHeight: 18 },
 });

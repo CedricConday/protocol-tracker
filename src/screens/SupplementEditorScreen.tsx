@@ -208,7 +208,7 @@ export default function SupplementEditorScreen() {
           accessibilityRole="button"
           accessibilityLabel={t('supAddA11y')}
         >
-          <Ionicons name="add" size={22} color="#F7F7F2" />
+          <Ionicons name="add" size={22} color="#F7FAFE" />
         </TouchableOpacity>
       </View>
 

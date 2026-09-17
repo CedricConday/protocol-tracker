@@ -283,18 +283,18 @@ export default function FoodScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F7F2' },
+  container: { flex: 1, backgroundColor: '#F7FAFE' },
   content: { padding: 20, paddingBottom: 40 },
-  loading: { flex: 1, backgroundColor: '#F7F7F2', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: '#F7FAFE', alignItems: 'center', justifyContent: 'center' },
 
-  card: { backgroundColor: '#ECEDE6', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#DBDDD3' },
-  cardLabel: { color: '#5A6478', fontSize: 14, fontWeight: '600' },
-  cardValue: { color: '#14213D', fontSize: 34, fontWeight: '800', marginTop: 4 },
-  cardValueUnset: { color: '#9AA3B2', fontSize: 26 },
-  cardField: { color: '#14213D', fontSize: 34, fontWeight: '800', marginTop: 4, borderBottomWidth: 2, borderBottomColor: '#A3623C', padding: 0 },
-  cardSub: { color: '#5A6478', fontSize: 13, lineHeight: 19, marginTop: 8 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#D8E1EA' },
+  cardLabel: { color: '#495D72', fontSize: 14, fontWeight: '600' },
+  cardValue: { color: '#112438', fontSize: 34, fontWeight: '800', marginTop: 4 },
+  cardValueUnset: { color: '#617285', fontSize: 26 },
+  cardField: { color: '#112438', fontSize: 34, fontWeight: '800', marginTop: 4, borderBottomWidth: 2, borderBottomColor: '#A3623C', padding: 0 },
+  cardSub: { color: '#495D72', fontSize: 13, lineHeight: 19, marginTop: 8 },
   nowBtn: { marginTop: 14, height: 44, borderRadius: 11, backgroundColor: '#A3623C', alignItems: 'center', justifyContent: 'center' },
-  nowBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '700' },
+  nowBtnText: { color: '#F7FAFE', fontSize: 14, fontWeight: '700' },
 
   failure: { marginTop: 14, borderRadius: 11, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6', padding: 12 },
   failureTitle: { color: '#B3453E', fontSize: 13, fontWeight: '700', marginBottom: 4 },
@@ -302,21 +302,21 @@ const styles = StyleSheet.create({
 
   section: { marginTop: 22 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: '#14213D', fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  sectionCount: { color: '#9AA3B2', fontSize: 13, fontWeight: '600', marginBottom: 10 },
-  note: { color: '#9AA3B2', fontSize: 11, lineHeight: 17, marginTop: 10 },
-  empty: { color: '#9AA3B2', fontSize: 13, paddingVertical: 8 },
+  sectionTitle: { color: '#112438', fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  sectionCount: { color: '#617285', fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  note: { color: '#617285', fontSize: 11, lineHeight: 17, marginTop: 10 },
+  empty: { color: '#617285', fontSize: 13, paddingVertical: 8 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  mealChip: { paddingHorizontal: 14, height: 42, borderRadius: 11, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
-  mealChipText: { color: '#5A6478', fontSize: 13, fontWeight: '600' },
+  mealChip: { paddingHorizontal: 14, height: 42, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
+  mealChipText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
 
-  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E4E5DD' },
-  mealTime: { color: '#14213D', fontSize: 15, fontWeight: '700', width: 62 },
-  mealType: { color: '#5A6478', fontSize: 14 },
+  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
+  mealTime: { color: '#112438', fontSize: 15, fontWeight: '700', width: 62 },
+  mealType: { color: '#495D72', fontSize: 14 },
 
-  weekRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#E4E5DD' },
-  weekDay: { color: '#5A6478', fontSize: 13, fontWeight: '600' },
-  weekTime: { color: '#14213D', fontSize: 14, fontWeight: '600' },
+  weekRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
+  weekDay: { color: '#495D72', fontSize: 13, fontWeight: '600' },
+  weekTime: { color: '#112438', fontSize: 14, fontWeight: '600' },
   weekTimeUnset: { color: '#C2C7CF', fontWeight: '400' },
 });

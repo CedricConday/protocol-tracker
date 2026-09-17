@@ -4,11 +4,11 @@ import { ScheduledDose } from '../types';
 import { t, useLanguage } from '../i18n';
 
 const statusBorderColors: Record<string, string> = {
-  taken:    '#2F8F5B',
-  due:      '#F2603C',
+  taken:    '#227D4C',
+  due:      '#E7603F',
   upcoming: '#2AA6B8',
   missed:   '#C0392B',
-  skipped:  '#9AA3B2',
+  skipped:  '#617285',
 };
 
 interface Props {
@@ -56,11 +56,11 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
   const timeLabel = `${hour12}:${minStr}`;
 
   const timeColor =
-    dose.status === 'due'   ? '#F2603C' :
-    dose.status === 'taken' ? '#9AA3B2' :
-                              '#5A6478';
+    dose.status === 'due'   ? '#E7603F' :
+    dose.status === 'taken' ? '#617285' :
+                              '#495D72';
 
-  const cardBg = dose.status === 'due' ? '#E7EEFB' : '#ECEDE6';
+  const cardBg = dose.status === 'due' ? '#DEEFFF' : '#FFFFFF';
 
   let rightEl: React.ReactElement | null = null;
   if (dose.status === 'taken') {
@@ -87,7 +87,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
       {/* Left: time column */}
       <View style={styles.timeCol}>
         <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
-        <Text style={[styles.timeAmPm, { color: timeColor === '#5A6478' ? '#9AA3B2' : timeColor }]}>
+        <Text style={[styles.timeAmPm, { color: timeColor === '#495D72' ? '#617285' : timeColor }]}>
           {ampm}
         </Text>
       </View>
@@ -186,19 +186,19 @@ const styles = StyleSheet.create({
   separator: {
     width: 1,
     height: 36,
-    backgroundColor: '#CFD2C6',
+    backgroundColor: '#D8E1EA',
     marginHorizontal: 12,
   },
   center: {
     flex: 1,
   },
   name: {
-    color: '#14213D',
+    color: '#112438',
     fontSize: 15,
     fontWeight: '600',
   },
   meta: {
-    color: '#5A6478',
+    color: '#495D72',
     fontSize: 13,
     marginTop: 2,
   },
@@ -213,12 +213,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rightTaken: {
-    color: '#2F8F5B',
+    color: '#227D4C',
     fontSize: 16,
     fontWeight: '700',
   },
   rightDue: {
-    color: '#F2603C',
+    color: '#E7603F',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -228,12 +228,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   rightSkipped: {
-    color: '#9AA3B2',
+    color: '#617285',
     fontSize: 14,
     fontWeight: '700',
   },
   rightUpcoming: {
-    color: '#9AA3B2',
+    color: '#617285',
     fontSize: 18,
   },
 });

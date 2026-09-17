@@ -25,8 +25,8 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Stat
   }
 }
 const s = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#FDFCFB' },
-  title: { fontSize: 20, fontWeight: '700', color: '#14213D', marginBottom: 8 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#FFFFFF' },
+  title: { fontSize: 20, fontWeight: '700', color: '#112438', marginBottom: 8 },
   sub: { fontSize: 15, color: '#8A7A72', marginBottom: 32 },
   btn: { backgroundColor: '#22c55e', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
   btnText: { color: '#fff', fontWeight: '700' },
