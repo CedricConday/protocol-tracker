@@ -85,7 +85,7 @@ export default function JournalScreen() {
   const {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
     loadedDietaryNote, loadedId, loadedFor,
-    semanticSummary, weekMoods, loadData,
+    weekMoods, loadData,
   } = useJournalScreen();
   // `useToday()` rather than `todayStr()`: both answer the same on the render
   // that reads them, but only the hook re-renders when the local day rolls, so
@@ -93,7 +93,6 @@ export default function JournalScreen() {
   const today = useToday();
 
   const [note, setNote] = useState('');
-  const [dietaryNote, setDietaryNote] = useState('');
   // Mood and note are stored together with the date they belong to. Keeping the
   // date in the value is what makes this race-free: a clock roll or a reload can
   // change `today` at any point, and a plain `selectedMood` string left the
@@ -175,7 +174,7 @@ export default function JournalScreen() {
     acc[e.date] = (acc[e.date] ?? 0) + 1;
     return acc;
   }, {});
-  const todayEntryCount = perDayCounts[today] ?? 0;
+  const todaysEntries = pastEntries.filter((e) => e.date === today);
 
   /**
    * Remove one entry.
@@ -201,7 +200,9 @@ export default function JournalScreen() {
       date,
       mood: selectedMood,
       note,
-      dietary_note: dietaryNote,
+      // The dietary box was removed on 2026-09-17. The column stays, and old
+      // rows keep what was written in it; new entries simply do not set it.
+      dietary_note: '',
       compliance_pct: summary.totalDoses > 0
         ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
         : 0,
@@ -213,11 +214,10 @@ export default function JournalScreen() {
     // the misreading this whole change exists to remove.
     setMoodEntry(null);
     setNote('');
-    setDietaryNote('');
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     await loadData();
-  }, [selectedMood, note, dietaryNote, summary, loadData]);
+  }, [selectedMood, note, summary, loadData]);
 
   const handleMoodSelect = (mood: string) => {
     // Held in state only. Nothing reaches the database until Save.
@@ -455,26 +455,6 @@ export default function JournalScreen() {
         </View>
       ) : null}
 
-      {/* Semantic memory summary */}
-      <Text style={styles.semanticSummary}>{semanticSummary}</Text>
-
-      {/* Mood this week */}
-      <Text style={styles.sectionTitle}>{t('thisWeek')}</Text>
-      <View style={styles.weekRow}>
-        {weekMoods.map((w, i) => {
-          const dotColor = w.compliancePct >= 80 ? '#22c55e' : w.compliancePct >= 50 ? '#eab308' : '#ef4444';
-          return (
-            <View key={i} style={styles.weekDayCol}>
-              <View style={[styles.weekDayCircle, !w.emoji ? styles.weekDayEmpty : null]}>
-                <Text style={styles.weekDayEmoji}>{w.emoji ?? '—'}</Text>
-              </View>
-              <View style={[styles.weekDot, { backgroundColor: dotColor }]} />
-              <Text style={styles.weekDayLabel}>{w.day}</Text>
-            </View>
-          );
-        })}
-      </View>
-
       <Text style={styles.sectionTitle}>{t('howAreYou')}</Text>
       <View style={styles.moodRow}>
         {MOODS.map((m) => {
@@ -512,18 +492,6 @@ export default function JournalScreen() {
         onChangeText={setNote}
       />
 
-      <TextInput
-        style={styles.dietaryInput}
-        placeholder={t('dairyPrompt')}
-        placeholderTextColor="#9AA3B2"
-        value={dietaryNote}
-        onChangeText={setDietaryNote}
-      />
-
-      <Text style={styles.complianceLine}>
-        {t('jrnComplianceLine', { taken: summary.takenDoses, total: summary.totalDoses })}
-      </Text>
-
       <TouchableOpacity
         style={[
           styles.saveButton,
@@ -543,23 +511,17 @@ export default function JournalScreen() {
         </Text>
       </TouchableOpacity>
 
-      {/* The day's other entries are not lost behind the editor: the editor
-          holds the most recent one, and the rest are in the list below. */}
-      {todayEntryCount > 1 ? (
-        <Text style={styles.entryCountLine}>
-          {t('jrnEntriesToday', { count: todayEntryCount })}
-        </Text>
-      ) : null}
-
-      <Text style={styles.sectionTitle}>{t('recentEntries')}</Text>
-      {pastEntries.length === 0 ? (
+      {/* Today's, not "recent": the Journal is the day you are in. Earlier
+          days are read in History, where opening one is a deliberate act. */}
+      <Text style={styles.sectionTitle}>{t('jrnTodaysEntries')}</Text>
+      {todaysEntries.length === 0 ? (
         <EmptyState
           icon="📓"
           title={t('noJournalYet')}
           subtitle={t('journalEmptySub')}
         />
       ) : (
-        pastEntries.map((entry) => {
+        todaysEntries.map((entry) => {
           const isExpanded = expandedId === entry.id;
           return (
             <TouchableOpacity
@@ -625,6 +587,25 @@ export default function JournalScreen() {
           );
         })
       )}
+
+      {/* Moved below the entries on 2026-09-17: the week is a look back,
+          and the top of the Journal is for the day you are writing. */}
+      <Text style={styles.sectionTitle}>{t('thisWeek')}</Text>
+      <View style={styles.weekRow}>
+        {weekMoods.map((w, i) => {
+          const dotColor = w.compliancePct >= 80 ? '#22c55e' : w.compliancePct >= 50 ? '#eab308' : '#ef4444';
+          return (
+            <View key={i} style={styles.weekDayCol}>
+              <View style={[styles.weekDayCircle, !w.emoji ? styles.weekDayEmpty : null]}>
+                <Text style={styles.weekDayEmoji}>{w.emoji ?? '—'}</Text>
+              </View>
+              <View style={[styles.weekDot, { backgroundColor: dotColor }]} />
+              <Text style={styles.weekDayLabel}>{w.day}</Text>
+            </View>
+          );
+        })}
+      </View>
+
 
       {/* The event HISTORY list was removed 2026-09-17 at Cedric's request:
           the Journal is a daily surface, and a standing list of relapses and
@@ -817,18 +798,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CFD2C6',
   },
-  entryCountLine: {
-    color: '#5A6478',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  complianceLine: {
-    color: '#5A6478',
-    fontSize: 13,
-    fontStyle: 'italic',
-    marginBottom: 16,
-  },
   saveButton: {
     backgroundColor: '#1B58B8',
     borderRadius: 10,
@@ -925,26 +894,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 10,
     lineHeight: 22,
-  },
-  dietaryInput: {
-    backgroundColor: '#ECEDE6',
-    color: '#14213D',
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#CFD2C6',
-  },
-  semanticSummary: {
-    color: '#5A6478',
-    fontSize: 14,
-    fontStyle: 'italic',
-    lineHeight: 22,
-    marginBottom: 20,
-    backgroundColor: '#ECEDE6',
-    borderRadius: 14,
-    padding: 16,
   },
   weekRow: {
     flexDirection: 'row',

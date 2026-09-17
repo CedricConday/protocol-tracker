@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getDailyJournalEntries, getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, localDateStr } from '../db/queries';
+import { getDailyJournalEntries, getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, localDateStr } from '../db/queries';
 import type { JournalEntry, RelapseEvent } from '../types';
 
 import { weekdaysShort } from '../i18n/dates';
@@ -38,7 +38,6 @@ export function useJournalScreen() {
   const [loaded, setLoaded] = useState<{ date: string; id: number | null; mood: string | null; note: string; dietaryNote: string }>(
     { date: '', id: null, mood: null, note: '', dietaryNote: '' },
   );
-  const [semanticSummary, setSemanticSummary] = useState('');
   const [weekMoods, setWeekMoods] = useState<{ day: string; emoji: string | null; compliancePct: number }[]>([]);
   const [events, setEvents] = useState<RelapseEvent[]>([]);
 
@@ -74,9 +73,6 @@ export function useJournalScreen() {
 
     const recentEvents = await getRelapseEvents(10);
     setEvents(recentEvents);
-
-    const summary = await getSemanticJournalSummary();
-    setSemanticSummary(summary);
 
     // One row per day, from the database. Picking the first match out of
     // `all` worked only while a day could hold a single entry — twelve rows can
@@ -120,6 +116,6 @@ export function useJournalScreen() {
   return {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
     loadedDietaryNote, loadedId, loadedFor,
-    semanticSummary, weekMoods, events, loadData,
+    weekMoods, events, loadData,
   };
 }
