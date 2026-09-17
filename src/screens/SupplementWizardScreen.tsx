@@ -218,6 +218,7 @@ export default function SupplementWizardScreen() {
                       onChange={setGap}
                       t0={t0}
                       baseOffset={baseOffset}
+                      zeroLabel={last ? undefined : t('durAtStart')}
                     />
                   )}
                 />
@@ -281,6 +282,7 @@ export default function SupplementWizardScreen() {
                     onChange={(minutes) => changeGap(link, minutes)}
                     t0={t0}
                     baseOffset={link.offset_minutes - link.gapFromPrev}
+                    zeroLabel={link.prevName ? undefined : t('durAtStart')}
                   />
                 </View>
               ))}

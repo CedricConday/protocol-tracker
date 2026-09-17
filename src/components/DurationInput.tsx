@@ -30,9 +30,16 @@ type Props = {
   /** The offset of the thing before this one, so the preview shows a real clock time. */
   baseOffset?: number;
   label?: string;
+  /**
+   * What a gap of nothing is called here. "Same time" is right when this is
+   * measured against another supplement and wrong when it is measured against
+   * the start of the day, where the answer is "at start" - there is nothing to
+   * be at the same time as.
+   */
+  zeroLabel?: string;
 };
 
-export default function DurationInput({ value, onChange, t0 = null, baseOffset = 0, label }: Props) {
+export default function DurationInput({ value, onChange, t0 = null, baseOffset = 0, label, zeroLabel }: Props) {
   // Custom opens by itself for a value the chips cannot express, so an existing
   // supplement at 47 minutes shows 47 rather than silently reading as a preset.
   const [custom, setCustom] = useState(() => !PRESETS.includes(value as (typeof PRESETS)[number]));
@@ -50,7 +57,7 @@ export default function DurationInput({ value, onChange, t0 = null, baseOffset =
       <View style={styles.chipRow}>
         {PRESETS.map((p) => {
           const active = !custom && value === p;
-          const text = p === 0 ? t('timingPresetSame') : formatDuration(p);
+          const text = p === 0 ? (zeroLabel ?? t('timingPresetSame')) : formatDuration(p);
           return (
             <TouchableOpacity
               key={p}

@@ -105,6 +105,7 @@ export default function SupplementEditorScreen() {
       value={parseInt(form.offset_minutes, 10) || 0}
       onChange={(minutes) => onChange({ ...form, offset_minutes: String(minutes) })}
       t0={t0}
+      zeroLabel={t('durAtStart')}
     />
   );
 
