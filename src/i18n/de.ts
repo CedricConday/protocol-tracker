@@ -521,6 +521,7 @@ export const de: Record<string, string> = {
   mealDinner: 'Abendessen',
   mealSnack: 'Snack',
   foodLogMealA11y: '{meal} zur aktuellen Zeit erfassen',
+  foodRemoveA11y: 'Das um {time} erfasste {meal} entfernen',
   foodFirstMealA11y: 'Erste Mahlzeit heute um {time}. Zum Ändern tippen.',
   foodFirstMealUnsetA11y: 'Zeit der ersten Mahlzeit nicht gesetzt. Zum Setzen tippen.',
   evRelapse: 'Schub',

@@ -5,7 +5,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import {
-  getFirstMealTime, getTodayMeals, localDateStr, logMeal, setFirstMealTime, todayStr,
+  clearFirstMealTime, deleteMeal, getFirstMealTime, getTodayMeals, localDateStr, logMeal,
+  setFirstMealTime, todayStr,
 } from '../db/queries';
 
 import { t, useLanguage } from '../i18n';
@@ -157,6 +158,34 @@ export default function FoodScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  /**
+   * Remove a meal, and keep the first-meal anchor honest.
+   *
+   * The anchor is a separate value (`daily_anchors.first_meal_time`), set either
+   * by the first meal of the day or by hand. So it is only this function's
+   * business when it matches the meal being deleted: then the record behind it
+   * is going, and the anchor moves to the earliest meal still logged, or back to
+   * unset when none are. A time the user typed themselves is left exactly where
+   * it is — deleting a snack should not rewrite the morning.
+   */
+  const handleRemoveMeal = async (meal: { id: number; time: string }) => {
+    const removed = await deleteMeal(meal.id);
+    if (!removed) {
+      // The row went while the screen was open — reload rather than claim
+      // something happened.
+      await load();
+      return;
+    }
+    if (firstMeal === meal.time) {
+      const day = todayStr();
+      const left = await getTodayMeals(day);
+      if (left.length > 0) await setFirstMealTime(day, left[0].time);
+      else await clearFirstMealTime(day);
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await load();
+  };
+
   if (loading) {
     return (
       <View style={styles.loading}>
@@ -235,7 +264,9 @@ export default function FoodScreen() {
               accessibilityRole="button"
               accessibilityLabel={t('foodLogMealA11y', { meal: t(meal.labelKey) })}
             >
-              <Text style={styles.mealChipText}>{t(meal.labelKey)}</Text>
+              <Text style={styles.mealChipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {t(meal.labelKey)}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -253,17 +284,24 @@ export default function FoodScreen() {
         {meals.length === 0 ? (
           <Text style={styles.empty}>{t('trkNothingToday')}</Text>
         ) : (
-          meals.map((meal) => (
-            <View key={meal.id} style={styles.mealRow}>
-              <Text style={styles.mealTime}>{meal.time}</Text>
-              <Text style={styles.mealType}>
-                {(() => {
-                  const known = MEAL_TYPES.find((m) => m.id === meal.meal_type);
-                  return known ? t(known.labelKey) : meal.meal_type;
-                })()}
-              </Text>
-            </View>
-          ))
+          meals.map((meal) => {
+            const known = MEAL_TYPES.find((m) => m.id === meal.meal_type);
+            const label = known ? t(known.labelKey) : meal.meal_type;
+            return (
+              <View key={meal.id} style={styles.mealRow}>
+                <Text style={styles.mealTime}>{meal.time}</Text>
+                <Text style={styles.mealType}>{label}</Text>
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => handleRemoveMeal(meal)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('foodRemoveA11y', { meal: label, time: meal.time })}
+                >
+                  <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })
         )}
       </View>
 
@@ -307,13 +345,18 @@ const styles = StyleSheet.create({
   note: { color: '#617285', fontSize: 11, lineHeight: 17, marginTop: 10 },
   empty: { color: '#617285', fontSize: 13, paddingVertical: 8 },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  mealChip: { paddingHorizontal: 14, height: 42, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
-  mealChipText: { color: '#495D72', fontSize: 13, fontWeight: '600' },
+  // Four buttons, one row, equal columns. They used to be content-width chips
+  // that wrapped, so the row read as three-and-one on a narrow phone and the
+  // German labels (Mittagessen, Abendessen) pushed Snack onto its own line.
+  chipRow: { flexDirection: 'row', gap: 8 },
+  mealChip: { flex: 1, paddingHorizontal: 2, height: 42, borderRadius: 11, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#8393A3', alignItems: 'center', justifyContent: 'center' },
+  mealChipText: { color: '#495D72', fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
   mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
   mealTime: { color: '#112438', fontSize: 15, fontWeight: '700', width: 62 },
-  mealType: { color: '#495D72', fontSize: 14 },
+  mealType: { color: '#495D72', fontSize: 14, flex: 1 },
+  removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
+  removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
 
   weekRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#D8E1EA' },
   weekDay: { color: '#495D72', fontSize: 13, fontWeight: '600' },

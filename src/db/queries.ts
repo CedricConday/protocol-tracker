@@ -1532,6 +1532,33 @@ export async function getTodayMeals(date: string): Promise<{ id: number; meal_ty
   );
 }
 
+/**
+ * Remove one logged meal. Returns false when the row is already gone, so the
+ * caller can reload instead of reporting a deletion that did not happen — the
+ * same contract as `deleteExerciseLog` and `deleteSunEntry`.
+ */
+export async function deleteMeal(mealId: number): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM meal_log WHERE id = ?', [mealId]);
+  if (!row) return false;
+  await db.runAsync('DELETE FROM meal_log WHERE id = ?', [mealId]);
+  return true;
+}
+
+/**
+ * Put the day's first-meal time back to unset.
+ *
+ * Needed because `setFirstMealTime` only ever writes a string: deleting the one
+ * meal that set the anchor would otherwise leave the screen showing a time for
+ * an event with no record behind it. The caller decides whether the anchor was
+ * the deleted meal's — a time the user typed themselves is not this function's
+ * business.
+ */
+export async function clearFirstMealTime(date: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE daily_anchors SET first_meal_time = NULL WHERE date = ?', [date]);
+}
+
 // ── Supplement Form ───────────────────────────────────────────────────────────
 
 export async function getSupplementForms(): Promise<{ id: string; name: string; form: string }[]> {

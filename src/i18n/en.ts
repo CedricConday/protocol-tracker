@@ -521,6 +521,7 @@ export const en: Record<string, string> = {
   mealDinner: 'Dinner',
   mealSnack: 'Snack',
   foodLogMealA11y: 'Log {meal} at the current time',
+  foodRemoveA11y: 'Remove the {meal} logged at {time}',
   foodFirstMealA11y: 'First meal today at {time}. Tap to change.',
   foodFirstMealUnsetA11y: 'First meal time not set. Tap to set it.',
   evRelapse: 'Relapse',
