@@ -496,6 +496,63 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    /**
+     * journal_entries.date loses its UNIQUE constraint.
+     *
+     * It is a journal. One row per calendar day meant the morning's entry was
+     * the evening's entry: the editor wrote through `ON CONFLICT(date) DO
+     * UPDATE`, so writing again after dinner replaced what was written at
+     * breakfast, silently and with no way back. Reported as "let them journal".
+     *
+     * SQLite cannot drop a column constraint in place — the UNIQUE creates an
+     * implicit index that only exists as part of the table definition — so the
+     * table is rebuilt and copied. `id` values are carried over unchanged
+     * because they are what the screen binds its editor to.
+     *
+     * Guarded on the unique index actually being present rather than on the
+     * version number, so a half-applied run cannot rebuild twice or lose rows.
+     */
+    version: 17,
+    up: async (db) => {
+      const indexes = await db.getAllAsync<{ name: string; unique: number; origin: string }>(
+        `PRAGMA index_list(journal_entries)`
+      );
+      const hasUniqueDate = indexes.some((i) => i.unique === 1);
+      if (!hasUniqueDate) return;
+
+      // dietary_note is guaranteed by v9, but a device whose chain stalled
+      // there would otherwise lose the column in the copy.
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(journal_entries)`);
+      if (!cols.some((c) => c.name === 'dietary_note')) {
+        await db.execAsync(`ALTER TABLE journal_entries ADD COLUMN dietary_note TEXT NOT NULL DEFAULT ''`);
+      }
+
+      await db.execAsync(`
+        CREATE TABLE journal_entries_rebuilt (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          mood TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          dietary_note TEXT NOT NULL DEFAULT '',
+          compliance_pct INTEGER NOT NULL DEFAULT 0,
+          doses_taken INTEGER NOT NULL DEFAULT 0,
+          doses_total INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        INSERT INTO journal_entries_rebuilt
+          (id, date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total, created_at, updated_at)
+        SELECT id, date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total, created_at, updated_at
+        FROM journal_entries;
+
+        DROP TABLE journal_entries;
+        ALTER TABLE journal_entries_rebuilt RENAME TO journal_entries;
+        CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);
+      `);
+    },
+  },
 ];
 
 async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {

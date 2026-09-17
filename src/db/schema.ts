@@ -129,7 +129,9 @@ export async function initDb(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS journal_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      date TEXT NOT NULL UNIQUE,
+      -- Deliberately NOT UNIQUE: a day holds as many entries as the patient
+      -- writes. Dropped from existing installs by migration 17.
+      date TEXT NOT NULL,
       mood TEXT NOT NULL,
       note TEXT NOT NULL DEFAULT '',
       compliance_pct INTEGER NOT NULL DEFAULT 0,

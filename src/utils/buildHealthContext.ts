@@ -29,8 +29,12 @@ export async function buildHealthContext(): Promise<string> {
       [since30, today]
     );
 
+    // Fourteen DAYS, not fourteen rows: since a day can hold several entries,
+    // `LIMIT 14` could return a single week — or a single busy day — of a
+    // context block whose other windows are all measured in days.
     const journals = await db.getAllAsync<{ date: string; mood: string; note: string }>(
-      "SELECT date, mood, note FROM journal_entries ORDER BY date DESC LIMIT 14"
+      'SELECT date, mood, note FROM journal_entries WHERE date >= ? AND date <= ? ORDER BY date DESC, id DESC',
+      [daysAgo(14), today]
     );
 
     const relapses = await db.getAllAsync<{ date: string; type: string; severity: number | null }>(

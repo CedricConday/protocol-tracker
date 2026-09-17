@@ -11,8 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getDb } from '../db/schema';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, getSemanticJournalSummary, logRelapseEvent, todayStr, upsertJournalEntry, getMiscFlag, setMiscFlag } from '../db/queries';
+import { deleteJournalEntry, insertJournalEntry, logRelapseEvent, todayStr, updateJournalEntry } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t, useLanguage, locale } from '../i18n';
 import { useJournalScreen } from '../hooks';
@@ -55,6 +54,21 @@ function formatDateLabel(dateStr: string): string {
   return `${weekdaysShortSundayFirst()[d.getDay()]} ${shortDate(d)}`;
 }
 
+/**
+ * The clock time an entry was written, from `created_at`.
+ *
+ * SQLite's `datetime('now')` writes UTC with no zone marker, so it is stamped
+ * with one here before parsing — `new Date('2026-09-17 19:40:02')` is read as
+ * LOCAL by some engines and as invalid by others, and neither is the stored
+ * instant. An unparseable value gives an empty string rather than "Invalid Date"
+ * in the middle of the list.
+ */
+function formatEntryTime(createdAt: string): string {
+  const parsed = new Date(`${createdAt.replace(' ', 'T')}Z`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+}
+
 function formatEventDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
@@ -70,6 +84,7 @@ export default function JournalScreen() {
   useLanguage(); // re-render this screen when the language changes
   const {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
+    loadedDietaryNote, loadedId, loadedFor,
     semanticSummary, weekMoods, events, loadData,
   } = useJournalScreen();
   // `useToday()` rather than `todayStr()`: both answer the same on the render
@@ -127,45 +142,101 @@ export default function JournalScreen() {
 
   const selectedMood = moodEntry && moodEntry.date === today ? moodEntry.mood : null;
 
-  // Seed the form from the stored entry for THIS date only, and never on top of
-  // a value already held for it. handleSave ends with loadData(), so without
-  // this the freshly-written row was pushed straight back through here; since
-  // the blur-autosave writes first, the value coming back was the stale mood and
-  // it replaced the tap the user had just made. That is why a 60-day run stored
-  // the same mood on every single day.
-  useEffect(() => {
-    if (moodEntry?.date === today) return;
-    if (loadedMood !== null) {
-      setMoodEntry({ date: today, mood: loadedMood });
-      setNote(existingNote);
-    }
-  }, [loadedMood, existingNote, today, moodEntry]);
-
-  // When the calendar day rolls over and the new day has no stored entry yet,
-  // clear the text boxes. Without this, yesterday's note stayed in the field and
-  // was saved onto today's entry.
-  const noteDate = useRef(today);
-  useEffect(() => {
-    if (noteDate.current === today) return;
-    noteDate.current = today;
-    if (loadedMood === null) {
-      setNote('');
-      setDietaryNote('');
-    }
-  }, [today, loadedMood]);
+  /**
+   * The row the editor is writing to, and the day that row belongs to.
+   *
+   * A day can hold several entries (schema v17), so "save" has to mean a
+   * particular one. `id: null` is a composition that has not been written yet —
+   * the day's first entry, or a second one started with "New entry".
+   *
+   * It is also the seeding guard. The form is filled from the stored entry for
+   * THIS date once, and never on top of a value already held for it: every
+   * write ends with `loadData()`, so without the guard the freshly-loaded row
+   * was pushed straight back through here, and since the blur-autosave writes
+   * first, what came back was the stale mood and it replaced the tap the user
+   * had just made. That is why a 60-day run stored the same mood every day.
+   *
+   * `bound` carrying the DATE is what makes it safe across midnight, the same
+   * shape as `moodEntry` and `eventDateDraft` for the same reason.
+   */
+  const [bound, setBound] = useState<{ date: string; id: number | null } | null>(null);
+  // The write chain below runs outside React's render, so it cannot read
+  // `bound` — a chained callback closes over the value as it was when the tap
+  // happened, which for the second write of a gesture is already stale. The ref
+  // is what the chain reads.
+  const boundIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    getDb().then(async (db) => {
-      const row = await db.getFirstAsync<{ dietary_note: string }>('SELECT dietary_note FROM journal_entries WHERE date = ?', [today]);
-      if (row?.dietary_note) setDietaryNote(row.dietary_note);
-    }).catch((e) => console.warn('[Journal] dietary_note read skipped:', e));
-  }, [today]);
+    // Not "there is nothing stored" — "the read for this day has not landed
+    // yet". Seeding on the first render would bind the editor to a new entry
+    // and then refuse to fill it when today's real entry arrived a tick later.
+    if (loadedFor !== today) return;
+    if (bound?.date === today) return;
+
+    setBound({ date: today, id: loadedId });
+    boundIdRef.current = loadedId;
+    setMoodEntry(loadedMood !== null ? { date: today, mood: loadedMood } : null);
+    setNote(existingNote);
+    setDietaryNote(loadedDietaryNote);
+  }, [loadedFor, loadedId, loadedMood, existingNote, loadedDietaryNote, today, bound]);
+
+  /**
+   * Start a second (or fifth) entry for the same day.
+   *
+   * Detaching from the row is the whole operation: `bound` stays stamped with
+   * today, so the effect above will not refill the form from the entry that was
+   * just finished.
+   */
+  const startNewEntry = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    boundIdRef.current = null;
+    setBound({ date: todayStr(), id: null });
+    setMoodEntry(null);
+    setNote('');
+    setDietaryNote('');
+    setSaved(false);
+    noteRef.current?.focus();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
   };
+
+  // How many entries each listed day holds, so a day with more than one can be
+  // shown by the clock rather than by a date repeated down the list.
+  const perDayCounts = pastEntries.reduce<Record<string, number>>((acc, e) => {
+    acc[e.date] = (acc[e.date] ?? 0) + 1;
+    return acc;
+  }, {});
+  const todayEntryCount = perDayCounts[today] ?? 0;
+
+  /**
+   * Remove one entry.
+   *
+   * A journal that can only ever accumulate cannot correct a mis-tap, and this
+   * is the same Remove every other tracker list in the app offers. If the row
+   * being removed is the one the editor is bound to, the editor detaches —
+   * otherwise the next keystroke would write to a row that no longer exists and
+   * silently do nothing.
+   */
+  const handleRemoveEntry = useCallback(async (entry: JournalEntry) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const removed = await deleteJournalEntry(entry.id);
+    if (!removed) {
+      Alert.alert(t('trkAlreadyGone'), t('jrnEntryGoneSub'));
+    }
+    if (boundIdRef.current === entry.id) {
+      boundIdRef.current = null;
+      setBound(null);
+      setMoodEntry(null);
+      setNote('');
+      setDietaryNote('');
+    }
+    setExpandedId(null);
+    await loadData();
+  }, [loadData]);
 
   // Writes are queued rather than fired straight at the database. Tapping a mood
   // while a note field has focus produces TWO writes from one gesture - blur
@@ -178,17 +249,28 @@ export default function JournalScreen() {
 
   const persist = useCallback((mood: string, { flash }: { flash: boolean }) => {
     const next = writeChain.current.then(async () => {
-      await upsertJournalEntry({
-        date: today,
+      const fields = {
         mood,
         note,
-        dietary_note: dietaryNote || undefined,
+        dietary_note: dietaryNote,
         compliance_pct: summary.totalDoses > 0
           ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
           : 0,
         doses_taken: summary.takenDoses,
         doses_total: summary.totalDoses,
-      });
+      };
+
+      // The id decides which row this is, and it is read from the ref INSIDE the
+      // chain: the first write of a gesture creates the row, and the second must
+      // update it rather than create a second one a hundred milliseconds later.
+      const boundId = boundIdRef.current;
+      if (boundId === null) {
+        const id = await insertJournalEntry({ date: today, ...fields });
+        boundIdRef.current = id;
+        setBound({ date: today, id });
+      } else {
+        await updateJournalEntry(boundId, fields);
+      }
       // Pure-tracker build: fatigue-spike detection and the micro-CBT coping
       // module were removed (see ROADMAP). Journaling stays; the app just saves.
       //
@@ -481,7 +563,23 @@ export default function JournalScreen() {
         })}
       </View>
 
-      <Text style={styles.sectionTitle}>{t('howAreYou')}</Text>
+      <View style={styles.editorHeadingRow}>
+        <Text style={styles.sectionTitle}>{t('howAreYou')}</Text>
+        {/* Only offered once there is a finished entry to start after. With
+            nothing written yet the editor IS the new entry, and a button that
+            clears an empty form would say nothing true. */}
+        {bound?.id !== null && bound?.date === today ? (
+          <TouchableOpacity
+            style={styles.newEntryBtn}
+            onPress={startNewEntry}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('jrnNewEntryA11y')}
+          >
+            <Text style={styles.newEntryBtnText}>+ {t('jrnNewEntry')}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
       <View style={styles.moodRow}>
         {MOODS.map((m) => {
           const isSelected = selectedMood === m.emoji;
@@ -546,9 +644,17 @@ export default function JournalScreen() {
           styles.saveButtonText,
           saved ? styles.saveButtonTextSaved : null,
         ]}>
-          {saved ? 'Saved ✓' : 'Save Entry'}
+          {saved ? t('jrnSaved') : bound?.id === null ? t('jrnSaveNew') : t('jrnSaveEntry')}
         </Text>
       </TouchableOpacity>
+
+      {/* The day's other entries are not lost behind the editor: the editor
+          holds the most recent one, and the rest are in the list below. */}
+      {todayEntryCount > 1 ? (
+        <Text style={styles.entryCountLine}>
+          {t('jrnEntriesToday', { count: todayEntryCount })}
+        </Text>
+      ) : null}
 
       <Text style={styles.sectionTitle}>{t('recentEntries')}</Text>
       {pastEntries.length === 0 ? (
@@ -572,8 +678,13 @@ export default function JournalScreen() {
               <View style={styles.entryTop}>
                 <Text style={styles.entryMood}>{entry.mood}</Text>
                 <Text style={[styles.entryDate, entry.date === today && styles.entryDateToday]}>
-                  {entry.date === today ? 'Today' : formatDateLabel(entry.date)}
+                  {entry.date === today ? t('today') : formatDateLabel(entry.date)}
                 </Text>
+                {/* The clock time is what tells two entries from the same day
+                    apart. It is only worth the space when there ARE two. */}
+                {perDayCounts[entry.date] > 1 ? (
+                  <Text style={styles.entryTime}>{formatEntryTime(entry.created_at)}</Text>
+                ) : null}
                 <View style={[styles.complianceBadge, { backgroundColor: complianceBadgeColor(entry.compliance_pct) + '30' }]}>
                   <Text style={[styles.complianceBadgeText, { color: complianceBadgeColor(entry.compliance_pct) }]}>
                     {entry.compliance_pct}%
@@ -582,6 +693,20 @@ export default function JournalScreen() {
               </View>
               {isExpanded && entry.note ? (
                 <Text style={styles.entryNote}>{entry.note}</Text>
+              ) : null}
+              {isExpanded ? (
+                <TouchableOpacity
+                  style={styles.entryRemoveBtn}
+                  onPress={() => handleRemoveEntry(entry)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('jrnRemoveEntryA11y', {
+                    date: entry.date === today ? t('today') : formatDateLabel(entry.date),
+                    time: formatEntryTime(entry.created_at),
+                  })}
+                >
+                  <Text style={styles.entryRemoveBtnText}>{t('remove')}</Text>
+                </TouchableOpacity>
               ) : null}
             </TouchableOpacity>
           );
@@ -807,6 +932,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CFD2C6',
   },
+  editorHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  newEntryBtn: {
+    backgroundColor: '#ECEDE6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#1B58B8',
+  },
+  newEntryBtnText: { color: '#1B58B8', fontSize: 13, fontWeight: '700' },
+  entryCountLine: {
+    color: '#5A6478',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 10,
+  },
   complianceLine: {
     color: '#5A6478',
     fontSize: 13,
@@ -858,6 +1003,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   entryDateToday: { fontWeight: '800' },
+  entryTime: {
+    color: '#5A6478',
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 10,
+  },
+  entryRemoveBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9,
+    backgroundColor: '#FBEAEA',
+    borderWidth: 1,
+    borderColor: '#E7C6C6',
+  },
+  entryRemoveBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
   complianceBadge: {
     borderRadius: 8,
     paddingHorizontal: 10,

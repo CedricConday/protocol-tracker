@@ -118,6 +118,7 @@ export interface JournalEntry {
   date: string;
   mood: string;
   note: string;
+  dietary_note: string;
   compliance_pct: number;
   doses_taken: number;
   doses_total: number;

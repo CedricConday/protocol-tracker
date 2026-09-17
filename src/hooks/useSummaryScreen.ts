@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getDaySummary, getWeekSummary, getStreak, getAnchor,
-  getRecentJournalEntries, getProfile, localDateStr,
+  getDailyJournalEntries, getProfile, localDateStr,
 } from '../db/queries';
 import type { DaySummary } from '../types';
 
@@ -35,7 +35,11 @@ export function useSummaryScreen() {
 
       const MOOD_SCORES: Record<string, number> = { '😄': 5, '🙂': 4, '😐': 3, '😔': 2, '😞': 1 };
       const todayIdx = ((new Date().getDay() + 6) % 7);
-      const journals = await getRecentJournalEntries(7);
+      // One row per day: `getRecentJournalEntries(7)` was seven days only while
+      // a day could hold one entry, and seven rows can now all be Tuesday's.
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - 6);
+      const journals = await getDailyJournalEntries(localDateStr(weekStart), localDateStr(new Date()));
       const moodData = [];
       const waterData = [];
       for (let i = 6; i >= 0; i--) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, localDateStr } from '../db/queries';
+import { getDailyJournalEntries, getDaySummary, getJournalEntry, getRecentJournalEntries, getRelapseEvents, getSemanticJournalSummary, localDateStr } from '../db/queries';
 import type { JournalEntry, RelapseEvent } from '../types';
 
 import { weekdaysShort } from '../i18n/dates';
@@ -29,7 +29,15 @@ export function useJournalScreen() {
   // Deriving the two values against `today` instead closes it: on the first
   // render after the day rolls, `loaded.date` is still yesterday, so both read
   // empty SYNCHRONOUSLY, before any effect can consume them.
-  const [loaded, setLoaded] = useState<{ date: string; mood: string | null; note: string }>({ date: '', mood: null, note: '' });
+  //
+  // `id` joined the value on 2026-09-17, when a day stopped being limited to one
+  // entry. The editor binds to a ROW, not to a day: without the id, saving after
+  // dinner had no way to say "this one" and could only overwrite by date.
+  // `date: ''` is the "not read yet" state, and the screen waits for it — see
+  // `loadedFor` below.
+  const [loaded, setLoaded] = useState<{ date: string; id: number | null; mood: string | null; note: string; dietaryNote: string }>(
+    { date: '', id: null, mood: null, note: '', dietaryNote: '' },
+  );
   const [semanticSummary, setSemanticSummary] = useState('');
   const [weekMoods, setWeekMoods] = useState<{ day: string; emoji: string | null; compliancePct: number }[]>([]);
   const [events, setEvents] = useState<RelapseEvent[]>([]);
@@ -43,10 +51,13 @@ export function useJournalScreen() {
     const daySummary = await getDaySummary(today);
     setSummary({ takenDoses: daySummary.takenDoses, totalDoses: daySummary.totalDoses });
 
+    // The day's MOST RECENT entry — what the editor opens on. Earlier entries
+    // for the same day are in `pastEntries` below, where they can be read and
+    // removed but not silently written over.
     const existing = await getJournalEntry(today);
     setLoaded(existing
-      ? { date: today, mood: existing.mood, note: existing.note }
-      : { date: today, mood: null, note: '' });
+      ? { date: today, id: existing.id, mood: existing.mood, note: existing.note, dietaryNote: existing.dietary_note ?? '' }
+      : { date: today, id: null, mood: null, note: '', dietaryNote: '' });
 
     // Today is IN the list.
     //
@@ -56,10 +67,10 @@ export function useJournalScreen() {
     // Entries" — which is your log — and the newest thing in it is yesterday.
     // Reported from the device as exactly that.
     //
-    // The filter also quietly cost a row: seven were fetched, today was dropped,
-    // six were shown. Fetch one extra so seven is really seven.
-    const all = await getRecentJournalEntries(8);
-    setPastEntries(all.slice(0, 7));
+    // Twelve rather than seven since 2026-09-17: the list is entries, not days,
+    // and a single day of journalling can now fill it on its own.
+    const all = await getRecentJournalEntries(12);
+    setPastEntries(all);
 
     const recentEvents = await getRelapseEvents(10);
     setEvents(recentEvents);
@@ -67,13 +78,20 @@ export function useJournalScreen() {
     const summary = await getSemanticJournalSummary();
     setSemanticSummary(summary);
 
+    // One row per day, from the database. Picking the first match out of
+    // `all` worked only while a day could hold a single entry — twelve rows can
+    // now all belong to Tuesday, which would blank the rest of the strip.
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    const week = await getDailyJournalEntries(localDateStr(weekStart), today);
+
     const weekDays: { day: string; emoji: string | null; compliancePct: number }[] = [];
     const todayIdx = ((new Date().getDay() + 6) % 7);
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = localDateStr(d);
-      const entry = all.find((e) => e.date === dateStr);
+      const entry = week.find((e) => e.date === dateStr);
       const summary = await getDaySummary(dateStr);
       weekDays.push({
         day: weekdaysShort()[(todayIdx - i + 7) % 7],
@@ -92,9 +110,16 @@ export function useJournalScreen() {
   // a different date is not this date's value and must not be offered as one.
   const loadedMood = loaded.date === today ? loaded.mood : null;
   const existingNote = loaded.date === today ? loaded.note : '';
+  const loadedDietaryNote = loaded.date === today ? loaded.dietaryNote : '';
+  const loadedId = loaded.date === today ? loaded.id : null;
+  // Which day the load in hand actually answered for. The screen must not seed
+  // its editor from a load that has not landed yet: an empty read and "this day
+  // has nothing in it" are not the same thing, and only this tells them apart.
+  const loadedFor = loaded.date;
 
   return {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
+    loadedDietaryNote, loadedId, loadedFor,
     semanticSummary, weekMoods, events, loadData,
   };
 }

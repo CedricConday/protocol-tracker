@@ -36,6 +36,14 @@ import {
   getExerciseLogs,
   getExerciseHistory,
   setFirstMealTime,
+  getJournalEntry,
+  getJournalEntriesForDate,
+  insertJournalEntry,
+  updateJournalEntry,
+  deleteJournalEntry,
+  upsertJournalEntry,
+  getRecentJournalEntries,
+  getDailyJournalEntries,
 } from '../queries';
 
 const mockDb = {
@@ -691,5 +699,101 @@ describe('setFirstMealTime', () => {
     expect(String(sql)).toContain('ON CONFLICT(date) DO UPDATE SET first_meal_time');
     expect(String(sql)).not.toMatch(/^\s*UPDATE/);
     expect(params).toEqual(['2026-09-16', '07:40']);
+  });
+});
+
+// ── Journal: several entries a day ────────────────────────────────────────────
+
+/**
+ * The UNIQUE on `journal_entries.date` came off in schema v17, so every read
+ * that used to identify an entry BY DAY now has to say which one it means, and
+ * the writer has to say which row it is writing.
+ */
+describe('journal entries', () => {
+  it('reads the day\'s most recent entry, not an arbitrary one', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ id: 9, date: '2026-09-17', mood: '🙂' });
+    await getJournalEntry('2026-09-17');
+    const [sql, params] = mockDb.getFirstAsync.mock.calls[0];
+    expect(sql).toMatch(/ORDER BY id DESC/);
+    expect(sql).toMatch(/LIMIT 1/);
+    expect(params).toEqual(['2026-09-17']);
+  });
+
+  it('reads a whole day in the order it was written', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getJournalEntriesForDate('2026-09-17');
+    const [sql, params] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/WHERE date = \?/);
+    expect(sql).toMatch(/ORDER BY id ASC/);
+    expect(params).toEqual(['2026-09-17']);
+  });
+
+  it('inserts a new row and hands back its id', async () => {
+    mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 42, changes: 1 });
+    const id = await insertJournalEntry({
+      date: '2026-09-17', mood: '😐', note: 'second one today',
+      compliance_pct: 80, doses_taken: 4, doses_total: 5,
+    });
+    expect(id).toBe(42);
+    const [sql] = mockDb.runAsync.mock.calls[0];
+    expect(sql).toMatch(/INSERT INTO journal_entries/);
+    // No upsert clause: a second entry for a day is the point, not a conflict.
+    expect(sql).not.toMatch(/ON CONFLICT/);
+  });
+
+  it('updates by id and leaves the entry on the day it was written', async () => {
+    mockDb.runAsync.mockResolvedValue({ changes: 1 });
+    await updateJournalEntry(7, {
+      mood: '😄', note: 'edited', compliance_pct: 100, doses_taken: 5, doses_total: 5,
+    });
+    const [sql, params] = mockDb.runAsync.mock.calls[0];
+    expect(sql).toMatch(/WHERE id = \?/);
+    expect(sql).not.toMatch(/SET[\s\S]*\bdate\b\s*=/);
+    expect(params[params.length - 1]).toBe(7);
+  });
+
+  it('reports a delete that found nothing', async () => {
+    mockDb.runAsync.mockResolvedValue({ changes: 0 });
+    expect(await deleteJournalEntry(7)).toBe(false);
+    mockDb.runAsync.mockResolvedValue({ changes: 1 });
+    expect(await deleteJournalEntry(7)).toBe(true);
+  });
+
+  it('upserts against the day\'s latest row rather than by date', async () => {
+    // The harnesses in scripts/backtest still model one entry a day. With no
+    // unique index left, an ON CONFLICT(date) upsert would have quietly become
+    // a plain INSERT and given them a new row every call.
+    mockDb.getFirstAsync.mockResolvedValue({ id: 3, date: '2026-09-17', mood: '🙂' });
+    mockDb.runAsync.mockResolvedValue({ changes: 1 });
+    await upsertJournalEntry({
+      date: '2026-09-17', mood: '😐', note: '', compliance_pct: 0, doses_taken: 0, doses_total: 0,
+    });
+    const [sql, params] = mockDb.runAsync.mock.calls[0];
+    expect(sql).toMatch(/^UPDATE journal_entries/);
+    expect(params[params.length - 1]).toBe(3);
+  });
+
+  it('upserts into a new row when the day is empty', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(null);
+    mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 1, changes: 1 });
+    await upsertJournalEntry({
+      date: '2026-09-17', mood: '😐', note: '', compliance_pct: 0, doses_taken: 0, doses_total: 0,
+    });
+    expect(mockDb.runAsync.mock.calls[0][0]).toMatch(/INSERT INTO journal_entries/);
+  });
+
+  it('breaks the tie within a day when listing recent entries', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getRecentJournalEntries(12);
+    expect(mockDb.getAllAsync.mock.calls[0][0]).toMatch(/ORDER BY date DESC, id DESC/);
+  });
+
+  it('gives the week strip one row per day', async () => {
+    mockDb.getAllAsync.mockResolvedValue([]);
+    await getDailyJournalEntries('2026-09-11', '2026-09-17');
+    const [sql, params] = mockDb.getAllAsync.mock.calls[0];
+    expect(sql).toMatch(/MAX\(id\)/);
+    expect(sql).toMatch(/GROUP BY date/);
+    expect(params).toEqual(['2026-09-11', '2026-09-17']);
   });
 });

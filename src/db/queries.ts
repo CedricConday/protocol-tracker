@@ -1005,51 +1005,138 @@ export async function getTodayExercise(date: string = todayStr()): Promise<{ tot
 
 // ── Journal ────────────────────────────────────────────────────────────────────
 
+/**
+ * A day holds as many entries as the patient writes (schema v17 dropped the
+ * UNIQUE on `date`), so "the entry for a date" is the MOST RECENT one — what
+ * Home shows as today's mood, and what the Journal editor opens on.
+ *
+ * `ORDER BY id DESC` and not `created_at`: created_at has one-second resolution
+ * and two entries written inside the same second would tie. The id is the
+ * insertion order by definition.
+ */
 export async function getJournalEntry(date: string): Promise<JournalEntry | null> {
   const db = await getDb();
   return db.getFirstAsync<JournalEntry>(
-    'SELECT * FROM journal_entries WHERE date = ?',
+    'SELECT * FROM journal_entries WHERE date = ? ORDER BY id DESC LIMIT 1',
     [date]
   );
 }
 
-export async function upsertJournalEntry(entry: {
-  date: string; mood: string; note: string; dietary_note?: string;
-  compliance_pct: number; doses_taken: number; doses_total: number;
-}): Promise<void> {
+/** Everything written on one day, in the order it was written. */
+export async function getJournalEntriesForDate(date: string): Promise<JournalEntry[]> {
   const db = await getDb();
-  await db.runAsync(
-    `INSERT INTO journal_entries (date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(date) DO UPDATE SET
-       mood = excluded.mood,
-       note = excluded.note,
-       dietary_note = COALESCE(excluded.dietary_note, dietary_note),
-       compliance_pct = excluded.compliance_pct,
-       doses_taken = excluded.doses_taken,
-       doses_total = excluded.doses_total,
-       updated_at = datetime('now')`,
-    [entry.date, entry.mood, entry.note, entry.dietary_note ?? '', entry.compliance_pct, entry.doses_taken, entry.doses_total]
+  return db.getAllAsync<JournalEntry>(
+    'SELECT * FROM journal_entries WHERE date = ? ORDER BY id ASC',
+    [date]
   );
 }
 
+type JournalEntryInput = {
+  date: string; mood: string; note: string; dietary_note?: string;
+  compliance_pct: number; doses_taken: number; doses_total: number;
+};
+
+/** Writes a NEW entry and returns its id, which the editor then binds to. */
+export async function insertJournalEntry(entry: JournalEntryInput): Promise<number> {
+  const db = await getDb();
+  const result = await db.runAsync(
+    `INSERT INTO journal_entries (date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [entry.date, entry.mood, entry.note, entry.dietary_note ?? '', entry.compliance_pct, entry.doses_taken, entry.doses_total]
+  );
+  return result.lastInsertRowId;
+}
+
+/**
+ * Rewrites one entry, identified by id rather than by day — which is the whole
+ * point of the id: correcting this morning's entry must not touch this
+ * evening's. `date` is deliberately not updatable; an entry belongs to the day
+ * it was written on.
+ */
+export async function updateJournalEntry(id: number, entry: Omit<JournalEntryInput, 'date'>): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE journal_entries
+        SET mood = ?, note = ?, dietary_note = ?, compliance_pct = ?,
+            doses_taken = ?, doses_total = ?, updated_at = datetime('now')
+      WHERE id = ?`,
+    [entry.mood, entry.note, entry.dietary_note ?? '', entry.compliance_pct, entry.doses_taken, entry.doses_total, id]
+  );
+}
+
+/** False when the row was already gone — the screen reloads rather than lying. */
+export async function deleteJournalEntry(id: number): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.runAsync('DELETE FROM journal_entries WHERE id = ?', [id]);
+  return result.changes > 0;
+}
+
+/**
+ * The one-entry-a-day writer, kept for the backtest harnesses in
+ * `scripts/backtest/`, which model exactly that. It updates the day's most
+ * recent entry or creates the day's first.
+ *
+ * It is NOT what the Journal screen uses: the screen knows which row it is
+ * editing and says so. An `ON CONFLICT(date)` upsert stopped being meaningful
+ * the moment the unique index came off in v17 — it would have quietly turned
+ * into a plain INSERT, which is not what a caller named "upsert" expects.
+ */
+export async function upsertJournalEntry(entry: JournalEntryInput): Promise<void> {
+  const existing = await getJournalEntry(entry.date);
+  if (existing) {
+    await updateJournalEntry(existing.id, entry);
+    return;
+  }
+  await insertJournalEntry(entry);
+}
+
+/**
+ * The most recent entries, newest first. `id DESC` breaks the tie within a day
+ * so several entries from one day come back in reverse writing order rather
+ * than in whatever order the table happens to yield.
+ */
 export async function getRecentJournalEntries(limit: number): Promise<JournalEntry[]> {
   const db = await getDb();
   return db.getAllAsync<JournalEntry>(
-    'SELECT * FROM journal_entries ORDER BY date DESC LIMIT ?',
+    'SELECT * FROM journal_entries ORDER BY date DESC, id DESC LIMIT ?',
     [limit]
+  );
+}
+
+/**
+ * The last entry of each day in a date range, newest day first.
+ *
+ * The week strips used to take the first match out of `getRecentJournalEntries(7)`,
+ * which was one row per day only while a day could hold one row. Seven rows can
+ * now all belong to Tuesday, which would blank the rest of the week.
+ */
+export async function getDailyJournalEntries(start: string, end: string): Promise<JournalEntry[]> {
+  const db = await getDb();
+  return db.getAllAsync<JournalEntry>(
+    `SELECT j.* FROM journal_entries j
+       JOIN (SELECT date, MAX(id) AS id FROM journal_entries
+              WHERE date BETWEEN ? AND ? GROUP BY date) latest
+         ON latest.id = j.id
+      ORDER BY j.date DESC`,
+    [start, end]
   );
 }
 
 export async function getLatestJournalEntry(): Promise<JournalEntry | null> {
   const db = await getDb();
-  return db.getFirstAsync<JournalEntry>('SELECT * FROM journal_entries ORDER BY date DESC LIMIT 1');
+  return db.getFirstAsync<JournalEntry>('SELECT * FROM journal_entries ORDER BY date DESC, id DESC LIMIT 1');
 }
 
 export async function getSemanticJournalSummary(): Promise<string> {
   const db = await getDb();
+  // Thirty DAYS, not thirty rows. `LIMIT 30` was the same thing while a day held
+  // one entry; now a fortnight of two-a-day writing would fill the window and
+  // the line would describe a fortnight while saying "lately".
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
   const entries = await db.getAllAsync<{ mood: string; date: string; compliance_pct: number }>(
-    'SELECT mood, date, compliance_pct FROM journal_entries ORDER BY date DESC LIMIT 30'
+    'SELECT mood, date, compliance_pct FROM journal_entries WHERE date >= ? ORDER BY date DESC, id DESC',
+    [localDateStr(since)]
   );
   if (entries.length === 0) return 'No journal entries yet.';
 
