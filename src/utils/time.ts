@@ -134,3 +134,30 @@ export function averageTimeOfDay(instants: number[]): { hour: number; minute: nu
   const minutes = ((Math.round((Math.atan2(y, x) / (2 * Math.PI)) * 1440) % 1440) + 1440) % 1440;
   return { hour: Math.floor(minutes / 60), minute: minutes % 60 };
 }
+
+/**
+ * What a "log at" editor should mean when it closes.
+ *
+ * The Food screen offers "now" or a time the user picks. Deciding which they
+ * meant by comparing the committed value against the clock — `time !==
+ * clockNow() ? time : null` — made the answer depend on whether the minute
+ * happened to turn while they were looking at it: open the editor at 12:00:50,
+ * take twenty seconds, press done, and a value nobody typed became a deliberate
+ * 12:00 pin that every later meal inherited. Reproduced 2026-09-17.
+ *
+ * The seed is the honest comparison. An unchanged editor that opened from the
+ * clock means "now"; an unchanged editor that opened from an already pinned
+ * time keeps that pin; anything else is what the user typed.
+ *
+ * `null` out means now — including for an entry no parser can read, so four
+ * buttons never claim to log at a time that does not exist.
+ */
+export function logTimeAfterEdit(
+  typed: string | null,
+  seed: string,
+  seededFromClock: boolean,
+): string | null {
+  if (!typed) return null;
+  if (seededFromClock && typed === seed) return null;
+  return typed;
+}

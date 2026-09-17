@@ -12,7 +12,7 @@ import {
 
 import { t, useLanguage } from '../i18n';
 import { useToday } from '../hooks/useToday';
-import { clockNow, formatHourMinute, parseTimeOfDay } from '../utils/time';
+import { clockNow, formatHourMinute, logTimeAfterEdit, parseTimeOfDay } from '../utils/time';
 import { weekdaysShort } from '../i18n/dates';
 /**
  * The Food screen (PT-trio round 3, C4).
@@ -107,6 +107,9 @@ export default function FoodScreen() {
   const [logTime, setLogTime] = useState<string | null>(null);
   const [editingLogTime, setEditingLogTime] = useState(false);
   const [logTimeDraft, setLogTimeDraft] = useState('');
+  // What the editor opened with. `commitLogTime` compares against this rather
+  // than against the clock, so a minute turning mid-edit cannot invent a pin.
+  const logTimeSeed = useRef<{ value: string; fromClock: boolean }>({ value: '', fromClock: true });
 
   // Not `todayStr()` inside load: the screen stays mounted across midnight, and
   // a load keyed on a value read once would keep reporting yesterday. The hook
@@ -172,8 +175,7 @@ export default function FoodScreen() {
    */
   const commitLogTime = () => {
     setEditingLogTime(false);
-    const time = normaliseTime(logTimeDraft);
-    setLogTime(time && time !== clockNow() ? time : null);
+    setLogTime(logTimeAfterEdit(normaliseTime(logTimeDraft), logTimeSeed.current.value, logTimeSeed.current.fromClock));
   };
 
   /**
@@ -265,7 +267,12 @@ export default function FoodScreen() {
             />
           ) : (
             <TouchableOpacity
-              onPress={() => { setLogTimeDraft(logTime ?? clockNow()); setEditingLogTime(true); }}
+              onPress={() => {
+                const seed = logTime ?? clockNow();
+                logTimeSeed.current = { value: seed, fromClock: logTime === null };
+                setLogTimeDraft(seed);
+                setEditingLogTime(true);
+              }}
               accessibilityRole="button"
               accessibilityLabel={
                 logTime ? t('foodLogAtSetA11y', { time: logTime }) : t('foodLogAtNowA11y')

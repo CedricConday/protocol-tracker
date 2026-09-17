@@ -18,7 +18,7 @@ vi.mock('../../i18n', () => ({
   locale: () => 'en-GB',
 }));
 
-import { parseTimeOfDay, bedtimeAfter, averageTimeOfDay } from '../time';
+import { parseTimeOfDay, bedtimeAfter, averageTimeOfDay, logTimeAfterEdit } from '../time';
 
 describe('parseTimeOfDay', () => {
   it('takes the shapes a person actually types', () => {
@@ -106,5 +106,28 @@ describe('averageTimeOfDay', () => {
     // Opposite sides of the clock: the mean is equally noon and midnight, so
     // printing either as "your usual start" would be a confident lie.
     expect(averageTimeOfDay([at(14, 6, 0), at(15, 18, 0)])).toBeNull();
+  });
+});
+
+describe('logTimeAfterEdit', () => {
+  it('means "now" when an editor seeded from the clock closes unchanged', () => {
+    // The case that broke: the minute turned while the editor was open, so the
+    // old code compared 12:00 against a clock reading 12:01 and pinned a time
+    // the user never typed.
+    expect(logTimeAfterEdit('12:00', '12:00', true)).toBeNull();
+  });
+
+  it('keeps a pin that was already set when the editor closes unchanged', () => {
+    expect(logTimeAfterEdit('09:15', '09:15', false)).toBe('09:15');
+  });
+
+  it('takes the typed time whichever way the editor was seeded', () => {
+    expect(logTimeAfterEdit('07:30', '12:00', true)).toBe('07:30');
+    expect(logTimeAfterEdit('07:30', '09:15', false)).toBe('07:30');
+  });
+
+  it('falls back to now when nothing readable was typed', () => {
+    expect(logTimeAfterEdit(null, '12:00', true)).toBeNull();
+    expect(logTimeAfterEdit(null, '09:15', false)).toBeNull();
   });
 });
