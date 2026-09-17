@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     color: '#112438',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#D8E1EA',
+    borderColor: '#8393A3',
     marginBottom: 4,
   },
   hint: {
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E9EFF6',
+    borderColor: '#8393A3',
   },
   featureItem: {
     color: '#495D72',
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
   },
-  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#D8E1EA', padding: 16, backgroundColor: '#FFFFFF' },
+  trackCard: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 14, borderWidth: 1, borderColor: '#8393A3', padding: 16, backgroundColor: '#FFFFFF' },
   trackCardActive: { borderColor: '#1162B9', backgroundColor: '#DEEFFF' },
   trackTitle: { color: '#495D72', fontSize: 15, fontWeight: '700' },
   trackTitleActive: { color: '#1162B9' },

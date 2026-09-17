@@ -146,7 +146,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
 export default WaterTracker;
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#D8E1EA', shadowColor: '#112438', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
+  container: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginTop: 8, borderWidth: 1, borderColor: '#8393A3', shadowColor: '#112438', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   droplet: { fontSize: 16 },

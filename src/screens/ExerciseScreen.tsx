@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
   loading: { flex: 1, backgroundColor: '#F7FAFE', alignItems: 'center', justifyContent: 'center' },
 
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#D8E1EA' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#8393A3' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardLabel: { color: '#495D72', fontSize: 14, fontWeight: '600' },

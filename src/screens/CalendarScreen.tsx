@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 40 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   heading: { color: INK, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
-  shareButton: { backgroundColor: '#FFFFFF', borderRadius: 11, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#D8E1EA' },
+  shareButton: { backgroundColor: '#FFFFFF', borderRadius: 11, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: '#8393A3' },
   shareButtonText: { color: ACCENT, fontSize: 14, fontWeight: '700' },
 
   monthNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

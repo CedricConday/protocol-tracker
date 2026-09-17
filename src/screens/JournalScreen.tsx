@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#D8E1EA',
+    borderColor: '#8393A3',
     shadowColor: '#112438',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   entryRemoveBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
   entryCloseBtn: {
     backgroundColor: '#FFFFFF',
-    borderColor: '#D8E1EA',
+    borderColor: '#8393A3',
   },
   entryCloseBtnText: { color: '#495D72', fontSize: 13, fontWeight: '700' },
   complianceBadge: {

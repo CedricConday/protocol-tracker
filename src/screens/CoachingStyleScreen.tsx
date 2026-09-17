@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 60, paddingBottom: 40 },
   heading: { color: '#112438', fontSize: 24, fontWeight: '800', marginBottom: 4 },
   subtitle: { color: '#495D72', fontSize: 14, marginBottom: 20 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 18, marginBottom: 10, borderWidth: 2, borderColor: '#E9EFF6' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 18, marginBottom: 10, borderWidth: 2, borderColor: '#8393A3' },
   cardActive: { borderColor: '#22c55e', backgroundColor: '#F0FDF4' },
   cardLabel: { color: '#112438', fontSize: 16, fontWeight: '700', marginBottom: 4 },
   cardLabelActive: { color: '#166534' },
