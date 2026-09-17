@@ -3,6 +3,7 @@ import { getDb } from './schema';
 import { enqueueAction } from './actionQueue';
 import type { UserProfile, DailyAnchor, DoseLog, ScheduleRule, Supplement, DaySummary, ScheduledDose, JournalEntry, RelapseEvent, MedicalEvent } from '../types';
 import { ruleFiresOn, cadenceOf, type Cadence } from '../engine/cadence';
+import { t } from '../i18n';
 import { averageTimeOfDay } from '../utils/time';
 
 export function localDateStr(d: Date): string {
@@ -1138,7 +1139,7 @@ export async function getSemanticJournalSummary(): Promise<string> {
     'SELECT mood, date, compliance_pct FROM journal_entries WHERE date >= ? ORDER BY date DESC, id DESC',
     [localDateStr(since)]
   );
-  if (entries.length === 0) return 'No journal entries yet.';
+  if (entries.length === 0) return t('journalSummaryEmpty');
 
   const moodCounts: Record<string, number> = {};
   let weightedTotal = 0;
@@ -1158,7 +1159,7 @@ export async function getSemanticJournalSummary(): Promise<string> {
     entries.reduce((sum, e) => sum + e.compliance_pct, 0) / entries.length
   );
 
-  return `Mostly feeling ${topMood} lately. ${streak} day protocol streak. ${avgCompliance}% average compliance.`;
+  return t('journalSummary', { mood: topMood, streak, compliance: avgCompliance });
 }
 
 // ── Relapse Events ────────────────────────────────────────────────────────────

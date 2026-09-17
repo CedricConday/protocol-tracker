@@ -361,7 +361,7 @@ export default function HomeScreen() {
           <SunMascot size={66} />
         </View>
         <Text style={[styles.greeting, { textAlign: 'center' }]}>
-          {patientName ? `Hello, ${patientName.split(' ')[0]}` : 'the Protocol'}
+          {patientName ? t('homeGreeting', { name: patientName.split(' ')[0] }) : t('homeGreetingNoName')}
         </Text>
       </View>
     </View>
@@ -479,7 +479,7 @@ export default function HomeScreen() {
 
         {lowStockSupps.map((s) => (
           <View key={s.id} style={styles.reorderBanner}>
-            <Text style={styles.reorderBannerText}>⚠ {s.name} running low — ~{s.quantity_on_hand} doses remaining. Restock soon.</Text>
+            <Text style={styles.reorderBannerText}>{t('homeReorderBanner', { name: s.name, doses: s.quantity_on_hand ?? 0 })}</Text>
             <TouchableOpacity onPress={async () => {
               const week = new Date().toISOString().slice(0, 7);
               await AsyncStorage.setItem(`dismissed_reorder_${s.id}_${week}`, 'true');
