@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { C, themed, useTheme } from '../theme/colors';
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -12,7 +12,7 @@ import {
 
 import { t, useLanguage } from '../i18n';
 import { useToday } from '../hooks/useToday';
-import { clockNow, formatHourMinute, parseTimeOfDay } from '../utils/time';
+import { clockNow } from '../utils/time';
 import { weekdaysShort } from '../i18n/dates';
 /**
  * The Food screen (PT-trio round 3, C4).
@@ -36,13 +36,20 @@ import { weekdaysShort } from '../i18n/dates';
  * something does read it, which is why the manual edit below goes through the
  * same formatter as the button rather than emitting 24-hour text beside it.
  *
- * WHY THE SAVE IS READ BACK. `setFirstMealTime` used to be an UPDATE with no
- * INSERT, so on a day with no anchor row yet it matched nothing, succeeded, and
- * wrote nothing — the edit silently did not save. **Fixed 2026-09-16 (H15):**
- * the query is now an upsert, the same shape as `setT0`. The read-back below
- * stays anyway. It costs one SELECT and it is the only thing standing between a
- * future write regression and a user who believes a time was recorded when it
- * was not — which on a medical record is the failure worth paying a query for.
+ * THE FIRST-MEAL CARD IS GONE (2026-09-17). The screen used to open with
+ * "First meal today" — a large editable time, a "Set to now" button and a
+ * failure notice — which asked the patient to maintain by hand a number that
+ * logging a meal already sets. Removed at Cedric's request.
+ *
+ * The anchor itself stays. The first meal logged on a day still claims the
+ * slot, deleting that meal still moves it to the earliest one left, and the
+ * seven-day list at the foot of this screen still reads it. What went is the
+ * hand-editing, and with it the shared-format helper and the double-commit
+ * guard that the text field needed.
+ *
+ * `setFirstMealTime` used to be an UPDATE with no INSERT, so on a day with no
+ * anchor row it matched nothing, succeeded, and wrote nothing. Fixed
+ * 2026-09-16 (H15): it is an upsert now, the same shape as `setT0`.
  */
 
 // `id` is the stored `meal_log.meal_type` and stays English; the label is a key.
@@ -53,17 +60,6 @@ const MEAL_TYPES = [
   { id: 'snack', labelKey: 'mealSnack' },
 ];
 
-/**
- * Parse with the shared helper, then format with the shared formatter, so this
- * column never ends up holding "04:27 PM" on one day and "16:27" on the next —
- * and so Bedtime and Food accept exactly the same input. Returns null on an
- * unparseable edit; the caller leaves the stored time alone rather than guessing.
- */
-function normaliseTime(raw: string): string | null {
-  const parsed = parseTimeOfDay(raw);
-  return parsed ? formatHourMinute(parsed.hour, parsed.minute) : null;
-}
-
 export default function FoodScreen() {
   useLanguage(); // re-render this screen when the language changes
   useTheme(); // ...and when the theme tier changes
@@ -71,9 +67,6 @@ export default function FoodScreen() {
   const [firstMeal, setFirstMeal] = useState<string | null>(null);
   const [meals, setMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
   const [week, setWeek] = useState<{ day: string; time: string | null }[]>([]);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [writeFailed, setWriteFailed] = useState(false);
 
   // Not `todayStr()` inside load: the screen stays mounted across midnight, and
   // a load keyed on a value read once would keep reporting yesterday. The hook
@@ -83,9 +76,7 @@ export default function FoodScreen() {
 
   const load = useCallback(async () => {
     try {
-      const first = await getFirstMealTime(today);
-      setFirstMeal(first);
-      setDraft(first ?? clockNow());
+      setFirstMeal(await getFirstMealTime(today));
       setMeals(await getTodayMeals(today));
 
       const todayIdx = (new Date().getDay() + 6) % 7;
@@ -106,45 +97,17 @@ export default function FoodScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   /**
-   * Writes the time, then reads it back and reports the truth. `setFirstMealTime`
-   * cannot create the day's row, so on a day that has not been started this call
-   * succeeds and changes nothing — see the header note and H15.
+   * Set the anchor, then read it back and only celebrate a write that took.
+   * Nothing at the top of the screen shows the value any more, so the
+   * seven-day list below is where a failed write would show up — and it reads
+   * the same rows, after this reload.
    */
   const saveFirstMeal = async (time: string) => {
     const today = todayStr();
     await setFirstMealTime(today, time);
     const stored = await getFirstMealTime(today);
-    setWriteFailed(stored !== time);
     if (stored === time) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Reload rather than just setting the card: the seven-day list at the foot of
-    // the screen reads today too, and updating the top while the bottom still
-    // said "—" was the screen contradicting itself about the value it had just
-    // written.
     await load();
-  };
-
-  /**
-   * Guarded because the TextInput fires this twice for one edit. `onSubmitEditing`
-   * runs `commitDraft`, which sets `editing` false and unmounts the field, and
-   * unmounting a focused input fires `onBlur` — which is also wired here. The
-   * second pass raced the first: two writes and two `load()` calls, and whichever
-   * SELECT returned last won, so a good edit could be overwritten by a stale read
-   * of the value it had just replaced.
-   */
-  const committing = useRef(false);
-
-  const commitDraft = async () => {
-    if (committing.current) return;
-    committing.current = true;
-    setEditing(false);
-    try {
-      const time = normaliseTime(draft);
-      if (!time) { setDraft(firstMeal ?? clockNow()); return; }
-      setDraft(time);
-      await saveFirstMeal(time);
-    } finally {
-      committing.current = false;
-    }
   };
 
   const handleLogMeal = async (mealType: string) => {
@@ -198,63 +161,6 @@ export default function FoodScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>{t('foodFirstMeal')}</Text>
-        {editing ? (
-          <TextInput
-            style={styles.cardField}
-            value={draft}
-            onChangeText={setDraft}
-            onBlur={commitDraft}
-            onSubmitEditing={commitDraft}
-            keyboardType="numbers-and-punctuation"
-            autoFocus
-            accessibilityLabel={t('foodTimeField')}
-          />
-        ) : (
-          <TouchableOpacity
-            onPress={() => setEditing(true)}
-            accessibilityRole="button"
-            accessibilityLabel={
-              firstMeal
-                ? t('foodFirstMealA11y', { time: firstMeal })
-                : t('foodFirstMealUnsetA11y')
-            }
-          >
-            <Text style={[styles.cardValue, firstMeal ? null : styles.cardValueUnset]}>
-              {firstMeal ?? t('notSet')}
-            </Text>
-          </TouchableOpacity>
-        )}
-        <Text style={styles.cardSub}>
-          When the day&apos;s eating started. It is recorded for the doctor report and for
-          reading alongside the dose times — the schedule itself still counts from when
-          you start the day, not from here.
-        </Text>
-
-        {!editing && (
-          <TouchableOpacity
-            style={styles.nowBtn}
-            onPress={() => saveFirstMeal(clockNow())}
-            accessibilityRole="button"
-            accessibilityLabel={t('foodSetNow')}
-          >
-            <Text style={styles.nowBtnText}>{firstMeal ? 'Set to now' : 'I just ate'}</Text>
-          </TouchableOpacity>
-        )}
-
-        {writeFailed && (
-          <View style={styles.failure}>
-            <Text style={styles.failureTitle}>{t('foodSaveFailed')}</Text>
-            <Text style={styles.failureBody}>
-              The time was not stored. Nothing was lost — the value you see is the one still
-              on record. Try once more, and if it keeps failing the day&apos;s record may need
-              to be opened from the Today tab first.
-            </Text>
-          </View>
-        )}
-      </View>
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('foodLogMeal')}</Text>
         <View style={styles.chipRow}>
@@ -327,18 +233,7 @@ const styles = themed((C) => StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
   loading: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
 
-  card: { backgroundColor: C.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: C.border },
-  cardLabel: { color: C.textSub, fontSize: 14, fontWeight: '600' },
-  cardValue: { color: C.text, fontSize: 34, fontWeight: '800', marginTop: 4 },
-  cardValueUnset: { color: C.textMuted, fontSize: 26 },
-  cardField: { color: C.text, fontSize: 34, fontWeight: '800', marginTop: 4, borderBottomWidth: 2, borderBottomColor: C.warningInk, padding: 0 },
-  cardSub: { color: C.textSub, fontSize: 13, lineHeight: 19, marginTop: 8 },
-  nowBtn: { marginTop: 14, height: 44, borderRadius: 11, backgroundColor: C.warningInk, alignItems: 'center', justifyContent: 'center' },
-  nowBtnText: { color: C.bg, fontSize: 14, fontWeight: '700' },
 
-  failure: { marginTop: 14, borderRadius: 11, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft, padding: 12 },
-  failureTitle: { color: C.dangerInk, fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  failureBody: { color: C.dangerInk, fontSize: 12, lineHeight: 18 },
 
   section: { marginTop: 22 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
