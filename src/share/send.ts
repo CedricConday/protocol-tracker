@@ -19,9 +19,9 @@ export async function shareFromConfig(config: ShareConfig): Promise<void> {
 
   if (config.format === 'json') {
     // No `expo-file-system` in this build, and adding a native module would
-    // break OTA delivery for every install. A base64 data URI is what
-    // FamilySyncScreen already hands `shareAsync` on device, so it is a proven
-    // path rather than a clever one.
+    // break OTA delivery for every install. A base64 data URI is what the old
+    // FamilySync screen handed `shareAsync` on device before it was deleted
+    // (2026-09-17), so it is a proven path rather than a clever one.
     const json = bundleToJson(bundle, config.sections);
     const uri = `data:application/json;base64,${toBase64(json)}`;
     await Sharing.shareAsync(uri, {

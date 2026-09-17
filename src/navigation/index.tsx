@@ -13,7 +13,6 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CoachingStyleScreen from '../screens/CoachingStyleScreen';
-import FamilySyncScreen from '../screens/FamilySyncScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -136,11 +135,6 @@ function SettingsNavigator() {
         name="CoachingStyle"
         component={CoachingStyleScreen}
         options={{ ...SUB_HEADER, title: t('navReminderTone'), animation: 'slide_from_right' }}
-      />
-      <SettingsNav.Screen
-        name="FamilySync"
-        component={FamilySyncScreen}
-        options={{ ...SUB_HEADER, title: t('navFamilySync'), animation: 'slide_from_right' }}
       />
       <SettingsNav.Screen
         name="Feedback"

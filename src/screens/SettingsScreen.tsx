@@ -320,8 +320,10 @@ export default function SettingsScreen() {
               and Bedtime moved to the Trackers tab; Schedule & reminders,
               Reminder tone, Family Sync and Caregiver mode were all removed at
               Cedric's request. Caregiver went further — screen, route and Home
-              header deleted, to be its own app. ScheduleScreen, CoachingStyle
-              and FamilySync still exist as screens with no entry point. */}
+              header deleted, to be its own app; FamilySync followed on
+              2026-09-17, the last direct `shareAsync` outside src/share.
+              ScheduleScreen and CoachingStyle still exist with no entry
+              point. */}
 
           {/* ── App ──────────────────────────────────────────────────────
               Unlabelled: with Protocol gone this is the first group on the
