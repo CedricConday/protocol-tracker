@@ -1635,7 +1635,6 @@ export async function exportAllData(): Promise<Record<string, any>> {
     'sun_log',
     'blood_test_reminders',
     'meal_log',
-    'care_surveys',
     'news_cache',
     'feedback',
     'medical_events',
