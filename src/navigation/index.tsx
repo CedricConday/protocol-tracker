@@ -221,6 +221,15 @@ function TabNavigator() {
         options={{
           tabBarLabel: t('trackers'),
           tabBarIcon: ({ color, size }) => <Ionicons name="leaf-outline" size={size} color={color} />,
+          // History is the only tab that navigates INTO this one's stack
+          // (`navigate('Summary', { screen: 'Report' })`), and a nested push
+          // outlives the tap that made it: after using Share Your Progress, the
+          // Trackers tab kept showing that screen instead of the tracker grid,
+          // with no way back but the header arrow. Reported from the device on
+          // 2026-09-17 as "the tracker screen is now only lab results" — the
+          // lab card was the same push, on the bundle before those screens went.
+          // Leaving the tab now returns its stack to the grid.
+          popToTopOnBlur: true,
         }}
       >
         {() => <ErrorBoundary><SummaryNavigator /></ErrorBoundary>}
