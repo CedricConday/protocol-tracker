@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import { t } from '../i18n';
 
 const CACHE_KEY = 'weather_cache';
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -17,12 +18,12 @@ export interface WeatherData {
 }
 
 function aqiLabel(aqi: number | null): string {
-  if (aqi === null) return 'Unknown';
-  if (aqi <= 20) return 'Good';
-  if (aqi <= 40) return 'Fair';
-  if (aqi <= 60) return 'Moderate';
-  if (aqi <= 80) return 'Poor';
-  return 'Very Poor';
+  if (aqi === null) return t('aqiUnknown');
+  if (aqi <= 20) return t('aqiGood');
+  if (aqi <= 40) return t('aqiFair');
+  if (aqi <= 60) return t('aqiModerate');
+  if (aqi <= 80) return t('aqiPoor');
+  return t('aqiVeryPoor');
 }
 
 function uvPeakWindow(hours: number[]): { start: string | null; end: string | null } {

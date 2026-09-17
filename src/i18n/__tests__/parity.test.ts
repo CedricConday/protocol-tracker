@@ -35,10 +35,20 @@ describe('en/de parity', () => {
 
   it('leaves only the known handful identical in both languages', () => {
     // A German value identical to the English one is usually a forgotten
-    // translation. These three are genuine: a version line that is all numbers
-    // and punctuation, a word German borrowed unchanged, and a pure
-    // composition of other translated parts.
-    const allowed = new Set(['setVersionLine', 'obOptional', 'sumExerciseKind']);
+    // translation. These are genuine: a version line that is all numbers and
+    // punctuation, words German borrowed or spells the same way, a name used
+    // as a placeholder, a pure composition of other translated parts, and two
+    // lines that are only a label plus an interpolated value.
+    const allowed = new Set([
+      'setVersionLine', 'obOptional', 'sumExerciseKind',
+      'patientFallback',      // Patient
+      'mealSnack',            // Snack
+      'evSymptom',            // Symptom
+      'moodOkay',             // Okay
+      'setNamePlaceholder',   // Alex — a first name, not a word
+      'doseStatusLine',       // "Status: {status}"
+      'labSulkowitchA11y',    // "Sulkowitch: {value}" — a test's proper name
+    ]);
     const identical = Object.keys(en).filter(
       (k) => k in de && en[k] === de[k] && String(en[k]).trim().length > 3 && !allowed.has(k),
     );

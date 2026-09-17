@@ -195,7 +195,7 @@ export default function WaterScreen() {
               style={styles.goalValue}
               onPress={() => setEditingGoal(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Daily water goal, ${goalMl} millilitres. Tap to edit.`}
+              accessibilityLabel={t('waterGoalA11y', { ml: goalMl })}
             >
               <Text style={styles.goalValueText}>{formatMl(goalMl)}</Text>
             </TouchableOpacity>
@@ -234,14 +234,14 @@ export default function WaterScreen() {
                   onSubmitEditing={() => commitEdit(entry)}
                   keyboardType="number-pad"
                   autoFocus
-                  accessibilityLabel={`Correct the ${entry.amount_ml} millilitre entry`}
+                  accessibilityLabel={t('waterCorrectA11y', { ml: entry.amount_ml })}
                 />
               ) : (
                 <TouchableOpacity
                   style={styles.entryAmountWrap}
                   onPress={() => beginEdit(entry)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${entry.amount_ml} millilitres at ${formatClock(entry.logged_at)}. Tap to correct.`}
+                  accessibilityLabel={t('waterEntryA11y', { ml: entry.amount_ml, time: formatClock(entry.logged_at) })}
                 >
                   <Text style={styles.entryAmount}>{entry.amount_ml} ml</Text>
                 </TouchableOpacity>
@@ -251,7 +251,7 @@ export default function WaterScreen() {
                 style={styles.removeBtn}
                 onPress={() => handleRemove(entry)}
                 accessibilityRole="button"
-                accessibilityLabel={`Remove the ${entry.amount_ml} millilitre entry logged at ${formatClock(entry.logged_at)}`}
+                accessibilityLabel={t('waterRemoveA11y', { ml: entry.amount_ml, time: formatClock(entry.logged_at) })}
               >
                 <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
               </TouchableOpacity>

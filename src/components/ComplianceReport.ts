@@ -52,10 +52,10 @@ export async function generateComplianceReport(
     <h2 style="color:#ef4444;font-size:16px;margin-top:24px">${t('pdfRelapses')}</h2>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
       <tr style="background:#1a1a1a;color:#fff">
-        <th style="padding:8px;text-align:left">Date</th>
-        <th style="padding:8px;text-align:left">Type</th>
-        <th style="padding:8px;text-align:left">Severity</th>
-        <th style="padding:8px;text-align:left">Notes</th>
+        <th style="padding:8px;text-align:left">${t('date')}</th>
+        <th style="padding:8px;text-align:left">${t('type')}</th>
+        <th style="padding:8px;text-align:left">${t('severity')}</th>
+        <th style="padding:8px;text-align:left">${t('notes')}</th>
       </tr>
       ${events.map(e => `
         <tr style="border-bottom:1px solid #2a2a2a">

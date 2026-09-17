@@ -46,7 +46,7 @@ function formatClock(ms: number): string {
 }
 
 function formatDay(iso: string, today: string): string {
-  if (iso === today) return 'Today';
+  if (iso === today) return t('today');
   // Parsed at midday so a timezone offset cannot roll the label onto the
   // neighbouring day — the same trap the day-key work chased through the app.
   const d = new Date(`${iso}T12:00:00`);
@@ -216,9 +216,9 @@ export default function SunlightScreen() {
       t('sunClearConfirm'),
       t('sunClearConfirmSub'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('clear'),
           style: 'destructive',
           onPress: async () => { await clearSunLog(); await load(); },
         },
@@ -268,9 +268,9 @@ export default function SunlightScreen() {
               style={styles.goalValue}
               onPress={() => setEditingGoal(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Daily sunlight goal, ${goalMin} minutes. Tap to edit.`}
+              accessibilityLabel={t('sunGoalA11y', { minutes: goalMin })}
             >
-              <Text style={styles.goalValueText}>{goalMin} min</Text>
+              <Text style={styles.goalValueText}>{goalMin} {t('unitMin')}</Text>
             </TouchableOpacity>
           )}
 
@@ -307,16 +307,16 @@ export default function SunlightScreen() {
                   onSubmitEditing={() => commitEdit(entry)}
                   keyboardType="number-pad"
                   autoFocus
-                  accessibilityLabel={`Correct the ${entry.minutes} minute session`}
+                  accessibilityLabel={t('sunCorrectA11y', { minutes: entry.minutes })}
                 />
               ) : (
                 <TouchableOpacity
                   style={styles.entryAmountWrap}
                   onPress={() => beginEdit(entry)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${entry.minutes} minutes at ${formatClock(entry.logged_at)}. Tap to correct.`}
+                  accessibilityLabel={t('sunEntryA11y', { minutes: entry.minutes, time: formatClock(entry.logged_at) })}
                 >
-                  <Text style={styles.entryAmount}>{entry.minutes} min</Text>
+                  <Text style={styles.entryAmount}>{entry.minutes} {t('unitMin')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -324,7 +324,7 @@ export default function SunlightScreen() {
                 style={styles.removeBtn}
                 onPress={() => handleRemove(entry)}
                 accessibilityRole="button"
-                accessibilityLabel={`Remove the ${entry.minutes} minute session logged at ${formatClock(entry.logged_at)}`}
+                accessibilityLabel={t('sunRemoveA11y', { minutes: entry.minutes, time: formatClock(entry.logged_at) })}
               >
                 <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
               </TouchableOpacity>
@@ -405,7 +405,7 @@ export default function SunlightScreen() {
                     ]}
                   />
                 </View>
-                <Text style={styles.histValue}>{h.minutes} min</Text>
+                <Text style={styles.histValue}>{h.minutes} {t('unitMin')}</Text>
               </View>
               {!!h.notes && <Text style={styles.histNote}>{h.notes}</Text>}
             </View>

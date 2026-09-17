@@ -103,7 +103,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
           {dose.form ? ` · ${dose.form}` : ''}
         </Text>
         {dose.withFood && (
-          <Text style={styles.withFoodTag}>🍽 with food</Text>
+          <Text style={styles.withFoodTag}>🍽 {t('withFood')}</Text>
         )}
       </View>
 
@@ -114,7 +114,12 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     </Animated.View>
   );
 
-  const a11yLabel = `${dose.supplementName}, ${dose.doseAmount}, scheduled at ${timeLabel} ${ampm}, status ${dose.status}`;
+  const a11yLabel = t('doseRowA11y', {
+    supplement: dose.supplementName,
+    amount: dose.doseAmount,
+    time: `${timeLabel} ${ampm}`,
+    status: t(STATUS_KEYS[dose.status] ?? 'doseUpcoming'),
+  });
 
   if (onPress) {
     return (
@@ -140,6 +145,11 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     </View>
   );
 });
+
+/** Shared with DoseDetailModal: the app's own word for each dose status. */
+const STATUS_KEYS: Record<string, string> = {
+  taken: 'taken', due: 'doseDue', upcoming: 'doseUpcoming', missed: 'missed', skipped: 'skipped',
+};
 
 export default DoseRow;
 

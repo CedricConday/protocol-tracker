@@ -22,7 +22,32 @@ interface Props {
   correctable?: boolean;
 }
 
-const SKIP_REASONS = ['Forgot', 'Felt unwell', 'No food available', 'Other'];
+/**
+ * The VALUE is what goes in `dose_logs.skip_reason` and it stays English: rows
+ * written before this screen spoke German are still in the table, and a reason
+ * that changes with the phone's language is not a record. Only the label moves.
+ */
+const SKIP_REASONS: { value: string; key: string }[] = [
+  { value: 'Forgot', key: 'doseSkipForgot' },
+  { value: 'Felt unwell', key: 'doseSkipUnwell' },
+  { value: 'No food available', key: 'doseSkipNoFood' },
+  { value: 'Other', key: 'doseSkipOther' },
+];
+
+/** A stored reason, translated if it is one of ours and shown as-is if not. */
+function skipReasonLabel(stored: string): string {
+  const known = SKIP_REASONS.find((r) => r.value === stored);
+  return known ? t(known.key) : stored;
+}
+
+/** Status words the app already owns, for the sentences that quote one. */
+const STATUS_KEYS: Record<string, string> = {
+  taken: 'taken', due: 'doseDue', upcoming: 'doseUpcoming', missed: 'missed', skipped: 'skipped',
+};
+
+function statusLabel(status: string): string {
+  return STATUS_KEYS[status] ? t(STATUS_KEYS[status]) : status;
+}
 
 function getStatusAccentColor(status: ScheduledDose['status']): string {
   switch (status) {
@@ -154,14 +179,14 @@ export default function DoseDetailModal({
               <Text style={styles.skipReasonsTitle}>{t('whySkipping')}</Text>
               {SKIP_REASONS.map((reason) => (
                 <TouchableOpacity
-                  key={reason}
+                  key={reason.value}
                   style={styles.skipReasonButton}
-                  onPress={() => handleReasonSelect(reason)}
+                  onPress={() => handleReasonSelect(reason.value)}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={`Skip this dose: ${reason}`}
+                  accessibilityLabel={t('doseSkipReasonA11y', { reason: t(reason.key) })}
                 >
-                  <Text style={styles.skipReasonText}>{reason}</Text>
+                  <Text style={styles.skipReasonText}>{t(reason.key)}</Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
@@ -178,7 +203,10 @@ export default function DoseDetailModal({
             <View>
               {canCorrect && !canAct ? (
                 <Text style={styles.correctionHint}>
-                  Recorded as {dose.status}{dose.skipReason ? ` (${dose.skipReason})` : ''}. Tap what actually happened.
+                  {t('doseRecordedAs', {
+                    status: statusLabel(dose.status),
+                    reason: dose.skipReason ? ` (${skipReasonLabel(dose.skipReason)})` : '',
+                  })}
                 </Text>
               ) : null}
               <View style={styles.actions}>
@@ -186,48 +214,46 @@ export default function DoseDetailModal({
                   style={styles.tookButton}
                   onPress={() => onTook(dose)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Mark ${dose.supplementName} as taken`}
+                  accessibilityLabel={t('doseMarkTakenA11y', { supplement: dose.supplementName })}
                 >
-                  <Text style={styles.tookButtonText}>✓ Took it</Text>
+                  <Text style={styles.tookButtonText}>{t('tookIt')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.skipButton}
                   onPress={handleSkipPress}
                   accessibilityRole="button"
-                  accessibilityLabel={`Skip ${dose.supplementName}`}
+                  accessibilityLabel={t('doseSkipA11y', { supplement: dose.supplementName })}
                 >
                   <Text style={styles.skipButtonText}>{t('skip')}</Text>
                 </TouchableOpacity>
               </View>
-              {/* Literal, not t() — i18n/ is nobody's lane this round, and the
-                  strings around it ("✓ Took it") are already literal. */}
               <TouchableOpacity
                 style={styles.addReasonButton}
                 onPress={() => setShowSkipReasons(true)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`Add a reason for skipping ${dose.supplementName}`}
+                accessibilityLabel={t('doseAddReasonA11y', { supplement: dose.supplementName })}
               >
                 <Text style={styles.addReasonText}>{t('doseAddReason')}</Text>
               </TouchableOpacity>
             </View>
           ) : isTaken ? (
             <View style={styles.takenBanner}>
-              <Text style={styles.takenBannerText}>✓ Dose logged</Text>
+              <Text style={styles.takenBannerText}>{t('doseLoggedBanner')}</Text>
             </View>
           ) : isMissed ? (
             <View style={styles.missedBanner}>
-              <Text style={styles.missedBannerText}>✕ Marked as missed</Text>
+              <Text style={styles.missedBannerText}>{t('doseMissedBanner')}</Text>
             </View>
           ) : isSkipped ? (
             <View style={styles.skippedBanner}>
               <Text style={styles.skippedBannerText}>
-                — {t('skipped')}{dose.skipReason ? `: ${dose.skipReason}` : ''}
+                — {t('skipped')}{dose.skipReason ? `: ${skipReasonLabel(dose.skipReason)}` : ''}
               </Text>
             </View>
           ) : (
             <Text style={styles.statusText}>
-              Status: {dose.status}
+              {t('doseStatusLine', { status: statusLabel(dose.status) })}
             </Text>
           )}
         </Pressable>

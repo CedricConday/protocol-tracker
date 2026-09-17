@@ -51,7 +51,7 @@ export default function FeedbackScreen() {
       const body = message.trim();
       const url =
         channel === 'email'
-          ? `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Protocol Tracker feedback')}` +
+          ? `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(t('fbEmailSubject'))}` +
             `&body=${encodeURIComponent(body)}`
           : `https://wa.me/${FEEDBACK_WHATSAPP}?text=${encodeURIComponent(body)}`;
 
@@ -93,10 +93,10 @@ export default function FeedbackScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.sectionLabel}>MESSAGE</Text>
+          <Text style={styles.sectionLabel}>{t('fbMessageLabel')}</Text>
           <TextInput
             style={styles.messageInput}
-            placeholder="What's on your mind?"
+            placeholder={t('fbPlaceholder')}
             placeholderTextColor="#9AA3B2"
             multiline
             value={message}
@@ -115,7 +115,7 @@ export default function FeedbackScreen() {
             activeOpacity={0.8}
             accessibilityRole="button"
           >
-            <Text style={styles.submitBtnText}>{submitting ? 'Preparing…' : t('fbSendEmail')}</Text>
+            <Text style={styles.submitBtnText}>{submitting ? t('fbPreparing') : t('fbSendEmail')}</Text>
           </TouchableOpacity>
 
           {/* Disabled, with the reason on it, until FEEDBACK_WHATSAPP is a real

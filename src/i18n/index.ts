@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
+import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { en } from './en';
 import { de } from './de';
 
 /**
  * Translation.
+ *
+ * The language follows the PHONE until the user says otherwise (2026-09-17).
+ * `lang` defaulted to 'en' with no device check at all, so a German phone came
+ * up in English and stayed there unless its owner found the switch in Settings
+ * — in an app whose other language is the one most of its users speak.
+ * `deviceLanguage()` is read at boot by `getLanguage()`; an explicit choice is
+ * stored and always wins.
  *
  * Two things changed on 2026-09-14, both of which the German pass needs:
  *
@@ -18,7 +26,7 @@ import { de } from './de';
  * 2. `t()` interpolates. German is not English with different words — the verb
  *    moves, the object takes a case — so a sentence cannot be built by
  *    concatenating translated fragments. Every string with a value in it is one
- *    key with named placeholders: t('waterNudge', { name, ml, goal }).
+ *    key with named placeholders: t('notifWaterBody', { name, amount, goal }).
  */
 
 export const LANGUAGES = ['en', 'de'] as const;
@@ -40,17 +48,62 @@ export function getCurrentLanguage(): Language {
   return lang;
 }
 
+/**
+ * The phone's own language, as a tag this app has strings for.
+ *
+ * Read without `expo-localization`: the three sources below need no new native
+ * dependency, which for one string at boot is the cheaper path. Each is wrapped
+ * because all three are absent on some platform or build — Intl is missing from
+ * a Hermes built without it, and the NativeModules entries are per-platform.
+ *
+ * Anything that is not German lands on English, which is the fallback table.
+ */
+export function deviceLanguage(): Language {
+  const tags: (string | undefined)[] = [];
+
+  try {
+    tags.push(Intl.DateTimeFormat().resolvedOptions().locale);
+  } catch {
+    // No Intl in this build.
+  }
+
+  try {
+    if (Platform.OS === 'ios') {
+      const settings = NativeModules.SettingsManager?.settings;
+      tags.push(settings?.AppleLocale, settings?.AppleLanguages?.[0]);
+    } else {
+      tags.push(NativeModules.I18nManager?.localeIdentifier);
+    }
+  } catch {
+    // Not every build exposes these; the default below is still correct.
+  }
+
+  const tag = tags.find((t) => typeof t === 'string' && t.length > 0);
+  // `de`, `de-DE`, `de_AT`, `De-CH` — the language subtag is all that matters.
+  return tag && /^de\b/i.test(tag.replace('_', '-')) ? 'de' : 'en';
+}
+
+/**
+ * The stored preference, or the phone's language if there is no preference yet.
+ *
+ * The device fallback is deliberately NOT written back to storage: until the
+ * user chooses in Settings, a phone switched to German should come up in German
+ * on the next launch too. `setLanguage` is the only thing that persists, so
+ * "what the phone says" and "what the user asked for" stay distinguishable.
+ */
 export async function getLanguage(): Promise<Language> {
+  let next: Language;
   try {
     const stored = await AsyncStorage.getItem(LANG_KEY);
-    if (isLanguage(stored) && stored !== lang) {
-      lang = stored;
-      listeners.forEach((l) => l(lang));
-    }
-    return lang;
+    next = isLanguage(stored) ? stored : deviceLanguage();
   } catch {
-    return lang;
+    next = deviceLanguage();
   }
+  if (next !== lang) {
+    lang = next;
+    listeners.forEach((l) => l(lang));
+  }
+  return lang;
 }
 
 export async function setLanguage(next: string): Promise<void> {

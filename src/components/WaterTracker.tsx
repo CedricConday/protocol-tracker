@@ -122,7 +122,7 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
             style={[styles.preset, amount === ml ? styles.presetActive : null]}
             onPress={() => setBoth(ml)}
             activeOpacity={0.7}
-            accessibilityLabel={`Set ${ml} millilitres`}
+            accessibilityLabel={t('waterSetMlA11y', { ml })}
             accessibilityRole="button"
           >
             <Text style={[styles.presetText, amount === ml ? styles.presetTextActive : null]}>{ml}</Text>
@@ -134,10 +134,10 @@ const WaterTracker = React.memo(function WaterTracker({ waterMl, onAdd, goalMl =
         style={styles.logBtn}
         onPress={() => onAdd(amount)}
         activeOpacity={0.85}
-        accessibilityLabel={`Log ${amount} millilitres of water`}
+        accessibilityLabel={t('waterLogMlA11y', { ml: amount })}
         accessibilityRole="button"
       >
-        <Text style={styles.logBtnText}>Log {amount} ml</Text>
+        <Text style={styles.logBtnText}>{t('waterLogMl', { ml: amount })}</Text>
       </TouchableOpacity>
     </View>
   );

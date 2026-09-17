@@ -22,7 +22,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import { getProfileById } from '../data/diseaseProfiles';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, plural } from '../i18n';
 import { useToday } from '../hooks/useToday';
 
 import { weekdaysShortSundayFirst, weekdaysShort, monthNames, longDate } from '../i18n/dates';
@@ -35,15 +35,16 @@ function mondayOffset(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
 }
 
-const AWARENESS_DATES: Record<string, { label: string; message: string }> = {
-  '05-30': { label: 'World MS Day', message: 'May 30 — World MS Day.' },
-  '03-07': { label: 'MS Awareness Month', message: 'March 7 — MS Awareness Month.' },
-  '03-31': { label: 'MS Awareness Month End', message: 'March 31 — End of MS Awareness Month.' },
+const AWARENESS_DATES: Record<string, { labelKey: string; messageKey: string }> = {
+  '05-30': { labelKey: 'awWorldMsDay', messageKey: 'awWorldMsDayMsg' },
+  '03-07': { labelKey: 'awMsMonth', messageKey: 'awMsMonthMsg' },
+  '03-31': { labelKey: 'awMsMonthEnd', messageKey: 'awMsMonthEndMsg' },
 };
 function getAwarenessDate(dateStr: string): { label: string; message: string } | null {
   const d = new Date(dateStr + 'T00:00:00');
   const key = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  return AWARENESS_DATES[key] ?? null;
+  const entry = AWARENESS_DATES[key];
+  return entry ? { label: t(entry.labelKey), message: t(entry.messageKey) } : null;
 }
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -110,12 +111,21 @@ function fmtTime(ts: number | null): string {
 const DOSE_STATUS_COLOR: Record<string, string> = {
   taken: '#2F8F5B', missed: '#C0392B', skipped: '#9AA3B2', due: '#F2B233', upcoming: '#5A6478',
 };
+// Keys, not words: the value in the row is the English id the table stores.
 const EVENT_LABEL: Record<string, string> = {
-  relapse: 'Relapse', cortisone: 'Cortisone', symptom: 'Symptom', pain: 'Pain',
+  relapse: 'evRelapse', cortisone: 'evCortisone', symptom: 'evSymptom', pain: 'evPain',
 };
 const MEAL_LABEL: Record<string, string> = {
-  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack',
+  breakfast: 'mealBreakfast', lunch: 'mealLunch', dinner: 'mealDinner', snack: 'mealSnack',
 };
+const DOSE_STATUS_LABEL: Record<string, string> = {
+  taken: 'taken', missed: 'missed', skipped: 'skipped', due: 'doseDue', upcoming: 'doseUpcoming',
+};
+
+/** A stored id in the current language, or the id itself if it is not one of ours. */
+function labelFor(table: Record<string, string>, id: string): string {
+  return table[id] ? t(table[id]) : id;
+}
 
 // One slot in the month grid — either a real day or a leading/trailing blank.
 type Slot = { date: string; day: number } | null;
@@ -263,7 +273,9 @@ export default function CalendarScreen() {
     if (c.totalDoses > 0) { pctSum += c.compliancePct; pctCount++; }
   }
   const avgCompliance = pctCount ? Math.round(pctSum / pctCount) : 0;
-  const monthStats = daysLogged ? `${daysLogged} days logged · ${avgCompliance}% avg` : 'No data yet';
+  const monthStats = daysLogged
+    ? t('calMonthStats', { days: daysLogged, pct: avgCompliance })
+    : t('noDataYet');
 
   const handleShare = async () => {
     try {
@@ -274,8 +286,8 @@ export default function CalendarScreen() {
           const d = new Date(c.date + 'T00:00:00');
           const bits = [
             c.totalDoses > 0 ? `${c.compliancePct}% (${c.takenDoses}/${c.totalDoses})` : '—',
-            c.eventCount > 0 ? `${c.eventCount} event(s)` : '',
-            c.hasJournal ? 'journal' : '',
+            c.eventCount > 0 ? plural(c.eventCount, 'calA11yEvent', 'calA11yEvents', { count: c.eventCount }) : '',
+            c.hasJournal ? t('journal').toLowerCase() : '',
           ].filter(Boolean).join(' · ');
           return `<tr><td style="border:1px solid #333;padding:8px">${weekdaysShortSundayFirst()[d.getDay()]} ${c.date}</td><td style="border:1px solid #333;padding:8px">${bits}</td></tr>`;
         })
@@ -287,7 +299,7 @@ export default function CalendarScreen() {
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri, { mimeType: 'text/html' });
     } catch (e) {
-      Alert.alert(t('calShareFailed'), e instanceof Error ? e.message : 'Unknown error');
+      Alert.alert(t('calShareFailed'), e instanceof Error ? e.message : t('unknownError'));
     }
   };
 
@@ -365,7 +377,23 @@ export default function CalendarScreen() {
                     disabled={disabled}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`${slot.date}${hasDoses ? `, ${c!.takenDoses} of ${c!.totalDoses} doses taken` : ''}${c && c.eventCount > 0 ? `, ${c.eventCount} event${c.eventCount > 1 ? 's' : ''}` : ''}${c && c.hasJournal ? ', journal entry' : ''}${c && c.hasWater ? ', water logged' : ''}${c && c.hasFood ? ', meals logged' : ''}${c && c.hasExercise ? ', exercise logged' : ''}${c && c.hasSun ? ', sun logged' : ''}${isToday ? ', today' : ''}${!hasData ? ', no data' : ''}. Tap for details.`}
+                    accessibilityLabel={t('calDayA11y', {
+                      date: slot.date,
+                      // Built from translated fragments joined by the locale's own
+                      // list separator rather than from a sentence: these are
+                      // labels in a list, not clauses, so nothing has to agree.
+                      detail: [
+                        hasDoses ? t('calA11yDoses', { taken: c!.takenDoses, total: c!.totalDoses }) : '',
+                        c && c.eventCount > 0 ? plural(c.eventCount, 'calA11yEvent', 'calA11yEvents', { count: c.eventCount }) : '',
+                        c && c.hasJournal ? t('calA11yJournal') : '',
+                        c && c.hasWater ? t('calA11yWater') : '',
+                        c && c.hasFood ? t('calA11yMeals') : '',
+                        c && c.hasExercise ? t('calA11yExercise') : '',
+                        c && c.hasSun ? t('calA11ySun') : '',
+                        isToday ? t('today').toLowerCase() : '',
+                        !hasData ? t('noData').toLowerCase() : '',
+                      ].filter(Boolean).join(', '),
+                    })}
                   >
                     <View style={[styles.cell, { backgroundColor: cellBg, borderColor: cellBorder }, isToday && styles.cellToday]}>
                       <View style={styles.ringWrap}>
@@ -497,7 +525,7 @@ export default function CalendarScreen() {
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={closeDay}
-            accessibilityLabel="Close day details"
+            accessibilityLabel={t('calCloseDay')}
             accessibilityRole="button"
           />
           <View style={styles.modalCard}>
@@ -535,11 +563,11 @@ export default function CalendarScreen() {
                         onPress={() => setSelectedDose(d)}
                         activeOpacity={0.7}
                         accessibilityRole="button"
-                        accessibilityLabel={`${d.supplementName}, ${d.status} — correct this dose`}
+                        accessibilityLabel={t('calCorrectDoseA11y', { supplement: d.supplementName, status: labelFor(DOSE_STATUS_LABEL, d.status) })}
                       >
                         <View style={[styles.detailDot, { backgroundColor: DOSE_STATUS_COLOR[d.status] ?? '#5A6478' }]} />
                         <Text style={styles.detailRowText}>{d.supplementName}</Text>
-                        <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.loggedTime ? fmtTime(d.loggedTime) : d.status}</Text>
+                        <Text style={styles.detailRowMeta}>{d.status === 'taken' && d.loggedTime ? fmtTime(d.loggedTime) : labelFor(DOSE_STATUS_LABEL, d.status)}</Text>
                         <Text style={styles.detailRowChevron}>›</Text>
                       </TouchableOpacity>
                     ))
@@ -572,7 +600,7 @@ export default function CalendarScreen() {
                   <View style={styles.detailSectionRow}>
                     <Text style={styles.detailSection}>{t('meals')}</Text>
                     {detail.firstMealTime ? (
-                      <Text style={styles.detailSummary}>{`first ${detail.firstMealTime}`}</Text>
+                      <Text style={styles.detailSummary}>{t('calFirstMeal', { time: detail.firstMealTime })}</Text>
                     ) : null}
                   </View>
                   {detail.meals.length === 0 ? (
@@ -581,7 +609,7 @@ export default function CalendarScreen() {
                     detail.meals.map((m) => (
                       <View key={m.id} style={styles.detailRow}>
                         <View style={[styles.detailDot, { backgroundColor: FOOD_COLOR }]} />
-                        <Text style={styles.detailRowText}>{MEAL_LABEL[m.meal_type] ?? m.meal_type}</Text>
+                        <Text style={styles.detailRowText}>{labelFor(MEAL_LABEL, m.meal_type)}</Text>
                         <Text style={styles.detailRowMeta}>{m.time}</Text>
                       </View>
                     ))
@@ -599,7 +627,7 @@ export default function CalendarScreen() {
                     detail.exerciseLogs.map((e) => (
                       <View key={e.id} style={styles.detailRow}>
                         <View style={[styles.detailDot, { backgroundColor: EXERCISE_COLOR }]} />
-                        <Text style={styles.detailRowText}>{`${e.duration_minutes} min ${e.type}`}</Text>
+                        <Text style={styles.detailRowText}>{`${e.duration_minutes} ${t('unitMin')} ${e.type}`}</Text>
                         <Text style={styles.detailRowMeta}>{e.intensity}</Text>
                       </View>
                     ))
@@ -637,7 +665,7 @@ export default function CalendarScreen() {
                   {detail.journal ? (
                     <View style={styles.journalCard}>
                       <Text style={styles.detailMood}>{detail.journal.mood}</Text>
-                      <Text style={styles.journalNote}>{detail.journal.note || 'No note'}</Text>
+                      <Text style={styles.journalNote}>{detail.journal.note || t('calNoNote')}</Text>
                     </View>
                   ) : (
                     <Text style={styles.detailMuted}>{t('noJournalEntry')}</Text>
@@ -652,7 +680,7 @@ export default function CalendarScreen() {
                         <View style={styles.detailEventDiamond} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.detailEventTitle}>
-                            {EVENT_LABEL[e.type] ?? e.type}{e.severity ? ` · severity ${e.severity}` : ''}{e.cortisone_dose_mg ? ` · ${e.cortisone_dose_mg}mg` : ''}
+                            {labelFor(EVENT_LABEL, e.type)}{e.severity ? ` · ${t('calSeverity', { severity: e.severity })}` : ''}{e.cortisone_dose_mg ? ` · ${e.cortisone_dose_mg}mg` : ''}
                           </Text>
                           {!!e.notes && <Text style={styles.detailEventNotes}>{e.notes}</Text>}
                         </View>
@@ -663,7 +691,7 @@ export default function CalendarScreen() {
               )}
             </ScrollView>
 
-            <TouchableOpacity style={styles.detailClose} onPress={closeDay} accessibilityLabel="Close" accessibilityRole="button">
+            <TouchableOpacity style={styles.detailClose} onPress={closeDay} accessibilityLabel={t('close')} accessibilityRole="button">
               <Text style={styles.detailCloseText}>{t('close')}</Text>
             </TouchableOpacity>
           </View>

@@ -5,6 +5,7 @@ import { useWeather, aqiLabel } from '../hooks/useWeather';
 import { getWeatherEnabled } from '../db/queries';
 import SkeletonCard from './SkeletonCard';
 import { C, space, radius, text as T } from '../theme';
+import { t, useLanguage } from '../i18n';
 
 function weatherEmoji(code: number): string {
   if (code === 0) return '☀️';
@@ -17,21 +18,22 @@ function weatherEmoji(code: number): string {
 }
 
 function uvLabel(uv: number): string {
-  if (uv <= 2) return 'Low';
-  if (uv <= 5) return 'Moderate';
-  if (uv <= 7) return 'High';
-  if (uv <= 10) return 'Very high';
-  return 'Extreme';
+  if (uv <= 2) return t('uvLow');
+  if (uv <= 5) return t('uvModerate');
+  if (uv <= 7) return t('uvHigh');
+  if (uv <= 10) return t('uvVeryHigh');
+  return t('uvExtreme');
 }
 
 function protocolInsight(temp: number, uv: number, peakStart: string | null, peakEnd: string | null): string {
-  if (temp >= 25) return `Heat alert · ${temp}°C — plan activity for early morning or evening.`;
-  if (uv >= 3 && peakStart && peakEnd) return `Sun window ${peakStart}–${peakEnd} — good time for exposure.`;
-  if (uv < 3) return 'UV too low for synthesis today — your supplement covers it.';
-  return `UV ${uv} · ${uvLabel(uv)} today.`;
+  if (temp >= 25) return t('wxHeatAlert', { temp });
+  if (uv >= 3 && peakStart && peakEnd) return t('wxSunWindow', { start: peakStart, end: peakEnd });
+  if (uv < 3) return t('wxUvTooLow');
+  return t('wxUvToday', { uv, label: uvLabel(uv) });
 }
 
 function WeatherCard() {
+  useLanguage(); // re-render this card when the language changes
   // `null` = not read yet. Render nothing until we know, so the card cannot
   // flash on for a user who turned it off.
   const [enabled, setEnabled] = useState<boolean | null>(null);

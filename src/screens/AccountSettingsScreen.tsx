@@ -78,7 +78,7 @@ export default function AccountSettingsScreen() {
       <Text style={styles.intro}>{t('accIntro')}</Text>
 
       <View style={styles.group}>
-        <Pressable onPress={handleResetAll} accessibilityLabel="Reset logged data" accessibilityRole="button">
+        <Pressable onPress={handleResetAll} accessibilityLabel={t('resetTracking')} accessibilityRole="button">
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={styles.rowTitle}>{t('resetTracking')}</Text>
@@ -88,7 +88,7 @@ export default function AccountSettingsScreen() {
           </View>
         </Pressable>
         <View style={styles.sep} />
-        <Pressable onPress={handleDeleteAccount} accessibilityLabel="Delete account" accessibilityRole="button">
+        <Pressable onPress={handleDeleteAccount} accessibilityLabel={t('deleteAccount')} accessibilityRole="button">
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, { color: C.danger }]}>{t('deleteAccount')}</Text>

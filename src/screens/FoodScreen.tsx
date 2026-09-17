@@ -43,11 +43,12 @@ import { weekdaysShort } from '../i18n/dates';
  * was not — which on a medical record is the failure worth paying a query for.
  */
 
+// `id` is the stored `meal_log.meal_type` and stays English; the label is a key.
 const MEAL_TYPES = [
-  { id: 'breakfast', label: 'Breakfast' },
-  { id: 'lunch', label: 'Lunch' },
-  { id: 'dinner', label: 'Dinner' },
-  { id: 'snack', label: 'Snack' },
+  { id: 'breakfast', labelKey: 'mealBreakfast' },
+  { id: 'lunch', labelKey: 'mealLunch' },
+  { id: 'dinner', labelKey: 'mealDinner' },
+  { id: 'snack', labelKey: 'mealSnack' },
 ];
 
 /**
@@ -185,12 +186,12 @@ export default function FoodScreen() {
             accessibilityRole="button"
             accessibilityLabel={
               firstMeal
-                ? `First meal today at ${firstMeal}. Tap to change.`
-                : 'First meal time not set. Tap to set it.'
+                ? t('foodFirstMealA11y', { time: firstMeal })
+                : t('foodFirstMealUnsetA11y')
             }
           >
             <Text style={[styles.cardValue, firstMeal ? null : styles.cardValueUnset]}>
-              {firstMeal ?? 'Not set'}
+              {firstMeal ?? t('notSet')}
             </Text>
           </TouchableOpacity>
         )}
@@ -232,9 +233,9 @@ export default function FoodScreen() {
               style={styles.mealChip}
               onPress={() => handleLogMeal(meal.id)}
               accessibilityRole="button"
-              accessibilityLabel={`Log ${meal.label} at the current time`}
+              accessibilityLabel={t('foodLogMealA11y', { meal: t(meal.labelKey) })}
             >
-              <Text style={styles.mealChipText}>{meal.label}</Text>
+              <Text style={styles.mealChipText}>{t(meal.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -256,7 +257,10 @@ export default function FoodScreen() {
             <View key={meal.id} style={styles.mealRow}>
               <Text style={styles.mealTime}>{meal.time}</Text>
               <Text style={styles.mealType}>
-                {MEAL_TYPES.find((m) => m.id === meal.meal_type)?.label ?? meal.meal_type}
+                {(() => {
+                  const known = MEAL_TYPES.find((m) => m.id === meal.meal_type);
+                  return known ? t(known.labelKey) : meal.meal_type;
+                })()}
               </Text>
             </View>
           ))

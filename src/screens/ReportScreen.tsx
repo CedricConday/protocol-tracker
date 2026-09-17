@@ -25,13 +25,13 @@ export default function ReportScreen() {
       const rows = await getSupplementsWithRules();
       const d3 = rows.find((r) => /(^|\W)(d3|vitamin\s*d)/i.test(r.name));
       const uri = await generateComplianceReport(
-        profile?.name ?? 'Patient',
+        profile?.name ?? t('patientFallback'),
         d3?.dose_amount ?? '—'
       );
       setLastGenerated(new Date().toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }));
       await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
     } catch (e: any) {
-      Alert.alert(t('repFailed'), e?.message ?? 'Please try again.');
+      Alert.alert(t('repFailed'), e?.message ?? t('pleaseTryAgain'));
     } finally {
       setGenerating(false);
     }
@@ -55,7 +55,7 @@ export default function ReportScreen() {
           activeOpacity={0.8}
         >
           <Text style={styles.buttonText}>
-            {generating ? 'Generating...' : 'Generate Report'}
+            {generating ? t('repGenerating') : t('repGenerate')}
           </Text>
         </TouchableOpacity>
 

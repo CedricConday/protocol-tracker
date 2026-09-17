@@ -23,7 +23,8 @@ import {
   deleteSupplement,
   localDateStr,
 } from '../db/queries';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
+import { weekdaysShortSundayFirst } from '../i18n/dates';
 import { FREQUENCIES, parseDaysOfWeek, describeCadence } from '../engine/cadence';
 
 type SupRow = {
@@ -78,15 +79,29 @@ const BLANK: FormState = {
 
 const FORMS = ['capsule', 'tablet', 'powder', 'liquid'] as const;
 
-const FREQ_LABELS: Record<string, string> = {
-  'daily': 'Every day',
-  'specific-days': 'Certain days',
-  'day-of-month': 'Monthly',
-  'cycle': 'On / off cycle',
-  'as-needed': 'As needed',
+const FREQ_KEYS: Record<string, string> = {
+  'daily': 'freqDaily',
+  'specific-days': 'freqSpecificDays',
+  'day-of-month': 'freqMonthly',
+  'cycle': 'freqCycle',
+  'as-needed': 'freqAsNeeded',
 };
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+/**
+ * One-letter day dots and their full names, both from Intl — German starts the
+ * week on Monday and abbreviates differently, and a hardcoded S-M-T-W-T-F-S was
+ * wrong in both respects. `getDay()` order (Sunday first) is kept because the
+ * dot index IS the stored day number.
+ */
+function weekdayInitials(): string[] {
+  return weekdaysShortSundayFirst().map((d) => d.charAt(0).toUpperCase());
+}
+
+function weekdayNames(): string[] {
+  const fmt = new Intl.DateTimeFormat(locale(), { weekday: 'long' });
+  // 2024-01-07 was a Sunday.
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 7 + i)));
+}
 
 /**
  * Cadence picker. Only the sub-control the chosen frequency actually reads is
@@ -112,23 +127,23 @@ function CadenceFields({ form, onChange }: { form: FormState; onChange: (f: Form
             style={[styles.chip, form.frequency === f && styles.chipActive]}
             accessibilityRole="button"
             accessibilityState={{ selected: form.frequency === f }}
-            accessibilityLabel={FREQ_LABELS[f]}
+            accessibilityLabel={t(FREQ_KEYS[f])}
           >
-            <Text style={[styles.chipText, form.frequency === f && styles.chipTextActive]}>{FREQ_LABELS[f]}</Text>
+            <Text style={[styles.chipText, form.frequency === f && styles.chipTextActive]}>{t(FREQ_KEYS[f])}</Text>
           </Pressable>
         ))}
       </View>
 
       {form.frequency === 'specific-days' && (
         <View style={styles.dayRow}>
-          {WEEKDAYS.map((label, d) => (
+          {weekdayInitials().map((label, d) => (
             <Pressable
               key={d}
               onPress={() => toggleDay(d)}
               style={[styles.dayDot, days.includes(d) && styles.dayDotOn]}
               accessibilityRole="button"
               accessibilityState={{ selected: days.includes(d) }}
-              accessibilityLabel={['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d]}
+              accessibilityLabel={weekdayNames()[d]}
             >
               <Text style={[styles.dayDotText, days.includes(d) && styles.dayDotTextOn]}>{label}</Text>
             </Pressable>
@@ -240,7 +255,7 @@ function FormFields({
             style={styles.input}
             value={form.dose_unit}
             onChangeText={(v) => onChange({ ...form, dose_unit: v })}
-            placeholder="mg · IU · mcg"
+            placeholder={t('supUnitPlaceholder')}
             placeholderTextColor={C.textMuted}
             autoCapitalize="none"
           />
@@ -360,11 +375,11 @@ export default function SupplementEditorScreen() {
   const handleDelete = (row: SupRow) => {
     Alert.alert(
       t('supDelete'),
-      `Remove "${row.name}" and all its dose history? This cannot be undone.`,
+      t('supDeleteConfirm', { name: row.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteSupplement(row.id);
@@ -413,7 +428,7 @@ export default function SupplementEditorScreen() {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={showAddForm ? 'Close the add supplement form' : 'Add a supplement'}
+            accessibilityLabel={showAddForm ? t('supCloseAddA11y') : t('supAddA11y')}
           >
             <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#F7F7F2" />
           </TouchableOpacity>
@@ -433,7 +448,7 @@ export default function SupplementEditorScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('supAdd')}
               >
-                <Text style={styles.saveBtnText}>{saving === '__add__' ? 'Saving…' : 'Add Supplement'}</Text>
+                <Text style={styles.saveBtnText}>{saving === '__add__' ? t('saving') : t('supAdd')}</Text>
               </TouchableOpacity>
             </View>
           )}

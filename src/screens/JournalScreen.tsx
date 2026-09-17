@@ -19,12 +19,14 @@ import { useToday } from '../hooks/useToday';
 import EmptyState from '../components/EmptyState';
 
 import { weekdaysShortSundayFirst, shortDate } from '../i18n/dates';
+// The emoji IS the stored mood, so it is language-independent already; only
+// the word under it is looked up.
 const MOODS = [
-  { emoji: '😄', label: 'Great' },
-  { emoji: '🙂', label: 'Good' },
-  { emoji: '😐', label: 'Okay' },
-  { emoji: '😔', label: 'Rough' },
-  { emoji: '😞', label: 'Struggling' },
+  { emoji: '😄', labelKey: 'moodGreat' },
+  { emoji: '🙂', labelKey: 'moodGood' },
+  { emoji: '😐', labelKey: 'moodOkay' },
+  { emoji: '😔', labelKey: 'moodRough' },
+  { emoji: '😞', labelKey: 'moodStruggling' },
 ];
 
 
@@ -36,18 +38,26 @@ const TYPE_COLORS: Record<string, string> = {
   symptom: '#888888',
   pain: '#a855f7',
 };
+// Values, not words: `relapse_events.type` and `.pain_type` keep their English
+// ids so a row written in one language still reads in the other.
 const TYPE_LABELS: Record<string, string> = {
-  relapse: 'Relapse',
-  cortisone: 'Cortisone',
-  symptom: 'Symptom',
-  pain: 'Pain',
+  relapse: 'evRelapse',
+  cortisone: 'evCortisone',
+  symptom: 'evSymptom',
+  pain: 'evPain',
 };
-const PAIN_SUBTYPES = [
-  'Dysesthetic (burning/tingling)',
-  'Spasticity (muscle)',
-  'Musculoskeletal',
-  'Headache',
+const PAIN_SUBTYPES: { value: string; key: string }[] = [
+  { value: 'Dysesthetic (burning/tingling)', key: 'painDysesthetic' },
+  { value: 'Spasticity (muscle)', key: 'painSpasticity' },
+  { value: 'Musculoskeletal', key: 'painMusculoskeletal' },
+  { value: 'Headache', key: 'painHeadache' },
 ];
+
+/** A stored pain type in the current language; anything else prints as-is. */
+function painTypeLabel(stored: string): string {
+  const known = PAIN_SUBTYPES.find((p) => p.value === stored);
+  return known ? t(known.key) : stored;
+}
 
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -337,10 +347,10 @@ export default function JournalScreen() {
   }, [eventType, eventDate, cortisoneDose, severity, eventNotes, painSubtype, lasted24h, hasFever, loadData]);
 
   const eventPlaceholder = eventType === 'cortisone'
-    ? 'Pulse dose details...'
+    ? t('jrnPulsePlaceholder')
     : eventType === 'symptom'
-      ? 'What symptoms?'
-      : 'Describe what happened...';
+      ? t('jrnSymptomPlaceholder')
+      : t('jrnEventPlaceholder');
 
   const eventSubmitDisabled = (eventType !== 'cortisone' && severity === null) || (eventType === 'pain' && painSubtype === null);
 
@@ -359,7 +369,7 @@ export default function JournalScreen() {
           style={[styles.logEventBtn, logEventOpen ? styles.logEventBtnActive : null]}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLogEventOpen((v) => !v); }}
           activeOpacity={0.7}
-          accessibilityLabel={logEventOpen ? 'Hide event log form' : 'Show event log form'}
+          accessibilityLabel={logEventOpen ? t('jrnHideEventForm') : t('jrnShowEventForm')}
           accessibilityRole="button"
         >
           <Text style={[styles.logEventBtnText, logEventOpen ? styles.logEventBtnTextActive : null]}>
@@ -404,7 +414,7 @@ export default function JournalScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.typeButtonText, { color: selected ? '#F7F7F2' : color }]}>
-                    {TYPE_LABELS[et]}
+                    {t(TYPE_LABELS[et])}
                   </Text>
                 </TouchableOpacity>
               );
@@ -416,16 +426,16 @@ export default function JournalScreen() {
               <Text style={styles.fieldLabel}>{t('painType')}</Text>
               <View style={styles.painSubtypeContainer}>
                 {PAIN_SUBTYPES.map((subtype) => {
-                  const selected = painSubtype === subtype;
+                  const selected = painSubtype === subtype.value;
                   return (
                     <TouchableOpacity
-                      key={subtype}
+                      key={subtype.value}
                       style={[styles.painSubtypeButton, selected ? styles.painSubtypeSelected : null]}
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPainSubtype(subtype); }}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPainSubtype(subtype.value); }}
                       activeOpacity={0.7}
                     >
                       <Text style={[styles.painSubtypeText, selected ? styles.painSubtypeTextSelected : null]}>
-                        {subtype}
+                        {t(subtype.key)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -451,7 +461,7 @@ export default function JournalScreen() {
           ) : null}
 
           <Text style={styles.fieldLabel}>
-            Severity
+            {t('severity')}
             {eventType !== 'cortisone' ? <Text style={styles.required}> *</Text> : null}
           </Text>
           <View style={styles.severityRow}>
@@ -480,7 +490,7 @@ export default function JournalScreen() {
 
           {eventType === 'relapse' || eventType === 'symptom' ? (
             <>
-              <Text style={styles.fieldLabel}>24-Hour Rule</Text>
+              <Text style={styles.fieldLabel}>{t('jrn24HourRule')}</Text>
               <View style={styles.yesNoRow}>
                 {([true, false] as const).map((val) => (
                   <TouchableOpacity
@@ -490,7 +500,7 @@ export default function JournalScreen() {
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.yesNoBtnText, lasted24h === val ? styles.yesNoBtnTextActive : null]}>
-                      {val ? 'Yes — lasted >24h' : 'No — resolved sooner'}
+                      {val ? t('jrnLasted24h') : t('jrnResolvedSooner')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -505,7 +515,7 @@ export default function JournalScreen() {
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.yesNoBtnText, hasFever === val ? styles.yesNoBtnTextActive : null]}>
-                      {val ? 'Yes' : 'No'}
+                      {val ? t('yes') : t('no')}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -532,12 +542,12 @@ export default function JournalScreen() {
 
           <TouchableOpacity
             style={[styles.logButton, eventSubmitDisabled ? styles.logButtonDisabled : null]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLogEvent().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('jrnSaveFailed'), e?.message ?? 'Please try again')); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleLogEvent().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('jrnSaveFailed'), e?.message ?? t('pleaseTryAgain'))); }}
             disabled={eventSubmitDisabled}
             activeOpacity={0.8}
           >
             <Text style={styles.logButtonText}>
-              {eventLogged ? 'Logged ✓' : t('logEvent')}
+              {eventLogged ? t('jrnLogged') : t('logEvent')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -592,14 +602,14 @@ export default function JournalScreen() {
               ]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleMoodSelect(m.emoji); }}
               activeOpacity={0.7}
-              accessibilityLabel={`Select mood ${m.label}`}
+              accessibilityLabel={t('jrnSelectMoodA11y', { mood: t(m.labelKey) })}
               accessibilityRole="button"
             >
               <Text style={[styles.moodEmoji, isSelected ? styles.moodEmojiSelected : null]}>
                 {m.emoji}
               </Text>
               <Text style={[styles.moodLabel, isSelected ? styles.moodLabelSelected : null]}>
-                {m.label}
+                {t(m.labelKey)}
               </Text>
             </TouchableOpacity>
           );
@@ -626,7 +636,7 @@ export default function JournalScreen() {
       />
 
       <Text style={styles.complianceLine}>
-        You've taken {summary.takenDoses} of {summary.totalDoses} doses today
+        {t('jrnComplianceLine', { taken: summary.takenDoses, total: summary.totalDoses })}
       </Text>
 
       <TouchableOpacity
@@ -634,10 +644,10 @@ export default function JournalScreen() {
           styles.saveButton,
           (selectedMood === null) ? styles.saveButtonDisabled : null,
         ]}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('jrnSaveFailed'), e?.message ?? 'Please try again')); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('jrnSaveFailed'), e?.message ?? t('pleaseTryAgain'))); }}
         disabled={selectedMood === null}
         activeOpacity={0.8}
-        accessibilityLabel={saved ? 'Journal entry saved' : 'Save journal entry'}
+        accessibilityLabel={saved ? t('jrnSavedA11y') : t('jrnSaveA11y')}
         accessibilityRole="button"
       >
         <Text style={[
@@ -672,7 +682,9 @@ export default function JournalScreen() {
               style={styles.entryCard}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpandedId(isExpanded ? null : entry.id); }}
               activeOpacity={0.7}
-              accessibilityLabel={`${isExpanded ? 'Collapse' : 'Expand'} entry from ${entry.date === today ? 'today' : entry.date}`}
+              accessibilityLabel={t(isExpanded ? 'jrnCollapseEntryA11y' : 'jrnExpandEntryA11y', {
+                date: entry.date === today ? t('today') : entry.date,
+              })}
               accessibilityRole="button"
             >
               <View style={styles.entryTop}>
@@ -725,7 +737,7 @@ export default function JournalScreen() {
               <View style={styles.eventTop}>
                 <View style={[styles.eventBadge, { backgroundColor: color + '30' }]}>
                   <Text style={[styles.eventBadgeText, { color }]}>
-                    {TYPE_LABELS[e.type] ?? e.type}
+                    {TYPE_LABELS[e.type] ? t(TYPE_LABELS[e.type]) : e.type}
                   </Text>
                 </View>
                 <Text style={styles.eventDateText}>{formatEventDate(e.date)}</Text>
@@ -738,7 +750,7 @@ export default function JournalScreen() {
                 ) : null}
               </View>
               {e.pain_type ? (
-                <Text style={styles.painTypeTag}>{e.pain_type}</Text>
+                <Text style={styles.painTypeTag}>{painTypeLabel(e.pain_type)}</Text>
               ) : null}
               {e.notes ? (
                 <Text style={styles.eventNotes}>{e.notes}</Text>

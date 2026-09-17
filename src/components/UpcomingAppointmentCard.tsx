@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { MedicalEvent } from '../types';
-import { t, useLanguage, locale } from '../i18n';
+import { t, useLanguage, locale, plural } from '../i18n';
 
 interface Props {
   event: MedicalEvent;
@@ -29,11 +29,13 @@ function formatEventDate(dateStr: string, timeStr?: string): string {
 }
 
 function awayLabel(days: number): string {
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
-  if (days < 7) return `${days} days away`;
+  if (days === 0) return t('today');
+  if (days === 1) return t('tomorrow');
+  if (days < 7) return t('apptDaysAway', { days });
   const weeks = Math.round(days / 7);
-  return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} away`;
+  // Two forms, not a concatenation: German inflects the noun and the whole
+  // phrase reorders, so each case is its own string.
+  return plural(weeks, 'apptWeekAway', 'apptWeeksAway', { weeks });
 }
 
 const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ event, onViewDetails }: Props) {
@@ -99,7 +101,7 @@ const UpcomingAppointmentCard = React.memo(function UpcomingAppointmentCard({ ev
       onPress={handleCardPress}
       activeOpacity={0.97}
       accessibilityRole="button"
-      accessibilityLabel={`Next appointment: ${event.title}, ${formatEventDate(event.scheduled_date, event.scheduled_time)}`}
+      accessibilityLabel={t('apptNextA11y', { title: event.title, when: formatEventDate(event.scheduled_date, event.scheduled_time) })}
       accessibilityState={{ expanded }}
     >
       {/* pulse dot + label */}

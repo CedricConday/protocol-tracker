@@ -455,7 +455,7 @@ export default function HomeScreen() {
             accessibilityLabel={t('a11yShareWeekly')}
             accessibilityRole="button"
           >
-            <Text style={styles.reportReadyText}>📄 Weekly report ready — tap to share</Text>
+            <Text style={styles.reportReadyText}>📄 {t('homeReportReady')}</Text>
             <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('a11yDismissReport')} accessibilityRole="button">
               <Text style={styles.reportReadyDismiss}>✕</Text>
             </TouchableOpacity>
@@ -464,7 +464,7 @@ export default function HomeScreen() {
 
         {vitDDanger !== null ? (
           <View style={styles.vitDBanner}>
-            <Text style={styles.vitDBannerText} accessibilityLiveRegion="polite">Latest logged Vitamin D: {vitDDanger} ng/mL.</Text>
+            <Text style={styles.vitDBannerText} accessibilityLiveRegion="polite">{t('homeVitDLatest', { value: vitDDanger })}</Text>
           </View>
         ) : null}
 
@@ -518,10 +518,10 @@ export default function HomeScreen() {
         {showFirstEntryWizard ? (
           <View style={styles.wizardCard}>
             <Text style={styles.wizardTitle}>{t('homeWizardTitle')}</Text>
-            <Text style={styles.wizardStep}>1 — Your T=0 anchor is now set. All supplements are scheduled from this moment.</Text>
-            <Text style={styles.wizardStep}>2 — Tap any dose row to mark it as taken or skip it.</Text>
-            <Text style={styles.wizardStep}>3 — Track water, sunlight, exercise and food on the Trackers tab.</Text>
-            <Text style={styles.wizardStep}>4 — History shows your compliance, streak and calendar.</Text>
+            <Text style={styles.wizardStep}>{t('homeWizardStep1')}</Text>
+            <Text style={styles.wizardStep}>{t('homeWizardStep2')}</Text>
+            <Text style={styles.wizardStep}>{t('homeWizardStep3')}</Text>
+            <Text style={styles.wizardStep}>{t('homeWizardStep4')}</Text>
             <TouchableOpacity style={styles.wizardBtn} onPress={async () => { await AsyncStorage.setItem('first_entry_wizard_shown', 'true'); setShowFirstEntryWizard(false); }} activeOpacity={0.8} accessibilityLabel={t('a11yDismissWizard')} accessibilityRole="button">
               <Text style={styles.wizardBtnText}>{t('homeWizardCta')}</Text>
             </TouchableOpacity>
@@ -560,7 +560,7 @@ export default function HomeScreen() {
                       accessibilityLabel={t('a11yCollapseDoses')}
                       accessibilityRole="button"
                     >
-                      <Text style={styles.collapseBtnText}>Collapse</Text>
+                      <Text style={styles.collapseBtnText}>{t('collapse')}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -634,10 +634,8 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>90-Day Milestone 🏆</Text>
-            <Text style={styles.modalBody}>
-              You've logged {currentStreak} consecutive days. That is a long streak to hold — well done. Keep going.
-            </Text>
+            <Text style={styles.modalTitle}>{t('homeMilestoneTitle')}</Text>
+            <Text style={styles.modalBody}>{t('homeMilestoneBody', { days: currentStreak })}</Text>
             <TouchableOpacity
               style={styles.modalButton}
               onPress={async () => {
@@ -648,7 +646,7 @@ export default function HomeScreen() {
               accessibilityLabel={t('a11yDismissMilestone')}
               accessibilityRole="button"
             >
-              <Text style={styles.modalButtonText}>Continue</Text>
+              <Text style={styles.modalButtonText}>{t('continue')}</Text>
             </TouchableOpacity>
           </View>
         </View>

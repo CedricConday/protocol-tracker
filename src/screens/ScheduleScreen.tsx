@@ -19,7 +19,7 @@ import type { ScheduledDose } from '../types';
 import EmptyState from '../components/EmptyState';
 
 import { t, useLanguage } from '../i18n';
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+import { monthNames } from '../i18n/dates';
 
 interface DayCell { date: string; dayNumber: number; compliancePct: number; totalDoses: number; isToday: boolean; }
 
@@ -99,10 +99,10 @@ export default function ScheduleScreen() {
   const renderToggle = () => (
     <View style={styles.toggleRow}>
       <TouchableOpacity style={[styles.toggleBtn, activeView === 'today' ? styles.toggleBtnActive : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveView('today'); }} activeOpacity={0.7}>
-        <Text style={[styles.toggleBtnText, activeView === 'today' ? styles.toggleBtnTextActive : null]}>Today</Text>
+        <Text style={[styles.toggleBtnText, activeView === 'today' ? styles.toggleBtnTextActive : null]}>{t('today')}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[styles.toggleBtn, activeView === 'history' ? styles.toggleBtnActive : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveView('history'); }} activeOpacity={0.7}>
-        <Text style={[styles.toggleBtnText, activeView === 'history' ? styles.toggleBtnTextActive : null]}>History</Text>
+        <Text style={[styles.toggleBtnText, activeView === 'history' ? styles.toggleBtnTextActive : null]}>{t('history')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -114,7 +114,7 @@ export default function ScheduleScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.headingRow}>
-          <Text style={styles.heading}>{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</Text>
+          <Text style={styles.heading}>{monthNames()[now.getMonth()]} {now.getFullYear()}</Text>
         </View>
         {renderToggle()}
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -135,7 +135,7 @@ export default function ScheduleScreen() {
             </View>
           ))}
           <View style={styles.legend}>
-            {[['#2F8F5B','≥80%'],['#F2B233','50–79%'],['#C0392B','<50%'],['#DBDDD3','No data']].map(([color, label]) => (
+            {[['#2F8F5B','≥80%'],['#F2B233','50–79%'],['#C0392B','<50%'],['#DBDDD3',t('noData')]].map(([color, label]) => (
               <View key={label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color, borderWidth: color === '#2a2a2a' ? 1 : 0, borderColor: '#444' }]} />
                 <Text style={styles.legendLabel}>{label}</Text>
@@ -150,12 +150,12 @@ export default function ScheduleScreen() {
   if (loaded && doses.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>Today's Schedule</Text>
+        <Text style={styles.heading}>{t('schTodaysSchedule')}</Text>
         {renderToggle()}
         <EmptyState
           icon="⏱"
           title={t('schNoDoses')}
-          subtitle="Tap 'Start Day' on the Home tab to anchor your schedule and activate dose reminders."
+          subtitle={t('schNoDosesSub')}
         />
       </View>
     );
@@ -164,7 +164,7 @@ export default function ScheduleScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headingRow}>
-        <Text style={styles.heading}>Today's Schedule</Text>
+        <Text style={styles.heading}>{t('schTodaysSchedule')}</Text>
       </View>
       {renderToggle()}
 
@@ -198,19 +198,19 @@ export default function ScheduleScreen() {
               <View style={styles.info}>
                 <Text style={styles.name}>{item.supplementName}</Text>
                 {item.status === 'skipped' && item.logId && (
-                  <Text style={styles.skipReasonText}>{item.skipReason ?? 'Skipped'}</Text>
+                  <Text style={styles.skipReasonText}>{item.skipReason ?? t('skipped')}</Text>
                 )}
 
                 <View style={{ marginLeft: 'auto', paddingLeft: 12 }}>
                   {item.status === 'taken' ? (
-                    <Text style={{ color: '#2F8F5B', fontWeight: '700' }}>Taken</Text>
+                    <Text style={{ color: '#2F8F5B', fontWeight: '700' }}>{t('taken')}</Text>
                   ) : item.status === 'missed' ? (
-                    <Text style={{ color: '#C0392B', fontWeight: '700' }}>Missed</Text>
+                    <Text style={{ color: '#C0392B', fontWeight: '700' }}>{t('missed')}</Text>
                   ) : item.status === 'skipped' ? (
-                    <Text style={{ color: '#5A6478', fontWeight: '700' }}>Skipped</Text>
+                    <Text style={{ color: '#5A6478', fontWeight: '700' }}>{t('skipped')}</Text>
                   ) : (
                     <View style={{ backgroundColor: item.status === 'due' ? '#1B58B8' : '#ECEDE6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1, borderColor: '#1B58B8' }}>
-                      <Text style={{ color: item.status === 'due' ? '#F7F7F2' : '#1B58B8', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? 'TAKE' : 'WAIT'}</Text>
+                      <Text style={{ color: item.status === 'due' ? '#F7F7F2' : '#1B58B8', fontWeight: '800', fontSize: 12 }}>{item.status === 'due' ? t('schTake') : t('schWait')}</Text>
                     </View>
                   )}
                 </View>

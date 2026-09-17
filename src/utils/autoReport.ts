@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import { getWeekSummary, getDaySummary, getAnchor } from '../db/queries';
 
-import { locale } from '../i18n';
+import { locale, t } from '../i18n';
 import { weekdaysShort } from '../i18n/dates';
 const LAST_REPORT_KEY = 'auto_report_last_week';
 
@@ -59,18 +59,18 @@ export async function checkAndGenerateWeeklyReport(): Promise<void> {
   const fmt = (d: Date) => d.toLocaleDateString(locale(), { month: 'short', day: 'numeric', year: 'numeric' });
 
   const html = `<html><body style="background:#0d0d0d;padding:24px;font-family:sans-serif">
-    <h1 style="color:#22c55e;font-size:18px">Protocol Tracker — Weekly Report</h1>
+    <h1 style="color:#22c55e;font-size:18px">Protocol Tracker — ${t('reportWeeklyTitle')}</h1>
     <p style="color:#888;font-size:13px">${fmt(weekStart)} — ${fmt(now)}</p>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <tr style="background:#1a1a1a">
-        <th style="padding:8px;text-align:left;color:#888">Day</th>
-        <th style="padding:8px;text-align:left;color:#888">Compliance</th>
-        <th style="padding:8px;text-align:left;color:#888">Doses</th>
-        <th style="padding:8px;text-align:left;color:#888">Water</th>
+        <th style="padding:8px;text-align:left;color:#888">${t('day')}</th>
+        <th style="padding:8px;text-align:left;color:#888">${t('compliance')}</th>
+        <th style="padding:8px;text-align:left;color:#888">${t('doses')}</th>
+        <th style="padding:8px;text-align:left;color:#888">${t('water')}</th>
       </tr>
       ${rows}
     </table>
-    <p style="color:#555;font-size:11px;margin-top:24px;text-align:center">Generated automatically by Protocol Tracker</p>
+    <p style="color:#555;font-size:11px;margin-top:24px;text-align:center">${t('reportAutoFooter')}</p>
   </body></html>`;
 
   const { uri } = await Print.printToFileAsync({ html });

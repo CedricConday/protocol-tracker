@@ -284,9 +284,9 @@ export default function SettingsScreen() {
                   <SunMascot size={40} />
                 </View>
                 <View style={styles.heroInfo}>
-                  <Text style={styles.heroName}>{name || 'Add your name'}</Text>
+                  <Text style={styles.heroName}>{name || t('setAddYourName')}</Text>
                   <Text style={styles.heroSub}>
-                    {d3 ? `${d3.dose} ${d3.unit} D3 · daily` : 'Protocol not configured yet'}
+                    {d3 ? t('setD3Daily', { dose: d3.dose, unit: d3.unit }) : t('setNoProtocol')}
                   </Text>
                 </View>
                 {pulseDosing ? <View style={styles.statusDot} /> : null}
@@ -298,7 +298,7 @@ export default function SettingsScreen() {
             </Pressable>
             <Expand open={expandedSection === 'profile'}>
               <Text style={styles.inputLabel}>{t('yourName')}</Text>
-              <TextInput style={styles.input} placeholder="Alex" placeholderTextColor={C.textMuted} value={name} onChangeText={setName} autoCapitalize="words" />
+              <TextInput style={styles.input} placeholder={t('setNamePlaceholder')} placeholderTextColor={C.textMuted} value={name} onChangeText={setName} autoCapitalize="words" />
               <Text style={styles.inputLabel}>{t('language')}</Text>
               <View style={styles.segment}>
                 {['en', 'de'].map((lang) => (
@@ -306,7 +306,7 @@ export default function SettingsScreen() {
                     key={lang}
                     style={[styles.segmentBtn, currentLanguage === lang && styles.segmentBtnActive]}
                     onPress={() => handleLanguageSwitch(lang)}
-                    accessibilityLabel={`Switch to ${lang}`} accessibilityRole="button"
+                    accessibilityLabel={t('setSwitchLanguageA11y', { language: t(lang === 'de' ? 'langGerman' : 'langEnglish') })} accessibilityRole="button"
                   >
                     <Text style={[styles.segmentText, currentLanguage === lang && styles.segmentTextActive]}>{lang.toUpperCase()}</Text>
                   </Pressable>
@@ -330,14 +330,14 @@ export default function SettingsScreen() {
             <Row icon="notifications-outline"     label={t('notifications')} sub={t('notificationsSub')} onPress={() => toggleSection('notif')} />
             <Expand open={expandedSection === 'notif'}>
               {[
-                { key: 'supplements',    label: 'Supplement reminders' },
-                { key: 'water',          label: 'Water' },
-                { key: 'exercise',       label: 'Exercise' },
-                { key: 'morning_checkin',label: 'Morning check-in' },
-                { key: 'weekly_summary', label: 'Weekly summary' },
+                { key: 'supplements',    labelKey: 'setNotifSupplements' },
+                { key: 'water',          labelKey: 'water' },
+                { key: 'exercise',       labelKey: 'exercise' },
+                { key: 'morning_checkin',labelKey: 'setNotifMorning' },
+                { key: 'weekly_summary', labelKey: 'setNotifWeekly' },
               ].map((item) => (
                 <View key={item.key} style={styles.notifRow}>
-                  <Text style={styles.notifLabel}>{item.label}</Text>
+                  <Text style={styles.notifLabel}>{t(item.labelKey)}</Text>
                   <Switch
                     value={notifPrefs[item.key]}
                     onValueChange={(v) => { hSelect(); setNotifPrefs((prev) => ({ ...prev, [item.key]: v })); }}
@@ -373,13 +373,13 @@ export default function SettingsScreen() {
                 <>
                   <View style={styles.quietRow}>
                     <TextInput style={[styles.input, { flex: 1 }]} placeholder={DEFAULT_QUIET_START} placeholderTextColor={C.textMuted} value={quietStart} onChangeText={setQuietStart} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
-                    <Text style={styles.quietSep}>to</Text>
+                    <Text style={styles.quietSep}>{t('toJoiner')}</Text>
                     <TextInput style={[styles.input, { flex: 1 }]} placeholder={DEFAULT_QUIET_END} placeholderTextColor={C.textMuted} value={quietEnd} onChangeText={setQuietEnd} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
                   </View>
                   <Text style={styles.notifHint}>
                     {parseHhMm(quietStart) === null || parseHhMm(quietEnd) === null
-                      ? 'Use 24-hour times like 22:00 and 07:00 — anything else is ignored and nothing is silenced.'
-                      : 'Reminders due in this window are not sent at all, rather than held until it ends. Doses still count as missed in your log.'}
+                      ? t('setQuietHintBad')
+                      : t('setQuietHintGood')}
                   </Text>
                 </>
               ) : null}
@@ -417,6 +417,9 @@ export default function SettingsScreen() {
               to draw without tapping it all in by hand. */}
           {__DEV__ && (
             <>
+              {/* Developer tools, behind __DEV__ — they never render in a
+                  release build, so their strings stay English rather than
+                  carrying 20 keys into the shipped dictionary. */}
               <Text style={styles.groupLabel}>DEVELOPER</Text>
               <View style={styles.group}>
                 <Row
@@ -515,7 +518,7 @@ export default function SettingsScreen() {
               onPress={() => { hPress(); handleSave(); }}
               disabled={saving}
               style={[styles.saveBtn, saving && { opacity: 0.4 }]}
-              accessibilityLabel={saving ? 'Saving' : 'Save changes'} accessibilityRole="button"
+              accessibilityLabel={saving ? t('saving') : t('setSaveChanges')} accessibilityRole="button"
             >
               <Text style={styles.saveBtnText}>{saving ? t('saving') : saved ? `${t('saved')} ✓` : t('save')}</Text>
             </Pressable>

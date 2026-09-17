@@ -135,10 +135,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
   const missingFields = (): { key: 'name' | 'condition'; label: string }[] => {
     if (step === 0) {
       const out: { key: 'name' | 'condition'; label: string }[] = [];
-      if (name.trim().length === 0) out.push({ key: 'name', label: 'your name' });
+      if (name.trim().length === 0) out.push({ key: 'name', label: t('obNeedName') });
       return out;
     }
-    if (step === 1 && selectedProfile === null) return [{ key: 'condition', label: 'a condition' }];
+    if (step === 1 && selectedProfile === null) return [{ key: 'condition', label: t('obNeedCondition') }];
     return [];
   };
 
@@ -240,8 +240,8 @@ export default function OnboardingScreen({ onComplete }: Props) {
             showsVerticalScrollIndicator={true}
           >
             <Text style={styles.icon}>🏥</Text>
-            <Text style={styles.title}>Your Condition</Text>
-            <Text style={styles.body}>Select your condition so the app can show the most relevant lab markers and protocol information.</Text>
+            <Text style={styles.title}>{t('obConditionTitle')}</Text>
+            <Text style={styles.body}>{t('obConditionBody')}</Text>
             <View style={{ width: '100%', gap: 8, marginTop: 12 }}>
               {DISEASE_PROFILES.map((p) => (
                 <TouchableOpacity
@@ -249,7 +249,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
                   style={[styles.trackCard, selectedProfile === p.id && styles.trackCardActive]}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedProfile(p.id); }}
                   activeOpacity={0.7}
-                  accessibilityLabel={`Select condition: ${p.name}`}
+                  accessibilityLabel={t('obSelectConditionA11y', { condition: p.name })}
                   accessibilityRole="button"
                 >
                   <Text style={{ fontSize: 24 }}>{CONDITION_ICONS[p.id] || '🏥'}</Text>
@@ -282,13 +282,13 @@ export default function OnboardingScreen({ onComplete }: Props) {
           {/* Step 2: Notifications / Done */}
           <View style={styles.page}>
             <Text style={styles.icon}>🔔</Text>
-            <Text style={styles.title}>Almost Ready</Text>
-              <Text style={styles.body}>Enable notifications so you never miss a dose. You can change this later in Settings.</Text>
+            <Text style={styles.title}>{t('obAlmostReady')}</Text>
+              <Text style={styles.body}>{t('obNotifyBody')}</Text>
               <View style={styles.featureList}>
-                <Text style={styles.featureItem}>• Dose reminders</Text>
-                <Text style={styles.featureItem}>• Water intake nudges</Text>
-                <Text style={styles.featureItem}>• End-of-day summaries</Text>
-                <Text style={styles.featureItem}>• Awareness calendar alerts</Text>
+                <Text style={styles.featureItem}>• {t('obFeatureDoses')}</Text>
+                <Text style={styles.featureItem}>• {t('obFeatureWater')}</Text>
+                <Text style={styles.featureItem}>• {t('obFeatureSummary')}</Text>
+                <Text style={styles.featureItem}>• {t('obFeatureAwareness')}</Text>
               </View>
           </View>
 
@@ -301,7 +301,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
         <View style={styles.footer}>
           {hint.length ? (
             <Text style={styles.missingHint} accessibilityLiveRegion="polite">
-              Still needed: {hint.map((h) => h.label).join(' and ')}.
+              {t('obStillNeeded', { fields: hint.map((h) => h.label).join(t('andJoiner')) })}
             </Text>
           ) : null}
 
@@ -314,7 +314,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               accessibilityLabel={t('obBack')}
               accessibilityRole="button"
             >
-              <Text style={styles.backText}>Back</Text>
+              <Text style={styles.backText}>{t('back')}</Text>
             </TouchableOpacity>
           ) : null}
 

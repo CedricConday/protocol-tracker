@@ -10,10 +10,12 @@ import {
 import { getMiscFlag, setMiscFlag } from '../db/queries';
 import { t, useLanguage } from '../i18n';
 
+// `key` is what goes in misc_flags and stays English; the label and the
+// description are looked up at render so the switch takes effect immediately.
 const STYLES = [
-  { key: 'gentle', label: 'Gentle', desc: 'Soft reminders, positive framing, no pressure' },
-  { key: 'direct', label: 'Direct', desc: 'Clear, factual, no fluff' },
-  { key: 'motivational', label: 'Motivational', desc: 'Energy, streaks, achievement-focused' },
+  { key: 'gentle', labelKey: 'coachGentle', descKey: 'coachGentleSub' },
+  { key: 'direct', labelKey: 'coachDirect', descKey: 'coachDirectSub' },
+  { key: 'motivational', labelKey: 'coachMotivational', descKey: 'coachMotivationalSub' },
 ] as const;
 
 export default function CoachingStyleScreen() {
@@ -56,8 +58,8 @@ export default function CoachingStyleScreen() {
           onPress={() => handleSelect(s.key)}
           activeOpacity={0.7}
         >
-          <Text style={[styles.cardLabel, selected === s.key && styles.cardLabelActive]}>{s.label}</Text>
-          <Text style={styles.cardDesc}>{s.desc}</Text>
+          <Text style={[styles.cardLabel, selected === s.key && styles.cardLabelActive]}>{t(s.labelKey)}</Text>
+          <Text style={styles.cardDesc}>{t(s.descKey)}</Text>
         </TouchableOpacity>
       ))}
 

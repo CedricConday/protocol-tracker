@@ -46,14 +46,8 @@ export default function PermissionPrimingModal({ visible, onComplete, onSkip }: 
           </View>
 
           <Text style={styles.title}>{t('stayOnTrack')}</Text>
-          <Text style={styles.body}>
-            Notifications help you remember every dose, track your water, and stay
-            consistent with your Protocol.
-          </Text>
-          <Text style={styles.body}>
-            We'll send you gentle reminders when a dose is due, when it's time to
-            drink water, and a summary at the end of the day.
-          </Text>
+          <Text style={styles.body}>{t('primingBody1')}</Text>
+          <Text style={styles.body}>{t('primingBody2')}</Text>
 
           <TouchableOpacity
             style={[styles.primaryButton, requesting ? styles.buttonDisabled : null]}
@@ -62,7 +56,7 @@ export default function PermissionPrimingModal({ visible, onComplete, onSkip }: 
             activeOpacity={0.8}
           >
             <Text style={styles.primaryButtonText}>
-              {requesting ? 'Requesting...' : 'Allow Notifications'}
+              {requesting ? t('primingRequesting') : t('primingAllow')}
             </Text>
           </TouchableOpacity>
 

@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getDb } from '../db/schema';
 import EmptyState from '../components/EmptyState';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 import { useToday } from '../hooks/useToday';
 import { todayStr } from '../db/queries';
 
@@ -30,13 +30,34 @@ interface MriScan {
   notes: string;
 }
 
-const SCAN_TYPES = ['Brain', 'Spine', 'Brain + Spine'];
-const ASSESSMENTS = ['Stable', 'Improved', 'Progressed'];
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Values, not words: `mri_scans.scan_type` and `.overall_assessment` keep the
+// English ids, so a scan logged in German still reads in English and back.
+const SCAN_TYPES: { value: string; key: string }[] = [
+  { value: 'Brain', key: 'mriBrain' },
+  { value: 'Spine', key: 'mriSpine' },
+  { value: 'Brain + Spine', key: 'mriBrainSpine' },
+];
+const ASSESSMENTS: { value: string; key: string }[] = [
+  { value: 'Stable', key: 'mriStable' },
+  { value: 'Improved', key: 'mriImproved' },
+  { value: 'Progressed', key: 'mriProgressed' },
+];
+
+function scanTypeLabel(stored: string): string {
+  const known = SCAN_TYPES.find((s) => s.value === stored);
+  return known ? t(known.key) : stored;
+}
+
+function assessmentLabel(stored: string): string {
+  const known = ASSESSMENTS.find((a) => a.value.toLowerCase() === stored.toLowerCase());
+  return known ? t(known.key) : stored;
+}
 
 function formatDate(d: string) {
-  const dt = new Date(d + 'T00:00:00');
-  return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
+  // The locale's own order and separators rather than a hardcoded American one.
+  return new Date(d + 'T00:00:00').toLocaleDateString(locale(), {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
 }
 
 function daysSince(d: string): number {
@@ -149,9 +170,9 @@ export default function MriScreen() {
 
   const handleDelete = (id: number) => {
     Alert.alert(t('mriDeleteScan'), t('commonUndone'), [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: t('delete'), style: 'destructive', onPress: async () => {
           const db = await getDb();
           await db.runAsync('DELETE FROM mri_scans WHERE id=?', [id]);
           await load();
@@ -183,7 +204,7 @@ export default function MriScreen() {
           {/* Pure-tracker build: the AI report-photo auto-fill was removed (see
               ROADMAP). Users log scan details manually. */}
           <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)} activeOpacity={0.8}>
-            <Text style={styles.addBtnText}>+ Log MRI Scan</Text>
+            <Text style={styles.addBtnText}>+ {t('mriLogScan')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -210,21 +231,21 @@ export default function MriScreen() {
 
           <Text style={styles.label}>{t('scanType')}</Text>
           <View style={styles.chipRow}>
-            {SCAN_TYPES.map(t => (
+            {SCAN_TYPES.map(s => (
               <TouchableOpacity
-                key={t}
-                style={[styles.chip, scanType === t ? styles.chipActive : null]}
-                onPress={() => setScanType(t)}
+                key={s.value}
+                style={[styles.chip, scanType === s.value ? styles.chipActive : null]}
+                onPress={() => setScanType(s.value)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.chipText, scanType === t ? styles.chipTextActive : null]}>{t}</Text>
+                <Text style={[styles.chipText, scanType === s.value ? styles.chipTextActive : null]}>{t(s.key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <Text style={styles.label}>{t('withContrast')}</Text>
           <View style={styles.chipRow}>
-            {[['Yes', true], ['No', false]].map(([label, val]) => (
+            {[[t('yes'), true], [t('no'), false]].map(([label, val]) => (
               <TouchableOpacity
                 key={String(label)}
                 style={[styles.chip, contrast === val ? styles.chipActive : null]}
@@ -263,12 +284,12 @@ export default function MriScreen() {
           <View style={styles.chipRow}>
             {ASSESSMENTS.map(a => (
               <TouchableOpacity
-                key={a}
-                style={[styles.chip, assessment === a ? styles.chipActive : null]}
-                onPress={() => setAssessment(a)}
+                key={a.value}
+                style={[styles.chip, assessment === a.value ? styles.chipActive : null]}
+                onPress={() => setAssessment(a.value)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.chipText, assessment === a ? styles.chipTextActive : null]}>{a}</Text>
+                <Text style={[styles.chipText, assessment === a.value ? styles.chipTextActive : null]}>{t(a.key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -289,7 +310,7 @@ export default function MriScreen() {
               <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={handleSave} disabled={saving} activeOpacity={0.8}>
-              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save Scan'}</Text>
+              <Text style={styles.saveBtnText}>{saving ? t('saving') : t('mriSaveScan')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -314,25 +335,25 @@ export default function MriScreen() {
             <View style={styles.cardTop}>
               <View>
                 <Text style={styles.cardDate}>{formatDate(scan.date)}</Text>
-                <Text style={styles.cardType}>{scan.scan_type}{scan.contrast ? ' · with contrast' : ''}</Text>
+                <Text style={styles.cardType}>{scanTypeLabel(scan.scan_type)}{scan.contrast ? ` · ${t('mriWithContrast')}` : ''}</Text>
               </View>
               <View style={[styles.assessmentBadge, { backgroundColor: assessmentColor(scan.overall_assessment) + '22' }]}>
                 <Text style={[styles.assessmentText, { color: assessmentColor(scan.overall_assessment) }]}>
-                  {scan.overall_assessment.charAt(0).toUpperCase() + scan.overall_assessment.slice(1)}
+                  {assessmentLabel(scan.overall_assessment)}
                 </Text>
               </View>
             </View>
             {scan.facility ? <Text style={styles.cardFacility}>{scan.facility}</Text> : null}
             {scan.new_lesions ? (
-              <Text style={styles.cardDetail}>New lesions: {scan.new_lesions}</Text>
+              <Text style={styles.cardDetail}>{t('mriNewLesionsLine', { count: scan.new_lesions })}</Text>
             ) : null}
             {scan.enhancing_lesions !== null ? (
               <Text style={styles.cardDetail}>
-                Enhancing: {scan.enhancing_lesions ? 'Yes' : 'No'}
+                {t('mriEnhancingLine', { value: scan.enhancing_lesions ? t('yes') : t('no') })}
               </Text>
             ) : null}
             {scan.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{scan.notes}</Text> : null}
-            <Text style={styles.cardAge}>{daysSince(scan.date)} days ago · hold to delete</Text>
+            <Text style={styles.cardAge}>{t('mriCardAge', { days: daysSince(scan.date) })}</Text>
           </TouchableOpacity>
         ))
       )}

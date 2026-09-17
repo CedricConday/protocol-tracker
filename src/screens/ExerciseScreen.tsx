@@ -50,7 +50,7 @@ function formatClock(ms: number): string {
 }
 
 function formatDay(iso: string, today: string): string {
-  if (iso === today) return 'Today';
+  if (iso === today) return t('today');
   // Midday so a timezone offset cannot roll the label onto the neighbouring day.
   return new Date(`${iso}T12:00:00`).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
 }
@@ -59,19 +59,32 @@ const MIN_MINUTES = 5;
 const MAX_MINUTES = 600;
 const PRESETS = [15, 30, 45, 60];
 
-const TYPES: { id: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'walk', label: 'Walk', icon: 'walk-outline' },
-  { id: 'run', label: 'Run', icon: 'flash-outline' },
-  { id: 'cycle', label: 'Cycle', icon: 'bicycle-outline' },
-  { id: 'strength', label: 'Strength', icon: 'barbell-outline' },
-  { id: 'other', label: 'Other', icon: 'ellipsis-horizontal-outline' },
+// `id` is what `exercise_logs.type` / `.intensity` hold and stays English; the
+// label is a key, looked up at render.
+const TYPES: { id: string; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'walk', labelKey: 'exWalk', icon: 'walk-outline' },
+  { id: 'run', labelKey: 'exRun', icon: 'flash-outline' },
+  { id: 'cycle', labelKey: 'exCycle', icon: 'bicycle-outline' },
+  { id: 'strength', labelKey: 'exStrength', icon: 'barbell-outline' },
+  { id: 'other', labelKey: 'exOther', icon: 'ellipsis-horizontal-outline' },
 ];
 
 const INTENSITIES = [
-  { id: 'light', label: 'Light' },
-  { id: 'moderate', label: 'Moderate' },
-  { id: 'vigorous', label: 'Vigorous' },
+  { id: 'light', labelKey: 'exLight' },
+  { id: 'moderate', labelKey: 'exModerate' },
+  { id: 'vigorous', labelKey: 'exVigorous' },
 ];
+
+/** A stored id, in the current language; unknown values print as they are. */
+function typeLabel(id: string): string {
+  const known = TYPES.find((x) => x.id === id);
+  return known ? t(known.labelKey) : id;
+}
+
+function intensityLabel(id: string): string {
+  const known = INTENSITIES.find((x) => x.id === id);
+  return known ? t(known.labelKey) : id;
+}
 
 export default function ExerciseScreen() {
   useLanguage(); // re-render this screen when the language changes
@@ -210,13 +223,13 @@ export default function ExerciseScreen() {
           </View>
           <Text style={styles.cardValue}>
             {today.totalMinutes}
-            <Text style={styles.cardUnit}> min</Text>
+            <Text style={styles.cardUnit}> {t('unitMin')}</Text>
           </Text>
         </View>
         <Text style={styles.cardSub}>
           {today.logged
-            ? `Last logged: ${today.type}, ${today.intensity}. Goal ${goalMin} min.`
-            : `Nothing logged yet today. Goal ${goalMin} min.`}
+            ? t('exLastLogged', { type: typeLabel(today.type), intensity: intensityLabel(today.intensity), goal: goalMin })
+            : t('exNothingToday', { goal: goalMin })}
         </Text>
       </View>
 
@@ -248,9 +261,9 @@ export default function ExerciseScreen() {
               style={styles.goalValue}
               onPress={() => setEditingGoal(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Daily exercise goal, ${goalMin} minutes. Tap to edit.`}
+              accessibilityLabel={t('exGoalA11y', { minutes: goalMin })}
             >
-              <Text style={styles.goalValueText}>{goalMin} min</Text>
+              <Text style={styles.goalValueText}>{goalMin} {t('unitMin')}</Text>
             </TouchableOpacity>
           )}
 
@@ -287,7 +300,7 @@ export default function ExerciseScreen() {
               keyboardType="number-pad"
               accessibilityLabel={t('exMinutesField')}
             />
-            <Text style={styles.fieldUnit}>min</Text>
+            <Text style={styles.fieldUnit}>{t('unitMin')}</Text>
           </View>
 
           <TouchableOpacity
@@ -307,7 +320,7 @@ export default function ExerciseScreen() {
               style={[styles.preset, minutes === m ? styles.presetActive : null]}
               onPress={() => setBoth(m)}
               accessibilityRole="button"
-              accessibilityLabel={`Set ${m} minutes`}
+              accessibilityLabel={t('trkSetMinutesA11y', { minutes: m })}
             >
               <Text style={[styles.presetText, minutes === m ? styles.presetTextActive : null]}>{m}</Text>
             </TouchableOpacity>
@@ -324,11 +337,11 @@ export default function ExerciseScreen() {
               style={[styles.typeChip, type === entry.id ? styles.typeChipActive : null]}
               onPress={() => setType(entry.id)}
               accessibilityRole="button"
-              accessibilityLabel={`Exercise type: ${entry.label}`}
+              accessibilityLabel={t('exTypeA11y', { type: t(entry.labelKey) })}
               accessibilityState={{ selected: type === entry.id }}
             >
               <Ionicons name={entry.icon} size={16} color={type === entry.id ? '#2F8F5B' : '#5A6478'} />
-              <Text style={[styles.chipText, type === entry.id ? styles.chipTextActive : null]}>{entry.label}</Text>
+              <Text style={[styles.chipText, type === entry.id ? styles.chipTextActive : null]}>{t(entry.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -343,10 +356,10 @@ export default function ExerciseScreen() {
               style={[styles.intensityChip, intensity === entry.id ? styles.typeChipActive : null]}
               onPress={() => setIntensity(entry.id)}
               accessibilityRole="button"
-              accessibilityLabel={`Intensity: ${entry.label}`}
+              accessibilityLabel={t('exIntensityA11y', { intensity: t(entry.labelKey) })}
               accessibilityState={{ selected: intensity === entry.id }}
             >
-              <Text style={[styles.chipText, intensity === entry.id ? styles.chipTextActive : null]}>{entry.label}</Text>
+              <Text style={[styles.chipText, intensity === entry.id ? styles.chipTextActive : null]}>{t(entry.labelKey)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -357,9 +370,9 @@ export default function ExerciseScreen() {
         onPress={handleLog}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel={`Log ${minutes} minutes of ${type}, ${intensity}`}
+        accessibilityLabel={t('exLogA11y', { minutes, type: typeLabel(type), intensity: intensityLabel(intensity) })}
       >
-        <Text style={styles.logBtnText}>Log {minutes} min</Text>
+        <Text style={styles.logBtnText}>{t('trkLogMinutes', { minutes })}</Text>
       </TouchableOpacity>
 
       <View style={styles.section}>
@@ -404,17 +417,22 @@ export default function ExerciseScreen() {
                   onSubmitEditing={() => commitEdit(entry)}
                   keyboardType="number-pad"
                   autoFocus
-                  accessibilityLabel={`Correct the ${entry.duration_minutes} minute ${entry.type}`}
+                  accessibilityLabel={t('exCorrectA11y', { minutes: entry.duration_minutes, type: typeLabel(entry.type) })}
                 />
               ) : (
                 <TouchableOpacity
                   style={styles.entryAmountWrap}
                   onPress={() => beginEdit(entry)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${entry.duration_minutes} minutes of ${entry.type}, ${entry.intensity}, at ${formatClock(entry.logged_at)}. Tap to correct.`}
+                  accessibilityLabel={t('exEntryA11y', {
+                    minutes: entry.duration_minutes,
+                    type: typeLabel(entry.type),
+                    intensity: intensityLabel(entry.intensity),
+                    time: formatClock(entry.logged_at),
+                  })}
                 >
-                  <Text style={styles.entryAmount}>{entry.duration_minutes} min</Text>
-                  <Text style={styles.entryMeta}>{entry.type} · {entry.intensity}</Text>
+                  <Text style={styles.entryAmount}>{entry.duration_minutes} {t('unitMin')}</Text>
+                  <Text style={styles.entryMeta}>{typeLabel(entry.type)} · {intensityLabel(entry.intensity)}</Text>
                 </TouchableOpacity>
               )}
 
@@ -422,7 +440,7 @@ export default function ExerciseScreen() {
                 style={styles.removeBtn}
                 onPress={() => handleRemove(entry)}
                 accessibilityRole="button"
-                accessibilityLabel={`Remove the ${entry.duration_minutes} minute ${entry.type} logged at ${formatClock(entry.logged_at)}`}
+                accessibilityLabel={t('exRemoveA11y', { minutes: entry.duration_minutes, type: typeLabel(entry.type), time: formatClock(entry.logged_at) })}
               >
                 <Text style={styles.removeBtnText}>{t('trkRemove')}</Text>
               </TouchableOpacity>

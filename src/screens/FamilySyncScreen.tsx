@@ -56,9 +56,9 @@ export default function FamilySyncScreen() {
 
   const handleShare = async () => {
     try {
-      await Sharing.shareAsync(`data:text/plain;base64,${btoa('Join my MS Central family view. Code: ' + syncCode)}`, {
+      await Sharing.shareAsync(`data:text/plain;base64,${btoa(t('famInviteText', { code: syncCode }))}`, {
         mimeType: 'text/plain',
-        dialogTitle: 'Share Family Code',
+        dialogTitle: t('famShareDialog'),
       });
     } catch {
       // user cancelled
@@ -66,10 +66,10 @@ export default function FamilySyncScreen() {
   };
 
   const handleRemove = (id: number, name: string) => {
-    Alert.alert(t('famRemove'), `Remove ${name}?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('famRemove'), t('famRemoveConfirm', { name }), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Remove', style: 'destructive', onPress: async () => {
+        text: t('remove'), style: 'destructive', onPress: async () => {
           const db = await getDb();
           await db.runAsync('DELETE FROM family_members WHERE id = ?', [id]);
           await load();

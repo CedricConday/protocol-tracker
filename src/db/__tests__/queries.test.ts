@@ -11,6 +11,18 @@ vi.mock('../schema', () => ({
   getDb: vi.fn(),
 }));
 
+// queries → utils/time → i18n, and i18n reads the device language off
+// NativeModules. React Native's entry point is Flow, which the node runner
+// cannot parse, so the two APIs i18n touches are stubbed.
+vi.mock('react-native', () => ({
+  NativeModules: {},
+  Platform: { OS: 'ios' },
+}));
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: { getItem: vi.fn(), setItem: vi.fn() },
+}));
+
 import { getDb } from '../schema';
 import {
   todayStr,

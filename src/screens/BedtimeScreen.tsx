@@ -113,15 +113,15 @@ export default function BedtimeScreen() {
             <TouchableOpacity
               onPress={() => { hSelect(); setDraft(formatHourMinute(hour, minute)); setEditing(true); }}
               accessibilityRole="button"
-              accessibilityLabel={`Bedtime ${formatHourMinute(hour, minute)}. Tap to change.`}
+              accessibilityLabel={t('bedTimeA11y', { time: formatHourMinute(hour, minute) })}
             >
               <Text style={styles.heroValue}>{formatHourMinute(hour, minute)}</Text>
             </TouchableOpacity>
           )}
           <Text style={styles.heroSub}>
             {cutoff
-              ? `Latest start for a full day: ${cutoff.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`
-              : 'Set up your supplements to see the latest start time'}
+              ? t('bedLatestStart', { time: cutoff.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }) })
+              : t('bedNoSupplements')}
           </Text>
         </View>
       </View>

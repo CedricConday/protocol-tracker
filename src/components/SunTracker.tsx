@@ -77,7 +77,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
             onSubmitEditing={commitDraft}
             accessibilityLabel={t('sunMinutesField')}
           />
-          <Text style={styles.fieldUnit}>min</Text>
+          <Text style={styles.fieldUnit}>{t('unitMin')}</Text>
         </View>
 
         <TouchableOpacity
@@ -98,7 +98,7 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
             style={[styles.preset, amount === m ? styles.presetActive : null]}
             onPress={() => setBoth(m)}
             activeOpacity={0.7}
-            accessibilityLabel={`Set ${m} minutes`}
+            accessibilityLabel={t('trkSetMinutesA11y', { minutes: m })}
             accessibilityRole="button"
           >
             <Text style={[styles.presetText, amount === m ? styles.presetTextActive : null]}>{m}</Text>
@@ -110,10 +110,10 @@ const SunTracker = React.memo(function SunTracker({ sunMinutes, onLog, goalMin =
         style={styles.logBtn}
         onPress={() => onLog(amount)}
         activeOpacity={0.85}
-        accessibilityLabel={`Log ${amount} minutes of sun`}
+        accessibilityLabel={t('sunLogMinutesA11y', { minutes: amount })}
         accessibilityRole="button"
       >
-        <Text style={styles.logBtnText}>Log {amount} min</Text>
+        <Text style={styles.logBtnText}>{t('trkLogMinutes', { minutes: amount })}</Text>
       </TouchableOpacity>
     </View>
   );

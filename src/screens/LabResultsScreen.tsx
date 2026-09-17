@@ -15,7 +15,7 @@ import { enqueueAction } from '../db/actionQueue';
 import EmptyState from '../components/EmptyState';
 import { DISEASE_PROFILES, getProfileById, type DiseaseProfile } from '../data/diseaseProfiles';
 import { getMiscFlag, todayStr } from '../db/queries';
-import { t, useLanguage } from '../i18n';
+import { t, useLanguage, locale } from '../i18n';
 import { useToday } from '../hooks/useToday';
 
 interface LabResult {
@@ -33,22 +33,32 @@ interface LabResult {
 
 // Units and labels for the markers. No target ranges: the app does not tell
 // users what to aim for.
+// The marker names are clinical and mostly identical in both languages; what
+// is not is the sample the value came from, so that part is a key.
 const TARGETS = {
-  vit_d: { unit: 'ng/mL', label: 'Vit D 25-OH' },
-  pth: { unit: 'pg/mL', label: 'PTH' },
-  calcium_serum: { unit: 'mg/dL', label: 'Calcium (serum)' },
-  calcium_urine: { unit: 'mg/g Cr', label: 'Calcium (urine)' },
-  creatinine: { unit: 'mg/dL', label: 'Creatinine' },
-  nfl: { unit: 'pg/mL', label: 'NfL (serum)' },
+  vit_d: { unit: 'ng/mL', labelKey: 'labVitD25' },
+  pth: { unit: 'pg/mL', labelKey: 'labPthShort' },
+  calcium_serum: { unit: 'mg/dL', labelKey: 'labCalciumSerum' },
+  calcium_urine: { unit: 'mg/g Cr', labelKey: 'labCalciumUrine' },
+  creatinine: { unit: 'mg/dL', labelKey: 'labCreatinine' },
+  nfl: { unit: 'pg/mL', labelKey: 'labNflSerum' },
 };
 
-const SULKOWITCH = ['None', 'Slight', 'Moderate', 'Heavy'];
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// The VALUE goes in `lab_results.sulkowitch` and stays English; the chip label
+// is looked up.
+const SULKOWITCH: { value: string; key: string }[] = [
+  { value: 'None', key: 'labSulkNone' },
+  { value: 'Slight', key: 'labSulkSlight' },
+  { value: 'Moderate', key: 'labSulkModerate' },
+  { value: 'Heavy', key: 'labSulkHeavy' },
+];
 
 function formatDate(d: string) {
-  const dt = new Date(d + 'T00:00:00');
-  return `${MONTHS[dt.getMonth()]} ${dt.getDate()}, ${dt.getFullYear()}`;
+  // The locale's own order and separators: "14 Sep 2026" / "14. Sep. 2026",
+  // rather than a hardcoded American "Sep 14, 2026".
+  return new Date(d + 'T00:00:00').toLocaleDateString(locale(), {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
 }
 
 // Pure-tracker build: values are shown exactly as the user entered them, with
@@ -140,9 +150,9 @@ export default function LabResultsScreen() {
 
   const handleDelete = (id: number) => {
     Alert.alert(t('labDelete'), t('commonUndone'), [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: t('delete'), style: 'destructive', onPress: async () => {
           const db = await getDb();
           await db.runAsync('DELETE FROM lab_results WHERE id=?', [id]);
           await load();
@@ -173,7 +183,7 @@ export default function LabResultsScreen() {
 
       {!showForm ? (
         <TouchableOpacity style={styles.addBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowForm(true); }} activeOpacity={0.8} accessibilityLabel={t('labAdd')} accessibilityRole="button">
-          <Text style={styles.addBtnText}>+ Add Lab Result</Text>
+          <Text style={styles.addBtnText}>+ {t('labAdd')}</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.form}>
@@ -191,7 +201,7 @@ export default function LabResultsScreen() {
 
           {(!profile || profile.keyMarkers.includes('PTH')) && (
             <>
-              <Text style={styles.label}>PTH (pg/mL)</Text>
+              <Text style={styles.label}>{t('labPth')}</Text>
               <TextInput style={styles.input} value={pth} onChangeText={setPth} keyboardType="decimal-pad" placeholder="e.g. 18" placeholderTextColor="#9AA3B2" />
             </>
           )}
@@ -224,14 +234,14 @@ export default function LabResultsScreen() {
           <View style={styles.chipRow}>
             {SULKOWITCH.map(s => (
               <TouchableOpacity
-                key={s}
-                style={[styles.chip, sulkowitch === s ? styles.chipActive : null]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSulkowitch(sulkowitch === s ? null : s); }}
+                key={s.value}
+                style={[styles.chip, sulkowitch === s.value ? styles.chipActive : null]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSulkowitch(sulkowitch === s.value ? null : s.value); }}
                 activeOpacity={0.7}
-                accessibilityLabel={`Sulkowitch: ${s}`}
+                accessibilityLabel={t('labSulkowitchA11y', { value: t(s.key) })}
                 accessibilityRole="button"
               >
-                <Text style={[styles.chipText, sulkowitch === s ? styles.chipTextActive : null]}>{s}</Text>
+                <Text style={[styles.chipText, sulkowitch === s.value ? styles.chipTextActive : null]}>{t(s.key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -248,11 +258,11 @@ export default function LabResultsScreen() {
           />
 
           <View style={styles.formActions}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7} accessibilityLabel="Cancel" accessibilityRole="button">
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowForm(false); }} activeOpacity={0.7} accessibilityLabel={t('cancel')} accessibilityRole="button">
               <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('labSaveFailed'), e?.message ?? 'Please try again')); }} disabled={saving} activeOpacity={0.8} accessibilityLabel={saving ? 'Saving lab result' : 'Save lab result'} accessibilityRole="button">
-              <Text style={styles.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
+            <TouchableOpacity style={[styles.saveBtn, saving ? styles.saveBtnDisabled : null]} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)).catch((e) => Alert.alert(t('labSaveFailed'), e?.message ?? t('pleaseTryAgain'))); }} disabled={saving} activeOpacity={0.8} accessibilityLabel={saving ? t('saving') : t('labSaveA11y')} accessibilityRole="button">
+              <Text style={styles.saveBtnText}>{saving ? t('saving') : t('save')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -261,7 +271,7 @@ export default function LabResultsScreen() {
       {/* Trend Chart */}
       {results.length >= 2 ? (
         <View style={styles.trendSection}>
-          <Text style={styles.trendTitle}>Trends (last {Math.min(6, results.length)})</Text>
+          <Text style={styles.trendTitle}>{t('labTrends', { count: Math.min(6, results.length) })}</Text>
           <View style={{ flexDirection: 'row', gap: 8 }} accessible={true} accessibilityLabel={t('labChartsA11y')}>
             {(['vit_d_ngml', 'calcium_serum_mgdl', 'pth_pgml', 'calcium_urine_mg_g_cr'] as const).map((field) => {
               const data = results.slice(0, 6).reverse();
@@ -306,14 +316,14 @@ export default function LabResultsScreen() {
         />
       ) : (
         results.map(r => (
-          <TouchableOpacity key={r.id} style={styles.card} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85} accessibilityLabel={`Lab result from ${formatDate(r.date)}`} accessibilityRole="button">
+          <TouchableOpacity key={r.id} style={styles.card} onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)} onLongPress={() => handleDelete(r.id)} activeOpacity={0.85} accessibilityLabel={t('labResultA11y', { date: formatDate(r.date) })} accessibilityRole="button">
             <Text style={styles.cardDate}>{formatDate(r.date)}</Text>
-            {(!profile || profile.keyMarkers.includes('VitD')) && renderMarker(r.vit_d_ngml, TARGETS.vit_d.unit, TARGETS.vit_d.label)}
-            {(!profile || profile.keyMarkers.includes('PTH')) && renderMarker(r.pth_pgml, TARGETS.pth.unit, TARGETS.pth.label)}
-            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_serum_mgdl, TARGETS.calcium_serum.unit, TARGETS.calcium_serum.label)}
-            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_urine_mg_g_cr, TARGETS.calcium_urine.unit, TARGETS.calcium_urine.label)}
-            {(!profile || profile.keyMarkers.includes('Creatinine')) && renderMarker(r.creatinine_mgdl, TARGETS.creatinine.unit, TARGETS.creatinine.label)}
-            {r.nfl_pgl !== null && r.nfl_pgl !== undefined && renderMarker(r.nfl_pgl, TARGETS.nfl.unit, TARGETS.nfl.label)}
+            {(!profile || profile.keyMarkers.includes('VitD')) && renderMarker(r.vit_d_ngml, TARGETS.vit_d.unit, t(TARGETS.vit_d.labelKey))}
+            {(!profile || profile.keyMarkers.includes('PTH')) && renderMarker(r.pth_pgml, TARGETS.pth.unit, t(TARGETS.pth.labelKey))}
+            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_serum_mgdl, TARGETS.calcium_serum.unit, t(TARGETS.calcium_serum.labelKey))}
+            {(!profile || profile.keyMarkers.includes('Calcium')) && renderMarker(r.calcium_urine_mg_g_cr, TARGETS.calcium_urine.unit, t(TARGETS.calcium_urine.labelKey))}
+            {(!profile || profile.keyMarkers.includes('Creatinine')) && renderMarker(r.creatinine_mgdl, TARGETS.creatinine.unit, t(TARGETS.creatinine.labelKey))}
+            {r.nfl_pgl !== null && r.nfl_pgl !== undefined && renderMarker(r.nfl_pgl, TARGETS.nfl.unit, t(TARGETS.nfl.labelKey))}
             {r.sulkowitch ? (
               <Text style={styles.sulkowitch}>Sulkowitch: {r.sulkowitch}</Text>
             ) : null}
