@@ -39,6 +39,11 @@ const bundle: ShareBundle = {
   calcium: [],
   labs: [],
   mri: [],
+  supplements: [
+    { name: 'Vitamin D3', form: 'capsule', dose_amount: '10000', dose_unit: 'IU', frequency: 'daily', with_food: 0, food_relation: 'none', offset_minutes: 0 },
+    { name: 'Magnesium', form: 'capsule', dose_amount: '200', dose_unit: 'mg', frequency: 'daily', with_food: 1, food_relation: 'with', offset_minutes: 360 },
+  ],
+  waterGoalMl: 2500,
 };
 
 const only = (...keys: SectionKey[]): Record<SectionKey, boolean> => {
@@ -46,6 +51,24 @@ const only = (...keys: SectionKey[]): Record<SectionKey, boolean> => {
   for (const k of Object.keys(DEFAULT_SECTIONS) as SectionKey[]) out[k] = keys.includes(k);
   return out;
 };
+
+describe('the protocol table', () => {
+  it('buckets a dose by its offset from the day start, medication-plan style', () => {
+    const html = buildShareHtml(bundle, DEFAULT_SECTIONS);
+    // Vitamin D3 at T0 is a morning dose; magnesium six hours later is midday.
+    const row = /Vitamin D3<\/td>.*?<\/tr>/s.exec(html)?.[0] ?? '';
+    const mag = /Magnesium<\/td>.*?<\/tr>/s.exec(html)?.[0] ?? '';
+    expect((row.match(/>1</g) ?? []).length).toBe(1);
+    expect(row.indexOf('>1<')).toBeLessThan(mag.indexOf('>1<') + row.length);
+    expect(mag).toContain('with food');
+  });
+
+  it('leaves the reason column empty rather than inventing an indication', () => {
+    const html = buildShareHtml(bundle, DEFAULT_SECTIONS);
+    expect(html).toContain('Reason');
+    expect(html).not.toMatch(/Multiple sclerosis|Coimbra/i);
+  });
+});
 
 describe('what leaves the device', () => {
   it('keeps journal notes out unless they are asked for by name', () => {

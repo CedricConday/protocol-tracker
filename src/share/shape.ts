@@ -15,6 +15,13 @@ export interface ShareBundle {
   to: string;
   patientName: string;
   d3Dose: string;
+  /** The protocol itself, for the document's medication table. */
+  supplements: {
+    name: string; form: string; dose_amount: string; dose_unit: string;
+    frequency: string; with_food: number; food_relation: string; offset_minutes: number;
+  }[];
+  /** The patient's own water target, not a constant — they can move it. */
+  waterGoalMl: number;
   days: CalendarDay[];
   journal: JournalEntry[];
   symptoms: RelapseEvent[];

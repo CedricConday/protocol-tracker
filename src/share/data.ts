@@ -2,7 +2,7 @@ import {
   getCalendarRange, getJournalEntriesBetween, getRelapseEventsBetween,
   getSunBetween, getExerciseBetween, getMealsBetween, getAnchorsBetween,
   getCalciumBetween, getLabsBetween, getMriBetween, getEarliestDataDate,
-  getProfile, getSupplementsWithRules, localDateStr, todayStr,
+  getProfile, getSupplementsWithRules, getWaterGoalMl, localDateStr, todayStr,
   type CalendarDay,
 } from '../db/queries';
 import type { RangePreset } from './types';
@@ -48,6 +48,7 @@ export async function resolveRange(preset: RangePreset, custom?: { from: string;
 export async function collectShareData(from: string, to: string): Promise<ShareBundle> {
   const [
     dayMap, journal, symptoms, sun, exercise, meals, anchors, calcium, labs, mri, profile, supplements,
+    waterGoalMl,
   ] = await Promise.all([
     getCalendarRange(from, to),
     getJournalEntriesBetween(from, to),
@@ -61,6 +62,7 @@ export async function collectShareData(from: string, to: string): Promise<ShareB
     getMriBetween(from, to),
     getProfile(),
     getSupplementsWithRules(),
+    getWaterGoalMl(),
   ]);
 
   // No 'vit_d3' id exists in this build — the user names their own supplements
@@ -72,6 +74,8 @@ export async function collectShareData(from: string, to: string): Promise<ShareB
     to,
     patientName: profile?.name ?? '',
     d3Dose: d3?.dose_amount ?? '',
+    supplements,
+    waterGoalMl,
     days: Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
     journal, symptoms, sun, exercise, meals, anchors, calcium, labs, mri,
   };

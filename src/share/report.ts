@@ -139,140 +139,181 @@ function complianceGrid(b: ShareBundle): string {
 }
 
 /** Mean of a list of numbers, rounded. Empty list means no value, not zero. */
-const num = (v: number): string => v.toLocaleString(locale());
-
 function mean(values: number[]): number | null {
   if (values.length === 0) return null;
   return Math.round(values.reduce((a, v) => a + v, 0) / values.length);
 }
 
-/** A clock time from minutes past midnight, in the document's locale. */
-function fmtMinutes(minutes: number | null): string | null {
-  if (minutes == null) return null;
-  const d = new Date(2026, 0, 1, Math.floor(minutes / 60), minutes % 60);
-  return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
-}
+const num = (v: number): string => v.toLocaleString(locale());
 
-function minutesOfDay(time: string): number | null {
-  const m = /^(\d{1,2}):(\d{2})/.exec(time);
-  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+/**
+ * Which of the medication plan's four columns a scheduled dose falls in.
+ *
+ * The app schedules by offset from T0 — the moment the patient starts their day
+ * — not by clock time, so there is no "08:00" to read. Bucketing the offset is
+ * the honest translation: a dose four hours after waking is a midday dose to
+ * everyone who reads a Medikationsplan, whatever the clock said.
+ */
+function doseColumn(offsetMinutes: number): 0 | 1 | 2 | 3 {
+  const h = offsetMinutes / 60;
+  if (h < 4) return 0;
+  if (h < 8) return 1;
+  if (h < 13) return 2;
+  return 3;
 }
 
 /**
- * The numbers, first, on one page.
+ * The protocol, in the column order of the bundeseinheitlicher Medikationsplan
+ * (§31a SGB V): substance, strength, unit, form, the four dose columns, note,
+ * reason. German patients and doctors already read this table; matching it costs
+ * nothing and means the page needs no explaining.
  *
- * Until 2026-09-17 this document was a row per entry per tracker: thirty lines
- * of water, thirty of sunlight, one per journal entry. That is a data dump, and
- * it buries the two or three figures a doctor actually reads — adherence, how
- * much of the protocol was logged, and whether anything happened. Each tracker
- * now states its total, its average and how many days it covers, and the daily
- * rows are gone.
- *
- * What still gets a table is what is sparse and clinical: symptoms and events,
- * calcium tests, labs, MRI — and written notes, when the patient chose to
- * include them, because there the text IS the content.
+ * "Reason" stays empty because the app does not ask for one. An indication
+ * invented by the exporter would be the one line on the page a doctor would act
+ * on and nobody wrote.
  */
-function summaryRows(b: ShareBundle, sections: Record<SectionKey, boolean>): string[][] {
-  const on = (k: SectionKey) => sections[k];
-  const rows: string[][] = [];
-  const none = t('shSumNone');
-
-  if (on('doses')) {
-    const totals = b.days.reduce(
-      (acc, d) => ({ taken: acc.taken + d.takenDoses, total: acc.total + d.totalDoses }),
-      { taken: 0, total: 0 },
-    );
-    const pct = totals.total > 0 ? Math.round((totals.taken / totals.total) * 100) : 0;
-    rows.push([t('shSecDoses'), totals.total === 0 ? none
-      : t('shDoseTotals', { taken: totals.taken, total: totals.total, pct })]);
+function protocolTable(b: ShareBundle): string {
+  const rows = new Map<string, { form: string; dose: string; unit: string; cols: number[]; note: string }>();
+  for (const sup of b.supplements) {
+    const key = `${sup.name}|${sup.dose_amount}${sup.dose_unit}`;
+    const row = rows.get(key) ?? {
+      form: sup.form ?? '',
+      dose: sup.dose_amount ?? '',
+      unit: sup.dose_unit ?? '',
+      cols: [0, 0, 0, 0],
+      note: sup.with_food ? t('shWithFood') : '',
+    };
+    row.cols[doseColumn(sup.offset_minutes ?? 0)] += 1;
+    rows.set(key, row);
   }
 
-  if (on('journal')) {
-    const byMood = new Map<string, number>();
-    for (const e of b.journal) {
-      if (!e.mood) continue;
-      byMood.set(e.mood, (byMood.get(e.mood) ?? 0) + 1);
-    }
-    const moods = [...byMood.entries()]
-      .sort((a, c) => c[1] - a[1])
-      .map(([mood, n]) => `${mood} ${n}`)
-      .join('  ');
-    const days = new Set(b.journal.map((e) => e.date)).size;
-    rows.push([t('shSecJournal'), b.journal.length === 0 ? none
-      : t('shSumJournal', { entries: b.journal.length, days }) + (moods ? ` · ${moods}` : '')]);
-  }
+  const cells = [...rows.entries()].map(([key, r]) => {
+    const name = key.split('|')[0];
+    return [
+      name, r.dose || '—', r.unit || '—', r.form || '—',
+      ...r.cols.map((n) => (n ? String(n) : '—')),
+      r.note || '—', '—',
+    ];
+  });
 
-  if (on('symptoms')) {
-    rows.push([t('shSecSymptoms'), b.symptoms.length === 0 ? none
-      : t('shSumSymptoms', { count: b.symptoms.length })]);
-  }
+  return table(
+    [t('shColSubstance'), t('shColStrength'), t('shColUnit'), t('shColForm'),
+      t('shColMorning'), t('shColNoon'), t('shColEvening'), t('shColNight'),
+      t('shColNote'), t('shColReason')],
+    cells,
+  );
+}
 
-  if (on('water')) {
-    const logged = b.anchors.filter((a) => a.water_ml > 0);
-    const avg = mean(logged.map((a) => a.water_ml));
-    const total = logged.reduce((acc, a) => acc + a.water_ml, 0);
-    rows.push([t('shSecWater'), logged.length === 0 ? none
-      : t('shSumWater', { avg: num(avg ?? 0), days: logged.length, total: (total / 1000).toFixed(1) })]);
-  }
-
-  if (on('sun')) {
-    const logged = b.sun.filter((x) => x.minutes > 0);
-    const avg = mean(logged.map((x) => x.minutes));
-    const total = logged.reduce((acc, x) => acc + x.minutes, 0);
-    rows.push([t('shSecSun'), logged.length === 0 ? none
-      : t('shSumSun', { avg: avg ?? 0, days: logged.length, total: num(total) })]);
-  }
-
-  if (on('exercise')) {
-    const total = b.exercise.reduce((acc, e) => acc + e.duration_minutes, 0);
-    rows.push([t('shSecExercise'), b.exercise.length === 0 ? none
-      : t('shSumExercise', { sessions: b.exercise.length, total: num(total) })]);
-  }
-
-  if (on('meals')) {
-    const days = new Set(b.meals.map((m) => m.date)).size;
-    rows.push([t('shSecMeals'), b.meals.length === 0 ? none
-      : t('shSumMeals', { count: b.meals.length, days })]);
-  }
-
-  if (on('dayStart')) {
-    const starts = b.anchors
-      .filter((a) => a.t0_timestamp)
-      .map((a) => {
-        const d = new Date(a.t0_timestamp as number);
-        return d.getHours() * 60 + d.getMinutes();
-      });
-    const firsts = b.anchors
-      .map((a) => (a.first_meal_time ? minutesOfDay(a.first_meal_time) : null))
-      .filter((v): v is number => v != null);
-    const start = fmtMinutes(mean(starts));
-    const meal = fmtMinutes(mean(firsts));
-    rows.push([t('shSecDayStart'), !start && !meal ? none
-      : t('shSumDayStart', { start: start ?? '—', meal: meal ?? '—' })]);
-  }
-
-  if (on('calcium') && b.calcium.length > 0) rows.push([t('shSecCalcium'), String(b.calcium.length)]);
-  if (on('labs') && b.labs.length > 0) rows.push([t('shSecLabs'), String(b.labs.length)]);
-  if (on('mri') && b.mri.length > 0) rows.push([t('shSecMri'), String(b.mri.length)]);
-
-  return rows;
+/** One tile of the strip a clinician reads before reading anything else. */
+function kpi(label: string, value: string, note: string, bad: boolean): string {
+  return `
+    <td style="width:25%;border:1px solid #E1E8F0;border-top:3px solid ${bad ? '#C0392B' : '#1B4F9C'};border-radius:5px;padding:9px 10px;vertical-align:top">
+      <div style="font-size:9px;letter-spacing:.06em;color:#495D72;text-transform:uppercase">${esc(label)}</div>
+      <div style="font-size:20px;font-weight:800;margin:2px 0 1px;color:#112438">${esc(value)}</div>
+      <div style="font-size:10px;color:${bad ? '#C0392B' : '#495D72'}">${esc(note)}</div>
+    </td>`;
 }
 
 export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, boolean>): string {
   const on = (k: SectionKey) => sections[k];
   const parts: string[] = [];
 
-  const withheld = on('journal') && !on('journalNotes')
-    ? `<p style="color:#495D72;font-size:11px;margin:6px 0 0">${esc(t('shNotesWithheld'))}</p>`
-    : '';
-  parts.push(section(t('shSummary'), b.from, b.to,
-    table([t('shSumMetric'), t('shSumValue')], summaryRows(b, sections)) + withheld));
+  const doses = b.days.reduce(
+    (acc, d) => ({ taken: acc.taken + d.takenDoses, total: acc.total + d.totalDoses }),
+    { taken: 0, total: 0 },
+  );
+  const pdc = doses.total > 0 ? Math.round((doses.taken / doses.total) * 100) : 0;
+  // Calendar days in the range, not rows returned — `days` only holds days the
+  // app wrote something for, so rows/rows would always read 29/29 and say
+  // nothing about how much of the period was actually captured.
+  const daysInRange = Math.round(
+    (new Date(b.to + 'T00:00:00').getTime() - new Date(b.from + 'T00:00:00').getTime()) / 86400000,
+  ) + 1;
+  const daysWithData = b.days.filter((d) => d.started || d.totalDoses > 0).length;
+  const watered = b.anchors.filter((a) => a.water_ml > 0);
+  const waterAvg = mean(watered.map((a) => a.water_ml));
+  const waterShort = waterAvg != null && waterAvg < b.waterGoalMl;
 
+  // ── the strip ──────────────────────────────────────────────────────────────
+  const tiles: string[] = [];
+  if (on('doses')) {
+    tiles.push(kpi(t('shKpiAdherence'), `${pdc}%`,
+      pdc >= 80 ? t('shKpiTargetMet') : t('shKpiTargetBelow'), pdc < 80));
+    tiles.push(kpi(t('shKpiCapture'), `${daysWithData}/${daysInRange}`, t('shKpiDaysWithData'), false));
+  }
+  if (on('water')) {
+    tiles.push(kpi(t('shKpiWater'),
+      waterAvg == null ? '—' : `${(waterAvg / 1000).toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} l`,
+      t('shKpiWaterTarget', { goal: (b.waterGoalMl / 1000).toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }),
+      waterShort));
+  }
+  if (on('symptoms')) {
+    tiles.push(kpi(t('shKpiEvents'), String(b.symptoms.length), t('shKpiRelapses'), b.symptoms.length > 0));
+  }
+  if (tiles.length > 0) {
+    parts.push(`<table style="width:100%;border-collapse:separate;border-spacing:7px 0;margin-top:12px"><tr>${tiles.join('')}</tr></table>`);
+  }
+
+  // ── 1 · the protocol ───────────────────────────────────────────────────────
+  if (b.supplements.length > 0) {
+    parts.push(section(t('shSecProtocol'), b.from, b.to, protocolTable(b)));
+  }
+
+  // ── 2 · adherence ──────────────────────────────────────────────────────────
   if (on('doses')) parts.push(section(t('shSecDoses'), b.from, b.to, complianceGrid(b)));
 
-  // The one part of the journal that is not a number. Only entries that carry
-  // text, and only when the patient switched notes on — the summary above
-  // already says how many entries and which moods.
+  // ── 3 · everything else, as measures rather than as a log ──────────────────
+  const measures: string[][] = [];
+  if (on('water')) {
+    measures.push([t('shSecWater'), waterAvg == null ? '—' : t('shPerDay', { v: `${num(waterAvg)} ml` }), String(watered.length),
+      t('shTargetWater', { goal: num(b.waterGoalMl) }) + (waterShort ? ` — ${t('shBelowTarget')}` : '')]);
+  }
+  if (on('sun')) {
+    const logged = b.sun.filter((x) => x.minutes > 0);
+    const avg = mean(logged.map((x) => x.minutes));
+    measures.push([t('shSecSun'), avg == null ? '—' : t('shPerDay', { v: `${avg} min` }), String(logged.length), '—']);
+  }
+  if (on('exercise')) {
+    const total = b.exercise.reduce((acc, e) => acc + e.duration_minutes, 0);
+    measures.push([t('shSecExercise'), t('shTotalOf', { v: `${num(total)} min` }), String(b.exercise.length), '—']);
+  }
+  if (on('meals')) {
+    measures.push([t('shSecMeals'), String(b.meals.length), String(new Set(b.meals.map((m) => m.date)).size), '—']);
+  }
+  if (on('journal')) {
+    const byMood = new Map<string, number>();
+    for (const e of b.journal) if (e.mood) byMood.set(e.mood, (byMood.get(e.mood) ?? 0) + 1);
+    const moods = [...byMood.entries()].sort((a, c) => c[1] - a[1]).map(([m, n]) => `${m} ${n}`).join('  ');
+    measures.push([t('shSecJournal'), moods || '—', String(new Set(b.journal.map((e) => e.date)).size),
+      on('journalNotes') ? '—' : t('shNotesWithheld')]);
+  }
+  if (on('dayStart')) {
+    const starts = b.anchors.filter((a) => a.t0_timestamp).map((a) => {
+      const d = new Date(a.t0_timestamp as number);
+      return d.getHours() * 60 + d.getMinutes();
+    });
+    const avg = mean(starts);
+    const clock = avg == null ? '—'
+      : new Date(2026, 0, 1, Math.floor(avg / 60), avg % 60).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+    measures.push([t('shSecDayStart'), clock === '—' ? clock : t('shAverageOf', { v: clock }), String(starts.length), '—']);
+  }
+  if (on('symptoms')) {
+    measures.push([t('shSecSymptoms'), String(b.symptoms.length), '—', '—']);
+  }
+  if (measures.length > 0) {
+    parts.push(section(t('shSecMeasures'), b.from, b.to,
+      table([t('shColMeasure'), t('shColValue'), t('shColDays'), t('shColTarget')], measures)));
+  }
+
+  // Events themselves are few and clinical — they keep their rows.
+  if (on('symptoms') && b.symptoms.length > 0) {
+    parts.push(section(t('shSecSymptoms'), b.from, b.to, table(
+      [t('date'), t('type'), t('severity'), t('notes')],
+      b.symptoms.map((e) => [fmtDate(e.date), e.type, e.severity != null ? String(e.severity) : '—', e.notes || '—']),
+    )));
+  }
+
+  // The one part of the journal that is not a number, and only on request.
   if (on('journal') && on('journalNotes')) {
     const rows = b.journal
       .filter((e) => (e.note ?? '').trim().length > 0)
@@ -280,14 +321,8 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
     parts.push(section(t('shSecJournalNotes'), b.from, b.to, table([t('date'), t('shMood'), t('notes')], rows)));
   }
 
-  // Sparse and clinical: every row earns its line, so these keep their tables.
-  if (on('symptoms')) {
-    parts.push(section(t('shSecSymptoms'), b.from, b.to, table(
-      [t('date'), t('type'), t('severity'), t('notes')],
-      b.symptoms.map((e) => [fmtDate(e.date), e.type, e.severity != null ? String(e.severity) : '—', e.notes || '—']),
-    )));
-  }
-
+  // Legacy clinical tables: no screen writes these any more, but anyone with
+  // rows from an older install can still put them in front of a doctor.
   if (on('calcium') && b.calcium.length > 0) {
     parts.push(section(t('shSecCalcium'), b.from, b.to, table(
       [t('date'), t('shTestDay'), 'mg', t('notes')],
@@ -316,7 +351,8 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
   }
 
   const header = `
-    <h1 style="color:#1162B9;font-size:20px;margin:0 0 2px">${esc(t('shDocTitle'))}</h1>
+    <div style="border-left:4px solid #1B4F9C;padding-left:12px">
+    <h1 style="color:#112438;font-size:20px;margin:0 0 2px">${esc(t('shDocTitle'))}</h1>
     <p style="color:#24324B;font-size:13px;margin:0">${esc(
       b.patientName
         ? t('shDocPatient', { name: b.patientName, dose: b.d3Dose || '—' })
@@ -325,7 +361,9 @@ export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, bool
     <p style="color:#495D72;font-size:12px;margin:2px 0 0">${esc(t('shDocRange', { range: rangeLabel(b.from, b.to) }))}</p>
     <p style="color:#495D72;font-size:11px;margin:2px 0 0">${esc(t('shDocGenerated', {
       date: new Date().toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' }),
-    }))}</p>`;
+    }))}</p>
+    <p style="color:#617285;font-size:10.5px;margin:3px 0 0">${esc(t('shDocProvenance'))}</p>
+    </div>`;
 
   return `<!DOCTYPE html>
     <html><head><meta charset="utf-8"><style>
