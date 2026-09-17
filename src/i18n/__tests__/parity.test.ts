@@ -48,6 +48,11 @@ describe('en/de parity', () => {
       'setNamePlaceholder',   // Alex — a first name, not a word
       'doseStatusLine',       // "Status: {status}"
       'labSulkowitchA11y',    // "Sulkowitch: {value}" — a test's proper name
+      // Share sheet, 2026-09-17:
+      'shFormat',             // Format — same word, same spelling
+      'shFormatJson',         // JSON
+      'shDialogTitle',        // Protocol Tracker — the product name
+      'shSecJournal',         // Journal — German uses it unchanged
     ]);
     const identical = Object.keys(en).filter(
       (k) => k in de && en[k] === de[k] && String(en[k]).trim().length > 3 && !allowed.has(k),

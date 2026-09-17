@@ -1,5 +1,4 @@
 import { Alert, Modal } from 'react-native';
-import * as Sharing from 'expo-sharing';
 import { useHomeScreen } from '../hooks';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -30,7 +29,8 @@ import WeatherCard from '../components/WeatherCard';
 import { startDay, getTodaySchedule, dosesPastBedtime } from '../engine/scheduler';
 import { formatClock } from '../utils/time';
 import { confirmDose, skipDose, skipDoseWithReason, logExercise, getTodayExercise, getProfile, setFirstMealTime, getFirstMealTime, getJournalEntry, getStreak, getDaySummary, getLatestJournalEntry, logMeal, getTodayMeals, getNextMedicalEvent, getMiscFlag, setMiscFlag, todayStr } from '../db/queries';
-import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
+import { dismissWeeklyReport } from '../utils/autoReport';
+import ShareSheet from '../share/ShareSheet';
 import { clearAppBadge } from '../notifications';
 import type { ScheduledDose, MedicalEvent } from '../types';
 
@@ -184,11 +184,12 @@ export default function HomeScreen() {
     vitDDanger, insightText, currentStreak, milestoneModalVisible, setMilestoneModalVisible,
     todayMood, setTodayMood, todayNotePreview, latestJournal,
     refreshing, setRefreshing, starting, setStarting,
-    reportReadyUri, setReportReadyUri, nextMedicalEvent,
+    weeklyDue, setWeeklyDue, nextMedicalEvent,
     showMealPrompt, setShowMealPrompt, showFirstEntryWizard, setShowFirstEntryWizard,
     loadDay,
   } = useHomeScreen(navigation);
 
+  const [weeklyShareOpen, setWeeklyShareOpen] = useState(false);
   const [selectedDose, setSelectedDose] = useState<ScheduledDose | null>(null);
   const [dosesExpanded, setDosesExpanded] = useState(false);
   const remainingDoses = doses.filter(
@@ -442,20 +443,18 @@ export default function HomeScreen() {
         {renderHeader()}
         <WeatherCard />
 
-        {reportReadyUri ? (
+        {/* Opens the share sheet on last week rather than handing over a PDF
+            that was written without being asked (2026-09-17). */}
+        {weeklyDue ? (
           <TouchableOpacity
             style={styles.reportReadyBanner}
-            onPress={async () => {
-              await Sharing.shareAsync(reportReadyUri, { mimeType: 'application/pdf', dialogTitle: t('homeWeeklyReportTitle') });
-              await AsyncStorage.removeItem('auto_report_ready_uri');
-              setReportReadyUri(null);
-            }}
+            onPress={() => setWeeklyShareOpen(true)}
             activeOpacity={0.8}
             accessibilityLabel={t('a11yShareWeekly')}
             accessibilityRole="button"
           >
             <Text style={styles.reportReadyText}>📄 {t('homeReportReady')}</Text>
-            <TouchableOpacity onPress={async () => { await AsyncStorage.removeItem('auto_report_ready_uri'); setReportReadyUri(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('a11yDismissReport')} accessibilityRole="button">
+            <TouchableOpacity onPress={async () => { await dismissWeeklyReport(); setWeeklyDue(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel={t('a11yDismissReport')} accessibilityRole="button">
               <Text style={styles.reportReadyDismiss}>✕</Text>
             </TouchableOpacity>
           </TouchableOpacity>
@@ -641,6 +640,12 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      <ShareSheet
+        visible={weeklyShareOpen}
+        onClose={() => setWeeklyShareOpen(false)}
+        initialPreset="7d"
+      />
     </SafeAreaView>
   );
 }

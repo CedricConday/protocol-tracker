@@ -24,6 +24,7 @@ import { SUPPORT_URL, medicalDisclaimer } from '../config/links';
 import Pressable from '../components/Pressable';
 import SunMascot from '../components/SunMascot';
 import { t, setLanguage, getLanguage, useLanguage } from '../i18n';
+import ShareSheet from '../share/ShareSheet';
 import { C, space, radius, shadow, text as T } from '../theme';
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
@@ -135,6 +136,7 @@ type SavedFields = {
 
 export default function SettingsScreen() {
   useLanguage(); // re-render this screen when the language changes
+  const [shareOpen, setShareOpen] = useState(false);
   const update = useAppUpdate();
   const updateRow = updateRowContent(update.state, update.lastChecked);
   const [name, setName] = useState('');
@@ -384,7 +386,17 @@ export default function SettingsScreen() {
                 </>
               ) : null}
             </Expand>
-            <Row icon="download-outline"            label={t('exportData')} onPress={() => Alert.alert(t('setExportTitle'), t('setExportBody'))} />
+            {/* Was an alert reading "Data export feature to be implemented"
+                while `exportAllData()` sat in queries.ts with no caller. It
+                opens the share sheet now, preset to everything as a JSON
+                backup — the same sheet the two History buttons open, so a
+                backup and a doctor's PDF are one mechanism with two presets. */}
+            <Row
+              icon="download-outline"
+              label={t('exportData')}
+              sub={t('setExportSub')}
+              onPress={() => setShareOpen(true)}
+            />
             <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
             {/* Opens the community page in the system browser. Nothing is
                 collected in-app and nothing in the app unlocks from this —
@@ -524,6 +536,13 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         )}
+
+        <ShareSheet
+          visible={shareOpen}
+          onClose={() => setShareOpen(false)}
+          initialPreset="all"
+          initialFormat="json"
+        />
 
       </KeyboardAvoidingView>
     </SafeAreaView>

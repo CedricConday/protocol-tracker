@@ -599,11 +599,31 @@ export interface CalendarDay {
 // journal entry, water, or started anchor — so event-only days are visible and
 // clickable on the grid (the bug the dose-only getDaySummary caused).
 export async function getCalendarMonth(year: number, month: number): Promise<Map<string, CalendarDay>> {
-  const db = await getDb();
   const mm = String(month + 1).padStart(2, '0');
-  const start = `${year}-${mm}-01`;
   const endDay = new Date(year, month + 1, 0).getDate();
-  const end = `${year}-${mm}-${String(endDay).padStart(2, '0')}`;
+  return getCalendarRange(
+    `${year}-${mm}-01`,
+    `${year}-${mm}-${String(endDay).padStart(2, '0')}`,
+  );
+}
+
+/**
+ * The same aggregate over an arbitrary range.
+ *
+ * Extracted from `getCalendarMonth` on 2026-09-17 for the share sheet, which
+ * lets the user pick a week, three months or everything. The cost is what made
+ * that possible: this is a fixed number of grouped queries whatever the span,
+ * where the doctor report was looping `getDaySummary` once per day — 30
+ * round-trips for its hardcoded month, and thousands for "all".
+ *
+ * `from` and `to` are LOCAL day keys (`localDateStr`), inclusive, and the
+ * comparison is a string BETWEEN, which is only correct because every date this
+ * app stores is a zero-padded YYYY-MM-DD.
+ */
+export async function getCalendarRange(from: string, to: string): Promise<Map<string, CalendarDay>> {
+  const db = await getDb();
+  const start = from;
+  const end = to;
 
   const map = new Map<string, CalendarDay>();
   const ensure = (d: string): CalendarDay => {
@@ -1605,6 +1625,119 @@ export async function setMiscFlag(key: string, value: string): Promise<void> {
   await db.runAsync(
     'INSERT OR REPLACE INTO misc_flags (key, value) VALUES (?, ?)', [key, value]
   );
+}
+
+// ── Range readers for the share sheet ───────────────────────────────────────
+//
+// Added 2026-09-17. Every reader below takes an inclusive LOCAL day range and
+// returns rows in ascending date order, because they end up in a document a
+// doctor reads top to bottom. They exist because the app's other readers answer
+// "today", "the last N rows", or "everything" — none of which can express "the
+// three months you asked for", which is why every share path in the app had a
+// different, hardcoded window baked into it.
+
+export async function getJournalEntriesBetween(from: string, to: string): Promise<JournalEntry[]> {
+  const db = await getDb();
+  return db.getAllAsync<JournalEntry>(
+    'SELECT * FROM journal_entries WHERE date BETWEEN ? AND ? ORDER BY date ASC, id ASC',
+    [from, to],
+  );
+}
+
+export async function getRelapseEventsBetween(from: string, to: string): Promise<RelapseEvent[]> {
+  const db = await getDb();
+  return db.getAllAsync<RelapseEvent>(
+    'SELECT * FROM relapse_events WHERE date BETWEEN ? AND ? ORDER BY date ASC, id ASC',
+    [from, to],
+  );
+}
+
+export async function getSunBetween(from: string, to: string): Promise<{ date: string; minutes: number; uv_index: string | null; notes: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT date, minutes, uv_index, notes FROM sun_log WHERE date BETWEEN ? AND ? ORDER BY date ASC',
+    [from, to],
+  );
+}
+
+export async function getExerciseBetween(from: string, to: string): Promise<{ date: string; duration_minutes: number; type: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT date, duration_minutes, type FROM exercise_logs WHERE date BETWEEN ? AND ? ORDER BY date ASC, id ASC',
+    [from, to],
+  );
+}
+
+export async function getMealsBetween(from: string, to: string): Promise<{ date: string; meal_type: string; time: string; notes: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT date, meal_type, time, notes FROM meal_log WHERE date BETWEEN ? AND ? ORDER BY date ASC, time ASC',
+    [from, to],
+  );
+}
+
+export async function getAnchorsBetween(from: string, to: string): Promise<{ date: string; t0_timestamp: number | null; water_ml: number; first_meal_time: string | null }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT date, t0_timestamp, water_ml, first_meal_time FROM daily_anchors WHERE date BETWEEN ? AND ? ORDER BY date ASC',
+    [from, to],
+  );
+}
+
+// The three below are read-only history: no screen writes them any more (the
+// lab and MRI screens went on 2026-09-17, and nothing has ever written calcium
+// logs). They are still offered by the share sheet WHEN ROWS EXIST, because an
+// install from before then is holding values its owner typed in by hand and
+// this is the only way left to get them to a doctor.
+
+export async function getCalciumBetween(from: string, to: string): Promise<{ test_start_date: string; day: number; calcium_mg: number; notes: string }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT test_start_date, day, calcium_mg, notes FROM calcium_logs WHERE test_start_date BETWEEN ? AND ? ORDER BY test_start_date ASC, day ASC',
+    [from, to],
+  );
+}
+
+export async function getLabsBetween(from: string, to: string): Promise<Record<string, any>[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT * FROM lab_results WHERE date BETWEEN ? AND ? ORDER BY date ASC',
+    [from, to],
+  );
+}
+
+export async function getMriBetween(from: string, to: string): Promise<Record<string, any>[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    'SELECT * FROM mri_scans WHERE date BETWEEN ? AND ? ORDER BY date ASC',
+    [from, to],
+  );
+}
+
+/**
+ * The earliest day this install holds anything for, or null on an empty one.
+ *
+ * What "all" resolves to. Asking the tables rather than assuming the install
+ * date matters for anyone who seeded history or arrived from the PWA export:
+ * their data starts before their profile does.
+ */
+export async function getEarliestDataDate(): Promise<string | null> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ d: string | null }>(`
+    SELECT MIN(d) d FROM (
+      SELECT MIN(date) d FROM dose_logs
+      UNION ALL SELECT MIN(date) FROM journal_entries
+      UNION ALL SELECT MIN(date) FROM relapse_events
+      UNION ALL SELECT MIN(date) FROM daily_anchors
+      UNION ALL SELECT MIN(date) FROM sun_log
+      UNION ALL SELECT MIN(date) FROM exercise_logs
+      UNION ALL SELECT MIN(date) FROM meal_log
+      UNION ALL SELECT MIN(test_start_date) FROM calcium_logs
+      UNION ALL SELECT MIN(date) FROM lab_results
+      UNION ALL SELECT MIN(date) FROM mri_scans
+    )
+  `);
+  return row?.d ?? null;
 }
 
 // ── Data Export ─────────────────────────────────────────────────────────────

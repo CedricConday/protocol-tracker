@@ -19,7 +19,6 @@ import CalendarScreen from '../screens/CalendarScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JournalScreen from '../screens/JournalScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
-import ReportScreen from '../screens/ReportScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupplementEditorScreen from '../screens/SupplementEditorScreen';
@@ -102,11 +101,6 @@ function SummaryNavigator() {
   return (
     <SummaryNav.Navigator screenOptions={{ headerShown: false }}>
       <SummaryNav.Screen name="SummaryMain" component={SummaryScreen} />
-      <SummaryNav.Screen
-        name="Report"
-        component={ReportScreen}
-        options={{ ...SUB_HEADER, title: t('navShareWithDoctor'), animation: 'slide_from_right' }}
-      />
       {TRACKER_ROUTES.map((route) => (
         <SummaryNav.Screen
           key={route.name}
@@ -223,14 +217,16 @@ function TabNavigator() {
         options={{
           tabBarLabel: t('trackers'),
           tabBarIcon: ({ color, size }) => <Ionicons name="leaf-outline" size={size} color={color} />,
-          // History is the only tab that navigates INTO this one's stack
-          // (`navigate('Summary', { screen: 'Report' })`), and a nested push
-          // outlives the tap that made it: after using Share Your Progress, the
-          // Trackers tab kept showing that screen instead of the tracker grid,
-          // with no way back but the header arrow. Reported from the device on
-          // 2026-09-17 as "the tracker screen is now only lab results" — the
-          // lab card was the same push, on the bundle before those screens went.
-          // Leaving the tab now returns its stack to the grid.
+          // A nested push outlives the tap that made it: a sub-route opened
+          // here kept showing instead of the tracker grid when the tab was
+          // returned to, with no way back but the header arrow. Reported from
+          // the device on 2026-09-17 as "the tracker screen is now only lab
+          // results". Leaving the tab now returns its stack to the grid.
+          //
+          // The worst case is gone with the cause: History used to push
+          // `Summary/Report` across tabs, and Share is a modal sheet now, so
+          // nothing reaches into this stack from another tab. This still
+          // guards the tracker sub-routes.
           popToTopOnBlur: true,
         }}
       >

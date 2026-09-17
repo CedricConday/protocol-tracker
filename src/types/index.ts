@@ -99,7 +99,7 @@ export interface DaySummary {
   takenDoses: number;
   /** Not taken, for any reason — `skippedDoses` is the deliberate subset of it.
    *  Kept inclusive so every number that existed before 'skipped' did still
-   *  reads the same (ComplianceReport totals it for the doctor report). */
+   *  reads the same (src/share totals it for the doctor report). */
   missedDoses: number;
   skippedDoses: number;
   compliancePct: number;

@@ -1,10 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Print from 'expo-print';
-import { getWeekSummary, getDaySummary, getAnchor } from '../db/queries';
+import { getWeekSummary } from '../db/queries';
 
-import { locale, t } from '../i18n';
-import { weekdaysShort } from '../i18n/dates';
-const LAST_REPORT_KEY = 'auto_report_last_week';
+/**
+ * "A week has passed and there is something in it" — nothing more.
+ *
+ * Until 2026-09-17 this RENDERED A PDF of the last seven days, unprompted, on
+ * the first open of any Sunday, and parked the file for a banner to share. That
+ * was wrong three times over: it was a third hand-rolled HTML builder that had
+ * drifted from the other two, it wrote a document containing the user's health
+ * data to disk without being asked, and the banner then handed that file
+ * straight to the OS share sheet with no say over what was in it.
+ *
+ * Now it raises a flag. The banner opens the one share sheet, preset to that
+ * week, and the document is built — with whatever sections the user picks — at
+ * the moment they decide to send it. Nothing is written until then.
+ */
+const LAST_WEEK_KEY = 'auto_report_last_week';
+const DUE_KEY = 'auto_report_due';
 
 function isoWeek(d: Date): string {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -14,67 +26,30 @@ function isoWeek(d: Date): string {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-function complianceColor(pct: number): string {
-  if (pct >= 80) return '#22c55e';
-  if (pct >= 50) return '#eab308';
-  return '#ef4444';
-}
-
 export async function checkAndGenerateWeeklyReport(): Promise<void> {
   const now = new Date();
-  // Only trigger on Sunday (day 0)
-  if (now.getDay() !== 0) return;
+  if (now.getDay() !== 0) return; // Sunday
 
   const currentWeek = isoWeek(now);
-  const lastWeek = await AsyncStorage.getItem(LAST_REPORT_KEY);
-  if (lastWeek === currentWeek) return;
+  if ((await AsyncStorage.getItem(LAST_WEEK_KEY)) === currentWeek) return;
 
+  // Nothing logged, nothing to offer. A banner on an empty week is noise.
   const week = await getWeekSummary();
   if (week.length === 0) return;
 
-  const enriched = await Promise.all(
-    week.map(async (d) => {
-      const full = await getDaySummary(d.date);
-      const anchor = await getAnchor(d.date);
-      return { ...d, totalDoses: full.totalDoses, waterMl: anchor?.water_ml ?? 0 };
-    }),
-  );
-  const todayIdx = ((now.getDay() + 6) % 7);
+  await AsyncStorage.setItem(LAST_WEEK_KEY, currentWeek);
+  await AsyncStorage.setItem(DUE_KEY, currentWeek);
+}
 
-  const rows = enriched
-    .map((d, i) => {
-      const dayName = weekdaysShort()[(todayIdx - 6 + i + 7) % 7];
-      const color = complianceColor(d.compliancePct);
-      return `<tr style="border-bottom:1px solid #2a2a2a">
-        <td style="padding:8px;color:#fff">${dayName}</td>
-        <td style="padding:8px;color:${color}">${d.compliancePct}%</td>
-        <td style="padding:8px;color:#fff">${d.totalDoses}</td>
-        <td style="padding:8px;color:#fff">${d.waterMl}ml</td>
-      </tr>`;
-    })
-    .join('');
+/** The week the banner is offering, or null when there is nothing to offer. */
+export async function weeklyReportDue(): Promise<string | null> {
+  return AsyncStorage.getItem(DUE_KEY);
+}
 
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - 6);
-  const fmt = (d: Date) => d.toLocaleDateString(locale(), { month: 'short', day: 'numeric', year: 'numeric' });
-
-  const html = `<html><body style="background:#0d0d0d;padding:24px;font-family:sans-serif">
-    <h1 style="color:#22c55e;font-size:18px">Protocol Tracker — ${t('reportWeeklyTitle')}</h1>
-    <p style="color:#888;font-size:13px">${fmt(weekStart)} — ${fmt(now)}</p>
-    <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr style="background:#1a1a1a">
-        <th style="padding:8px;text-align:left;color:#888">${t('day')}</th>
-        <th style="padding:8px;text-align:left;color:#888">${t('compliance')}</th>
-        <th style="padding:8px;text-align:left;color:#888">${t('doses')}</th>
-        <th style="padding:8px;text-align:left;color:#888">${t('water')}</th>
-      </tr>
-      ${rows}
-    </table>
-    <p style="color:#555;font-size:11px;margin-top:24px;text-align:center">${t('reportAutoFooter')}</p>
-  </body></html>`;
-
-  const { uri } = await Print.printToFileAsync({ html });
-  await AsyncStorage.setItem(LAST_REPORT_KEY, currentWeek);
-  // Store the generated URI so the user can share it manually via the banner on HomeScreen
-  await AsyncStorage.setItem('auto_report_ready_uri', uri);
+export async function dismissWeeklyReport(): Promise<void> {
+  await AsyncStorage.removeItem(DUE_KEY);
+  // The pre-rendered file this used to leave behind. Cleared so an install
+  // upgrading across this change does not keep a stale PDF of last week's
+  // health data sitting in storage.
+  await AsyncStorage.removeItem('auto_report_ready_uri');
 }

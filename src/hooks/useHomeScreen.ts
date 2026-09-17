@@ -8,7 +8,7 @@ import {
   todayStr,
 } from '../db/queries';
 import { getTodaySchedule } from '../engine/scheduler';
-import { checkAndGenerateWeeklyReport } from '../utils/autoReport';
+import { checkAndGenerateWeeklyReport, weeklyReportDue } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
 import type { MedicalEvent } from '../types';
 import { useToday } from './useToday';
@@ -56,7 +56,8 @@ export function useHomeScreen(navigation: any) {
   const [latestJournal, setLatestJournal] = useState<{ mood: string; note: string; date: string } | null | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [reportReadyUri, setReportReadyUri] = useState<string | null>(null);
+  // The week the banner is offering, not a rendered file (2026-09-17).
+  const [weeklyDue, setWeeklyDue] = useState<string | null>(null);
   const [nextMedicalEvent, setNextMedicalEvent] = useState<MedicalEvent | null>(null);
   const [showMealPrompt, setShowMealPrompt] = useState(false);
   const [showFirstEntryWizard, setShowFirstEntryWizard] = useState(false);
@@ -111,11 +112,11 @@ export function useHomeScreen(navigation: any) {
   }, [loadDay]);
 
   useEffect(() => {
-    checkAndGenerateWeeklyReport().catch(() => {});
+    checkAndGenerateWeeklyReport()
+      .then(weeklyReportDue)
+      .then(setWeeklyDue)
+      .catch(() => {});
     clearAppBadge().catch(() => {});
-    AsyncStorage.getItem('auto_report_ready_uri').then((uri) => {
-      if (uri) setReportReadyUri(uri);
-    });
   }, []);
 
   // Pure-tracker build: app-authored "Protocol tip" insights and the
@@ -195,7 +196,7 @@ export function useHomeScreen(navigation: any) {
     currentStreak, milestoneModalVisible, setMilestoneModalVisible,
     todayMood, setTodayMood, todayNotePreview, latestJournal,
     refreshing, setRefreshing, starting, setStarting,
-    reportReadyUri, setReportReadyUri,
+    weeklyDue, setWeeklyDue,
     nextMedicalEvent,
     showMealPrompt, setShowMealPrompt,
     showFirstEntryWizard, setShowFirstEntryWizard,

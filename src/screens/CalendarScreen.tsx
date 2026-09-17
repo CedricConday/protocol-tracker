@@ -12,8 +12,6 @@ import {
   View,
   Alert,
 } from 'react-native';
-import * as Sharing from 'expo-sharing';
-import * as Print from 'expo-print';
 import { confirmDose, getCalendarMonth, getDayDetail, localDateStr, skipDose, skipDoseWithReason, todayStr, type CalendarDay, type DayDetail, type DayDetailDose } from '../db/queries';
 import DoseDetailModal from '../components/DoseDetailModal';
 import type { ScheduledDose } from '../types';
@@ -23,6 +21,8 @@ import { useSummaryScreen } from '../hooks';
 import { getMiscFlag } from '../db/queries';
 import { getProfileById } from '../data/diseaseProfiles';
 import { t, useLanguage, plural } from '../i18n';
+import ShareSheet from '../share/ShareSheet';
+import type { RangePreset } from '../share/types';
 import { useToday } from '../hooks/useToday';
 import { formatStoredTime } from '../utils/time';
 
@@ -278,30 +278,31 @@ export default function CalendarScreen() {
     ? t('calMonthStats', { days: daysLogged, pct: avgCompliance })
     : t('noDataYet');
 
-  const handleShare = async () => {
-    try {
-      const rows = Array.from(data.values())
-        .filter((c) => c.totalDoses > 0 || c.eventCount > 0 || c.hasJournal || c.hasWater)
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .map((c) => {
-          const d = new Date(c.date + 'T00:00:00');
-          const bits = [
-            c.totalDoses > 0 ? `${c.compliancePct}% (${c.takenDoses}/${c.totalDoses})` : '—',
-            c.eventCount > 0 ? plural(c.eventCount, 'calA11yEvent', 'calA11yEvents', { count: c.eventCount }) : '',
-            c.hasJournal ? t('journal').toLowerCase() : '',
-          ].filter(Boolean).join(' · ');
-          return `<tr><td style="border:1px solid #333;padding:8px">${weekdaysShortSundayFirst()[d.getDay()]} ${c.date}</td><td style="border:1px solid #333;padding:8px">${bits}</td></tr>`;
-        })
-        .join('');
-      const html = `<html><body style="background:#F7F7F2;color:#14213D;font-family:sans-serif;padding:20px">
-        <h1 style="color:#1B58B8">${monthNames()[viewMonth]} ${viewYear}</h1>
-        <table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>${rows || `<tr><td>${t('noDataThisMonth')}</td></tr>`}</tbody></table>
-        </body></html>`;
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri, { mimeType: 'text/html' });
-    } catch (e) {
-      Alert.alert(t('calShareFailed'), e instanceof Error ? e.message : t('unknownError'));
-    }
+  // Both share controls on this screen open the one sheet (2026-09-17). The
+  // header button used to build its own HTML for the month in view — compliance
+  // %, an event count and the word "journal", silently dropping the water, food,
+  // exercise and sun the grid above it marks. The button at the foot navigated
+  // to a separate screen that made a PDF of a different, hardcoded 30 days.
+  // Neither asked what to send. They now differ only in where the dials start.
+  const [shareOpen, setShareOpen] = useState(false);
+  const [sharePreset, setSharePreset] = useState<RangePreset>('30d');
+  const [shareRange, setShareRange] = useState<{ from: string; to: string } | undefined>(undefined);
+
+  const openMonthShare = () => {
+    const mmIdx = String(viewMonth + 1).padStart(2, '0');
+    const lastDay = new Date(viewYear, viewMonth + 1, 0).getDate();
+    setSharePreset('custom');
+    setShareRange({
+      from: `${viewYear}-${mmIdx}-01`,
+      to: `${viewYear}-${mmIdx}-${String(lastDay).padStart(2, '0')}`,
+    });
+    setShareOpen(true);
+  };
+
+  const openReportShare = () => {
+    setSharePreset('30d');
+    setShareRange(undefined);
+    setShareOpen(true);
   };
 
   return (
@@ -313,7 +314,7 @@ export default function CalendarScreen() {
     >
       <View style={styles.headerRow}>
         <Text style={styles.heading}>{t('history')}</Text>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8} accessibilityLabel={t('calShareMonth')} accessibilityRole="button">
+        <TouchableOpacity style={styles.shareButton} onPress={openMonthShare} activeOpacity={0.8} accessibilityLabel={t('calShareMonth')} accessibilityRole="button">
           <Text style={styles.shareButtonText}>{t('share')}</Text>
         </TouchableOpacity>
       </View>
@@ -476,12 +477,19 @@ export default function CalendarScreen() {
       <TouchableOpacity
         style={styles.shareProgressBtn}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('Summary', { screen: 'Report' })}
+        onPress={openReportShare}
         accessibilityLabel={t('calShareProgress')}
         accessibilityRole="button"
       >
         <Text style={styles.shareProgressBtnText}>{t('shareProgress')}</Text>
       </TouchableOpacity>
+
+      <ShareSheet
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        initialPreset={sharePreset}
+        initialRange={shareRange}
+      />
 
       <Modal visible={detailDate !== null} animationType="slide" transparent onRequestClose={closeDay}>
         {/* The scrim closes the sheet. Tapping the dimmed area above the card is
