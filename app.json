@@ -29,7 +29,10 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "lang": "en",
+      "name": "Try Protocol Tracker in the browser — CondayDigital",
+      "description": "Run Protocol Tracker in your browser — the full app, nothing to install, no account. The free Android build is at condaydigital.com/app."
     },
     "plugins": [
       "expo-sqlite",
