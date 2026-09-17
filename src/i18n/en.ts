@@ -649,7 +649,7 @@ export const en: Record<string, string> = {
   supUnitPlaceholder: 'mg · IU · mcg',
   supDeleteConfirm: 'Remove "{name}" and all its dose history? This cannot be undone.',
   supAddA11y: 'Add a supplement',
-  supCloseAddA11y: 'Close the add supplement form',
+  supEditA11y: 'Edit {name}',
   exGoalA11y: 'Daily exercise goal, {minutes} minutes. Tap to edit.',
 
   // ── Share sheet (2026-09-17) ──────────────────────────────────────────────

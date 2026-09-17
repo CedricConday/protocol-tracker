@@ -2,8 +2,6 @@ import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -24,8 +22,8 @@ import {
 } from '../db/queries';
 import { t, useLanguage } from '../i18n';
 import { describeCadence } from '../engine/cadence';
-import SupplementFields, { BLANK_SUPPLEMENT, SupplementFormState } from '../components/SupplementFields';
-import DurationInput from '../components/DurationInput';
+import { BLANK_SUPPLEMENT, SupplementFormState } from '../components/SupplementFields';
+import SupplementSheet from '../components/SupplementSheet';
 import { clockPreview, formatOffsetLabel } from '../utils/duration';
 
 type SupRow = {
@@ -46,15 +44,46 @@ type SupRow = {
   cycle_start_date: string;
 };
 
+/** Which supplement the sheet is standing over, if any. */
+type Editing = { mode: 'add' } | { mode: 'edit'; row: SupRow };
+
+function formFor(row: SupRow): SupplementFormState {
+  return {
+    name: row.name,
+    form: row.form || 'capsule',
+    dose_amount: row.dose_amount,
+    dose_unit: row.dose_unit,
+    offset_minutes: String(row.offset_minutes),
+    with_food: row.with_food === 1,
+    tolerance_window: String(row.tolerance_window),
+    frequency: row.frequency || 'daily',
+    days_of_week: row.days_of_week || '',
+    day_of_month: row.day_of_month ? String(row.day_of_month) : '',
+    cycle_on_days: row.cycle_on_days ? String(row.cycle_on_days) : '',
+    cycle_off_days: row.cycle_off_days ? String(row.cycle_off_days) : '',
+    cycle_start_date: row.cycle_start_date || '',
+  };
+}
+
+/**
+ * The protocol, as a handful of bubbles.
+ *
+ * A supplement is a bubble carrying its name and, under it, the line that
+ * answers what a patient actually checks the list for: how much, and when.
+ * Everything else about it — form, flexibility, food, cadence — lives one tap
+ * away in the sheet, because it is entered once and re-read almost never.
+ *
+ * Dose and unit were already on that line. The rest of the row's old contents
+ * were the form itself, unfolded in place, which turned a twelve-supplement
+ * protocol into a scroll nobody could hold in their head.
+ */
 export default function SupplementEditorScreen() {
   useLanguage(); // re-render this screen when the language changes
   const navigation = useNavigation<any>();
   const [supplements, setSupplements] = useState<SupRow[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editForms, setEditForms] = useState<Record<string, SupplementFormState>>({});
-  const [addForm, setAddForm] = useState<SupplementFormState>(BLANK_SUPPLEMENT);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [form, setForm] = useState<SupplementFormState>(BLANK_SUPPLEMENT);
+  const [saving, setSaving] = useState(false);
   // The patient's usual start time, for the "about 11:00" hint beside a gap.
   // Null until they have started a day or two, and the hint simply hides.
   const [t0, setT0] = useState<string | null>(null);
@@ -71,71 +100,53 @@ export default function SupplementEditorScreen() {
     return unsubscribe;
   }, [navigation, reload]);
 
-  const toggleExpand = (id: string, row: SupRow) => {
-    if (expandedId === id) { setExpandedId(null); return; }
-    setEditForms((prev) => ({
-      ...prev,
-      [id]: {
-        name: row.name,
-        form: row.form || 'capsule',
-        dose_amount: row.dose_amount,
-        dose_unit: row.dose_unit,
-        offset_minutes: String(row.offset_minutes),
-        with_food: row.with_food === 1,
-        tolerance_window: String(row.tolerance_window),
-        frequency: row.frequency || 'daily',
-        days_of_week: row.days_of_week || '',
-        day_of_month: row.day_of_month ? String(row.day_of_month) : '',
-        cycle_on_days: row.cycle_on_days ? String(row.cycle_on_days) : '',
-        cycle_off_days: row.cycle_off_days ? String(row.cycle_off_days) : '',
-        cycle_start_date: row.cycle_start_date || '',
-      },
-    }));
-    setExpandedId(id);
-    setShowAddForm(false);
+  const openAdd = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setForm(BLANK_SUPPLEMENT);
+    setEditing({ mode: 'add' });
   };
 
-  /**
-   * The timing slot. Here it is the supplement's own place in the day, measured
-   * from the moment it starts — the wizard is the screen that asks in gaps.
-   */
-  const timingFor = (form: SupplementFormState, onChange: (f: SupplementFormState) => void) => () => (
-    <DurationInput
-      label={t('timingLabel')}
-      value={parseInt(form.offset_minutes, 10) || 0}
-      onChange={(minutes) => onChange({ ...form, offset_minutes: String(minutes) })}
-      t0={t0}
-      zeroLabel={t('durAtStart')}
-    />
-  );
+  const openEdit = (row: SupRow) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setForm(formFor(row));
+    setEditing({ mode: 'edit', row });
+  };
 
-  const handleSave = async (row: SupRow) => {
-    const f = editForms[row.id];
-    if (!f?.name.trim()) { Alert.alert(t('supNameRequired'), t('supNameBody')); return; }
-    setSaving(row.id);
+  const handleSave = async () => {
+    if (!editing) return;
+    if (!form.name.trim()) { Alert.alert(t('supNameRequired'), t('supNameBody')); return; }
+    setSaving(true);
     try {
-      await updateSupplementAndRule({
-        supplementId: row.id,
-        ruleId: row.rule_id ?? -1,
-        name: f.name.trim(),
-        form: f.form,
-        dose_amount: f.dose_amount.trim(),
-        dose_unit: f.dose_unit.trim(),
-        offset_minutes: parseInt(f.offset_minutes, 10) || 0,
-        with_food: f.with_food,
-        tolerance_window: parseInt(f.tolerance_window, 10) || 30,
-        frequency: f.frequency,
-        days_of_week: f.days_of_week,
-        day_of_month: parseInt(f.day_of_month, 10) || 0,
-        cycle_on_days: parseInt(f.cycle_on_days, 10) || 0,
-        cycle_off_days: parseInt(f.cycle_off_days, 10) || 0,
-        // A cycle counts from the day it was set up unless one is already stored.
-        cycle_start_date: f.cycle_start_date || localDateStr(new Date()),
-      });
+      const fields = {
+        name: form.name.trim(),
+        form: form.form,
+        dose_amount: form.dose_amount.trim(),
+        dose_unit: form.dose_unit.trim(),
+        offset_minutes: parseInt(form.offset_minutes, 10) || 0,
+        with_food: form.with_food,
+        tolerance_window: parseInt(form.tolerance_window, 10) || 30,
+        frequency: form.frequency,
+        days_of_week: form.days_of_week,
+        day_of_month: parseInt(form.day_of_month, 10) || 0,
+        cycle_on_days: parseInt(form.cycle_on_days, 10) || 0,
+        cycle_off_days: parseInt(form.cycle_off_days, 10) || 0,
+      };
+      if (editing.mode === 'add') {
+        await addSupplement({ ...fields, cycle_start_date: localDateStr(new Date()) });
+      } else {
+        await updateSupplementAndRule({
+          ...fields,
+          supplementId: editing.row.id,
+          ruleId: editing.row.rule_id ?? -1,
+          // A cycle counts from the day it was set up unless one is already stored.
+          cycle_start_date: form.cycle_start_date || localDateStr(new Date()),
+        });
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await reload();
-      setExpandedId(null);
+      setEditing(null);
     } finally {
-      setSaving(null);
+      setSaving(false);
     }
   };
 
@@ -151,183 +162,114 @@ export default function SupplementEditorScreen() {
           onPress: async () => {
             await deleteSupplement(row.id);
             await reload();
-            if (expandedId === row.id) setExpandedId(null);
+            setEditing(null);
           },
         },
       ],
     );
   };
 
-  const handleAdd = async () => {
-    if (!addForm.name.trim()) { Alert.alert(t('supNameRequired'), t('supNameBody')); return; }
-    setSaving('__add__');
-    try {
-      await addSupplement({
-        name: addForm.name.trim(),
-        form: addForm.form,
-        dose_amount: addForm.dose_amount.trim(),
-        dose_unit: addForm.dose_unit.trim(),
-        offset_minutes: parseInt(addForm.offset_minutes, 10) || 0,
-        with_food: addForm.with_food,
-        tolerance_window: parseInt(addForm.tolerance_window, 10) || 30,
-        frequency: addForm.frequency,
-        days_of_week: addForm.days_of_week,
-        day_of_month: parseInt(addForm.day_of_month, 10) || 0,
-        cycle_on_days: parseInt(addForm.cycle_on_days, 10) || 0,
-        cycle_off_days: parseInt(addForm.cycle_off_days, 10) || 0,
-        cycle_start_date: localDateStr(new Date()),
-      });
-      setAddForm(BLANK_SUPPLEMENT);
-      setShowAddForm(false);
-      await reload();
-    } finally {
-      setSaving(null);
-    }
-  };
-
   const openWizard = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowAddForm(false);
-    setExpandedId(null);
+    setEditing(null);
     navigation.navigate('SupplementWizard');
+  };
+
+  /**
+   * The bubble's second line: dose, then when it is taken — "4 h after start",
+   * not "T0 +240 min". The clock hint rides along when there is a usual start
+   * time to measure it against. 'daily' is the overwhelming default, so it is
+   * left off; printing it on every bubble would bury the two that are not.
+   */
+  const noteFor = (row: SupRow): string => {
+    const dose = row.dose_amount && row.dose_unit
+      ? `${row.dose_amount} ${row.dose_unit}`
+      : row.dose_amount || '—';
+    const at = clockPreview(row.offset_minutes, t0);
+    const timing = formatOffsetLabel(row.offset_minutes)
+      + (at ? ` · ${t('timingPreviewAt', { time: at })}` : '');
+    const cadence = row.frequency && row.frequency !== 'daily'
+      ? ` · ${describeCadence(row, t)}`
+      : '';
+    return `${dose} · ${timing}${cadence}${row.with_food ? ` · ${t('withFoodShort')}` : ''}`;
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('supplements')}</Text>
-          <View style={styles.headerActions}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{t('supplements')}</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.severalBtn}
+            onPress={openWizard}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('wizAddSeveralA11y')}
+          >
+            <Ionicons name="list-outline" size={16} color={C.primary} />
+            <Text style={styles.severalBtnText}>{t('wizAddSeveral')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={openAdd}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('supAddA11y')}
+          >
+            <Ionicons name="add" size={22} color="#F7F7F2" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        {supplements.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="flask-outline" size={40} color={C.textMuted} />
+            <Text style={styles.emptyText}>{t('protocolStartsHere')}</Text>
+            <Text style={styles.emptySub}>{t('tapPlusToAdd')}</Text>
             <TouchableOpacity
-              style={styles.severalBtn}
+              style={styles.emptyWizardBtn}
               onPress={openWizard}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel={t('wizAddSeveralA11y')}
             >
-              <Ionicons name="list-outline" size={16} color={C.primary} />
-              <Text style={styles.severalBtnText}>{t('wizAddSeveral')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAddForm((v) => !v); setExpandedId(null); }}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={showAddForm ? t('supCloseAddA11y') : t('supAddA11y')}
-            >
-              <Ionicons name={showAddForm ? 'close' : 'add'} size={22} color="#F7F7F2" />
+              <Text style={styles.emptyWizardBtnText}>{t('wizAddSeveral')}</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        <View style={styles.bubbles}>
+          {supplements.map((row) => (
+            <TouchableOpacity
+              key={row.id}
+              style={styles.bubble}
+              onPress={() => openEdit(row)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={t('supEditA11y', { name: row.name })}
+            >
+              <Text style={styles.bubbleName} numberOfLines={1}>{row.name}</Text>
+              <Text style={styles.bubbleNote} numberOfLines={2}>{noteFor(row)}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={{ height: 40 }} />
+      </ScrollView>
 
-          {showAddForm && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{t('newSupplement')}</Text>
-              <SupplementFields
-                form={addForm}
-                onChange={setAddForm}
-                renderTiming={timingFor(addForm, setAddForm)}
-              />
-              <TouchableOpacity
-                style={[styles.saveBtn, saving === '__add__' && styles.saveBtnDisabled]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleAdd().then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
-                disabled={saving === '__add__'}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={t('supAdd')}
-              >
-                <Text style={styles.saveBtnText}>{saving === '__add__' ? t('saving') : t('supAdd')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {supplements.length === 0 && !showAddForm && (
-            <View style={styles.emptyState}>
-              <Ionicons name="flask-outline" size={40} color={C.textMuted} />
-              <Text style={styles.emptyText}>{t('protocolStartsHere')}</Text>
-              <Text style={styles.emptySub}>{t('tapPlusToAdd')}</Text>
-              <TouchableOpacity
-                style={styles.emptyWizardBtn}
-                onPress={openWizard}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={t('wizAddSeveralA11y')}
-              >
-                <Text style={styles.emptyWizardBtnText}>{t('wizAddSeveral')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {supplements.map((row) => {
-            const isOpen = expandedId === row.id;
-            const f = editForms[row.id];
-            const doseLabel = row.dose_amount && row.dose_unit
-              ? `${row.dose_amount} ${row.dose_unit}`
-              : row.dose_amount || '—';
-            // "4 h after start", not "T0 +240 min". The clock hint rides along
-            // when there is a usual start time to measure it against.
-            const at = clockPreview(row.offset_minutes, t0);
-            const timingLabel = formatOffsetLabel(row.offset_minutes)
-              + (at ? ` · ${t('timingPreviewAt', { time: at })}` : '');
-            // 'daily' is the overwhelming default — printing it on every row
-            // would bury the two that are not.
-            const cadenceLabel = row.frequency && row.frequency !== 'daily'
-              ? ` · ${describeCadence(row, t)}`
-              : '';
-
-            return (
-              <View key={row.id} style={styles.card}>
-                <TouchableOpacity
-                  style={styles.cardRow}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleExpand(row.id, row); }}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardName}>{row.name}</Text>
-                    <Text style={styles.cardSub}>
-                      {doseLabel} · {timingLabel}{cadenceLabel}{row.with_food ? ` · ${t('withFoodShort')}` : ''}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={isOpen ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color={C.textMuted}
-                  />
-                </TouchableOpacity>
-
-                {isOpen && f && (
-                  <>
-                    <View style={styles.divider} />
-                    <SupplementFields
-                      form={f}
-                      onChange={(next) => setEditForms((prev) => ({ ...prev, [row.id]: next }))}
-                      renderTiming={timingFor(f, (next) => setEditForms((prev) => ({ ...prev, [row.id]: next })))}
-                    />
-                    <View style={styles.actionRow}>
-                      <TouchableOpacity style={styles.deleteBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleDelete(row); }} activeOpacity={0.7}>
-                        <Ionicons name="trash-outline" size={16} color={C.danger} />
-                        <Text style={styles.deleteBtnText}>{t('delete')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.saveBtnInline, saving === row.id && styles.saveBtnDisabled]}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleSave(row).then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); }}
-                        disabled={saving === row.id}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.saveBtnText}>{saving === row.id ? t('saving') : t('save')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-              </View>
-            );
-          })}
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <SupplementSheet
+        visible={editing !== null}
+        mode={editing?.mode ?? 'add'}
+        title={editing?.mode === 'edit' ? editing.row.name : t('newSupplement')}
+        form={form}
+        t0={t0}
+        saving={saving}
+        onChange={setForm}
+        onClose={() => setEditing(null)}
+        onSave={handleSave}
+        onDelete={editing?.mode === 'edit' ? () => handleDelete(editing.row) : undefined}
+      />
     </SafeAreaView>
   );
 }
@@ -365,58 +307,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: {
+
+  // A wrap, not a column: a short protocol then reads as a handful of bubbles
+  // rather than a stack of near-empty full-width rows.
+  bubbles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 4 },
+  bubble: {
+    maxWidth: '100%',
     backgroundColor: C.surface,
-    borderRadius: 14,
-    marginBottom: 14,
-    overflow: 'hidden',
-  },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: C.border,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 11,
   },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: C.primary,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 2,
-  },
-  cardName: { fontSize: 15, fontWeight: '600', color: C.text, marginBottom: 2 },
-  cardSub: { fontSize: 12, color: C.textSub },
-  divider: { height: 1, backgroundColor: C.border, marginHorizontal: 16 },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    paddingTop: 10,
-  },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, padding: 6 },
-  deleteBtnText: { fontSize: 13, color: C.danger, fontWeight: '500' },
-  saveBtn: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 14,
-    marginTop: 8,
-  },
-  saveBtnInline: {
-    backgroundColor: C.primary,
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  saveBtnDisabled: { opacity: 0.55 },
-  saveBtnText: { color: '#F7F7F2', fontSize: 14, fontWeight: '600' },
+  bubbleName: { fontSize: 15, fontWeight: '600', color: C.text },
+  bubbleNote: { fontSize: 12, color: C.textSub, marginTop: 2 },
+
   emptyState: { alignItems: 'center', paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, color: C.text, fontWeight: '600' },
   emptySub: { fontSize: 13, color: C.textSub },

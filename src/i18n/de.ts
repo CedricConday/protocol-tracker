@@ -649,7 +649,7 @@ export const de: Record<string, string> = {
   supUnitPlaceholder: 'mg · IE · µg',
   supDeleteConfirm: '„{name}“ und den gesamten Dosisverlauf entfernen? Das lässt sich nicht rückgängig machen.',
   supAddA11y: 'Ein Präparat hinzufügen',
-  supCloseAddA11y: 'Formular zum Hinzufügen schließen',
+  supEditA11y: '{name} bearbeiten',
   exGoalA11y: 'Tagesziel Bewegung, {minutes} Minuten. Zum Ändern tippen.',
 
   // ── Teilen-Dialog (2026-09-17) ────────────────────────────────────────────
