@@ -3,27 +3,42 @@
 # Why this exists: the VPS is aarch64 and the Android NDK toolchain is x86-64,
 # so `gradlew` cannot run there at all. EAS can build it but the free tier
 # queued ~67 min on 2026-09-15 before it even started. A runner here picks the
-# job up in seconds and the whole build is ~15-25 min.
+# job up in seconds. (The "~15-25 min" this line used to claim was never
+# measured — see below.)
 #
 # The APK is signed with the debug keystore that `expo prebuild` wires into the
 # release config — fine for sideloading and internal testing, NOT for Play.
+#
+# MANUAL ONLY, and disabled in the Actions tab as of 2026-09-17.
+#
+# It used to run on every push to master touching src/**. It never once
+# produced an APK: `assembleRelease` exhausts the JVM Metaspace that Expo's
+# default gradle.properties gives it (512m), and with --no-daemon it thrashes
+# instead of failing, so every run died on the 90-minute timeout. That was 17
+# runs and ~1,500 billed minutes on 2026-09-17 alone, for nothing, on a private
+# repo.
+#
+# Before running this again, raise the heap first — after the prebuild step:
+#   echo 'org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g' >> android/gradle.properties
+# The runner has 16 GB. Without that line this job cannot finish.
+#
+# The phone is fed by ota-update, not by this. An APK is only needed to
+# sideload a new native build.
 name: android-apk
 
 on:
   workflow_dispatch:
-  push:
-    branches: [master]
-    paths:
-      - 'src/**'
-      - 'app.json'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/android-apk.yml'
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 45, not 90: if it has not linked by then it is stuck, and a stuck run
+    # should cost half an hour, not an hour and a half.
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
