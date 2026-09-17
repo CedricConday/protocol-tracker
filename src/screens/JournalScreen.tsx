@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { deleteJournalEntry, insertJournalEntry, logRelapseEvent, todayStr } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t, useLanguage, locale } from '../i18n';
+import { formatStoredTime } from '../utils/time';
 import { useJournalScreen } from '../hooks';
 import { useToday } from '../hooks/useToday';
 import EmptyState from '../components/EmptyState';
@@ -68,12 +69,6 @@ function formatDateLabel(dateStr: string): string {
  * instant. An unparseable value gives an empty string rather than "Invalid Date"
  * in the middle of the list.
  */
-function formatEntryTime(createdAt: string): string {
-  const parsed = new Date(`${createdAt.replace(' ', 'T')}Z`);
-  if (Number.isNaN(parsed.getTime())) return '';
-  return parsed.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
-}
-
 function formatEventDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
@@ -585,7 +580,7 @@ export default function JournalScreen() {
                 {/* The clock time is what tells two entries from the same day
                     apart. It is only worth the space when there ARE two. */}
                 {perDayCounts[entry.date] > 1 ? (
-                  <Text style={styles.entryTime}>{formatEntryTime(entry.created_at)}</Text>
+                  <Text style={styles.entryTime}>{formatStoredTime(entry.created_at)}</Text>
                 ) : null}
                 <View style={[styles.complianceBadge, { backgroundColor: complianceBadgeColor(entry.compliance_pct) + '30' }]}>
                   <Text style={[styles.complianceBadgeText, { color: complianceBadgeColor(entry.compliance_pct) }]}>
@@ -605,7 +600,7 @@ export default function JournalScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={t('jrnRemoveEntryA11y', {
                       date: entry.date === today ? t('today') : formatDateLabel(entry.date),
-                      time: formatEntryTime(entry.created_at),
+                      time: formatStoredTime(entry.created_at),
                     })}
                   >
                     <Text style={styles.entryRemoveBtnText}>{t('remove')}</Text>

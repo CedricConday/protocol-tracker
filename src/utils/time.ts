@@ -54,6 +54,21 @@ export function formatClock(d: Date): string {
   return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * A stored SQLite timestamp ("YYYY-MM-DD HH:MM:SS", written by `datetime('now')`
+ * and therefore UTC) as a local clock time.
+ *
+ * Lived in JournalScreen until 2026-09-17, when the History day sheet started
+ * listing a day's several journal entries and needed the same reading. The `Z`
+ * is the whole point: without it the string parses as local time and an entry
+ * written at 21:00 UTC reads 21:00 in Berlin too, two hours out.
+ */
+export function formatStoredTime(stored: string): string {
+  const parsed = new Date(`${stored.replace(' ', 'T')}Z`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return formatClock(parsed);
+}
+
 export function formatHourMinute(hour: number, minute: number): string {
   const d = new Date();
   d.setHours(hour, minute, 0, 0);

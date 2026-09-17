@@ -689,7 +689,12 @@ export interface DayDetail {
   totalDoses: number;
   missedDoses: number;
   compliancePct: number;
-  journal: JournalEntry | null;
+  // EVERY entry of the day, oldest first. It was the day's last entry alone
+  // until 2026-09-17: a day could hold one, and when that stopped being true
+  // the sheet quietly kept showing the newest and dropping the rest. Reported
+  // from the device as "I can save multiple entries, but only one is saved to
+  // the history".
+  journalEntries: JournalEntry[];
   events: RelapseEvent[];
   // The four trackers. Until now the day sheet knew only about pills, journal
   // and events, so the grid could mark a day as having water and then open a
@@ -710,7 +715,7 @@ export interface DayDetail {
 export async function getDayDetail(date: string): Promise<DayDetail> {
   const summary = await getDaySummary(date);
   const doseLogs = await getDoseLogs(date);
-  const journal = await getJournalEntry(date);
+  const journalEntries = await getJournalEntriesForDate(date);
   const db = await getDb();
   const events = await db.getAllAsync<RelapseEvent>(
     'SELECT * FROM relapse_events WHERE date = ? ORDER BY created_at DESC',
@@ -755,7 +760,7 @@ export async function getDayDetail(date: string): Promise<DayDetail> {
     totalDoses: summary.totalDoses,
     missedDoses: summary.missedDoses,
     compliancePct: summary.compliancePct,
-    journal,
+    journalEntries,
     events,
     waterMl: anchor?.water_ml ?? 0,
     waterLogs,

@@ -24,6 +24,7 @@ import { getMiscFlag } from '../db/queries';
 import { getProfileById } from '../data/diseaseProfiles';
 import { t, useLanguage, plural } from '../i18n';
 import { useToday } from '../hooks/useToday';
+import { formatStoredTime } from '../utils/time';
 
 import { weekdaysShortSundayFirst, weekdaysShort, monthNames, longDate } from '../i18n/dates';
 
@@ -634,13 +635,25 @@ export default function CalendarScreen() {
                   {!!detail.sunNote && <Text style={styles.detailSunNote}>{detail.sunNote}</Text>}
 
                   <Text style={styles.detailSection}>{t('journal')}</Text>
-                  {detail.journal ? (
-                    <View style={styles.journalCard}>
-                      <Text style={styles.detailMood}>{detail.journal.mood}</Text>
-                      <Text style={styles.journalNote}>{detail.journal.note || t('calNoNote')}</Text>
-                    </View>
-                  ) : (
+                  {detail.journalEntries.length === 0 ? (
                     <Text style={styles.detailMuted}>{t('noJournalEntry')}</Text>
+                  ) : (
+                    // Every entry of the day, oldest first, so the sheet reads
+                    // down the day the way it was written. The clock time is
+                    // what tells two entries of one day apart, so it appears
+                    // exactly when there are two — the same rule the journal's
+                    // own list follows.
+                    <View style={styles.journalList}>
+                      {detail.journalEntries.map((entry) => (
+                        <View key={entry.id} style={styles.journalCard}>
+                          <Text style={styles.detailMood}>{entry.mood}</Text>
+                          <Text style={styles.journalNote}>{entry.note || t('calNoNote')}</Text>
+                          {detail.journalEntries.length > 1 ? (
+                            <Text style={styles.detailRowMeta}>{formatStoredTime(entry.created_at)}</Text>
+                          ) : null}
+                        </View>
+                      ))}
+                    </View>
                   )}
 
                   <Text style={styles.detailSection}>{t('events')}</Text>
@@ -751,6 +764,7 @@ const styles = StyleSheet.create({
   detailRowText: { color: INK, fontSize: 14, fontWeight: '600', flex: 1 },
   detailRowMeta: { color: '#9A8A80', fontSize: 13, fontWeight: '600' },
   detailRowChevron: { color: '#C3B6AD', fontSize: 16, fontWeight: '700' },
+  journalList: { gap: 8 },
   journalCard: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', backgroundColor: '#F5EEE7', borderRadius: 14, padding: 13 },
   detailMood: { fontSize: 24, lineHeight: 26 },
   journalNote: { color: '#3A302A', fontSize: 14, flex: 1, lineHeight: 20 },
