@@ -10,6 +10,7 @@ import {
   addWater, correctWaterLog, deleteWaterLog, getAnchor, getWaterGoalMl, getWaterLogs,
   localDateStr, setMiscFlag, WATER_GOAL_FLAG,
 } from '../db/queries';
+import { rescheduleWaterReminders } from '../engine/scheduler';
 
 import { locale, t, useLanguage } from '../i18n';
 import { useToday } from '../hooks/useToday';
@@ -146,6 +147,9 @@ export default function WaterScreen() {
     await setMiscFlag(WATER_GOAL_FLAG, String(next));
     setGoalMl(next);
     setGoalDraft(String(next));
+    // The day's reminders quote the goal they were written with, so a new goal
+    // has to rewrite them or the rest of today keeps asking for the old number.
+    rescheduleWaterReminders().catch(() => {});
   };
 
   const nudgeGoal = async (delta: number) => {
@@ -153,6 +157,8 @@ export default function WaterScreen() {
     await setMiscFlag(WATER_GOAL_FLAG, String(next));
     setGoalMl(next);
     setGoalDraft(String(next));
+    // Tapping "−" six times is one intent; the reschedule collapses them.
+    rescheduleWaterReminders().catch(() => {});
   };
 
   if (loading) {

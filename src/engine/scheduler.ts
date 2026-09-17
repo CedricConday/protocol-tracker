@@ -1,4 +1,4 @@
-import { getProfile, getMiscFlag, todayStr, localDateStr } from '../db/queries';
+import { getAnchor, getProfile, getMiscFlag, todayStr, localDateStr } from '../db/queries';
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
 import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications, scheduleWaterReminders } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
@@ -6,6 +6,55 @@ import { ruleFiresOn, cadenceOf } from './cadence';
 
 import { locale } from '../i18n';
 import { bedtimeAfter } from '../utils/time';
+/** The water window: T=0 to twelve hours later. Shared so a reschedule cannot
+ *  drift from the window the day was opened with. */
+export const WATER_WINDOW_MS = 12 * 60 * 60 * 1000;
+
+let waterInFlight: Promise<void> | null = null;
+let waterQueued = false;
+
+async function runWaterReschedule(): Promise<void> {
+  const anchor = await getAnchor(todayStr());
+  // No T=0 means the day was never opened, so there is nothing pending to
+  // correct — the next "Start My Day" will write reminders against whatever the
+  // goal is by then.
+  if (!anchor?.t0_timestamp) return;
+  const t0 = new Date(anchor.t0_timestamp);
+  await scheduleWaterReminders(t0, new Date(anchor.t0_timestamp + WATER_WINDOW_MS));
+}
+
+/**
+ * Rewrite today's water reminders against the goal as it stands now.
+ *
+ * Why this exists: `scheduleWaterReminders` bakes the goal into the body text,
+ * because a DATE-triggered notification carries the words it was written with
+ * and cannot look anything up when it fires. Until 2026-09-17 the only caller
+ * was `startDay`, so editing the goal on the Water screen changed the screen and
+ * left the day's reminders quoting the old number — and sized for it: five
+ * nudges written for 2500 ml kept firing against a 1000 ml goal.
+ *
+ * Calls collapse rather than queue up. Six taps of "−" are one intent, and two
+ * overlapping runs would interleave a cancel with the other's schedule and leave
+ * duplicates behind. While one run is in flight the next is remembered as a
+ * single trailing run, so the last state always wins and no timer is needed —
+ * nothing is lost if the screen closes a moment after the tap.
+ */
+export function rescheduleWaterReminders(): Promise<void> {
+  if (waterInFlight) {
+    waterQueued = true;
+    return waterInFlight;
+  }
+  waterInFlight = runWaterReschedule()
+    .catch(() => {})
+    .finally(() => { waterInFlight = null; })
+    .then(() => {
+      if (!waterQueued) return;
+      waterQueued = false;
+      return rescheduleWaterReminders();
+    });
+  return waterInFlight;
+}
+
 /**
  * Called when patient taps "Start My Day".
  * T=0 is the moment the first supplement goes in.
@@ -66,7 +115,7 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   // Fire-and-forget — don't block the schedule return on notification errors.
   // T=0 → T+12h is the WINDOW; how many reminders fall inside it comes from the
   // user's goal, not from this call. See notifications/waterCadence.ts.
-  scheduleWaterReminders(t0, new Date(t0Ms + 12 * 60 * 60 * 1000)).catch(() => {});
+  scheduleWaterReminders(t0, new Date(t0Ms + WATER_WINDOW_MS)).catch(() => {});
   scheduleExerciseReminder(t0).catch(() => {});
   scheduleEndOfDaySummary(t0).catch(() => {});
   scheduleMorningReminder().catch(() => {});
