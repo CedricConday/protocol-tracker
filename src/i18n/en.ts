@@ -266,6 +266,8 @@ export const en: Record<string, string> = {
   exMinutesUp: 'Increase minutes',
   foodLogMeal: 'Log a meal',
   foodTodaysMeals: "Today's meals",
+  foodTimeField: 'Meal time',
+  foodEditTimeA11y: '{meal} at {time}. Tap to correct the time.',
   foodFirstMeal7: 'First meal, last 7 days',
   waterGoalDown: 'Lower the daily water goal',
   waterGoalField: 'Daily water goal in millilitres',

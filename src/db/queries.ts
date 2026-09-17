@@ -1546,6 +1546,23 @@ export async function deleteMeal(mealId: number): Promise<boolean> {
 }
 
 /**
+ * Correct the clock time on a logged meal. Returns false when the row is gone.
+ *
+ * A meal is logged by one tap, at the moment of the tap, which is right when
+ * you log it as you eat and wrong when you come back to the app three hours
+ * later. `logged_at` is deliberately left alone: it records when the entry was
+ * made, `time` records when the eating happened, and after a correction those
+ * are honestly two different things.
+ */
+export async function updateMealTime(mealId: number, time: string): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM meal_log WHERE id = ?', [mealId]);
+  if (!row) return false;
+  await db.runAsync('UPDATE meal_log SET time = ? WHERE id = ?', [time, mealId]);
+  return true;
+}
+
+/**
  * Put the day's first-meal time back to unset.
  *
  * Needed because `setFirstMealTime` only ever writes a string: deleting the one

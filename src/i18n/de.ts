@@ -266,6 +266,8 @@ export const de: Record<string, string> = {
   exMinutesUp: 'Minuten erhöhen',
   foodLogMeal: 'Mahlzeit erfassen',
   foodTodaysMeals: 'Heutige Mahlzeiten',
+  foodTimeField: 'Uhrzeit der Mahlzeit',
+  foodEditTimeA11y: '{meal} um {time}. Zum Korrigieren der Uhrzeit tippen.',
   foodFirstMeal7: 'Erste Mahlzeit, letzte 7 Tage',
   waterGoalDown: 'Tägliches Wasserziel verringern',
   waterGoalField: 'Tägliches Wasserziel in Millilitern',

@@ -1,18 +1,18 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { C, themed, useTheme } from '../theme/colors';
 import {
-  ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import {
   clearFirstMealTime, deleteMeal, getFirstMealTime, getTodayMeals, localDateStr, logMeal,
-  setFirstMealTime, todayStr,
+  setFirstMealTime, todayStr, updateMealTime,
 } from '../db/queries';
 
 import { t, useLanguage } from '../i18n';
 import { useToday } from '../hooks/useToday';
-import { clockNow } from '../utils/time';
+import { clockNow, formatHourMinute, parseTimeOfDay } from '../utils/time';
 import { weekdaysShort } from '../i18n/dates';
 /**
  * The Food screen (PT-trio round 3, C4).
@@ -52,6 +52,37 @@ import { weekdaysShort } from '../i18n/dates';
  * 2026-09-16 (H15): it is an upsert now, the same shape as `setT0`.
  */
 
+/**
+ * Parse with the shared helper, then format with the shared formatter, so a
+ * corrected time is written in exactly the format the quick-tap writes and the
+ * column never holds "04:27 PM" on one row and "16:27" on the next. Returns
+ * null on an unparseable edit; the caller leaves the stored time alone rather
+ * than guessing.
+ */
+function normaliseTime(raw: string): string | null {
+  const parsed = parseTimeOfDay(raw);
+  return parsed ? formatHourMinute(parsed.hour, parsed.minute) : null;
+}
+
+/**
+ * The earliest meal of a day, by the clock.
+ *
+ * Not `meals[0]`: that is insertion order, and once a time can be corrected the
+ * first row logged is not necessarily the first meal eaten. Not a string sort
+ * either — `formatClock` is locale-dependent, so these read "16:27" in German
+ * and "04:27 PM" in English, and only one of those sorts correctly as text.
+ */
+function earliestMeal(meals: { time: string }[]): string | null {
+  let best: { time: string; minutes: number } | null = null;
+  for (const meal of meals) {
+    const parsed = parseTimeOfDay(meal.time);
+    if (!parsed) continue;
+    const minutes = parsed.hour * 60 + parsed.minute;
+    if (!best || minutes < best.minutes) best = { time: meal.time, minutes };
+  }
+  return best?.time ?? null;
+}
+
 // `id` is the stored `meal_log.meal_type` and stays English; the label is a key.
 const MEAL_TYPES = [
   { id: 'breakfast', labelKey: 'mealBreakfast' },
@@ -67,6 +98,9 @@ export default function FoodScreen() {
   const [firstMeal, setFirstMeal] = useState<string | null>(null);
   const [meals, setMeals] = useState<{ id: number; meal_type: string; time: string }[]>([]);
   const [week, setWeek] = useState<{ day: string; time: string | null }[]>([]);
+  // Which logged meal is having its time corrected, and the text being typed.
+  const [editingMeal, setEditingMeal] = useState<number | null>(null);
+  const [draft, setDraft] = useState('');
 
   // Not `todayStr()` inside load: the screen stays mounted across midnight, and
   // a load keyed on a value read once would keep reporting yesterday. The hook
@@ -124,6 +158,38 @@ export default function FoodScreen() {
   };
 
   /**
+   * Commit a corrected meal time.
+   *
+   * Guarded by a ref because the field fires this twice for one edit:
+   * `onSubmitEditing` closes the editor, unmounting a focused input fires
+   * `onBlur`, and `onBlur` is wired here too. The second pass used to race the
+   * first — two writes, two reloads, and whichever SELECT landed last won.
+   */
+  const committing = useRef(false);
+
+  const commitMealTime = async (meal: { id: number; time: string }) => {
+    if (committing.current) return;
+    committing.current = true;
+    setEditingMeal(null);
+    try {
+      const time = normaliseTime(draft);
+      if (!time || time === meal.time) return;
+      const updated = await updateMealTime(meal.id, time);
+      if (!updated) { await load(); return; }
+      // The anchor follows the clock, not the order things were tapped in: if
+      // this correction makes an afternoon snack the earliest thing eaten, it
+      // is the day's first meal now.
+      const day = todayStr();
+      const earliest = earliestMeal(await getTodayMeals(day));
+      if (earliest) await setFirstMealTime(day, earliest);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await load();
+    } finally {
+      committing.current = false;
+    }
+  };
+
+  /**
    * Remove a meal, and keep the first-meal anchor honest.
    *
    * The anchor is a separate value (`daily_anchors.first_meal_time`), set either
@@ -144,7 +210,8 @@ export default function FoodScreen() {
     if (firstMeal === meal.time) {
       const day = todayStr();
       const left = await getTodayMeals(day);
-      if (left.length > 0) await setFirstMealTime(day, left[0].time);
+      const earliest = earliestMeal(left);
+      if (earliest) await setFirstMealTime(day, earliest);
       else await clearFirstMealTime(day);
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -179,8 +246,9 @@ export default function FoodScreen() {
           ))}
         </View>
         <Text style={styles.note}>
-          A meal is logged at the time you tap it. There is no portion, ingredient or calorie
-          field on purpose — nothing in the protocol reads one.
+          A meal is logged at the time you tap it — tap the time in the list below to correct
+          it if you are logging late. There is no portion, ingredient or calorie field on
+          purpose: nothing in the protocol reads one.
         </Text>
       </View>
 
@@ -197,7 +265,26 @@ export default function FoodScreen() {
             const label = known ? t(known.labelKey) : meal.meal_type;
             return (
               <View key={meal.id} style={styles.mealRow}>
-                <Text style={styles.mealTime}>{meal.time}</Text>
+                {editingMeal === meal.id ? (
+                  <TextInput
+                    style={[styles.mealTime, styles.mealTimeField]}
+                    value={draft}
+                    onChangeText={setDraft}
+                    onBlur={() => commitMealTime(meal)}
+                    onSubmitEditing={() => commitMealTime(meal)}
+                    keyboardType="numbers-and-punctuation"
+                    autoFocus
+                    accessibilityLabel={t('foodTimeField')}
+                  />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => { setDraft(meal.time); setEditingMeal(meal.id); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('foodEditTimeA11y', { meal: label, time: meal.time })}
+                  >
+                    <Text style={[styles.mealTime, styles.mealTimeTappable]}>{meal.time}</Text>
+                  </TouchableOpacity>
+                )}
                 <Text style={styles.mealType}>{label}</Text>
                 <TouchableOpacity
                   style={styles.removeBtn}
@@ -251,6 +338,10 @@ const styles = themed((C) => StyleSheet.create({
 
   mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
   mealTime: { color: C.text, fontSize: 15, fontWeight: '700', width: 62 },
+  // A dotted underline, so the time reads as something you can change without
+  // turning every row into a button.
+  mealTimeTappable: { borderBottomWidth: 1, borderBottomColor: C.border, borderStyle: 'dotted' },
+  mealTimeField: { borderBottomWidth: 2, borderBottomColor: C.primary, padding: 0 },
   mealType: { color: C.textSub, fontSize: 14, flex: 1 },
   removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: C.dangerBg, borderWidth: 1, borderColor: C.dangerSoft },
   removeBtnText: { color: C.dangerInk, fontSize: 12, fontWeight: '700' },
