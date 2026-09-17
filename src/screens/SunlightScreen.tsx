@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import SunTracker, { DEFAULT_SUN_GOAL_MIN } from '../components/SunTracker';
 import {
-  clearSunLog, correctSunEntry, correctSunLog, deleteSunEntry, getMiscFlag,
+  clearSunLog, correctSunEntry, deleteSunEntry, getMiscFlag,
   getSunEntries, getSunHistory, getTodaySunLog, logSunExposure, setMiscFlag, setSunNote, todayStr,
 } from '../db/queries';
 
@@ -60,8 +60,6 @@ export default function SunlightScreen() {
   const [savedNotes, setSavedNotes] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [history, setHistory] = useState<HistoryDay[]>([]);
-  const [correcting, setCorrecting] = useState(false);
-  const [correctDraft, setCorrectDraft] = useState('0');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [goalMin, setGoalMin] = useState(DEFAULT_SUN_GOAL_MIN);
@@ -82,7 +80,6 @@ export default function SunlightScreen() {
       setNotes(day?.notes ?? '');
       setSavedNotes(day?.notes ?? '');
       savedRef.current = day?.notes ?? '';
-      setCorrectDraft(String(day?.minutes ?? 0));
       setEntries(await getSunEntries(today));
       setHistory(await getSunHistory(HISTORY_DAYS, today));
 
@@ -130,17 +127,6 @@ export default function SunlightScreen() {
     if (!Number.isFinite(parsed)) return;
     if (parsed === entry.minutes) return;
     await correctSunEntry(entry.id, Math.min(MAX_MIN, parsed));
-    await load();
-  };
-
-  const commitCorrection = async () => {
-    const parsed = parseInt(correctDraft.replace(/[^0-9]/g, ''), 10);
-    setCorrecting(false);
-    if (!Number.isFinite(parsed)) { setCorrectDraft(String(minutes)); return; }
-    const next = Math.max(0, Math.min(MAX_MIN, parsed));
-    // `notes` deliberately omitted: correctSunLog keeps the existing note when
-    // it is undefined, and correcting minutes must not silently wipe the note.
-    await correctSunLog(next);
     await load();
   };
 
@@ -340,37 +326,12 @@ export default function SunlightScreen() {
             </View>
           ))
         )}
-      </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('sunCorrectTotal')}</Text>
-        <Text style={styles.sectionBody}>
-          This sets the day outright and replaces its sessions with one entry. Use it when
-          the number is wrong — to remove a single session, use Remove above.
-        </Text>
-        <View style={styles.correctRow}>
-          {correcting ? (
-            <TextInput
-              style={styles.correctField}
-              value={correctDraft}
-              onChangeText={setCorrectDraft}
-              onBlur={commitCorrection}
-              onSubmitEditing={commitCorrection}
-              keyboardType="number-pad"
-              autoFocus
-              accessibilityLabel={t('sunSetTodayA11y')}
-            />
-          ) : (
-            <TouchableOpacity
-              style={styles.correctValue}
-              onPress={() => setCorrecting(true)}
-              accessibilityRole="button"
-              accessibilityLabel={`Today is ${minutes} minutes. Tap to set it to something else.`}
-            >
-              <Text style={styles.correctValueText}>{minutes} min</Text>
-            </TouchableOpacity>
-          )}
-
+        {/* Clearing the whole day belongs at the foot of the list it clears,
+            not in a section of its own — it is the same operation as Remove,
+            applied to every row at once. It kept the note-wiping warning it
+            always had. */}
+        {entries.length > 0 || minutes > 0 || savedNotes !== '' ? (
           <TouchableOpacity
             style={styles.clearBtn}
             onPress={handleClear}
@@ -379,7 +340,7 @@ export default function SunlightScreen() {
           >
             <Text style={styles.clearBtnText}>{t('sunClearDay')}</Text>
           </TouchableOpacity>
-        </View>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -477,11 +438,7 @@ const styles = StyleSheet.create({
   removeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6' },
   removeBtnText: { color: '#B3453E', fontSize: 12, fontWeight: '700' },
 
-  correctRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  correctValue: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#ECEDE6', borderWidth: 1, borderColor: '#CFD2C6', alignItems: 'center', justifyContent: 'center' },
-  correctValueText: { color: '#14213D', fontSize: 17, fontWeight: '700' },
-  correctField: { flex: 1, height: 46, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2B233', textAlign: 'center', color: '#14213D', fontSize: 17, fontWeight: '700' },
-  clearBtn: { paddingHorizontal: 16, height: 46, borderRadius: 12, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6', alignItems: 'center', justifyContent: 'center' },
+  clearBtn: { alignSelf: 'flex-start', marginTop: 14, paddingHorizontal: 16, height: 46, borderRadius: 12, backgroundColor: '#FBEAEA', borderWidth: 1, borderColor: '#E7C6C6', alignItems: 'center', justifyContent: 'center' },
   clearBtnText: { color: '#B3453E', fontSize: 13, fontWeight: '700' },
 
   noteSaveBtn: { marginTop: 10, height: 46, borderRadius: 12, backgroundColor: '#1B58B8', alignItems: 'center', justifyContent: 'center' },

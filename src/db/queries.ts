@@ -311,6 +311,15 @@ export async function getSunHistory(
  * `notes` left undefined keeps whatever the row already says; passing `''` is a
  * deliberate erase. The two must not collapse into each other — correcting the
  * minutes should not silently wipe the note explaining the day.
+ *
+ * NO PRODUCTION CALLER since 2026-09-16. The Sunlight screen's "Correct today's
+ * total" was the only one, and it came out because per-session Remove and edit
+ * made it redundant — and worse than redundant: setting the total REPLACES the
+ * day's sessions with a single row, so it silently destroyed the per-session
+ * record the entry list now shows. Kept, not deleted, because the capability it
+ * names is still missing above today: the History day sheet displays a past
+ * day's sun and cannot correct it, and this is the write that would. Delete it
+ * together with its tests if that stays unbuilt.
  */
 export async function correctSunLog(
   minutes: number,
@@ -1118,11 +1127,18 @@ export async function logSunExposure(minutes: number, notes: string = '', uvInde
   });
 }
 
-// Sets the day's total outright, for correcting a mis-tap rather than adding to it.
+/**
+ * Sets the day's total outright, for correcting a mis-tap rather than adding to it.
+ *
+ * NO CALLER, in src/ or anywhere else — the "kept because callers exist" note
+ * that stood here was already untrue when it was written, and the last thing
+ * that could have used it (Sunlight's correct-today's-total) came out on
+ * 2026-09-16. It is a one-line alias for `correctSunLog(…, todayStr(), …)`, so
+ * nothing is lost by deleting it; see that function for why the pair is still
+ * here at all.
+ */
 export async function setSunExposure(minutes: number, notes: string = ''): Promise<void> {
-  // Same operation as correctSunLog against today. Kept because callers exist;
-  // delegating rather than duplicating means the entries invariant is
-  // maintained in exactly one place.
+  // Delegating rather than duplicating keeps the entries invariant in one place.
   await correctSunLog(minutes, todayStr(), notes);
 }
 
