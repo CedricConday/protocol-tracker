@@ -54,11 +54,6 @@ const PAIN_SUBTYPES: { value: string; key: string }[] = [
 ];
 
 /** A stored pain type in the current language; anything else prints as-is. */
-function painTypeLabel(stored: string): string {
-  const known = PAIN_SUBTYPES.find((p) => p.value === stored);
-  return known ? t(known.key) : stored;
-}
-
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${weekdaysShortSundayFirst()[d.getDay()]} ${shortDate(d)}`;
@@ -95,7 +90,7 @@ export default function JournalScreen() {
   const {
     refreshing, setRefreshing, summary, pastEntries, loadedMood, existingNote,
     loadedDietaryNote, loadedId, loadedFor,
-    semanticSummary, weekMoods, events, loadData,
+    semanticSummary, weekMoods, loadData,
   } = useJournalScreen();
   // `useToday()` rather than `todayStr()`: both answer the same on the render
   // that reads them, but only the hook re-renders when the local day rolls, so
@@ -725,40 +720,12 @@ export default function JournalScreen() {
         })
       )}
 
-      {/* Absorbed from RelapseScreen: recent relapse/symptom/cortisone/pain history. */}
-      <Text style={styles.sectionTitle}>{t('eventHistory')}</Text>
-      {events.length === 0 ? (
-        <Text style={styles.emptyText}>{t('noEvents')}</Text>
-      ) : (
-        events.map((e) => {
-          const color = TYPE_COLORS[e.type] ?? '#888888';
-          return (
-            <View key={e.id} style={styles.eventCard}>
-              <View style={styles.eventTop}>
-                <View style={[styles.eventBadge, { backgroundColor: color + '30' }]}>
-                  <Text style={[styles.eventBadgeText, { color }]}>
-                    {TYPE_LABELS[e.type] ? t(TYPE_LABELS[e.type]) : e.type}
-                  </Text>
-                </View>
-                <Text style={styles.eventDateText}>{formatEventDate(e.date)}</Text>
-                {e.severity != null ? (
-                  <View style={styles.severityDots}>
-                    {Array.from({ length: e.severity }, (_, i) => (
-                      <View key={i} style={[styles.dot, { backgroundColor: color }]} />
-                    ))}
-                  </View>
-                ) : null}
-              </View>
-              {e.pain_type ? (
-                <Text style={styles.painTypeTag}>{painTypeLabel(e.pain_type)}</Text>
-              ) : null}
-              {e.notes ? (
-                <Text style={styles.eventNotes}>{e.notes}</Text>
-              ) : null}
-            </View>
-          );
-        })
-      )}
+      {/* The event HISTORY list was removed 2026-09-17 at Cedric's request:
+          the Journal is a daily surface, and a standing list of relapses and
+          pain days made every open a reminder of the worst ones. Logging an
+          event still works — the button and panel above are untouched, and the
+          Calendar still shows them against their dates, which is where looking
+          them up is a deliberate act rather than something the app does to you. */}
     </ScrollView>
   );
 }
@@ -1125,12 +1092,6 @@ const styles = StyleSheet.create({
     color: '#6B4FBF',
     fontWeight: '700',
   },
-  painTypeTag: {
-    color: '#6B4FBF',
-    fontSize: 12,
-    marginTop: 6,
-    fontStyle: 'italic',
-  },
   yesNoRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
   yesNoBtn: { flex: 1, borderRadius: 10, borderWidth: 1, borderColor: '#CFD2C6', paddingVertical: 12, alignItems: 'center' },
   yesNoBtnActive: { borderColor: '#2F8F5B', backgroundColor: '#EFF7EF' },
@@ -1138,49 +1099,4 @@ const styles = StyleSheet.create({
   yesNoBtnTextActive: { color: '#2F8F5B' },
   feverWarning: { backgroundColor: '#FDF3E0', borderRadius: 14, padding: 14, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: '#F2B233' },
   feverWarningText: { color: '#F2B233', fontSize: 12, lineHeight: 18 },
-  eventCard: {
-    backgroundColor: '#ECEDE6',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#CFD2C6',
-  },
-  eventTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  eventBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  eventBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  eventDateText: {
-    color: '#14213D',
-    fontSize: 15,
-    fontWeight: '600',
-    flex: 1,
-  },
-  severityDots: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  eventNotes: {
-    color: '#5A6478',
-    fontSize: 14,
-    fontStyle: 'italic',
-    marginTop: 8,
-    lineHeight: 22,
-  },
 });

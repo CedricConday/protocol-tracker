@@ -431,14 +431,24 @@ const migrations: Migration[] = [
       //
       // Defaults keep every existing rule daily, so this migration changes no
       // user's schedule.
-      await db.execAsync(`
-        ALTER TABLE schedule_rules ADD COLUMN frequency TEXT NOT NULL DEFAULT 'daily';
-        ALTER TABLE schedule_rules ADD COLUMN days_of_week TEXT NOT NULL DEFAULT '';
-        ALTER TABLE schedule_rules ADD COLUMN day_of_month INTEGER NOT NULL DEFAULT 0;
-        ALTER TABLE schedule_rules ADD COLUMN cycle_on_days INTEGER NOT NULL DEFAULT 0;
-        ALTER TABLE schedule_rules ADD COLUMN cycle_off_days INTEGER NOT NULL DEFAULT 0;
-        ALTER TABLE schedule_rules ADD COLUMN cycle_start_date TEXT NOT NULL DEFAULT '';
-      `);
+      //
+      // Guarded per column since 2026-09-17, the same shape as v11. These six
+      // also live in schema.ts's fresh-install block, so a device that got them
+      // from there and then replayed the chain hit `duplicate column name:
+      // frequency` here — which stopped the chain at 14 and took every later
+      // migration with it, v17's journal rebuild included. The failure was
+      // invisible: it is caught, written to misc_flags and never read.
+      const ruleCols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(schedule_rules)`);
+      const addRuleColumn = async (name: string, ddl: string) => {
+        if (ruleCols.some((c) => c.name === name)) return;
+        await db.execAsync(`ALTER TABLE schedule_rules ADD COLUMN ${ddl}`);
+      };
+      await addRuleColumn('frequency', `frequency TEXT NOT NULL DEFAULT 'daily'`);
+      await addRuleColumn('days_of_week', `days_of_week TEXT NOT NULL DEFAULT ''`);
+      await addRuleColumn('day_of_month', `day_of_month INTEGER NOT NULL DEFAULT 0`);
+      await addRuleColumn('cycle_on_days', `cycle_on_days INTEGER NOT NULL DEFAULT 0`);
+      await addRuleColumn('cycle_off_days', `cycle_off_days INTEGER NOT NULL DEFAULT 0`);
+      await addRuleColumn('cycle_start_date', `cycle_start_date TEXT NOT NULL DEFAULT ''`);
     },
   },
   {
@@ -587,6 +597,36 @@ async function logMigrationError(db: SQLite.SQLiteDatabase, message: string): Pr
   }
 }
 
+/** The highest version this build knows how to migrate to. */
+export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);
+
+/**
+ * Where the chain actually got to, and what stopped it.
+ *
+ * `runMigrations` returns on the first failure and records the reason in
+ * `misc_flags` — correct, because later migrations must not run against a
+ * schema that is now unknown. But nothing read that record, so a device could
+ * sit for weeks on a half-applied schema with the app reporting nothing: on
+ * 2026-09-17 a chain stalled at v15 (`duplicate column name: frequency`) and
+ * the only symptom a user could see was that a second journal entry for the
+ * same day silently did not save. This is what makes that visible.
+ */
+export async function getMigrationStatus(
+  db: SQLite.SQLiteDatabase,
+): Promise<{ version: number; latest: number; error: string | null }> {
+  const version = await getSchemaVersion(db);
+  let error: string | null = null;
+  try {
+    const row = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM misc_flags WHERE key = 'last_migration_error'"
+    );
+    error = row?.value ?? null;
+  } catch {
+    // misc_flags may not exist on a DB that has never been migrated.
+  }
+  return { version, latest: LATEST_SCHEMA_VERSION, error };
+}
+
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   // Bootstrap misc_flags before any migration runs — setSchemaVersion writes
   // to it after each migration, so on a fresh DB v1 would otherwise fail to
@@ -606,6 +646,10 @@ export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       // resumes from the correct point on next boot.
       await setSchemaVersion(db, migration.version);
       console.log(`[Migrations] version ${migration.version} complete`);
+      // A recorded failure belongs to the run that failed. Once a later run
+      // gets past that version the record is history, not state — leaving it
+      // would keep reporting a stall that has been repaired.
+      await db.runAsync("DELETE FROM misc_flags WHERE key = 'last_migration_error'").catch(() => {});
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`[Migrations] version ${migration.version} failed: ${msg}`);

@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Pressable from '../components/Pressable';
 import { useAppReset } from '../context/AppResetContext';
 import { getDb } from '../db/schema';
+import { getMigrationStatus } from '../db/migrations';
 import { t, useLanguage } from '../i18n';
 import { C, space, radius, text as T } from '../theme';
 
@@ -17,6 +19,17 @@ import { C, space, radius, text as T } from '../theme';
 export default function AccountSettingsScreen() {
   useLanguage(); // re-render this screen when the language changes
   const resetToOnboarding = useAppReset();
+
+  // Shown only when something is actually wrong. A schema line on a healthy
+  // install is noise; on a stalled one it is the only visible symptom, and
+  // without it the app looks like it is simply refusing to save.
+  const [schema, setSchema] = useState<{ version: number; latest: number; error: string | null } | null>(null);
+  useEffect(() => {
+    getDb()
+      .then(getMigrationStatus)
+      .then((s) => setSchema(s.error !== null || s.version < s.latest ? s : null))
+      .catch(() => setSchema(null));
+  }, []);
 
   const handleResetAll = () => {
     Alert.alert(
@@ -80,6 +93,16 @@ export default function AccountSettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.intro}>{t('accIntro')}</Text>
 
+      {schema ? (
+        <View style={styles.schemaWarn}>
+          <Text style={styles.schemaWarnTitle}>{t('accSchemaStalled')}</Text>
+          <Text style={styles.schemaWarnBody}>
+            {t('accSchemaStalledBody', { version: schema.version, latest: schema.latest })}
+          </Text>
+          {schema.error ? <Text style={styles.schemaWarnDetail}>{schema.error}</Text> : null}
+        </View>
+      ) : null}
+
       <View style={styles.group}>
         <Pressable onPress={handleResetAll} accessibilityLabel={t('resetTracking')} accessibilityRole="button">
           <View style={styles.row}>
@@ -116,6 +139,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#C0392B20',
   },
+  schemaWarn: {
+    backgroundColor: '#FFF8EC',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: '#F2B233',
+    padding: space.md,
+    marginBottom: space.lg,
+    gap: 4,
+  },
+  schemaWarnTitle:  { ...T.body, color: '#8A5A10', fontWeight: '700' },
+  schemaWarnBody:   { ...T.small, color: '#8A5A10', lineHeight: 19 },
+  schemaWarnDetail: { ...T.small, color: '#8A5A10', opacity: 0.8, fontSize: 11 },
   row:      { flexDirection: 'row', alignItems: 'center', padding: space.md, gap: space.sm },
   rowTitle: { ...T.body, color: C.text, fontWeight: '700' },
   rowSub:   { ...T.small, color: C.textSub, marginTop: 2 },
