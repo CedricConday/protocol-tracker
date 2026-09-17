@@ -101,6 +101,12 @@ export default function FoodScreen() {
   // Which logged meal is having its time corrected, and the text being typed.
   const [editingMeal, setEditingMeal] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
+  // The time the four buttons will log at. Null is "now", which is the case
+  // that needs no thought; a string is a time the user set deliberately, and
+  // the buttons say so until they clear it.
+  const [logTime, setLogTime] = useState<string | null>(null);
+  const [editingLogTime, setEditingLogTime] = useState(false);
+  const [logTimeDraft, setLogTimeDraft] = useState('');
 
   // Not `todayStr()` inside load: the screen stays mounted across midnight, and
   // a load keyed on a value read once would keep reporting yesterday. The hook
@@ -145,7 +151,7 @@ export default function FoodScreen() {
   };
 
   const handleLogMeal = async (mealType: string) => {
-    const time = clockNow();
+    const time = logTime ?? clockNow();
     const today = todayStr();
     await logMeal(today, mealType, time);
     // The first meal of the day is exactly that — if nothing has claimed the
@@ -155,6 +161,19 @@ export default function FoodScreen() {
     if (!firstMeal) await saveFirstMeal(time);
     else await load();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  /**
+   * Commit the time the buttons will log at.
+   *
+   * An unparseable entry clears back to "now" rather than holding a value
+   * nobody can read: the alternative is four buttons claiming to log at a time
+   * that does not exist.
+   */
+  const commitLogTime = () => {
+    setEditingLogTime(false);
+    const time = normaliseTime(logTimeDraft);
+    setLogTime(time && time !== clockNow() ? time : null);
   };
 
   /**
@@ -230,25 +249,74 @@ export default function FoodScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('foodLogMeal')}</Text>
+
+        <View style={styles.atRow}>
+          <Text style={styles.atLabel}>{t('foodLogAt')}</Text>
+          {editingLogTime ? (
+            <TextInput
+              style={styles.atField}
+              value={logTimeDraft}
+              onChangeText={setLogTimeDraft}
+              onBlur={commitLogTime}
+              onSubmitEditing={commitLogTime}
+              keyboardType="numbers-and-punctuation"
+              autoFocus
+              accessibilityLabel={t('foodTimeField')}
+            />
+          ) : (
+            <TouchableOpacity
+              onPress={() => { setLogTimeDraft(logTime ?? clockNow()); setEditingLogTime(true); }}
+              accessibilityRole="button"
+              accessibilityLabel={
+                logTime ? t('foodLogAtSetA11y', { time: logTime }) : t('foodLogAtNowA11y')
+              }
+            >
+              <Text style={[styles.atValue, logTime ? styles.atValueSet : null]}>
+                {logTime ?? t('foodLogAtNow')}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {logTime && !editingLogTime && (
+            <TouchableOpacity
+              style={styles.atReset}
+              onPress={() => setLogTime(null)}
+              accessibilityRole="button"
+              accessibilityLabel={t('foodLogAtResetA11y')}
+            >
+              <Text style={styles.atResetText}>{t('foodLogAtReset')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.chipRow}>
           {MEAL_TYPES.map((meal) => (
             <TouchableOpacity
               key={meal.id}
-              style={styles.mealChip}
+              style={[styles.mealChip, logTime ? styles.mealChipTimed : null]}
               onPress={() => handleLogMeal(meal.id)}
               accessibilityRole="button"
-              accessibilityLabel={t('foodLogMealA11y', { meal: t(meal.labelKey) })}
+              accessibilityLabel={
+                logTime
+                  ? t('foodLogMealAtA11y', { meal: t(meal.labelKey), time: logTime })
+                  : t('foodLogMealA11y', { meal: t(meal.labelKey) })
+              }
             >
-              <Text style={styles.mealChipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              <Text
+                style={[styles.mealChipText, logTime ? styles.mealChipTextTimed : null]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {t(meal.labelKey)}
               </Text>
+              {logTime && <Text style={styles.mealChipAt}>{logTime}</Text>}
             </TouchableOpacity>
           ))}
         </View>
         <Text style={styles.note}>
-          A meal is logged at the time you tap it — tap the time in the list below to correct
-          it if you are logging late. There is no portion, ingredient or calorie field on
-          purpose: nothing in the protocol reads one.
+          {logTime
+            ? `Tap a meal and it is logged at ${logTime}, not now. Back to now when you tap "now", and after the day rolls over.`
+            : 'A meal is logged at the time you tap it. Set a time above if you are logging one from earlier, or tap the time in the list below to correct a row.'}
         </Text>
       </View>
 
@@ -332,9 +400,22 @@ const styles = themed((C) => StyleSheet.create({
   // Four buttons, one row, equal columns. They used to be content-width chips
   // that wrapped, so the row read as three-and-one on a narrow phone and the
   // German labels (Mittagessen, Abendessen) pushed Snack onto its own line.
+  atRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  atLabel: { color: C.textSub, fontSize: 13, fontWeight: '600' },
+  atValue: { color: C.textMuted, fontSize: 13, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: C.border, borderStyle: 'dotted' },
+  atValueSet: { color: C.primary, borderBottomColor: C.primary },
+  atField: { color: C.text, fontSize: 13, fontWeight: '700', minWidth: 70, borderBottomWidth: 2, borderBottomColor: C.primary, padding: 0 },
+  atReset: { paddingHorizontal: 8, paddingVertical: 2 },
+  atResetText: { color: C.textMuted, fontSize: 12, fontWeight: '600' },
+
   chipRow: { flexDirection: 'row', gap: 8 },
   mealChip: { flex: 1, paddingHorizontal: 2, height: 42, borderRadius: 11, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   mealChipText: { color: C.textSub, fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  // The buttons say what they will do. With a time set they are a different
+  // control, so they look like one rather than quietly logging the wrong hour.
+  mealChipTimed: { backgroundColor: C.primaryBg, borderColor: C.primary },
+  mealChipTextTimed: { color: C.primary },
+  mealChipAt: { color: C.primary, fontSize: 10, fontWeight: '700', marginTop: 1 },
 
   mealRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.borderSoft },
   mealTime: { color: C.text, fontSize: 15, fontWeight: '700', width: 62 },
