@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { deleteJournalEntry, insertJournalEntry, logRelapseEvent, todayStr, updateJournalEntry } from '../db/queries';
+import { deleteJournalEntry, insertJournalEntry, logRelapseEvent, todayStr } from '../db/queries';
 import type { JournalEntry } from '../types';
 import { t, useLanguage, locale } from '../i18n';
 import { useJournalScreen } from '../hooks';
@@ -148,60 +148,25 @@ export default function JournalScreen() {
   const selectedMood = moodEntry && moodEntry.date === today ? moodEntry.mood : null;
 
   /**
-   * The row the editor is writing to, and the day that row belongs to.
+   * The editor is a COMPOSER, not a row editor (2026-09-17).
    *
-   * A day can hold several entries (schema v17), so "save" has to mean a
-   * particular one. `id: null` is a composition that has not been written yet —
-   * the day's first entry, or a second one started with "New entry".
+   * It used to bind to a row: the mood tap wrote the day's first entry, Save
+   * updated that same row, and a second entry needed a "+ New entry" button to
+   * detach from it first. Cedric pressed Save twice, got one entry, and
+   * reasonably concluded the feature had not shipped — the button was an extra
+   * step nobody looked for, in the one place where the obvious control was
+   * already sitting under their thumb.
    *
-   * It is also the seeding guard. The form is filled from the stored entry for
-   * THIS date once, and never on top of a value already held for it: every
-   * write ends with `loadData()`, so without the guard the freshly-loaded row
-   * was pushed straight back through here, and since the blur-autosave writes
-   * first, what came back was the stale mood and it replaced the tap the user
-   * had just made. That is why a 60-day run stored the same mood every day.
+   * Now: nothing is written until Save is pressed, Save always INSERTs, and the
+   * form clears afterwards. Save twice, two entries. Existing entries are read
+   * and removed in the list below; nothing edits them in place, which is why
+   * there is no row to bind to any more.
    *
-   * `bound` carrying the DATE is what makes it safe across midnight, the same
-   * shape as `moodEntry` and `eventDateDraft` for the same reason.
+   * This also retires a whole family of bugs rather than fixing them: with no
+   * autosave on tap and none on blur, there is no second writer to race, no
+   * stale mood to seed back over a fresh tap, and no queue needed to order two
+   * writes that came from one gesture.
    */
-  const [bound, setBound] = useState<{ date: string; id: number | null } | null>(null);
-  // The write chain below runs outside React's render, so it cannot read
-  // `bound` — a chained callback closes over the value as it was when the tap
-  // happened, which for the second write of a gesture is already stale. The ref
-  // is what the chain reads.
-  const boundIdRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    // Not "there is nothing stored" — "the read for this day has not landed
-    // yet". Seeding on the first render would bind the editor to a new entry
-    // and then refuse to fill it when today's real entry arrived a tick later.
-    if (loadedFor !== today) return;
-    if (bound?.date === today) return;
-
-    setBound({ date: today, id: loadedId });
-    boundIdRef.current = loadedId;
-    setMoodEntry(loadedMood !== null ? { date: today, mood: loadedMood } : null);
-    setNote(existingNote);
-    setDietaryNote(loadedDietaryNote);
-  }, [loadedFor, loadedId, loadedMood, existingNote, loadedDietaryNote, today, bound]);
-
-  /**
-   * Start a second (or fifth) entry for the same day.
-   *
-   * Detaching from the row is the whole operation: `bound` stays stamped with
-   * today, so the effect above will not refill the form from the entry that was
-   * just finished.
-   */
-  const startNewEntry = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    boundIdRef.current = null;
-    setBound({ date: todayStr(), id: null });
-    setMoodEntry(null);
-    setNote('');
-    setDietaryNote('');
-    setSaved(false);
-    noteRef.current?.focus();
-  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -221,10 +186,8 @@ export default function JournalScreen() {
    * Remove one entry.
    *
    * A journal that can only ever accumulate cannot correct a mis-tap, and this
-   * is the same Remove every other tracker list in the app offers. If the row
-   * being removed is the one the editor is bound to, the editor detaches —
-   * otherwise the next keystroke would write to a row that no longer exists and
-   * silently do nothing.
+   * is the same Remove every other tracker list in the app offers. The editor
+   * holds no row, so removing one cannot strand it.
    */
   const handleRemoveEntry = useCallback(async (entry: JournalEntry) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -232,97 +195,38 @@ export default function JournalScreen() {
     if (!removed) {
       Alert.alert(t('trkAlreadyGone'), t('jrnEntryGoneSub'));
     }
-    if (boundIdRef.current === entry.id) {
-      boundIdRef.current = null;
-      setBound(null);
-      setMoodEntry(null);
-      setNote('');
-      setDietaryNote('');
-    }
     setExpandedId(null);
     await loadData();
   }, [loadData]);
 
-  // Writes are queued rather than fired straight at the database. Tapping a mood
-  // while a note field has focus produces TWO writes from one gesture - blur
-  // fires `handleSave` with the mood as it was BEFORE the tap, then the tap
-  // itself writes the new one - and unqueued they race, so the pre-tap value
-  // could land last and win. Chaining them keeps the stored row in the order the
-  // user acted. The chain is deliberately never rejected: one failed write must
-  // not wedge every later one.
-  const writeChain = useRef<Promise<void>>(Promise.resolve());
-
-  const persist = useCallback((mood: string, { flash }: { flash: boolean }) => {
-    const next = writeChain.current.then(async () => {
-      const fields = {
-        mood,
-        note,
-        dietary_note: dietaryNote,
-        compliance_pct: summary.totalDoses > 0
-          ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
-          : 0,
-        doses_taken: summary.takenDoses,
-        doses_total: summary.totalDoses,
-      };
-
-      // The id decides which row this is, and it is read from the ref INSIDE the
-      // chain: the first write of a gesture creates the row, and the second must
-      // update it rather than create a second one a hundred milliseconds later.
-      const boundId = boundIdRef.current;
-      if (boundId === null) {
-        const id = await insertJournalEntry({ date: today, ...fields });
-        boundIdRef.current = id;
-        setBound({ date: today, id });
-      } else {
-        await updateJournalEntry(boundId, fields);
-      }
-      // Pure-tracker build: fatigue-spike detection and the micro-CBT coping
-      // module were removed (see ROADMAP). Journaling stays; the app just saves.
-      //
-      // Only an explicit save flashes "Saved ✓". An autosave must not, because
-      // the confirmation doubles as the button's accessibility name
-      // (`saved ? 'Journal entry saved' : 'Save journal entry'`, below) - so
-      // flashing it on every mood tap would rename the control out from under
-      // anyone looking for it by name, screen reader or harness alike.
-      if (flash) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-      }
-      await loadData();
-    });
-    writeChain.current = next.catch(() => {});
-    return next;
-  }, [note, dietaryNote, summary, today, loadData]);
-
   const handleSave = useCallback(async () => {
     if (!selectedMood) return;
-    await persist(selectedMood, { flash: true });
-  }, [selectedMood, persist]);
-
-  const handleBlur = useCallback(() => {
-    if (selectedMood) {
-      handleSave();
-    }
-  }, [selectedMood, handleSave]);
+    const date = todayStr();
+    await insertJournalEntry({
+      date,
+      mood: selectedMood,
+      note,
+      dietary_note: dietaryNote,
+      compliance_pct: summary.totalDoses > 0
+        ? Math.round((summary.takenDoses / summary.totalDoses) * 100)
+        : 0,
+      doses_taken: summary.takenDoses,
+      doses_total: summary.totalDoses,
+    });
+    // Cleared so the next entry starts from nothing. Leaving the last one in
+    // place would make a second Save look like it had done nothing, which is
+    // the misreading this whole change exists to remove.
+    setMoodEntry(null);
+    setNote('');
+    setDietaryNote('');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    await loadData();
+  }, [selectedMood, note, dietaryNote, summary, loadData]);
 
   const handleMoodSelect = (mood: string) => {
-    setMoodEntry({ date: today, mood });
-    // A tap is an explicit choice, so it is persisted immediately instead of
-    // waiting for Save. Previously it lived only in component state: if the tap
-    // blurred a focused note field, that blur saved the PREVIOUS mood and the
-    // new one was never written, leaving the screen showing something the row
-    // did not have. It survived a tab switch, so the divergence was invisible
-    // until a remount silently reverted the user's last tap.
-    // Evidence: e2e/report/mood3-B1-fixed/mood3.md Check 2, seq 18/36/54.
-    //
-    // The rejection is SHOWN, not swallowed (2026-09-17). It used to be
-    // `.catch(() => {})`, and when a stalled migration left the old
-    // UNIQUE(date) in place, the second entry of a day failed on the constraint
-    // and the app looked like it had simply decided not to save. A write that
-    // does not happen has to say so.
-    persist(mood, { flash: false }).catch((e) =>
-      Alert.alert(t('jrnSaveFailed'), e?.message ?? t('pleaseTryAgain')),
-    );
+    // Held in state only. Nothing reaches the database until Save.
+    setMoodEntry({ date: todayStr(), mood });
   };
 
   const handleLogEvent = useCallback(async () => {
@@ -576,23 +480,7 @@ export default function JournalScreen() {
         })}
       </View>
 
-      <View style={styles.editorHeadingRow}>
-        <Text style={styles.sectionTitle}>{t('howAreYou')}</Text>
-        {/* Only offered once there is a finished entry to start after. With
-            nothing written yet the editor IS the new entry, and a button that
-            clears an empty form would say nothing true. */}
-        {bound?.id !== null && bound?.date === today ? (
-          <TouchableOpacity
-            style={styles.newEntryBtn}
-            onPress={startNewEntry}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel={t('jrnNewEntryA11y')}
-          >
-            <Text style={styles.newEntryBtnText}>+ {t('jrnNewEntry')}</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <Text style={styles.sectionTitle}>{t('howAreYou')}</Text>
       <View style={styles.moodRow}>
         {MOODS.map((m) => {
           const isSelected = selectedMood === m.emoji;
@@ -627,7 +515,6 @@ export default function JournalScreen() {
         multiline
         value={note}
         onChangeText={setNote}
-        onBlur={handleBlur}
       />
 
       <TextInput
@@ -657,7 +544,7 @@ export default function JournalScreen() {
           styles.saveButtonText,
           saved ? styles.saveButtonTextSaved : null,
         ]}>
-          {saved ? t('jrnSaved') : bound?.id === null ? t('jrnSaveNew') : t('jrnSaveEntry')}
+          {saved ? t('jrnSaved') : t('jrnSaveEntry')}
         </Text>
       </TouchableOpacity>
 
@@ -919,20 +806,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CFD2C6',
   },
-  editorHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  newEntryBtn: {
-    backgroundColor: '#ECEDE6',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#1B58B8',
-  },
-  newEntryBtnText: { color: '#1B58B8', fontSize: 13, fontWeight: '700' },
   entryCountLine: {
     color: '#5A6478',
     fontSize: 13,
