@@ -68,6 +68,9 @@ function table(headers: string[], rows: string[][]): string {
  * the range's first day and prints a month label whenever one starts, so three
  * months reads as three months rather than as 13 anonymous rows.
  */
+const legendSwatch = (color: string): string =>
+  `<span style="display:inline-block;width:8px;height:8px;background:${color};border:1px solid #D8E1EA;border-radius:2px;margin:0 3px 0 10px"></span>`;
+
 function complianceGrid(b: ShareBundle): string {
   const byDate = new Map(b.days.map((d) => [d.date, d]));
   const start = new Date(b.from + 'T00:00:00');
@@ -99,9 +102,14 @@ function complianceGrid(b: ShareBundle): string {
       const day = byDate.get(key);
       const pct = day?.compliancePct ?? 0;
       const total = day?.totalDoses ?? 0;
-      const bg = inRange ? complianceColor(pct, total) : '#FFFFFF';
-      const fg = !inRange ? '#FFFFFF' : total === 0 ? '#617285' : '#FFFFFF';
-      cells.push(`<td style="background:${bg};color:${fg};text-align:center;padding:5px;font-size:10px;font-weight:700;border-radius:3px">${inRange ? cursor.getDate() : ''}</td>`);
+      // Out-of-range days are drawn, muted, rather than left blank. Blank cells
+      // at the start and end of a range read as a calendar that was cut off —
+      // the range begins mid-week, and a doctor cannot tell a day the patient
+      // did not record from a day the report did not cover.
+      const bg = inRange ? complianceColor(pct, total) : '#FBFCFE';
+      const fg = !inRange ? '#C2CBD6' : total === 0 ? '#617285' : '#FFFFFF';
+      const weight = inRange ? '700' : '400';
+      cells.push(`<td style="background:${bg};color:${fg};text-align:center;padding:5px;font-size:10px;font-weight:${weight};border-radius:3px">${cursor.getDate()}</td>`);
       cursor.setDate(cursor.getDate() + 1);
     }
     rows.push(`<tr><td style="font-size:10px;color:#495D72;padding-right:6px;white-space:nowrap">${esc(weekLabel)}</td>${cells.join('')}</tr>`);
@@ -120,70 +128,164 @@ function complianceGrid(b: ShareBundle): string {
     </table>
     <p style="font-size:12px;color:#24324B;margin-top:10px">
       ${esc(t('shDoseTotals', { taken: totals.taken, total: totals.total, pct }))}
+    </p>
+    <p style="font-size:10px;color:#495D72;margin:4px 0 0">
+      ${legendSwatch('#227D4C')} ${esc(t('shLegendHigh'))}
+      ${legendSwatch('#E9A23C')} ${esc(t('shLegendMid'))}
+      ${legendSwatch('#C0392B')} ${esc(t('shLegendLow'))}
+      ${legendSwatch('#E9EFF6')} ${esc(t('shLegendNone'))}
+      ${legendSwatch('#FBFCFE')} ${esc(t('shLegendOutside'))}
     </p>`;
+}
+
+/** Mean of a list of numbers, rounded. Empty list means no value, not zero. */
+const num = (v: number): string => v.toLocaleString(locale());
+
+function mean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((a, v) => a + v, 0) / values.length);
+}
+
+/** A clock time from minutes past midnight, in the document's locale. */
+function fmtMinutes(minutes: number | null): string | null {
+  if (minutes == null) return null;
+  const d = new Date(2026, 0, 1, Math.floor(minutes / 60), minutes % 60);
+  return d.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
+}
+
+function minutesOfDay(time: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(time);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+/**
+ * The numbers, first, on one page.
+ *
+ * Until 2026-09-17 this document was a row per entry per tracker: thirty lines
+ * of water, thirty of sunlight, one per journal entry. That is a data dump, and
+ * it buries the two or three figures a doctor actually reads — adherence, how
+ * much of the protocol was logged, and whether anything happened. Each tracker
+ * now states its total, its average and how many days it covers, and the daily
+ * rows are gone.
+ *
+ * What still gets a table is what is sparse and clinical: symptoms and events,
+ * calcium tests, labs, MRI — and written notes, when the patient chose to
+ * include them, because there the text IS the content.
+ */
+function summaryRows(b: ShareBundle, sections: Record<SectionKey, boolean>): string[][] {
+  const on = (k: SectionKey) => sections[k];
+  const rows: string[][] = [];
+  const none = t('shSumNone');
+
+  if (on('doses')) {
+    const totals = b.days.reduce(
+      (acc, d) => ({ taken: acc.taken + d.takenDoses, total: acc.total + d.totalDoses }),
+      { taken: 0, total: 0 },
+    );
+    const pct = totals.total > 0 ? Math.round((totals.taken / totals.total) * 100) : 0;
+    rows.push([t('shSecDoses'), totals.total === 0 ? none
+      : t('shDoseTotals', { taken: totals.taken, total: totals.total, pct })]);
+  }
+
+  if (on('journal')) {
+    const byMood = new Map<string, number>();
+    for (const e of b.journal) {
+      if (!e.mood) continue;
+      byMood.set(e.mood, (byMood.get(e.mood) ?? 0) + 1);
+    }
+    const moods = [...byMood.entries()]
+      .sort((a, c) => c[1] - a[1])
+      .map(([mood, n]) => `${mood} ${n}`)
+      .join('  ');
+    const days = new Set(b.journal.map((e) => e.date)).size;
+    rows.push([t('shSecJournal'), b.journal.length === 0 ? none
+      : t('shSumJournal', { entries: b.journal.length, days }) + (moods ? ` · ${moods}` : '')]);
+  }
+
+  if (on('symptoms')) {
+    rows.push([t('shSecSymptoms'), b.symptoms.length === 0 ? none
+      : t('shSumSymptoms', { count: b.symptoms.length })]);
+  }
+
+  if (on('water')) {
+    const logged = b.anchors.filter((a) => a.water_ml > 0);
+    const avg = mean(logged.map((a) => a.water_ml));
+    const total = logged.reduce((acc, a) => acc + a.water_ml, 0);
+    rows.push([t('shSecWater'), logged.length === 0 ? none
+      : t('shSumWater', { avg: num(avg ?? 0), days: logged.length, total: (total / 1000).toFixed(1) })]);
+  }
+
+  if (on('sun')) {
+    const logged = b.sun.filter((x) => x.minutes > 0);
+    const avg = mean(logged.map((x) => x.minutes));
+    const total = logged.reduce((acc, x) => acc + x.minutes, 0);
+    rows.push([t('shSecSun'), logged.length === 0 ? none
+      : t('shSumSun', { avg: avg ?? 0, days: logged.length, total: num(total) })]);
+  }
+
+  if (on('exercise')) {
+    const total = b.exercise.reduce((acc, e) => acc + e.duration_minutes, 0);
+    rows.push([t('shSecExercise'), b.exercise.length === 0 ? none
+      : t('shSumExercise', { sessions: b.exercise.length, total: num(total) })]);
+  }
+
+  if (on('meals')) {
+    const days = new Set(b.meals.map((m) => m.date)).size;
+    rows.push([t('shSecMeals'), b.meals.length === 0 ? none
+      : t('shSumMeals', { count: b.meals.length, days })]);
+  }
+
+  if (on('dayStart')) {
+    const starts = b.anchors
+      .filter((a) => a.t0_timestamp)
+      .map((a) => {
+        const d = new Date(a.t0_timestamp as number);
+        return d.getHours() * 60 + d.getMinutes();
+      });
+    const firsts = b.anchors
+      .map((a) => (a.first_meal_time ? minutesOfDay(a.first_meal_time) : null))
+      .filter((v): v is number => v != null);
+    const start = fmtMinutes(mean(starts));
+    const meal = fmtMinutes(mean(firsts));
+    rows.push([t('shSecDayStart'), !start && !meal ? none
+      : t('shSumDayStart', { start: start ?? '—', meal: meal ?? '—' })]);
+  }
+
+  if (on('calcium') && b.calcium.length > 0) rows.push([t('shSecCalcium'), String(b.calcium.length)]);
+  if (on('labs') && b.labs.length > 0) rows.push([t('shSecLabs'), String(b.labs.length)]);
+  if (on('mri') && b.mri.length > 0) rows.push([t('shSecMri'), String(b.mri.length)]);
+
+  return rows;
 }
 
 export function buildShareHtml(b: ShareBundle, sections: Record<SectionKey, boolean>): string {
   const on = (k: SectionKey) => sections[k];
   const parts: string[] = [];
 
+  const withheld = on('journal') && !on('journalNotes')
+    ? `<p style="color:#495D72;font-size:11px;margin:6px 0 0">${esc(t('shNotesWithheld'))}</p>`
+    : '';
+  parts.push(section(t('shSummary'), b.from, b.to,
+    table([t('shSumMetric'), t('shSumValue')], summaryRows(b, sections)) + withheld));
+
   if (on('doses')) parts.push(section(t('shSecDoses'), b.from, b.to, complianceGrid(b)));
 
-  if (on('journal')) {
-    const headers = on('journalNotes')
-      ? [t('date'), t('shTime'), t('shMood'), t('notes')]
-      : [t('date'), t('shTime'), t('shMood')];
-    const rows = b.journal.map((e) => {
-      const time = e.created_at ? String(e.created_at).slice(11, 16) : '';
-      return on('journalNotes')
-        ? [fmtDate(e.date), time, e.mood, e.note || '—']
-        : [fmtDate(e.date), time, e.mood];
-    });
-    parts.push(section(t('shSecJournal'), b.from, b.to, table(headers, rows)
-      // Stated in the document, not only in the dialog: a doctor reading moods
-      // with no text should know text was withheld rather than absent.
-      + (on('journalNotes') ? '' : `<p style="color:#495D72;font-size:11px;margin-top:6px">${esc(t('shNotesWithheld'))}</p>`)));
+  // The one part of the journal that is not a number. Only entries that carry
+  // text, and only when the patient switched notes on — the summary above
+  // already says how many entries and which moods.
+  if (on('journal') && on('journalNotes')) {
+    const rows = b.journal
+      .filter((e) => (e.note ?? '').trim().length > 0)
+      .map((e) => [fmtDate(e.date), e.mood ?? '', (e.note ?? '').trim()]);
+    parts.push(section(t('shSecJournalNotes'), b.from, b.to, table([t('date'), t('shMood'), t('notes')], rows)));
   }
 
+  // Sparse and clinical: every row earns its line, so these keep their tables.
   if (on('symptoms')) {
     parts.push(section(t('shSecSymptoms'), b.from, b.to, table(
       [t('date'), t('type'), t('severity'), t('notes')],
       b.symptoms.map((e) => [fmtDate(e.date), e.type, e.severity != null ? String(e.severity) : '—', e.notes || '—']),
     )));
-  }
-
-  if (on('water')) {
-    const rows = b.anchors.filter((a) => a.water_ml > 0).map((a) => [fmtDate(a.date), `${a.water_ml} ml`]);
-    parts.push(section(t('shSecWater'), b.from, b.to, table([t('date'), t('water')], rows)));
-  }
-
-  if (on('sun')) {
-    const rows = b.sun.filter((s) => s.minutes > 0 || s.notes)
-      .map((s) => [fmtDate(s.date), `${s.minutes} min`, s.uv_index || '—', s.notes || '—']);
-    parts.push(section(t('shSecSun'), b.from, b.to, table([t('date'), t('shMinutes'), 'UV', t('notes')], rows)));
-  }
-
-  if (on('exercise')) {
-    parts.push(section(t('shSecExercise'), b.from, b.to, table(
-      [t('date'), t('shMinutes'), t('type')],
-      b.exercise.map((e) => [fmtDate(e.date), `${e.duration_minutes} min`, e.type]),
-    )));
-  }
-
-  if (on('meals')) {
-    parts.push(section(t('shSecMeals'), b.from, b.to, table(
-      [t('date'), t('shTime'), t('type'), t('notes')],
-      b.meals.map((m) => [fmtDate(m.date), m.time || '—', m.meal_type, m.notes || '—']),
-    )));
-  }
-
-  if (on('dayStart')) {
-    const rows = b.anchors.filter((a) => a.t0_timestamp || a.first_meal_time).map((a) => [
-      fmtDate(a.date),
-      a.t0_timestamp ? new Date(a.t0_timestamp).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }) : '—',
-      a.first_meal_time || '—',
-    ]);
-    parts.push(section(t('shSecDayStart'), b.from, b.to, table([t('date'), t('shDayStarted'), t('shFirstMeal')], rows)));
   }
 
   if (on('calcium') && b.calcium.length > 0) {
