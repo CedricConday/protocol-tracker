@@ -59,12 +59,50 @@ const out = await ctx.page.evaluate(async () => {
     }
     log[`from_v${from}`] = row;
   }
+  // ── and the case the repair pass exists for: a chain that still breaks ──
+  // lab_results is gone, so v8's ALTER throws and the chain stops at v7 — far
+  // short of v17. The journal must be repaired anyway.
+  await db.execAsync('DROP TABLE IF EXISTS journal_entries');
+  await db.execAsync(`CREATE TABLE journal_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL UNIQUE,
+    mood TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    dietary_note TEXT NOT NULL DEFAULT '',
+    compliance_pct INTEGER NOT NULL DEFAULT 0,
+    doses_taken INTEGER NOT NULL DEFAULT 0,
+    doses_total INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')))`);
+  await db.runAsync("INSERT INTO journal_entries (date, mood, note) VALUES ('2026-09-17','🙂','morning')");
+  await db.execAsync('DROP TABLE IF EXISTS lab_results');
+  await db.runAsync("INSERT OR REPLACE INTO misc_flags (key, value) VALUES ('schema_version','7')");
+  await db.runAsync("DELETE FROM misc_flags WHERE key='last_migration_error'");
+  await mig.runMigrations(db);
+  const brokenIdx = await db.getAllAsync('PRAGMA index_list(journal_entries)');
+  const broken = {
+    reached: (await db.getFirstAsync("SELECT value v FROM misc_flags WHERE key='schema_version'"))?.v,
+    error: (await db.getFirstAsync("SELECT value v FROM misc_flags WHERE key='last_migration_error'"))?.v ?? null,
+    uniqueLeft: brokenIdx.some((i) => i.unique === 1),
+    kept: (await db.getFirstAsync("SELECT COUNT(*) c FROM journal_entries WHERE note='morning'"))?.c,
+  };
+  try {
+    await db.runAsync("INSERT INTO journal_entries (date, mood, note) VALUES ('2026-09-17','😔','evening')");
+    broken.secondEntry = 'OK';
+  } catch (e) {
+    broken.secondEntry = 'THREW: ' + String(e?.message ?? e).slice(0, 80);
+  }
+  log.chain_still_broken = broken;
+
   return log;
 });
 
 console.log(JSON.stringify(out, null, 2));
-const bad = Object.entries(out).filter(([, r]) =>
-  r.uniqueLeft || r.error !== null || r.secondEntry !== 'OK' || r.kept !== 1);
+const bad = Object.entries(out).filter(([k, r]) =>
+  // The induced-stall case is SUPPOSED to record a migration error — what it
+  // must not do is leave the journal broken.
+  r.uniqueLeft || r.secondEntry !== 'OK' || r.kept !== 1 ||
+  (k !== 'chain_still_broken' && r.error !== null));
 console.log(bad.length ? `FAIL: ${bad.map(([k]) => k).join(', ')}` : 'PASS: chain completes and a day holds several entries');
 await ctx.browser?.close?.();
 process.exit(bad.length ? 1 : 0);

@@ -314,7 +314,15 @@ export default function JournalScreen() {
     // did not have. It survived a tab switch, so the divergence was invisible
     // until a remount silently reverted the user's last tap.
     // Evidence: e2e/report/mood3-B1-fixed/mood3.md Check 2, seq 18/36/54.
-    persist(mood, { flash: false }).catch(() => {});
+    //
+    // The rejection is SHOWN, not swallowed (2026-09-17). It used to be
+    // `.catch(() => {})`, and when a stalled migration left the old
+    // UNIQUE(date) in place, the second entry of a day failed on the constraint
+    // and the app looked like it had simply decided not to save. A write that
+    // does not happen has to say so.
+    persist(mood, { flash: false }).catch((e) =>
+      Alert.alert(t('jrnSaveFailed'), e?.message ?? t('pleaseTryAgain')),
+    );
   };
 
   const handleLogEvent = useCallback(async () => {

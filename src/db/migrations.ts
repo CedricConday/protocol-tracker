@@ -524,44 +524,7 @@ const migrations: Migration[] = [
      * version number, so a half-applied run cannot rebuild twice or lose rows.
      */
     version: 17,
-    up: async (db) => {
-      const indexes = await db.getAllAsync<{ name: string; unique: number; origin: string }>(
-        `PRAGMA index_list(journal_entries)`
-      );
-      const hasUniqueDate = indexes.some((i) => i.unique === 1);
-      if (!hasUniqueDate) return;
-
-      // dietary_note is guaranteed by v9, but a device whose chain stalled
-      // there would otherwise lose the column in the copy.
-      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(journal_entries)`);
-      if (!cols.some((c) => c.name === 'dietary_note')) {
-        await db.execAsync(`ALTER TABLE journal_entries ADD COLUMN dietary_note TEXT NOT NULL DEFAULT ''`);
-      }
-
-      await db.execAsync(`
-        CREATE TABLE journal_entries_rebuilt (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          date TEXT NOT NULL,
-          mood TEXT NOT NULL,
-          note TEXT NOT NULL DEFAULT '',
-          dietary_note TEXT NOT NULL DEFAULT '',
-          compliance_pct INTEGER NOT NULL DEFAULT 0,
-          doses_taken INTEGER NOT NULL DEFAULT 0,
-          doses_total INTEGER NOT NULL DEFAULT 0,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-
-        INSERT INTO journal_entries_rebuilt
-          (id, date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total, created_at, updated_at)
-        SELECT id, date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total, created_at, updated_at
-        FROM journal_entries;
-
-        DROP TABLE journal_entries;
-        ALTER TABLE journal_entries_rebuilt RENAME TO journal_entries;
-        CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);
-      `);
-    },
+    up: ensureJournalAllowsManyPerDay,
   },
 ];
 
@@ -627,6 +590,60 @@ export async function getMigrationStatus(
   return { version, latest: LATEST_SCHEMA_VERSION, error };
 }
 
+/**
+ * A day holds as many journal entries as the patient writes.
+ *
+ * This is migration 17's work, lifted out so it can also run OUTSIDE the
+ * version chain. On 2026-09-17 the chain stalled at v15 on a real device and
+ * took v17 with it, so the feature shipped, tested green, and was absent on the
+ * only phone that mattered. A chain is all-or-nothing by design — later
+ * migrations must not run against a schema the failure left unknown — but that
+ * design must not be the reason a data-loss bug stays unfixed.
+ *
+ * Safe to call any number of times: it is guarded on the unique index actually
+ * being present, not on a version number, so it is a no-op the moment the table
+ * is already right. `id` values are carried over unchanged because the Journal
+ * editor binds to them.
+ */
+export async function ensureJournalAllowsManyPerDay(db: SQLite.SQLiteDatabase): Promise<void> {
+      const indexes = await db.getAllAsync<{ name: string; unique: number; origin: string }>(
+        `PRAGMA index_list(journal_entries)`
+      );
+      const hasUniqueDate = indexes.some((i) => i.unique === 1);
+      if (!hasUniqueDate) return;
+
+      // dietary_note is guaranteed by v9, but a device whose chain stalled
+      // there would otherwise lose the column in the copy.
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(journal_entries)`);
+      if (!cols.some((c) => c.name === 'dietary_note')) {
+        await db.execAsync(`ALTER TABLE journal_entries ADD COLUMN dietary_note TEXT NOT NULL DEFAULT ''`);
+      }
+
+      await db.execAsync(`
+        CREATE TABLE journal_entries_rebuilt (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          mood TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT '',
+          dietary_note TEXT NOT NULL DEFAULT '',
+          compliance_pct INTEGER NOT NULL DEFAULT 0,
+          doses_taken INTEGER NOT NULL DEFAULT 0,
+          doses_total INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        INSERT INTO journal_entries_rebuilt
+          (id, date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total, created_at, updated_at)
+        SELECT id, date, mood, note, dietary_note, compliance_pct, doses_taken, doses_total, created_at, updated_at
+        FROM journal_entries;
+
+        DROP TABLE journal_entries;
+        ALTER TABLE journal_entries_rebuilt RENAME TO journal_entries;
+        CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);
+      `);
+}
+
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   // Bootstrap misc_flags before any migration runs — setSchemaVersion writes
   // to it after each migration, so on a fresh DB v1 would otherwise fail to
@@ -655,8 +672,31 @@ export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       console.error(`[Migrations] version ${migration.version} failed: ${msg}`);
       await logMigrationError(db, `v${migration.version}: ${msg}`);
       // Do not crash — stop the chain here so later migrations don't run
-      // against a potentially inconsistent schema.
-      return;
+      // against a potentially inconsistent schema. The repairs below still run:
+      // they are guarded on the schema they find, not on where the chain got to.
+      break;
     }
+  }
+
+  await runSchemaRepairs(db);
+}
+
+/**
+ * Repairs that must not wait for the version chain.
+ *
+ * Every one of these is guarded on the schema it actually finds and is a no-op
+ * on a healthy install, so running them on every boot costs a PRAGMA. They
+ * exist because a stalled chain is not a hypothetical: one stalled on Cedric's
+ * phone at v15 and silently withheld v17 for a day, and the symptom was an app
+ * that appeared to refuse to save. Anything whose absence loses or blocks user
+ * data belongs here as well as in its migration.
+ */
+async function runSchemaRepairs(db: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    await ensureJournalAllowsManyPerDay(db);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[Migrations] journal repair failed: ${msg}`);
+    await logMigrationError(db, `repair(journal): ${msg}`);
   }
 }
