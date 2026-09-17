@@ -889,8 +889,16 @@ const styles = StyleSheet.create({
   // colour says which one is destructive, so they cannot be told apart by size
   // in a hurry — which is the point, since the destructive one is not the one
   // being aimed for most of the time.
+  //
+  // `flex: 1` rather than a fixed 92: at 92 each they took 192 of the card's 318
+  // content px and left 126 of dead space to their right, which read as two
+  // chips dropped on the card rather than as the card's own footer. Halving the
+  // row fits them to the card at any width, keeps the pair equal, and survives
+  // German ("Entfernen" / "Schließen"), where a fixed width would clip. The
+  // minWidth stays as a floor for a card narrower than any phone.
   entryActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   entryActionBtn: {
+    flex: 1,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
