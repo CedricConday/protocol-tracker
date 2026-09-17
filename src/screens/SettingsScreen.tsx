@@ -572,6 +572,11 @@ const styles = themed((C) => StyleSheet.create({
     borderRadius: radius.xl,
     overflow: 'hidden',
     marginBottom: space.xl,
+    // The shadow alone separated this card, which works on the light ground
+    // and disappears at 6% opacity on dim and dark. The edge is what every
+    // other screen draws, and it holds in all three tiers.
+    borderWidth: 1,
+    borderColor: C.border,
     ...shadow.medium,
   },
   hero: {
@@ -596,6 +601,8 @@ const styles = themed((C) => StyleSheet.create({
     backgroundColor: C.surface,
     borderRadius: radius.lg,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: C.border,
     ...shadow.subtle,
   },
 
