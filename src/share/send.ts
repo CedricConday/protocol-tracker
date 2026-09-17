@@ -1,5 +1,7 @@
+import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
 import { t } from '../i18n';
 import { collectShareData } from './data';
 import { bundleToJson } from './shape';
@@ -18,13 +20,8 @@ export async function shareFromConfig(config: ShareConfig): Promise<void> {
   const bundle = await collectShareData(config.from, config.to);
 
   if (config.format === 'json') {
-    // No `expo-file-system` in this build, and adding a native module would
-    // break OTA delivery for every install. A base64 data URI is what the old
-    // FamilySync screen handed `shareAsync` on device before it was deleted
-    // (2026-09-17), so it is a proven path rather than a clever one.
     const json = bundleToJson(bundle, config.sections);
-    const uri = `data:application/json;base64,${toBase64(json)}`;
-    await Sharing.shareAsync(uri, {
+    await Sharing.shareAsync(jsonUri(json, config), {
       mimeType: 'application/json',
       dialogTitle: t('shDialogTitle'),
       UTI: 'public.json',
@@ -43,6 +40,38 @@ export async function shareFromConfig(config: ShareConfig): Promise<void> {
     dialogTitle: t('shDialogTitle'),
     UTI: 'com.adobe.pdf',
   });
+}
+
+/**
+ * Where the JSON backup lives for the moment it takes to hand it over.
+ *
+ * This was a `data:` URI until 2026-09-17, on the reasoning that the app had no
+ * `expo-file-system` and adding one would need a new APK. Both halves were
+ * wrong, and the device said so: *"Only local file URLs are supported (expected
+ * scheme to be 'file', got 'data')"*. `ExpoSharing` on Android hands the URI to
+ * a `FileProvider`, which can only vend a real file — and `expo-file-system` is
+ * a dependency of `expo` itself, so its native module was already in the 09-15
+ * build (verified in that APK's `classes3.dex`). Nothing here needs a rebuild.
+ *
+ * The cache directory is the right home: `sharing_provider_paths.xml` grants the
+ * provider `cache-path`, and Android is free to reclaim the file once the
+ * receiving app has copied it. The name is the range, so what lands in someone's
+ * Downloads folder says what it holds.
+ *
+ * Web keeps the data URI. There is no FileProvider there, `Paths.cache` is OPFS
+ * — a sandbox nothing outside the page can read — and the browser's share sheet
+ * takes the URI directly.
+ */
+function jsonUri(json: string, config: ShareConfig): string {
+  if (Platform.OS === 'web') {
+    return `data:application/json;base64,${toBase64(json)}`;
+  }
+  const file = new File(Paths.cache, `protocol-tracker-${config.from}_${config.to}.json`);
+  // An export of the same range earlier in the session already holds the name.
+  if (file.exists) file.delete();
+  file.create();
+  file.write(json);
+  return file.uri;
 }
 
 /**
