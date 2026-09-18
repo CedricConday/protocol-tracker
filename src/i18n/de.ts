@@ -179,6 +179,8 @@ export const de: Record<string, string> = {
   fieldWhen: 'Wann',
   fieldFood: 'Essen',
   fieldFlex: 'Spielraum',
+  fieldFlexNote: 'Wie spät eine Dosis noch als eingenommen gezählt wird.',
+  toleranceChip: '±{min} Min.',
   fieldFoodQuestion: 'Wie zum Essen?',
   fieldFoodNote: 'Die Erinnerung kommt weiterhin zu ihrer Zeit nach dem Tagesstart — wann du isst, weiß die App nicht.',
   foodNone: 'Nüchtern',

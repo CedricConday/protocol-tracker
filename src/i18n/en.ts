@@ -179,6 +179,8 @@ export const en: Record<string, string> = {
   fieldWhen: 'When',
   fieldFood: 'Food',
   fieldFlex: 'Flexibility',
+  fieldFlexNote: 'How late a dose can still be logged and counted as taken.',
+  toleranceChip: '±{min} min',
   fieldFoodQuestion: 'How does it go with food?',
   fieldFoodNote: 'The reminder still comes at its time after you start the day — the app does not know when you eat.',
   foodNone: 'Without food',
