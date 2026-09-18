@@ -163,6 +163,7 @@ export async function getTodaySchedule(): Promise<ScheduledDose[]> {
       latestTime,
       status,
       toleranceMinutes: log.tolerance_window,
+      offsetMinutes: log.offset_minutes,
       doseAmount: log.dose_amount,
       withFood: log.with_food === 1,
       notes: log.supplement_notes ?? '',

@@ -37,8 +37,6 @@ type Props = {
   /** The supplement being edited, or the "New supplement" heading when adding. */
   title: string;
   form: SupplementFormState;
-  /** The patient's usual start time, for the "about 11:00" hint beside a gap. */
-  t0: string | null;
   saving: boolean;
   onChange: (f: SupplementFormState) => void;
   onClose: () => void;
@@ -51,7 +49,6 @@ export default function SupplementSheet({
   mode,
   title,
   form,
-  t0,
   saving,
   onChange,
   onClose,
@@ -73,7 +70,6 @@ export default function SupplementSheet({
     <DurationInput
       value={offset}
       onChange={(minutes) => onChange({ ...form, offset_minutes: String(minutes) })}
-      t0={t0}
       zeroLabel={t('durAtStart')}
     />
   );

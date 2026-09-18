@@ -455,11 +455,15 @@ export async function createDoseLogs(
   });
 }
 
-export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog & { supplement_name: string; supplement_form: string; supplement_notes: string; dose_amount: string; with_food: number; tolerance_window: number; skip_reason: string | null })[]> {
+export async function getDoseLogs(date: string = todayStr()): Promise<(DoseLog & { supplement_name: string; supplement_form: string; supplement_notes: string; dose_amount: string; with_food: number; tolerance_window: number; offset_minutes: number; skip_reason: string | null })[]> {
   const db = await getDb();
   return db.getAllAsync(
+    // `offset_minutes` rides along so the row can say where in the day the dose
+    // sits. A dose at offset 0 is the anchor itself: the day starts when it is
+    // taken, so it has no clock time to be shown against. See DoseRow.
     `SELECT dl.*, s.name as supplement_name, s.form as supplement_form,
-            s.notes as supplement_notes, sr.dose_amount, sr.with_food, sr.tolerance_window
+            s.notes as supplement_notes, sr.dose_amount, sr.with_food, sr.tolerance_window,
+            sr.offset_minutes
      FROM dose_logs dl
      JOIN supplements s ON dl.supplement_id = s.id
      JOIN schedule_rules sr ON dl.rule_id = sr.id
@@ -790,6 +794,7 @@ export async function getDayDetail(date: string): Promise<DayDetail> {
       latestTime: new Date(d.scheduled_time + d.tolerance_window * 60 * 1000),
       status: d.status,
       toleranceMinutes: d.tolerance_window,
+      offsetMinutes: d.offset_minutes,
       doseAmount: d.dose_amount,
       withFood: d.with_food === 1,
       notes: d.supplement_notes ?? '',

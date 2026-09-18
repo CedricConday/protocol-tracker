@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { C, themed, useTheme } from '../theme/colors';
 import { t } from '../i18n';
-import { clockPreview, formatDuration } from '../utils/duration';
+import { formatDuration } from '../utils/duration';
 
 /**
  * How long after the last thing.
@@ -12,10 +12,11 @@ import { clockPreview, formatDuration } from '../utils/duration';
  * and the custom row asks for hours and minutes in two labelled fields rather
  * than one box measuring a quantity in a unit the patient does not think in.
  *
- * The clock preview under it is the other half of the fix: "4 h" is readable,
- * but "about 11:00" is the thing they can check against their morning. It is a
- * hint and never a gate — a patient who has not started a day yet has no usual
- * start time, and entering supplements must not wait on a fortnight of history.
+ * A gap is all this control states. It used to print a summary underneath —
+ * "right away · about 07:47" — where the clock half was guessed from the
+ * average of past start times. Nobody asked for that hour: in a T=0 protocol
+ * the day starts when the patient starts it, so a predicted wall-clock time is
+ * a promise the app cannot keep and a number the patient never entered.
  */
 
 /** Round numbers, because that is how a protocol is actually spaced. */
@@ -25,10 +26,6 @@ type Props = {
   /** Minutes after whatever this is being measured against. */
   value: number;
   onChange: (minutes: number) => void;
-  /** The patient's usual start time as "HH:MM", or null when there isn't one yet. */
-  t0?: string | null;
-  /** The offset of the thing before this one, so the preview shows a real clock time. */
-  baseOffset?: number;
   label?: string;
   /**
    * What a gap of nothing is called here. "Same time" is right when this is
@@ -39,7 +36,7 @@ type Props = {
   zeroLabel?: string;
 };
 
-export default function DurationInput({ value, onChange, t0 = null, baseOffset = 0, label, zeroLabel }: Props) {
+export default function DurationInput({ value, onChange, label, zeroLabel }: Props) {
   useTheme(); // re-render this component when the theme tier changes
   // Custom opens by itself for a value the chips cannot express, so an existing
   // supplement at 47 minutes shows 47 rather than silently reading as a preset.
@@ -47,7 +44,6 @@ export default function DurationInput({ value, onChange, t0 = null, baseOffset =
 
   const hours = Math.floor(Math.max(0, value) / 60);
   const minutes = Math.max(0, value) % 60;
-  const preview = clockPreview(baseOffset + value, t0);
 
   const setParts = (h: number, m: number) => onChange(Math.max(0, h) * 60 + Math.max(0, m));
 
@@ -113,11 +109,6 @@ export default function DurationInput({ value, onChange, t0 = null, baseOffset =
           </View>
         </View>
       )}
-
-      <Text style={styles.summary} accessibilityLiveRegion="polite">
-        {formatDuration(value)}
-        {preview ? ` · ${t('timingPreviewAt', { time: preview })}` : ''}
-      </Text>
     </View>
   );
 }
@@ -148,5 +139,4 @@ const styles = themed((C) => StyleSheet.create({
     color: C.text,
   },
   unit: { fontSize: 13, color: C.textSub, fontWeight: '500' },
-  summary: { marginTop: 8, fontSize: 13, color: C.textMuted },
 }));

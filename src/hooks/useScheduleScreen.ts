@@ -23,6 +23,7 @@ function logToScheduledDose(
     dose_amount: string;
     with_food: number;
     tolerance_window: number;
+    offset_minutes: number;
     skip_reason: string | null;
   },
 ): ScheduledDose {
@@ -47,6 +48,7 @@ function logToScheduledDose(
     latestTime: new Date(log.scheduled_time + toleranceMs),
     status,
     toleranceMinutes: log.tolerance_window,
+    offsetMinutes: log.offset_minutes,
     doseAmount: log.dose_amount,
     withFood: log.with_food === 1,
     logId: log.id,

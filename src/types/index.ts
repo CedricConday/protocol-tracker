@@ -67,6 +67,12 @@ export interface ScheduledDose {
   latestTime: Date;
   status: DoseStatus;
   toleranceMinutes: number;
+  /**
+   * Minutes after T=0, carried from the rule. 0 means this dose *is* the
+   * anchor — the day starts when it is taken, so nothing may print a clock
+   * time for it as though the patient had scheduled one.
+   */
+  offsetMinutes: number;
   doseAmount: string;
   withFood: boolean;
   notes?: string;

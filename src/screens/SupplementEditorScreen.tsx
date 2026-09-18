@@ -14,7 +14,6 @@ import { useNavigation } from '@react-navigation/native';
 import { C, themed, useTheme } from '../theme/colors';
 import {
   getSupplementsWithRules,
-  getAverageStartTime,
   addSupplement,
   updateSupplementAndRule,
   deleteSupplement,
@@ -25,7 +24,7 @@ import { describeCadence } from '../engine/cadence';
 import { FOOD_KEYS, toFoodRelation } from '../engine/food';
 import { BLANK_SUPPLEMENT, SupplementFormState } from '../components/SupplementFields';
 import SupplementSheet from '../components/SupplementSheet';
-import { clockPreview, formatOffsetLabel } from '../utils/duration';
+import { formatOffsetLabel } from '../utils/duration';
 
 type SupRow = {
   id: string;
@@ -87,19 +86,15 @@ export default function SupplementEditorScreen() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [form, setForm] = useState<SupplementFormState>(BLANK_SUPPLEMENT);
   const [saving, setSaving] = useState(false);
-  // The patient's usual start time, for the "about 11:00" hint beside a gap.
-  // Null until they have started a day or two, and the hint simply hides.
-  const [t0, setT0] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const [rows, avg] = await Promise.all([getSupplementsWithRules(), getAverageStartTime()]);
+    const rows = await getSupplementsWithRules();
     // The query sorts by name; the stack has to read as the day does, so the
     // list is re-sorted by when each one is taken, name only breaking a tie.
     setSupplements(
       [...rows].sort((a, b) =>
         a.offset_minutes - b.offset_minutes || a.name.localeCompare(b.name)),
     );
-    setT0(avg);
   }, []);
 
   useEffect(() => {
@@ -179,17 +174,16 @@ export default function SupplementEditorScreen() {
 
   /**
    * The bubble's second line: dose, then when it is taken — "4 h after start",
-   * not "T0 +240 min". The clock hint rides along when there is a usual start
-   * time to measure it against. 'daily' is the overwhelming default, so it is
-   * left off; printing it on every bubble would bury the two that are not.
+   * not "T0 +240 min". No clock time: the gap is what the patient entered, and
+   * the hour it lands on depends on when they start the day. 'daily' is the
+   * overwhelming default, so it is left off; printing it on every bubble would
+   * bury the two that are not.
    */
   const noteFor = (row: SupRow): string => {
     const dose = row.dose_amount && row.dose_unit
       ? `${row.dose_amount} ${row.dose_unit}`
       : row.dose_amount || '—';
-    const at = clockPreview(row.offset_minutes, t0);
-    const timing = formatOffsetLabel(row.offset_minutes)
-      + (at ? ` · ${t('timingPreviewAt', { time: at })}` : '');
+    const timing = formatOffsetLabel(row.offset_minutes);
     const cadence = row.frequency && row.frequency !== 'daily'
       ? ` · ${describeCadence(row, t)}`
       : '';
@@ -246,7 +240,6 @@ export default function SupplementEditorScreen() {
         mode={editing?.mode ?? 'add'}
         title={editing?.mode === 'edit' ? editing.row.name : t('newSupplement')}
         form={form}
-        t0={t0}
         saving={saving}
         onChange={setForm}
         onClose={() => setEditing(null)}

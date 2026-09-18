@@ -50,6 +50,17 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     prevStatus.current = dose.status;
   }, [dose.status, confirmScale]);
 
+  /**
+   * The anchor dose has no clock time.
+   *
+   * A dose at offset 0 is T=0 itself: the day starts when it is taken, and the
+   * patient never gave it an hour. Printing the moment they happened to tap
+   * "Start My Day" in the time column read as a schedule they had set and did
+   * not keep — a 7:47 they never chose, wrong by a minute every morning after.
+   * The offset is the honest answer, so the column says "at start".
+   */
+  const isAnchor = dose.offsetMinutes === 0;
+
   const hour   = dose.scheduledTime.getHours();
   const minute = dose.scheduledTime.getMinutes();
   const ampm   = hour >= 12 ? 'PM' : 'AM';
@@ -88,10 +99,16 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
 
       {/* Left: time column */}
       <View style={styles.timeCol}>
-        <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
-        <Text style={[styles.timeAmPm, { color: timeColor === C.textSub ? C.textMuted : timeColor }]}>
-          {ampm}
-        </Text>
+        {isAnchor ? (
+          <Text style={[styles.timeAnchor, { color: timeColor }]}>{t('durAtStart')}</Text>
+        ) : (
+          <>
+            <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
+            <Text style={[styles.timeAmPm, { color: timeColor === C.textSub ? C.textMuted : timeColor }]}>
+              {ampm}
+            </Text>
+          </>
+        )}
       </View>
 
       {/* Separator */}
@@ -116,12 +133,18 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     </Animated.View>
   );
 
-  const a11yLabel = t('doseRowA11y', {
-    supplement: dose.supplementName,
-    amount: dose.doseAmount,
-    time: `${timeLabel} ${ampm}`,
-    status: t(STATUS_KEYS[dose.status] ?? 'doseUpcoming'),
-  });
+  const a11yLabel = isAnchor
+    ? t('doseRowAtStartA11y', {
+        supplement: dose.supplementName,
+        amount: dose.doseAmount,
+        status: t(STATUS_KEYS[dose.status] ?? 'doseUpcoming'),
+      })
+    : t('doseRowA11y', {
+        supplement: dose.supplementName,
+        amount: dose.doseAmount,
+        time: `${timeLabel} ${ampm}`,
+        status: t(STATUS_KEYS[dose.status] ?? 'doseUpcoming'),
+      });
 
   if (onPress) {
     return (
@@ -184,6 +207,12 @@ const styles = themed((C) => StyleSheet.create({
   timeAmPm: {
     fontSize: 11,
     marginTop: 1,
+  },
+  // Two words in the width one clock time had: smaller, centred, wrapping.
+  timeAnchor: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   separator: {
     width: 1,

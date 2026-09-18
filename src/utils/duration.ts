@@ -1,5 +1,4 @@
-import { locale, t as translate } from '../i18n';
-import { parseTimeOfDay } from './time';
+import { t as translate } from '../i18n';
 
 /**
  * Durations, in the words a patient would use.
@@ -89,23 +88,4 @@ function toMinutes(hours: number, minutes: number): number | null {
   // value past it is a typo, not a plan.
   if (total < 0 || total > 24 * 60) return null;
   return total;
-}
-
-/**
- * The clock time this offset lands on, given the patient's usual start.
- *
- * `t0HHMM` comes from `getAverageStartTime()`, which is null until they have
- * started a day — so this returns null too, and the caller simply shows no
- * preview. It is a hint, never a gate: nothing about entering a supplement
- * should wait on having a fortnight of history.
- */
-export function clockPreview(offsetMinutes: number, t0HHMM: string | null): string | null {
-  if (!t0HHMM) return null;
-  const start = parseTimeOfDay(t0HHMM);
-  if (!start) return null;
-
-  const at = new Date();
-  at.setHours(start.hour, start.minute, 0, 0);
-  at.setMinutes(at.getMinutes() + Math.max(0, Math.round(offsetMinutes)));
-  return at.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }

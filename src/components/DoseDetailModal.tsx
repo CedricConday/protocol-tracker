@@ -96,6 +96,8 @@ export default function DoseDetailModal({
 
   if (!dose) return null;
 
+  const isAnchor = dose.offsetMinutes === 0;
+
   const timeStr = dose.scheduledTime.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
@@ -182,9 +184,11 @@ export default function DoseDetailModal({
             <Text style={styles.value}>{dose.doseAmount}</Text>
           </View>
 
+          {/* The anchor dose is T=0, not an appointment. It has no hour the
+              patient chose, so it is described by its place in the day. */}
           <View style={styles.detailRow}>
-            <Text style={styles.label}>{t('scheduled')}</Text>
-            <Text style={styles.value}>{timeStr}</Text>
+            <Text style={styles.label}>{isAnchor ? t('fieldWhen') : t('scheduled')}</Text>
+            <Text style={styles.value}>{isAnchor ? t('durAtStart') : timeStr}</Text>
           </View>
 
           <View style={styles.detailRow}>

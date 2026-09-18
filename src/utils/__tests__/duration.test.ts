@@ -26,7 +26,7 @@ vi.mock('../../i18n', () => ({
   },
 }));
 
-import { formatDuration, formatOffsetLabel, parseDuration, clockPreview } from '../duration';
+import { formatDuration, formatOffsetLabel, parseDuration } from '../duration';
 
 describe('formatDuration', () => {
   it('says four hours, not two hundred and forty', () => {
@@ -130,24 +130,5 @@ describe('parseDuration', () => {
       const printed = formatDuration(minutes).replace('right away', '0');
       expect(parseDuration(printed)).toBe(minutes);
     }
-  });
-});
-
-describe('clockPreview', () => {
-  it('turns a gap into the hour it lands on', () => {
-    expect(clockPreview(240, '07:00')).toBe('11:00');
-  });
-
-  it('carries past the hour', () => {
-    expect(clockPreview(90, '07:45')).toBe('09:15');
-  });
-
-  it('shows nothing when there is no usual start time yet', () => {
-    expect(clockPreview(240, null)).toBeNull();
-    expect(clockPreview(240, 'whenever')).toBeNull();
-  });
-
-  it('wraps over midnight rather than printing an impossible hour', () => {
-    expect(clockPreview(120, '23:30')).toBe('01:30');
   });
 });
