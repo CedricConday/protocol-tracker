@@ -45,7 +45,7 @@ Platforms are pinned to **ios** and **android** for dev/build; the web export br
 
 ## Screenshots
 
-None captured yet. [`assets/screenshots/README.md`](./assets/screenshots/README.md) lists the eight captures to take and the naming convention.
+Five captures of the current build are published on the product page, [condaydigital.com/tracker](https://condaydigital.com/tracker/) (Today, trackers, history, journal, settings), in English and German. They are not mirrored into this repo; the page is the canonical set. [`assets/screenshots/README.md`](./assets/screenshots/README.md) still lists the naming convention if more are taken.
 
 ---
 
