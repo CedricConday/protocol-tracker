@@ -4,7 +4,7 @@
     "slug": "protocol-tracker",
     "version": "1.0.0",
     "description": "Protocol Tracker helps patients on high-dose Vitamin D3 therapy log doses, schedule pill reminders, and monitor symptoms — all privately on-device.",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {

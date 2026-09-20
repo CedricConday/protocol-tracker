@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { t, useLanguage } from '../i18n';
+import { CONTENT_MAX_WIDTH } from '../theme/layout';
 
 interface Props {
   visible: boolean;
@@ -89,6 +90,9 @@ const styles = themed((C) => StyleSheet.create({
     padding: 28,
     alignItems: 'center',
     width: '100%',
+    // A modal draws at the window's root, outside the navigator's centred
+    // column, so on a tablet it spanned the full 1280px (2026-09-20).
+    maxWidth: CONTENT_MAX_WIDTH,
     shadowColor: C.text,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,

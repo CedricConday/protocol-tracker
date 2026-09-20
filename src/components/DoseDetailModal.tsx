@@ -12,6 +12,7 @@ import {
 import { ScheduledDose } from '../types';
 import { t, useLanguage, locale } from '../i18n';
 import { clockNow, parseTimeOfDay } from '../utils/time';
+import { CONTENT_MAX_WIDTH } from '../theme/layout';
 
 interface Props {
   visible: boolean;
@@ -354,8 +355,13 @@ const styles = themed((C) => StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(44,36,32,0.5)',
     justifyContent: 'flex-end',
+    // Modals draw outside the navigator's centred column; without this the
+    // sheet spans a tablet's whole width (2026-09-20).
+    alignItems: 'center',
   },
   sheet: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
     backgroundColor: C.bg,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,

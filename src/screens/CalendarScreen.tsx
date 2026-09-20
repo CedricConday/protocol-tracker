@@ -28,6 +28,7 @@ import { useToday } from '../hooks/useToday';
 import { formatStoredTime } from '../utils/time';
 
 import { weekdaysShortSundayFirst, weekdaysShort, monthNames, longDate } from '../i18n/dates';
+import { CONTENT_MAX_WIDTH } from '../theme/layout';
 
 // Monday-first, matching the PWA calendar.
 
@@ -761,8 +762,11 @@ const styles = themed((C) => StyleSheet.create({
   legendCircle: { width: 9, height: 9, borderRadius: 4.5, backgroundColor: C.blueBright },
   legendLabel: { color: C.textSub, fontSize: 12, fontWeight: '600' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(30,22,18,0.45)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '82%' },
+  // `alignItems`/`maxWidth`: a Modal draws at the window root, outside the
+  // navigator's centred column, so the day sheet spanned a tablet's full width
+  // (2026-09-20).
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(30,22,18,0.45)', justifyContent: 'flex-end', alignItems: 'center' },
+  modalCard: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, paddingHorizontal: 20, paddingBottom: 24, maxHeight: '82%' },
   grabber: { width: 38, height: 4, borderRadius: 3, backgroundColor: C.borderSoft, alignSelf: 'center', marginBottom: 12 },
   detailHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   detailArrow: { color: C.primary, fontSize: 28, fontWeight: '700', paddingHorizontal: 8 },

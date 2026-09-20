@@ -9,6 +9,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getProfile } from '../db/queries';
 import { navigationRef } from './navigationRef';
 import { t, useLanguage } from '../i18n';
+import { CONTENT_MAX_WIDTH, useIsWideScreen } from '../theme/layout';
 import { AppResetProvider } from '../context/AppResetContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AboutScreen from '../screens/AboutScreen';
@@ -240,6 +241,26 @@ function TabNavigator() {
   );
 }
 
+/**
+ * One centred column on a big screen, the whole window on a phone.
+ *
+ * Wrapping here rather than in each screen is deliberate: it is one place
+ * instead of seventeen, it catches sub-screens pushed onto every stack, and it
+ * keeps the tab bar the same width as the content it belongs to — a five-icon
+ * bar spread across a 10" landscape screen reads as a stretched phone app,
+ * which is exactly what this is fixing. Backgrounds stay full-bleed because
+ * the gutter is the app's own background colour.
+ */
+function ContentFrame({ children }: { children: React.ReactNode }) {
+  const wide = useIsWideScreen();
+  if (!wide) return <>{children}</>;
+  return (
+    <View style={styles.wideBackdrop}>
+      <View style={styles.wideColumn}>{children}</View>
+    </View>
+  );
+}
+
 interface NavigationProps {
   /**
    * Fired on the first laid-out frame of real content (Home or onboarding).
@@ -265,7 +286,9 @@ export default function Navigation({ onReady }: NavigationProps) {
   if (!hasProfile) {
     return (
       <View style={styles.root} onLayout={onReady}>
-        <OnboardingScreen onComplete={() => setHasProfile(true)} />
+        <ContentFrame>
+          <OnboardingScreen onComplete={() => setHasProfile(true)} />
+        </ContentFrame>
       </View>
     );
   }
@@ -275,7 +298,9 @@ export default function Navigation({ onReady }: NavigationProps) {
       <View style={styles.root} onLayout={onReady}>
         <NavigationContainer ref={navigationRef}>
           <ErrorBoundary>
-            <TabNavigator />
+            <ContentFrame>
+              <TabNavigator />
+            </ContentFrame>
           </ErrorBoundary>
         </NavigationContainer>
       </View>
@@ -285,4 +310,6 @@ export default function Navigation({ onReady }: NavigationProps) {
 
 const styles = themed((C) => StyleSheet.create({
   root: { flex: 1 },
+  wideBackdrop: { flex: 1, backgroundColor: C.bg, alignItems: 'center' },
+  wideColumn: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH },
 }));

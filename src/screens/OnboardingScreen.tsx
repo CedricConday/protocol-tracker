@@ -3,7 +3,7 @@ import { C, themed, useTheme } from '../theme/colors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
+  useWindowDimensions,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -23,7 +23,6 @@ import { DISEASE_PROFILES } from '../data/diseaseProfiles';
 import SunMascot from '../components/SunMascot';
 
 import { t, useLanguage } from '../i18n';
-const { width } = Dimensions.get('window');
 
 interface Props {
   onComplete: () => void;
@@ -58,6 +57,16 @@ export default function OnboardingScreen({ onComplete }: Props) {
   // reached yet.
   const [hint, setHint] = useState<{ key: 'name' | 'condition'; label: string }[]>([]);
   const d3Ref = useRef<TextInput>(null);
+  // The pager measures its own container, not the window (2026-09-20).
+  //
+  // This was `Dimensions.get('window')` read once at module scope: wrong twice
+  // over. It was the window as it was when the bundle loaded, so a rotation
+  // left every page at the old width with a strip of the next one showing; and
+  // on a tablet the window is no longer what onboarding is drawn into, because
+  // the navigator centres content in a 760px column. A page has to be as wide
+  // as the box it sits in or the slide lands between steps.
+  const { width: windowWidth } = useWindowDimensions();
+  const [width, setWidth] = useState(windowWidth);
   const translateX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -78,7 +87,9 @@ export default function OnboardingScreen({ onComplete }: Props) {
 
   useEffect(() => {
     slideTo(step);
-  }, [step]);
+    // `width` is a dependency because a rotation changes what "page n" means:
+    // without it the pager stays at the old offset and lands between pages.
+  }, [step, width]);
 
   const handleNext = async () => {
     Keyboard.dismiss();
@@ -160,6 +171,10 @@ export default function OnboardingScreen({ onComplete }: Props) {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (w > 0 && Math.round(w) !== Math.round(width)) setWidth(w);
+        }}
       >
         {/* Top dots */}
         <View style={styles.dots}>
@@ -168,11 +183,16 @@ export default function OnboardingScreen({ onComplete }: Props) {
           ))}
         </View>
 
-        {/* Sliding pages */}
+        {/* Sliding pages. The viewport clips them: the slider is as wide as
+            every step laid end to end, and without `overflow: hidden` the next
+            step is simply drawn beside the current one — invisible on a phone
+            only because the window is exactly one page wide. At a centred 760px
+            column on a tablet it showed through (2026-09-20). */}
+        <View style={styles.pagerViewport}>
         <Animated.View
           style={[
             styles.slider,
-            { transform: [{ translateX }] },
+            { width: width * STEPS.length, transform: [{ translateX }] },
           ]}
         >
           {/* Step 0: Profile
@@ -185,7 +205,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               unreachable at the same time. */}
           <ScrollView
             style={{ width }}
-            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
+            contentContainerStyle={[styles.page, { width, justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -238,7 +258,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
               the footer instead of being cut in half. */}
           <ScrollView
             style={{ width }}
-            contentContainerStyle={[styles.page, { justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
+            contentContainerStyle={[styles.page, { width, justifyContent: 'flex-start', paddingTop: 32, paddingBottom: 32 }]}
             showsVerticalScrollIndicator={true}
           >
             <Text style={styles.icon}>🏥</Text>
@@ -282,7 +302,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
           </ScrollView>
 
           {/* Step 2: Notifications / Done */}
-          <View style={styles.page}>
+          <View style={[styles.page, { width }]}>
             <Text style={styles.icon}>🔔</Text>
             <Text style={styles.title}>{t('obAlmostReady')}</Text>
               <Text style={styles.body}>{t('obNotifyBody')}</Text>
@@ -295,6 +315,7 @@ export default function OnboardingScreen({ onComplete }: Props) {
           </View>
 
         </Animated.View>
+        </View>
 
         {/* Bottom buttons.
             The hint gets its own full-width line ABOVE the button row. Dropped
@@ -389,16 +410,21 @@ const styles = themed((C) => StyleSheet.create({
     width: 28,
     borderRadius: 5,
   },
+  pagerViewport: {
+    flex: 1,
+    width: '100%',
+    overflow: 'hidden',
+  },
   slider: {
     flex: 1,
     flexDirection: 'row',
-    // One page per step. This was hardcoded to `width * 5` from when onboarding
+    // One page per step. The width is applied at the render site, from
+    // useWindowDimensions, because a StyleSheet is built once and this has to
+    // follow the window. It was hardcoded to `width * 5` from when onboarding
     // had five beats; with three it painted 1950px of slider into a 390px
     // viewport, so every step overflowed to the right.
-    width: width * STEPS.length,
   },
   page: {
-    width,
     paddingHorizontal: 32,
     alignItems: 'center',
     justifyContent: 'center',
