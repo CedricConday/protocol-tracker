@@ -546,6 +546,38 @@ const migrations: Migration[] = [
       await db.execAsync(`UPDATE schedule_rules SET food_relation = 'with' WHERE with_food = 1`);
     },
   },
+  {
+    /**
+     * The correction trail (2026-09-20, Cedric's call).
+     *
+     * Corrections and removals used to happen in place — `UPDATE water_logs SET
+     * amount_ml`, `DELETE FROM meal_log` — so a day's record could be rewritten
+     * with nothing left saying it had been. That is the right shape for fixing a
+     * mis-tap and the wrong one for a record a practitioner reads: an adherence
+     * report nobody can check against its own history is a different artefact
+     * from one they can.
+     *
+     * Nothing is backfilled. Corrections made before today left no trace to
+     * recover, and inventing rows for them would be the exact dishonesty this
+     * table exists to prevent. The trail starts empty and starts now.
+     */
+    version: 19,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS entry_corrections (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          entry_table TEXT NOT NULL,
+          entry_id INTEGER NOT NULL,
+          date TEXT NOT NULL,
+          action TEXT NOT NULL,
+          before_value TEXT NOT NULL,
+          after_value TEXT,
+          corrected_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_entry_corrections_date ON entry_corrections(date);
+      `);
+    },
+  },
 ];
 
 async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {

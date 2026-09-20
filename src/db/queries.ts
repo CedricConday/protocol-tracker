@@ -85,6 +85,55 @@ export async function addWater(amount_ml: number, date: string = todayStr()): Pr
 }
 
 /**
+ * Write down that an entry was corrected or removed, before it is.
+ *
+ * 2026-09-20, Cedric: "It shouldn't be able to be rewritten." Corrections used
+ * to happen in place — the row changed, the previous value was gone, and neither
+ * the app nor the doctor export could say a correction had ever happened. A
+ * record a practitioner reads has to be checkable against its own history;
+ * otherwise a number that was quietly edited looks exactly like one that was
+ * always right.
+ *
+ * Called INSIDE the caller's transaction, always before the write, so the trail
+ * and the change land together or not at all. `before` is what the row held;
+ * `after` is what replaced it, or null for a removal. Values are stored as JSON
+ * so this one table serves every entry type without a column per field.
+ *
+ * This table is only ever inserted into. Nothing in the app updates or deletes a
+ * row here, and nothing should: the trail is the part that cannot be rewritten.
+ */
+type CorrectionAction = 'corrected' | 'removed';
+
+async function recordCorrection(
+  db: SQLiteDatabase,
+  entryTable: string,
+  entryId: number,
+  date: string,
+  action: CorrectionAction,
+  before: unknown,
+  after: unknown = null,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO entry_corrections (entry_table, entry_id, date, action, before_value, after_value, corrected_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [entryTable, entryId, date, action, JSON.stringify(before), after === null ? null : JSON.stringify(after), Date.now()]
+  );
+}
+
+/** The corrections made in a period, oldest first — for the doctor export. */
+export async function getCorrections(
+  from: string,
+  to: string
+): Promise<{ entry_table: string; entry_id: number; date: string; action: string; before_value: string; after_value: string | null; corrected_at: number }[]> {
+  const db = await getDb();
+  return db.getAllAsync(
+    `SELECT entry_table, entry_id, date, action, before_value, after_value, corrected_at
+       FROM entry_corrections WHERE date BETWEEN ? AND ? ORDER BY corrected_at ASC`,
+    [from, to]
+  );
+}
+
+/**
  * Water and sun were INSERT-only: `addWater` and `logSunExposure` were the only
  * writers against `water_logs` / `sun_log` anywhere in src/, so a mis-tap — 750 ml
  * logged instead of 250, six taps instead of one — was permanent for that day.
@@ -102,6 +151,7 @@ export async function undoLastWater(date: string = todayStr()): Promise<number |
   );
   if (!last) return null;
   await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'water_logs', last.id, date, 'removed', { amount_ml: last.amount_ml });
     await db.runAsync('DELETE FROM water_logs WHERE id = ?', [last.id]);
     // MAX(0, …) because the anchor is the number on screen: a negative total
     // would render, and would be a second bug reported as the first one.
@@ -124,6 +174,7 @@ export async function correctWaterLog(logId: number, amount_ml: number): Promise
   const next = Math.max(0, Math.round(amount_ml));
   const delta = next - row.amount_ml;
   await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'water_logs', logId, row.date, 'corrected', { amount_ml: row.amount_ml }, { amount_ml: next });
     await db.runAsync('UPDATE water_logs SET amount_ml = ? WHERE id = ?', [next, logId]);
     await db.runAsync(
       'UPDATE daily_anchors SET water_ml = MAX(0, water_ml + ?) WHERE date = ?',
@@ -163,6 +214,7 @@ export async function deleteWaterLog(logId: number): Promise<boolean> {
   );
   if (!row) return false;
   await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'water_logs', logId, row.date, 'removed', { amount_ml: row.amount_ml });
     await db.runAsync('DELETE FROM water_logs WHERE id = ?', [logId]);
     // MAX(0, …) for the same reason undoLastWater has it: the anchor is the
     // number on screen, and a negative total would render.
@@ -253,12 +305,15 @@ export async function getSunEntries(
 /** Remove one session and move the day's total by exactly what it held. */
 export async function deleteSunEntry(entryId: number): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ date: string }>(
-    'SELECT date FROM sun_entries WHERE id = ?',
+  // `minutes` is read as well as `date` so the trail can say what was removed;
+  // a correction record that only knows a row existed is not worth writing.
+  const row = await db.getFirstAsync<{ date: string; minutes: number }>(
+    'SELECT date, minutes FROM sun_entries WHERE id = ?',
     [entryId]
   );
   if (!row) return false;
   await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'sun_entries', entryId, row.date, 'removed', { minutes: row.minutes });
     await db.runAsync('DELETE FROM sun_entries WHERE id = ?', [entryId]);
     await recomputeSunDay(db, row.date);
   });
@@ -268,13 +323,15 @@ export async function deleteSunEntry(entryId: number): Promise<boolean> {
 /** Edit one session in place. */
 export async function correctSunEntry(entryId: number, minutes: number): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ date: string }>(
-    'SELECT date FROM sun_entries WHERE id = ?',
+  const row = await db.getFirstAsync<{ date: string; minutes: number }>(
+    'SELECT date, minutes FROM sun_entries WHERE id = ?',
     [entryId]
   );
   if (!row) return false;
+  const next = Math.max(0, Math.round(minutes));
   await db.withTransactionAsync(async () => {
-    await db.runAsync('UPDATE sun_entries SET minutes = ? WHERE id = ?', [Math.max(0, Math.round(minutes)), entryId]);
+    await recordCorrection(db, 'sun_entries', entryId, row.date, 'corrected', { minutes: row.minutes }, { minutes: next });
+    await db.runAsync('UPDATE sun_entries SET minutes = ? WHERE id = ?', [next, entryId]);
     await recomputeSunDay(db, row.date);
   });
   return true;
@@ -1013,21 +1070,29 @@ export async function getExerciseLogs(
 /** Remove one session. No day-total row to maintain — the total is a SUM. */
 export async function deleteExerciseLog(logId: number): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM exercise_logs WHERE id = ?', [logId]);
+  const row = await db.getFirstAsync<{ date: string; duration_minutes: number; type: string }>(
+    'SELECT date, duration_minutes, type FROM exercise_logs WHERE id = ?', [logId]
+  );
   if (!row) return false;
-  await db.runAsync('DELETE FROM exercise_logs WHERE id = ?', [logId]);
+  await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'exercise_logs', logId, row.date, 'removed', { duration_minutes: row.duration_minutes, type: row.type });
+    await db.runAsync('DELETE FROM exercise_logs WHERE id = ?', [logId]);
+  });
   return true;
 }
 
 /** Edit one session's duration in place. */
 export async function correctExerciseLog(logId: number, durationMinutes: number): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM exercise_logs WHERE id = ?', [logId]);
-  if (!row) return false;
-  await db.runAsync(
-    'UPDATE exercise_logs SET duration_minutes = ? WHERE id = ?',
-    [Math.max(0, Math.round(durationMinutes)), logId]
+  const row = await db.getFirstAsync<{ date: string; duration_minutes: number }>(
+    'SELECT date, duration_minutes FROM exercise_logs WHERE id = ?', [logId]
   );
+  if (!row) return false;
+  const next = Math.max(0, Math.round(durationMinutes));
+  await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'exercise_logs', logId, row.date, 'corrected', { duration_minutes: row.duration_minutes }, { duration_minutes: next });
+    await db.runAsync('UPDATE exercise_logs SET duration_minutes = ? WHERE id = ?', [next, logId]);
+  });
   return true;
 }
 
@@ -1107,20 +1172,40 @@ export async function insertJournalEntry(entry: JournalEntryInput): Promise<numb
  */
 export async function updateJournalEntry(id: number, entry: Omit<JournalEntryInput, 'date'>): Promise<void> {
   const db = await getDb();
-  await db.runAsync(
-    `UPDATE journal_entries
-        SET mood = ?, note = ?, dietary_note = ?, compliance_pct = ?,
-            doses_taken = ?, doses_total = ?, updated_at = datetime('now')
-      WHERE id = ?`,
-    [entry.mood, entry.note, entry.dietary_note ?? '', entry.compliance_pct, entry.doses_taken, entry.doses_total, id]
+  const before = await db.getFirstAsync<{ date: string; mood: string; note: string }>(
+    'SELECT date, mood, note FROM journal_entries WHERE id = ?', [id]
   );
+  if (!before) return;
+  await db.withTransactionAsync(async () => {
+    // Mood and note only. The compliance figures are recomputed from the dose
+    // log rather than typed, so a change in them is not someone revising what
+    // they said — and the note is the part a practitioner reads.
+    await recordCorrection(db, 'journal_entries', id, before.date, 'corrected',
+      { mood: before.mood, note: before.note }, { mood: entry.mood, note: entry.note });
+    await db.runAsync(
+      `UPDATE journal_entries
+          SET mood = ?, note = ?, dietary_note = ?, compliance_pct = ?,
+              doses_taken = ?, doses_total = ?, updated_at = datetime('now')
+        WHERE id = ?`,
+      [entry.mood, entry.note, entry.dietary_note ?? '', entry.compliance_pct, entry.doses_taken, entry.doses_total, id]
+    );
+  });
 }
 
 /** False when the row was already gone — the screen reloads rather than lying. */
 export async function deleteJournalEntry(id: number): Promise<boolean> {
   const db = await getDb();
-  const result = await db.runAsync('DELETE FROM journal_entries WHERE id = ?', [id]);
-  return result.changes > 0;
+  const before = await db.getFirstAsync<{ date: string; mood: string; note: string }>(
+    'SELECT date, mood, note FROM journal_entries WHERE id = ?', [id]
+  );
+  if (!before) return false;
+  let changes = 0;
+  await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'journal_entries', id, before.date, 'removed', { mood: before.mood, note: before.note });
+    const result = await db.runAsync('DELETE FROM journal_entries WHERE id = ?', [id]);
+    changes = result.changes;
+  });
+  return changes > 0;
 }
 
 /**
@@ -1564,9 +1649,14 @@ export async function getTodayMeals(date: string): Promise<{ id: number; meal_ty
  */
 export async function deleteMeal(mealId: number): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM meal_log WHERE id = ?', [mealId]);
+  const row = await db.getFirstAsync<{ date: string; meal_type: string; time: string }>(
+    'SELECT date, meal_type, time FROM meal_log WHERE id = ?', [mealId]
+  );
   if (!row) return false;
-  await db.runAsync('DELETE FROM meal_log WHERE id = ?', [mealId]);
+  await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'meal_log', mealId, row.date, 'removed', { meal_type: row.meal_type, time: row.time });
+    await db.runAsync('DELETE FROM meal_log WHERE id = ?', [mealId]);
+  });
   return true;
 }
 
@@ -1581,9 +1671,14 @@ export async function deleteMeal(mealId: number): Promise<boolean> {
  */
 export async function updateMealTime(mealId: number, time: string): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ id: number }>('SELECT id FROM meal_log WHERE id = ?', [mealId]);
+  const row = await db.getFirstAsync<{ date: string; time: string }>(
+    'SELECT date, time FROM meal_log WHERE id = ?', [mealId]
+  );
   if (!row) return false;
-  await db.runAsync('UPDATE meal_log SET time = ? WHERE id = ?', [time, mealId]);
+  await db.withTransactionAsync(async () => {
+    await recordCorrection(db, 'meal_log', mealId, row.date, 'corrected', { time: row.time }, { time });
+    await db.runAsync('UPDATE meal_log SET time = ? WHERE id = ?', [time, mealId]);
+  });
   return true;
 }
 
@@ -1850,7 +1945,6 @@ export async function exportAllData(): Promise<Record<string, any>> {
     // typed in, and an export is the only way left to get it out.
     'mri_scans',
     'lab_results',
-    'contraindication_rules',
     'patient_medications',
     'sun_log',
     'blood_test_reminders',
@@ -1859,10 +1953,13 @@ export async function exportAllData(): Promise<Record<string, any>> {
     'feedback',
     'medical_events',
     'calcium_logs',
-    'sleep_checkins',
     'action_queue',
     'misc_flags',
-    'family_members'
+    'family_members',
+    // The correction trail travels with the data it describes. A backup that
+    // restored the entries but not the record of what was corrected would hand
+    // back a tidier history than the one that happened.
+    'entry_corrections',
   ];
   
   const result: Record<string, any> = {};

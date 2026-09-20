@@ -128,6 +128,29 @@ export async function initDb(): Promise<void> {
       notified INTEGER NOT NULL DEFAULT 0
     );
 
+    -- A logged observation is never quietly rewritten (2026-09-20, Cedric).
+    --
+    -- Water, sun, meals, exercise and journal entries can all be corrected or
+    -- removed, and until now that happened in place: the row changed, the old
+    -- value was gone, and nothing on the device or in the doctor export said a
+    -- correction had ever happened. Fine for a mis-tap, wrong for a record
+    -- someone else reads and relies on.
+    --
+    -- Every correction and every removal writes one row here first, inside the
+    -- same transaction as the change itself. The live tables stay the simple
+    -- thing every screen reads; this is the trail beside them. It is never
+    -- updated and never deleted — only inserted into.
+    CREATE TABLE IF NOT EXISTS entry_corrections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entry_table TEXT NOT NULL,
+      entry_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      action TEXT NOT NULL,
+      before_value TEXT NOT NULL,
+      after_value TEXT,
+      corrected_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS journal_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       -- Deliberately NOT UNIQUE: a day holds as many entries as the patient

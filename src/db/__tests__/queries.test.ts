@@ -754,19 +754,54 @@ describe('journal entries', () => {
   });
 
   it('updates by id and leaves the entry on the day it was written', async () => {
+    // The row is read first so the correction trail can record what it held;
+    // an id that matches nothing writes nothing at all.
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-17', mood: '🙂', note: 'before' });
     mockDb.runAsync.mockResolvedValue({ changes: 1 });
     await updateJournalEntry(7, {
       mood: '😄', note: 'edited', compliance_pct: 100, doses_taken: 5, doses_total: 5,
     });
-    const [sql, params] = mockDb.runAsync.mock.calls[0];
+    const update = mockDb.runAsync.mock.calls.find((c: any[]) => /^UPDATE journal_entries/.test(String(c[0]).trim()));
+    expect(update).toBeDefined();
+    const [sql, params] = update as [string, any[]];
     expect(sql).toMatch(/WHERE id = \?/);
     expect(sql).not.toMatch(/SET[\s\S]*\bdate\b\s*=/);
     expect(params[params.length - 1]).toBe(7);
   });
 
+  it('writes the previous mood and note to the correction trail before overwriting them', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-17', mood: '🙂', note: 'before' });
+    mockDb.runAsync.mockResolvedValue({ changes: 1 });
+    await updateJournalEntry(7, {
+      mood: '😄', note: 'after', compliance_pct: 100, doses_taken: 5, doses_total: 5,
+    });
+    const [sql, params] = mockDb.runAsync.mock.calls[0];
+    // First, and inside the same transaction: a trail written after the change
+    // would be a trail that can be missing when the change is not.
+    expect(sql).toMatch(/INSERT INTO entry_corrections/);
+    expect(params[0]).toBe('journal_entries');
+    expect(params[1]).toBe(7);
+    expect(params[3]).toBe('corrected');
+    expect(JSON.parse(params[4])).toEqual({ mood: '🙂', note: 'before' });
+    expect(JSON.parse(params[5])).toEqual({ mood: '😄', note: 'after' });
+  });
+
+  it('records a removed entry before deleting it', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-17', mood: '😞', note: 'gone' });
+    mockDb.runAsync.mockResolvedValue({ changes: 1 });
+    expect(await deleteJournalEntry(7)).toBe(true);
+    const [sql, params] = mockDb.runAsync.mock.calls[0];
+    expect(sql).toMatch(/INSERT INTO entry_corrections/);
+    expect(params[3]).toBe('removed');
+    expect(JSON.parse(params[4])).toEqual({ mood: '😞', note: 'gone' });
+    expect(params[5]).toBeNull();
+  });
+
   it('reports a delete that found nothing', async () => {
-    mockDb.runAsync.mockResolvedValue({ changes: 0 });
+    // Gone before the read: nothing to record and nothing to delete.
+    mockDb.getFirstAsync.mockResolvedValue(null);
     expect(await deleteJournalEntry(7)).toBe(false);
+    mockDb.getFirstAsync.mockResolvedValue({ date: '2026-09-17', mood: '🙂', note: '' });
     mockDb.runAsync.mockResolvedValue({ changes: 1 });
     expect(await deleteJournalEntry(7)).toBe(true);
   });
@@ -780,8 +815,9 @@ describe('journal entries', () => {
     await upsertJournalEntry({
       date: '2026-09-17', mood: '😐', note: '', compliance_pct: 0, doses_taken: 0, doses_total: 0,
     });
-    const [sql, params] = mockDb.runAsync.mock.calls[0];
-    expect(sql).toMatch(/^UPDATE journal_entries/);
+    const update = mockDb.runAsync.mock.calls.find((c: any[]) => /^UPDATE journal_entries/.test(String(c[0]).trim()));
+    expect(update).toBeDefined();
+    const [, params] = update as [string, any[]];
     expect(params[params.length - 1]).toBe(3);
   });
 
