@@ -1,3 +1,15 @@
+/**
+ * UNREFERENCED BY DESIGN (decided 2026-09-20). Nothing in src/ or app/ calls
+ * anything in this file: Family Sync and Caregiver mode were removed at
+ * Cedric's request (see SettingsScreen.tsx), and cloud sync is unsupported —
+ * there is no first-party server and none is planned.
+ *
+ * The module is kept as the endpoint contract a future backend would have to
+ * satisfy, and because __tests__/no-first-party-server.test.ts guards the
+ * onboarding promise that no data reaches us. Deleting this file would take
+ * that guard with it. Do not wire these functions into a screen without
+ * building the server and revisiting the privacy copy in the same change.
+ */
 import { getDb } from '../db/schema';
 
 // Sync is OFF unless a backend is explicitly configured at build time. There is

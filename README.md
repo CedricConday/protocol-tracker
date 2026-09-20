@@ -17,10 +17,9 @@ Protocol Tracker is a React Native / Expo app for tracking supplement schedules,
 - **Calendar** — real month grid with compliance rings, shape-coded markers, and a month summary; doses and journal entries surface on the cells
 - **Symptom journal**, **relapse log** with caregiver-facing export, **sleep hygiene scorecard**, **calcium reintroduction log**
 - **Compliance tracking** — daily, 30-day, 12-month and 2-year views; printable/shareable report
-- **Family sync + caregiver view** — invite-code based sharing screens
 - **Notifications** — supplement reminders, water reminders, exercise nudges, morning start, missed-dose alerts, end-of-day summary (sound on, HIGH-importance Android channel)
 - **Biometric gate** — Face ID / Touch ID on app launch
-- **Offline-first** — all data in on-device `expo-sqlite` with versioned migrations; optional cloud sync against a JWT-issuing backend (no reference server shipped yet)
+- **Offline-first** — all data in on-device `expo-sqlite` with versioned migrations. There is no cloud sync: no first-party server exists and none is planned.
 - **Multi-language** — English + German (i18n)
 
 Navigation is five bottom tabs — **Calendar · Journal · Home · Summary · Settings** — each with its own stack.
@@ -112,7 +111,7 @@ Store submission is deliberately deferred (Apple's annual fee).
 
 See [`SECURITY.md`](./SECURITY.md) for the full threat model + reporting policy.
 
-**TL;DR**: all patient data is on-device by default. Optional cloud sync uses JWT bearer tokens stored in the OS keychain.
+**TL;DR**: all patient data stays on the device. The app talks to no backend of ours — cloud sync is unsupported and every shipped build has it disabled. The two outbound calls that do exist are third-party and documented in [`SECURITY.md`](./SECURITY.md): coordinates to open-meteo.com for the weather card, and an image to whichever AI vendor the user configured a key for.
 
 **iOS lock-screen privacy tip:** *Settings → Notifications → Expo Go → Show Previews → When Unlocked*.
 
