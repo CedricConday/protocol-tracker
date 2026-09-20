@@ -1,3 +1,4 @@
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { isQuietAt } from '../notifications/quietHours';
 
 /**
@@ -12,8 +13,20 @@ import { isQuietAt } from '../notifications/quietHours';
  */
 type AudioPlayerLike = { play: () => void; seekTo: (s: number) => void; remove: () => void };
 
+/**
+ * Ask the registry first, and only then load the module (2026-09-20).
+ *
+ * `expo-audio`'s entry point calls `requireNativeModule('ExpoAudio')` at module
+ * scope, so on a build without the native side, importing it is already a
+ * failure — a `try`/`catch` around the `require` relies on that failure being a
+ * catchable JS throw rather than anything happening at the native boundary.
+ * `requireOptionalNativeModule` is the sanctioned way to ask: it returns null
+ * instead of throwing, so on the 2026-09-15 APK this function never touches
+ * expo-audio at all.
+ */
 function audioModule(): any | null {
   try {
+    if (!requireOptionalNativeModule('ExpoAudio')) return null;
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     return require('expo-audio');
   } catch {

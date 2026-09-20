@@ -420,13 +420,14 @@ export default function SettingsScreen() {
                     // reminder lands silently, this says whether the phone was
                     // ever told to make a sound, which is the difference
                     // between an app bug and a device setting.
-                    // Play the app's own tone straight away as well. On a
-                    // device where the OS swallows notification sound this is
-                    // the only half the user will hear, and it is the half that
-                    // now fires when a dose comes due.
-                    await playReminderTone({ force: true });
                     const diag = await describeReminderChannel();
                     Alert.alert(t('setTestSoundTitle'), `${t('setTestSoundSent')}\n\n${diag}`);
+                    // The app's own tone goes LAST (2026-09-20). It is the only
+                    // part of this row that touches a native module the
+                    // installed build may not carry, and the diagnostic is the
+                    // part worth protecting: if audio takes the screen down, the
+                    // user has still been told what the channel reports.
+                    await playReminderTone({ force: true });
                   } catch {
                     Alert.alert(t('setTestSoundTitle'), t('setTestSoundFailed'));
                   }
