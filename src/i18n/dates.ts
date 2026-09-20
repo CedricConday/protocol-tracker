@@ -38,6 +38,37 @@ export function weekdayShortFor(date: Date): string {
   return weekdaysShortSundayFirst()[date.getDay()];
 }
 
+const clockCache = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * A clock time split into the number and the day period, if the locale has one.
+ *
+ * `DoseRow` draws the hour large and "AM"/"PM" small underneath it, so it cannot
+ * take a single formatted string — but it also cannot keep computing the period
+ * itself, which is what it did: `hour >= 12 ? 'PM' : 'AM'` regardless of locale,
+ * under a German UI that writes 14:30 and has no such word. Intl decides both
+ * the clock and whether there is a period at all; `dayPeriod` is null on a
+ * 24-hour locale and the caller draws nothing.
+ */
+export function clockParts(d: Date): { time: string; dayPeriod: string | null } {
+  const key = locale();
+  let fmt = clockCache.get(key);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(key, { hour: 'numeric', minute: '2-digit' });
+    clockCache.set(key, fmt);
+  }
+
+  const parts = fmt.formatToParts(d);
+  const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value ?? null;
+  const time = parts
+    .filter((p) => p.type !== 'dayPeriod')
+    .map((p) => p.value)
+    .join('')
+    .trim();
+
+  return { time, dayPeriod };
+}
+
 const monthCache = new Map<string, string[]>();
 
 /** Twelve month names, index 0 = January. */

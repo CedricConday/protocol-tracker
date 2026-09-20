@@ -15,6 +15,7 @@
  * day-key drift protocol60 exists to catch.
  */
 import type { ScheduleRule } from '../types';
+import { weekdaysShortSundayFirst } from '../i18n/dates';
 
 export type Frequency = 'daily' | 'specific-days' | 'day-of-month' | 'cycle' | 'as-needed';
 
@@ -116,9 +117,17 @@ export function ruleFiresOn(rule: Cadence, dateStr: string): boolean {
   }
 }
 
-/** One line for the editor and the rule list. */
+/**
+ * One line for the editor and the rule list.
+ *
+ * Weekday names come from `weekdaysShortSundayFirst()`, not from a local array:
+ * this function's own `['Sun','Mon',…]` was the last hardcoded set in the app
+ * after the 2026-09-17 sweep, so a German user read "Mon · Wed · Fri" under an
+ * editor whose weekday dots already said "Mo · Mi · Fr" — the same rule, written
+ * two ways on one screen.
+ */
 export function describeCadence(rule: Cadence, t: (k: string) => string = (k) => k): string {
-  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const DAY_NAMES = weekdaysShortSundayFirst();
   switch (rule.frequency) {
     case 'as-needed':
       return t('freqAsNeeded');

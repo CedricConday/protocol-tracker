@@ -3,6 +3,7 @@ import { C, themed, useTheme } from '../theme/colors';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScheduledDose } from '../types';
 import { t, useLanguage } from '../i18n';
+import { clockParts } from '../i18n/dates';
 
 const statusBorderColors: Record<string, string> = {
   taken:    C.success,
@@ -61,12 +62,10 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
    */
   const isAnchor = dose.offsetMinutes === 0;
 
-  const hour   = dose.scheduledTime.getHours();
-  const minute = dose.scheduledTime.getMinutes();
-  const ampm   = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  const minStr = minute.toString().padStart(2, '0');
-  const timeLabel = `${hour12}:${minStr}`;
+  // The clock follows the locale, like every other time in the app. This row
+  // used to build 12-hour AM/PM by hand, so a German user read "2:30 PM" here
+  // and "14:30" everywhere else.
+  const { time: timeLabel, dayPeriod } = clockParts(dose.scheduledTime);
 
   const timeColor =
     dose.status === 'due'   ? C.due :
@@ -104,9 +103,11 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
         ) : (
           <>
             <Text style={[styles.timeHour, { color: timeColor }]}>{timeLabel}</Text>
-            <Text style={[styles.timeAmPm, { color: timeColor === C.textSub ? C.textMuted : timeColor }]}>
-              {ampm}
-            </Text>
+            {dayPeriod ? (
+              <Text style={[styles.timeAmPm, { color: timeColor === C.textSub ? C.textMuted : timeColor }]}>
+                {dayPeriod}
+              </Text>
+            ) : null}
           </>
         )}
       </View>
@@ -142,7 +143,7 @@ const DoseRow = React.memo(function DoseRow({ dose, onPress }: Props) {
     : t('doseRowA11y', {
         supplement: dose.supplementName,
         amount: dose.doseAmount,
-        time: `${timeLabel} ${ampm}`,
+        time: dayPeriod ? `${timeLabel} ${dayPeriod}` : timeLabel,
         status: t(STATUS_KEYS[dose.status] ?? 'doseUpcoming'),
       });
 

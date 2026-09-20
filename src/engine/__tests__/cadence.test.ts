@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// `describeCadence` reads weekday names from `i18n/dates`, which reaches
+// `src/i18n` and therefore `react-native` — unparseable under the node
+// environment. Same stub the other engine tests use; the real `Intl` lookup in
+// `dates.ts` still runs, so these assertions test the actual names for 'en'.
+vi.mock('../../i18n', () => ({ t: (k: string) => k, locale: () => 'en' }));
+
 import { ruleFiresOn, describeCadence, DEFAULT_CADENCE, type Cadence } from '../cadence';
 
 const rule = (over: Partial<Cadence>): Cadence => ({ ...DEFAULT_CADENCE, ...over });

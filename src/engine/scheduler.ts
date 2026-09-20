@@ -4,7 +4,7 @@ import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningRemin
 import type { ScheduledDose, DoseStatus } from '../types';
 import { ruleFiresOn, cadenceOf } from './cadence';
 
-import { locale } from '../i18n';
+import { locale, t } from '../i18n';
 import { bedtimeAfter } from '../utils/time';
 /** The water window: T=0 to twelve hours later. Shared so a reschedule cannot
  *  drift from the window the day was opened with. */
@@ -243,9 +243,9 @@ export function formatDoseTime(scheduledTime: Date): string {
   const diffMs = scheduledTime.getTime() - Date.now();
   const diffMin = Math.round(diffMs / 60000);
 
-  if (Math.abs(diffMin) < 1) return 'Now';
-  if (diffMin > 0 && diffMin < 60) return `In ${diffMin} min`;
-  if (diffMin < 0 && diffMin > -60) return `${Math.abs(diffMin)} min ago`;
+  if (Math.abs(diffMin) < 1) return t('doseTimeNow');
+  if (diffMin > 0 && diffMin < 60) return t('doseTimeInMin', { n: diffMin });
+  if (diffMin < 0 && diffMin > -60) return t('doseTimeMinAgo', { n: Math.abs(diffMin) });
 
   return scheduledTime.toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' });
 }
