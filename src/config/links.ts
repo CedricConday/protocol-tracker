@@ -10,12 +10,15 @@ import { t } from '../i18n';
  *    in time with receiving digital content or services". Nothing in this app may
  *    change behaviour based on whether someone donated. Do not add a supporter tier.
  *  - Google Play requires donations go to a validated tax-exempt organisation and
- *    has enforced this against the LINK, not just in-app collection. SUPPORT_URL
- *    therefore points at the community page, not at a fundraiser.
+ *    has enforced this against the LINK, not just in-app collection. A SUPPORT_URL
+ *    must therefore point at a page that is not a fundraiser.
+ *
+ * 2026-09-20: COMMUNITY_URL (a placeholder Facebook page for Protocol Tracker) was
+ * deleted. There is no per-project page and never will be — the website is the
+ * surface people are pointed at, and contact runs through FEEDBACK_EMAIL or
+ * WhatsApp below. Do not reintroduce a social link here without a screen that
+ * actually uses it.
  */
-
-/** TODO(cedric): real Facebook page URL — placeholder, will not open as-is. */
-export const COMMUNITY_URL = 'https://www.facebook.com/REPLACE-ME-protocol-tracker';
 
 /*
  * SUPPORT_URL and the Settings row that opened it were removed on 2026-09-17 at
