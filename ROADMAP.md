@@ -47,7 +47,7 @@ the parked vision auto-fill note is `docs/HANDOFF_MRI_AUTOFILL.md`.
 ## Under consideration
 
 ### Journal feature — LLM-backed structuring
-**Status:** evaluating
+**Status:** ~~evaluating~~ **shelved 2026-09-20 on privacy grounds.** Every option on the table, NotebookLM included, sends the journal text to someone else's server, and the app's standing claim is that the data stays on the device. The path back is an on-device model, or a feature that sends counts and moods rather than prose — not a different vendor. Tracked in `TASKS.md` under CLOSED.
 Evaluate **NotebookLM CLI** as the LLM backend for the symptom journal — summarization, query, and entry structuring. Free, fits the scope. A prior LiteLLM-routing approach was prototyped and removed; the goal is now to find the minimum-viable LLM integration that respects the user's privacy posture (user-supplied keys, on-device-first).
 
 ## Recently shipped
