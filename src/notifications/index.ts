@@ -9,6 +9,7 @@ import { navigate } from '../navigation/navigationRef';
 import { isQuietAt } from './quietHours';
 import { waterReminderTimes, WATER_NUDGE_ML } from './waterCadence';
 import { t } from '../i18n';
+import { playReminderTone } from '../sound/reminderTone';
 
 export { registerBackgroundTask };
 export * from './quietHours';
@@ -514,6 +515,25 @@ export const skipDoseFromNotification = async (doseId: number): Promise<void> =>
   }
 };
 
+/**
+ * The notification types the app sounds for itself when one arrives (2026-09-20).
+ *
+ * The tone existed and nothing but the Settings test ever played it: a real
+ * reminder arrived and the app stayed silent, because the OS was the only thing
+ * asked to make a noise. Under ARC on a Chromebook that is the OS that draws the
+ * notification in its own centre, and on a foregrounded app it is the
+ * re-presentation path — either can swallow it, and when it does there is no
+ * second chance at a dose.
+ *
+ * `summary` is absent on purpose: the end-of-day note rides the LOW-importance
+ * `general` channel, which is deliberately silent, and a belt that sounded for it
+ * would undo that choice. The dose-confirmed toast carries no type and so is out
+ * too — it is an acknowledgement of something the user just did, not a summons.
+ *
+ * Quiet hours are honoured, because `playReminderTone` honours them unforced.
+ */
+const TONE_TYPES = new Set(['supplement', 'water', 'exercise', 'morning', 'missed', 'test']);
+
 export const setupNotificationHandler = (): void => {
   setupAndroidChannels();
 
@@ -567,6 +587,19 @@ export const setupNotificationHandler = (): void => {
       } catch (error) {
         console.error('[Protocol Tracker Notifications] Error checking water progress:', error);
       }
+    }
+
+    // Sound it from the app as well as from the channel.
+    //
+    // This is the belt described in `src/sound/reminderTone.ts`, finally
+    // attached to the reminders it was written for. It needs the app to be
+    // running — a backgrounded or killed app still depends entirely on the
+    // notification channel, which is why the channel keeps its sound. Never
+    // awaited and never allowed to throw: a reminder must still be shown if the
+    // audio stack is missing or busy, which is exactly the case on the pre-
+    // 2026-09-20 APK that has no expo-audio in it.
+    if (TONE_TYPES.has(String(notificationType))) {
+      playReminderTone().catch(() => {});
     }
 
     const { title, body } = notification.request.content;

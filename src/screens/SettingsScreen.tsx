@@ -29,7 +29,7 @@ import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } 
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
 import { fireTestReminder, describeReminderChannel, hideNotificationDetails, setHideNotificationDetails } from '../notifications';
-import { playReminderTone } from '../sound/reminderTone';
+import { reminderToneStatus } from '../sound/reminderTone';
 import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
 
@@ -421,13 +421,21 @@ export default function SettingsScreen() {
                     // ever told to make a sound, which is the difference
                     // between an app bug and a device setting.
                     const diag = await describeReminderChannel();
-                    Alert.alert(t('setTestSoundTitle'), `${t('setTestSoundSent')}\n\n${diag}`);
-                    // The app's own tone goes LAST (2026-09-20). It is the only
-                    // part of this row that touches a native module the
-                    // installed build may not carry, and the diagnostic is the
-                    // part worth protecting: if audio takes the screen down, the
-                    // user has still been told what the channel reports.
-                    await playReminderTone({ force: true });
+                    // The tone is no longer played from here (2026-09-20).
+                    // Playing it up front made this row sound two ways a real
+                    // reminder never did — and it was the only path that ever
+                    // played it, so a passing test said nothing about a dose
+                    // reminder. The arriving test notification now plays it
+                    // through the same listener a dose goes through, which is
+                    // the thing worth checking. What is left to report here is
+                    // whether this build could play it at all: that is the one
+                    // fact the sound itself used to carry, and it is the part
+                    // that differs between the old APK and the new one.
+                    const tone = await reminderToneStatus().catch(() => 'could not be checked');
+                    Alert.alert(
+                      t('setTestSoundTitle'),
+                      `${t('setTestSoundSent')}\n\n${diag}\n\napp tone: ${tone}`,
+                    );
                   } catch {
                     Alert.alert(t('setTestSoundTitle'), t('setTestSoundFailed'));
                   }

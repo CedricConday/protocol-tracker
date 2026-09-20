@@ -105,6 +105,21 @@ export async function playReminderTone(opts: { force?: boolean } = {}): Promise<
   }
 }
 
+/**
+ * Whether this build can play the tone at all, without playing it.
+ *
+ * Added 2026-09-20 with the notification wiring. The Settings test used to
+ * answer this by sounding a tone up front, which meant the test took a
+ * different path from a real reminder and so proved nothing about one. This
+ * reports the same fact as a line of text, and the test is free to go through
+ * the production path instead.
+ */
+export async function reminderToneStatus(): Promise<string> {
+  if (!audioModule()) return 'unavailable — this build has no expo-audio (install the newer APK)';
+  const p = await ensurePlayer();
+  return p ? 'ready' : 'the audio stack would not start';
+}
+
 /** Release the audio resource — called when the app goes to the background. */
 export function releaseReminderTone(): void {
   try {
