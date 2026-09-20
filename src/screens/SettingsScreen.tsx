@@ -28,7 +28,7 @@ import { C, space, radius, shadow, text as T, themed, useTheme, setThemeMode, TH
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
-import { fireTestReminder } from '../notifications';
+import { fireTestReminder, describeReminderChannel } from '../notifications';
 import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
 
@@ -398,8 +398,13 @@ export default function SettingsScreen() {
                 onPress={async () => {
                   hPress();
                   try {
-                    await fireTestReminder(5);
-                    Alert.alert(t('setTestSoundTitle'), t('setTestSoundSent'));
+                    await fireTestReminder(10);
+                    // The channel's own settings go in the dialog: if the
+                    // reminder lands silently, this says whether the phone was
+                    // ever told to make a sound, which is the difference
+                    // between an app bug and a device setting.
+                    const diag = await describeReminderChannel();
+                    Alert.alert(t('setTestSoundTitle'), `${t('setTestSoundSent')}\n\n${diag}`);
                   } catch {
                     Alert.alert(t('setTestSoundTitle'), t('setTestSoundFailed'));
                   }

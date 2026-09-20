@@ -74,7 +74,38 @@ export const clearAppBadge = async (): Promise<void> => {
  * the phone, which is also the state a real reminder arrives in and the one
  * where a silent channel is easiest to miss.
  */
-export const fireTestReminder = async (delaySeconds = 5): Promise<string> => {
+/**
+ * What Android actually believes about the reminder channel.
+ *
+ * Added 2026-09-20 because "still silent" has at least four causes that look
+ * identical from the outside: a channel with no sound, a channel whose
+ * importance the user or the system dropped, the app allowed but the channel
+ * blocked, or a phone whose notification volume is simply down. Guessing
+ * between them from a laptop is how an afternoon disappears; the phone already
+ * knows, so this asks it and puts the answer on screen.
+ *
+ * Android only — iOS has no channels, and returns a line that says so rather
+ * than an empty object that reads as a fault.
+ */
+export const describeReminderChannel = async (): Promise<string> => {
+  if (Platform.OS !== 'android') return 'iOS: no channels — sound follows the ringer switch and Settings → Notifications.';
+  try {
+    const ch = await Notifications.getNotificationChannelAsync(CHANNEL.supplements);
+    if (!ch) return `Channel ${CHANNEL.supplements} does not exist on this device.`;
+    const importance = Notifications.AndroidImportance[ch.importance] ?? String(ch.importance);
+    return [
+      `channel: ${ch.id}`,
+      `sound: ${ch.sound ?? 'none'}`,
+      `importance: ${importance}`,
+      `vibration: ${ch.vibrationPattern ? 'yes' : 'no'}`,
+      `bypasses DND: ${ch.bypassDnd ? 'yes' : 'no'}`,
+    ].join('\n');
+  } catch (e) {
+    return `Could not read the channel: ${String(e)}`;
+  }
+};
+
+export const fireTestReminder = async (delaySeconds = 10): Promise<string> => {
   return Notifications.scheduleNotificationAsync({
     content: {
       title: t('notifTestTitle'),
@@ -432,9 +463,15 @@ export const setupNotificationHandler = (): void => {
     },
   ]).catch(() => {});
 
+  // `shouldShowAlert` was split into banner + list in SDK 53 and is deprecated.
+  // Both are set alongside it (2026-09-20) so a notification arriving while the
+  // app is open still presents — and still makes a sound — on a build where the
+  // old key is ignored.
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
     } as Notifications.NotificationBehavior),
