@@ -2,7 +2,13 @@ import * as SQLite from 'expo-sqlite';
 
 type Migration = { version: number; up: (db: SQLite.SQLiteDatabase) => Promise<void> };
 
-const migrations: Migration[] = [
+/**
+ * Exported for the upgrade test (2026-09-20): `migrations.upgrade.test.ts` runs
+ * this exact array against a real SQLite database at every historical version,
+ * so the chain a prerelease install will walk is the chain that is tested, not a
+ * copy of it that can drift.
+ */
+export const migrations: Migration[] = [
   {
     version: 1,
     up: async (db) => {
@@ -576,6 +582,26 @@ const migrations: Migration[] = [
         );
         CREATE INDEX IF NOT EXISTS idx_entry_corrections_date ON entry_corrections(date);
       `);
+    },
+  },
+  {
+    /**
+     * `contraindication_rules` goes (2026-09-20, Cedric's call).
+     *
+     * It was the storage behind drug-interaction warnings, which were cut on
+     * 2026-07-01 when the app became a pure tracker. Since then nothing has
+     * written it, no screen has read it, and its seeding was removed — it has
+     * been an empty table carrying a promise the app no longer makes. It left
+     * the export list with the correction trail earlier today; this drops it.
+     *
+     * Nothing is preserved because there is nothing to preserve: the table is
+     * empty on every install that has it, seeding having gone two months before
+     * any of them were created. The schema is in git if the feature ever comes
+     * back, and it would need a migration of its own either way.
+     */
+    version: 20,
+    up: async (db) => {
+      await db.execAsync(`DROP TABLE IF EXISTS contraindication_rules`);
     },
   },
 ];

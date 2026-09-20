@@ -9,8 +9,15 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
-export async function initDb(): Promise<void> {
-  const database = await getDb();
+/**
+ * The boot-time schema pass, against a database the caller supplies.
+ *
+ * Split out from `initDb` on 2026-09-20 so the upgrade test
+ * (`__tests__/migrations.upgrade.test.ts`) can run the real boot path against a
+ * real SQLite file instead of a copy of it that can drift. Production still
+ * calls `initDb`, which is this function against the app's database.
+ */
+export async function initDbOn(database: SQLite.SQLiteDatabase): Promise<void> {
 
   // Check current schema version
   const versionResult = await database.getFirstAsync<{ version: number }>(
@@ -199,15 +206,6 @@ export async function initDb(): Promise<void> {
       sulkowitch TEXT,
       notes TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS contraindication_rules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      drug_name TEXT NOT NULL,
-      drug_aliases TEXT NOT NULL DEFAULT '',
-      severity TEXT NOT NULL DEFAULT 'warning',
-      message TEXT NOT NULL,
-      safe_alternative TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS patient_medications (
@@ -478,8 +476,14 @@ export async function initDb(): Promise<void> {
     console.log('[Database] migration: sun_entries already present', e);
   }
 
-  // Contraindication drug-safety seeding removed — pure-tracker build gives no
-  // advice. Table stays empty so no warnings fire. Original list in git history.
+  // Contraindication drug safety is gone, not dormant: the seeding went with the
+  // pure-tracker cut and the table itself is dropped by migration 20
+  // (2026-09-20, Cedric's call). Original list and table are in git history.
 }
 
+}
+
+/** The app's own database, through the same pass. */
+export async function initDb(): Promise<void> {
+  await initDbOn(await getDb());
 }
