@@ -8,7 +8,17 @@
 // runs of identical code. This does the opposite: three days, five taps each,
 // and a full state capture after every single tap.
 //
-// WHAT IS BEING MEASURED. `selectedMood` is not state. JournalScreen.tsx:104:
+// UPDATED 2026-09-20 for schema v17 (2026-09-17). A day no longer holds one
+// journal entry: the UNIQUE on `journal_entries.date` is gone and the editor is
+// a COMPOSER — Save appends a row and clears the fields, instead of rewriting
+// the day's single row. Everything here that said "the row for this date" was
+// written under the old rule and read `rows[0]`, which is now the day's OLDEST
+// entry rather than the one a tap just produced. Probes collect every entry for
+// the date; checks ask about the newest. Check 2 was rewritten rather than
+// repointed — see its comment; under the composer its old statement describes
+// correct behaviour, so left alone it would have failed on every run.
+//
+// WHAT IS BEING MEASURED. `selectedMood` is not state. JournalScreen.tsx:144:
 //
 //     const selectedMood = moodEntry && moodEntry.date === today ? moodEntry.mood : null;
 //
@@ -295,6 +305,15 @@ async function readState() {
   });
 }
 
+/**
+ * The expectation "the screen should show no selection at all".
+ *
+ * Save clears the composer (JournalScreen.tsx `handleSave`, 2026-09-17), so
+ * after phase B the correct reading is nothing selected. Written as a string so
+ * it survives into `sequence.json` and reads as itself in the report.
+ */
+const CLEARED = 'cleared';
+
 /** One full reading, tagged, appended to the sequence. Never throws. */
 async function probe(tag, expected = null) {
   const wall = currentWall;
@@ -321,11 +340,19 @@ async function probe(tag, expected = null) {
   const appToday = state ? state.appToday : null;
   const selectedMood = moodEntry && moodEntry.date === appToday ? moodEntry.mood : null;
 
-  let row = null, rowErr = null;
+  // A DAY HOLDS AS MANY ENTRIES AS THE PATIENT WROTE (schema v17, 2026-09-17).
+  //
+  // This used to read `rows[0]` of a `WHERE date = ?` and call it "the" row,
+  // which was correct while `date` was UNIQUE and is now the first entry of the
+  // day — the oldest, not the one a tap just produced. Every check below asks
+  // about the newest, because Save appends and then clears the composer, so the
+  // entry that corresponds to the tap being probed is the last one. `ORDER BY
+  // id ASC` is the order the app itself lists a day in (`queries.ts:1081`).
+  let rows = [], rowErr = null;
   try {
-    const rows = await sql('SELECT date, mood, note, dietary_note FROM journal_entries WHERE date = ?', [dayDate(currentDay)]);
-    row = rows[0] || null;
+    rows = await sql('SELECT id, date, mood, note FROM journal_entries WHERE date = ? ORDER BY id ASC', [dayDate(currentDay)]);
   } catch (e) { rowErr = String(e && e.message || e); }
+  const latest = rows.length ? rows[rows.length - 1] : null;
 
   // A probe taken in the same tick as the tap is READ BEFORE COMMIT by design —
   // React has not rendered yet, so a disagreement there says nothing about the
@@ -348,9 +375,17 @@ async function probe(tag, expected = null) {
     moodEntry,
     moodEntrySource,
     selectedMood,
-    matchesExpected: expected === null ? null : selectedMood === expected,
+    // `CLEARED` is an expectation of "nothing selected", which is different from
+    // `null` meaning "no expectation at all". Save now clears the composer, so
+    // the probes after it expect an empty screen — passing the saved mood there
+    // made every run report two mismatches a day for behaving correctly.
+    matchesExpected: expected === null ? null
+      : expected === CLEARED ? selectedMood === null
+      : selectedMood === expected,
     fiberTree: state ? state.fiberTree : null,
-    dbRow: row,
+    dbRows: rows,
+    dbCount: rows.length,
+    dbLatest: latest,
     dbError: rowErr,
     dom: state ? state.dom : null,
     fiberError: state ? state.fiberError : null,
@@ -369,18 +404,40 @@ async function setMoment(n, hhmm) {
 }
 
 // ── onboarding (day 1 only) ──────────────────────────────────────────────────
+/**
+ * Advance one onboarding step, whatever this build calls the button.
+ *
+ * Tried in order, newest label first. Returns false only when none of them is
+ * on screen — which is a real finding about the driver, not something to
+ * swallow.
+ */
+const advanceOnboarding = async () => {
+  for (const label of ['Continue', 'Next step', 'Weiter']) {
+    if (await clickLabel(label)) return true;
+  }
+  return false;
+};
+
 async function onboard() {
   currentPhase = 'onboarding';
   if (!(await clickText('Not now'))) problems.push('notification primer "Not now" not found');
   await wait(1600);
   await page.getByPlaceholder('e.g. Alex').first().fill(PATIENT.name).catch(() => problems.push('name field missing'));
-  await page.getByPlaceholder('e.g. 70').first().fill(PATIENT.weightKg).catch(() => {});
+  // The weight field was removed from onboarding; only name and the D3 dose are
+  // asked for now. Filling a placeholder that no longer exists was silent, which
+  // is how the driver kept looking healthy while it was one step behind.
   await page.getByPlaceholder('e.g. 5000').first().fill(PATIENT.dailyIU).catch(() => {});
   await wait(400);
-  await clickLabel('Next step'); await wait(1500);
+  // The advance button is labelled 'Continue' (i18n key `obContinue`); it was
+  // 'Next step' when this was written. A failed click was IGNORED here, so the
+  // run went on tapping at an onboarding screen it had never left and reported
+  // nine downstream problems instead of the one real one.
+  if (!(await advanceOnboarding())) problems.push('onboarding step 1 → 2: no Continue button fired');
+  await wait(1500);
   if (!(await clickLabel('Select condition: Multiple Sclerosis'))) problems.push('condition card not selectable');
   await wait(800);
-  await clickLabel('Next step'); await wait(1500);
+  if (!(await advanceOnboarding())) problems.push('onboarding step 2 → 3: no Continue button fired');
+  await wait(1500);
   if (!(await clickLabel("Let's begin"))) problems.push('final onboarding button did not fire');
   await wait(8000);
   await shot('onboarded');
@@ -442,9 +499,12 @@ async function runDay(n) {
     const alt = await clickLabel('Journal entry saved');
     problems.push(`day ${n}: 'Save journal entry' not found${alt ? " — 'Journal entry saved' was on screen instead (saved flag already true)" : ' and neither was "Journal entry saved"'}`);
   }
-  await probe('immediately-after-save', last.emoji);
+  // After Save the composer is empty, not still holding 😞 — the mood went into
+  // an entry and the fields were cleared for the next one. Expecting the saved
+  // mood here was the old row-editor behaviour.
+  await probe('immediately-after-save', CLEARED);
   await wait(1600);
-  await probe('settled-after-save', last.emoji);
+  await probe('settled-after-save', CLEARED);
   await shot('after-save');
 
   // ── Phase C: the blur race, on purpose ─────────────────────────────────────
@@ -494,7 +554,7 @@ for (let n = 1; n <= DAYS; n += 1) {
 
 // Final truth: every journal row the run produced.
 let finalRows = [];
-try { finalRows = await sql('SELECT date, mood, note, dietary_note FROM journal_entries ORDER BY date'); }
+try { finalRows = await sql('SELECT id, date, mood, note FROM journal_entries ORDER BY date, id'); }
 catch (e) { problems.push(`final journal_entries read failed: ${String(e && e.message || e)}`); }
 
 await browser.close();
@@ -506,15 +566,41 @@ await browser.close();
 // behaviour changes, which is the property items 1.1 and 1.3 are about.
 
 // 1. A day with no stored entry must open with nothing selected. A mood showing
-//    as selected before the first tap, on a date with no row, is yesterday's
-//    mood carried across the day boundary.
-const carryOver = sequence.filter((e) => e.tag === 'baseline-before-any-tap' && e.dbRow === null && e.selectedMood !== null);
+//    as selected before the first tap, on a date with NO entries at all, is
+//    yesterday's mood carried across the day boundary. `dbCount === 0` rather
+//    than `dbRow === null`: a day can now hold several entries, so "empty" is a
+//    count, not a missing row.
+const carryOver = sequence.filter((e) => e.tag === 'baseline-before-any-tap' && e.dbCount === 0 && e.selectedMood !== null);
 
-// 2. Leaving the screen and coming back must not show a selection the database
-//    does not have. If it does, the screen is painting in-memory state over
-//    stored truth and a reload would show something different.
-const divergence = sequence.filter((e) => e.tag === 'after-leaving-and-returning-without-save'
-  && e.selectedMood !== null && (!e.dbRow || e.dbRow.mood !== e.selectedMood));
+// 2. The blur race must not write an entry nobody asked for.
+//
+//    REWRITTEN 2026-09-20, because v17 changed what this check means. It used to
+//    read: a selection surviving a return to the screen that the stored row does
+//    not have is a bug — true while the day had exactly one row that Save
+//    rewrote in place. The editor is now a composer: Save appends a row and
+//    clears the fields, and an unsaved draft is in-memory state the screen is
+//    entitled to keep while it stays mounted. Left as it was, this check would
+//    have fired on every single day of every run and called correct behaviour a
+//    defect.
+//
+//    What is still falsifiable, and sharper: phase C types a note and taps a
+//    mood while the note holds focus, then leaves WITHOUT pressing Save. The
+//    day's entry count must be the same before and after. If it grew, `handleBlur`
+//    silently appended an entry the user never saved — the same defect as the
+//    original finding, in the shape the new schema gives it.
+const phantomWrite = days.map((d) => {
+  const before = sequence.find((e) => e.day === d.day && e.tag === 'settled-after-save');
+  const after = sequence.find((e) => e.day === d.day && e.tag === 'after-leaving-and-returning-without-save');
+  if (!before || !after || before.dbError || after.dbError) return null;
+  return after.dbCount > before.dbCount ? { day: d.day, date: d.date, before: before.dbCount, after: after.dbCount, seq: after.seq, mood: after.dbLatest ? after.dbLatest.mood : null } : null;
+}).filter(Boolean);
+
+// 2b. Informational, not a finding: the draft the user never saved is still on
+//     screen after leaving and coming back. Expected under the composer — it is
+//     recorded so a run where it STOPS happening is visible too, because that
+//     would mean a draft is being dropped on a tab switch.
+const draftAfterReturn = sequence.filter((e) => e.tag === 'after-leaving-and-returning-without-save'
+  && e.selectedMood !== null && (!e.dbLatest || e.dbLatest.mood !== e.selectedMood));
 
 // ── output ───────────────────────────────────────────────────────────────────
 await writeFile(join(OUT, 'sequence.json'), JSON.stringify({
@@ -525,16 +611,26 @@ await writeFile(join(OUT, 'sequence.json'), JSON.stringify({
   moodHookIndex,
   sequence,
   finalRows,
-  checks: { carryOver, divergence },
+  checks: { carryOver, phantomWrite, draftAfterReturn },
   problems,
   console: consoleLog,
 }, null, 2));
 
 const short = (v) => v === null || v === undefined ? '—' : String(v);
+/** An expectation cell: `CLEARED` reads as what it means, not as its sentinel. */
+const want = (v) => v === CLEARED ? 'nothing selected' : short(v);
 const moodCell = (e) => e.moodEntry ? `${e.moodEntry.mood} @ ${e.moodEntry.date}` : '—';
 const okCell = (e) => e.matchesExpected === null ? '' : e.matchesExpected ? 'ok' : '**MISMATCH**';
 
-const rows = sequence.map((e) => `| ${e.seq} | ${e.day} | ${e.phase} | ${e.tag} | ${short(e.expectedMood)} | ${short(e.selectedMood)} | ${okCell(e)} | ${moodCell(e)} | ${short(e.appToday)} | ${e.dom && e.dom.selectedByStyle && e.dom.selectedByStyle.length ? e.dom.selectedByStyle.join('+') : '—'} | ${e.dom && e.dom.save ? (e.dom.save.ariaDisabled === 'true' || e.dom.save.domDisabled ? 'disabled' : e.dom.save.text) : '—'} | ${e.dbRow ? short(e.dbRow.mood) : '—'} |`);
+// The day's entries as one cell: how many, and the newest one's mood. "2× 🙂"
+// reads as two entries whose latest is 🙂; "—" is a day with nothing stored.
+const dbCell = (e) => {
+  if (e.dbError) return '**err**';
+  if (!e.dbCount) return '—';
+  return e.dbCount === 1 ? short(e.dbLatest.mood) : `${e.dbCount}× ${short(e.dbLatest.mood)}`;
+};
+
+const rows = sequence.map((e) => `| ${e.seq} | ${e.day} | ${e.phase} | ${e.tag} | ${want(e.expectedMood)} | ${short(e.selectedMood)} | ${okCell(e)} | ${moodCell(e)} | ${short(e.appToday)} | ${e.dom && e.dom.selectedByStyle && e.dom.selectedByStyle.length ? e.dom.selectedByStyle.join('+') : '—'} | ${e.dom && e.dom.save ? (e.dom.save.ariaDisabled === 'true' || e.dom.save.domDisabled ? 'disabled' : e.dom.save.text) : '—'} | ${dbCell(e)} |`);
 
 const mismatches = sequence.filter((e) => e.matchesExpected === false && e.authoritative);
 const preCommit = sequence.filter((e) => e.matchesExpected === false && !e.authoritative);
@@ -552,8 +648,15 @@ const domDisagrees = sequence.filter((e) => {
   return painted !== e.selectedMood;
 });
 const perDay = days.map((d) => {
-  const row = finalRows.find((r) => r.date === d.date);
-  return `| ${d.day} | ${d.date} | ${row ? row.mood : '**no row**'} | ${row && row.note ? `${String(row.note).length} ch` : '—'} |`;
+  // Every entry the day ended with, in the order the app lists them. One row
+  // per day was the old schema's promise; printing only the first now hides
+  // exactly the case this harness exists to watch — a second save that went
+  // somewhere unexpected.
+  const dayRows = finalRows.filter((r) => r.date === d.date);
+  if (!dayRows.length) return `| ${d.day} | ${d.date} | 0 | **no entries** | — |`;
+  const moods = dayRows.map((r) => r.mood).join(' ');
+  const notes = dayRows.map((r) => (r.note ? `${String(r.note).length} ch` : '—')).join(' · ');
+  return `| ${d.day} | ${d.date} | ${dayRows.length} | ${moods} | ${notes} |`;
 });
 
 const md = [
@@ -563,18 +666,24 @@ const md = [
   '',
   'Built for Lane 3 / item 3.2. Every row is one reading of four independent sources at one',
   'moment: the app\'s own `todayStr()`, the `moodEntry` hook read off the React fiber, the DOM,',
-  'and the `journal_entries` row. `selectedMood` is recomputed here the way JournalScreen.tsx:104',
-  'computes it, so a disagreement between the tap and the stored value is visible in one line.',
+  'and the day\'s `journal_entries` rows. `selectedMood` is recomputed here the way',
+  'JournalScreen.tsx:144 computes it, so a disagreement between the tap and the stored value is',
+  'visible in one line.',
+  '',
+  '**A day holds several entries** (schema v17, 2026-09-17). Save appends a row and clears the',
+  'composer rather than rewriting the day\'s one row, so the `entries` column reads `2× 🙂` —',
+  'how many the day holds, and the mood of the newest. Every check below asks about the newest',
+  'entry, because that is the one the probe\'s own tap produced.',
   '',
   `\`moodEntry\` was read from hook index **${moodHookIndex === null ? 'never identified' : moodHookIndex}** of the JournalScreen fiber.`,
   '',
   '## What persisted, per day',
   '',
-  '| day | date | final stored mood | note |',
-  '|---|---|---|---|',
+  '| day | date | entries | moods stored, oldest first | notes |',
+  '|---|---|---|---|---|',
   ...perDay,
   '',
-  `Phase A taps all five moods in order and phase B saves; phase C then taps 🙂 (Okay) after that save, so the expected stored mood for every day is 🙂 — not 😞 (Struggling), the last mood phase A touches. The caption here said 😞 until 2026-09-13, which was true only while phase C's tap was being discarded: once H8 made it persist, the hardcoded expectation stated the opposite of the right answer. Exactly the stale hardcoded finding text item 1.2 exists to remove.`,
+  `Phase A taps all five moods in order and phase B saves, so each day should hold **one** entry, mood 😞 (Struggling) — the last mood phase A touches. Phase C then types a note and taps 🙂 while the note holds focus, and leaves without saving: under the composer that tap is a draft and must not become a second entry. A day showing two entries is check 2 firing, not a better day. _(This caption said the expected stored mood was 🙂 from 2026-09-13 until 2026-09-20. That was right while Save rewrote the day's one row and phase C's blur-save landed on it last; under v17 the same behaviour would be an unasked-for extra row, which is why the number of entries is now the thing being read and not just the mood.)_`,
   '',
   `## Findings — ${mismatches.length} of ${sequence.filter((e) => e.matchesExpected !== null && e.authoritative).length} settled probes`,
   '',
@@ -584,13 +693,13 @@ const md = [
   ...(mismatches.length
     ? ['| seq | day | phase | tag | expected | actual selectedMood | moodEntry | appToday |',
        '|---|---|---|---|---|---|---|---|',
-       ...mismatches.map((e) => `| ${e.seq} | ${e.day} | ${e.phase} | ${e.tag} | ${short(e.expectedMood)} | ${short(e.selectedMood)} | ${moodCell(e)} | ${short(e.appToday)} |`)]
+       ...mismatches.map((e) => `| ${e.seq} | ${e.day} | ${e.phase} | ${e.tag} | ${want(e.expectedMood)} | ${short(e.selectedMood)} | ${moodCell(e)} | ${short(e.appToday)} |`)]
     : ['None — every tap landed in state and survived to the settled read.']),
   '',
   `### Pre-commit reads (informational, not findings) — ${preCommit.length}`,
   '',
   ...(preCommit.length
-    ? preCommit.map((e) => `- seq ${e.seq}, day ${e.day}, \`${e.tag}\`: wanted ${short(e.expectedMood)}, read ${short(e.selectedMood)} — React had not committed yet.`)
+    ? preCommit.map((e) => `- seq ${e.seq}, day ${e.day}, \`${e.tag}\`: wanted ${want(e.expectedMood)}, read ${short(e.selectedMood)} — React had not committed yet.`)
     : ['None.']),
   '',
   `### Probe health — fiber vs painted DOM disagreements on settled probes: ${domDisagrees.length}`,
@@ -605,35 +714,45 @@ const md = [
   `## Check 1 — day opens with yesterday's mood still selected: ${carryOver.length} day(s)`,
   '',
   ...(carryOver.length
-    ? ['A day whose `journal_entries` row does not exist yet is showing a mood as already selected,',
-       'and `moodEntry.date` has been rewritten to the new date. Save is enabled before the user has',
+    ? ['A day that holds no entries at all is showing a mood as already selected, and',
+       '`moodEntry.date` has been rewritten to the new date. Save is enabled before the user has',
        'touched anything, so the carried mood is what gets stored if they press it or blur a note field.',
        '',
-       '| seq | day | date | selectedMood at open | moodEntry | DB row for that date |',
+       '| seq | day | date | selectedMood at open | moodEntry | entries for that date |',
        '|---|---|---|---|---|---|',
-       ...carryOver.map((e) => `| ${e.seq} | ${e.day} | ${e.date} | ${short(e.selectedMood)} | ${moodCell(e)} | ${e.dbRow ? short(e.dbRow.mood) : '**none**'} |`),
+       ...carryOver.map((e) => `| ${e.seq} | ${e.day} | ${e.date} | ${short(e.selectedMood)} | ${moodCell(e)} | ${e.dbCount ? dbCell(e) : '**none**'} |`),
        '',
        'Suspect `JournalScreen.tsx:113` — the effect returns early only when `moodEntry?.date === today`,',
        'and on a new day it instead writes `{date: today, mood: loadedMood}` with a `loadedMood` that',
        'still belongs to the previous day. Lane 3 owns the file; this is evidence, not a fix.']
     : ['None — every day opened with nothing selected.']),
   '',
-  `## Check 2 — selection survives a screen exit the database never saw: ${divergence.length}`,
+  `## Check 2 — the blur race wrote an entry nobody saved: ${phantomWrite.length} day(s)`,
   '',
-  ...(divergence.length
-    ? ['The screen shows a mood the stored row does not have, after the user left the tab and came back',
-       'without pressing Save. `handleBlur` fired with the pre-tap mood, so the write that happened stored',
-       'the OLD value; the new tap was never persisted and survives only in memory. A reload would show',
-       'the stored mood instead, so what the user sees depends on whether the screen was remounted.',
+  ...(phantomWrite.length
+    ? ['Phase C typed a note, tapped a mood while the note held focus, and left the screen WITHOUT',
+       'pressing Save. The day gained an entry anyway — `handleBlur` (JournalScreen.tsx:167) saved on',
+       'focus loss. Under the composer that is no longer an overwrite, it is an extra row in the',
+       'patient\'s day that they never wrote.',
        '',
-       '| seq | day | selectedMood on screen | stored mood | note |',
-       '|---|---|---|---|---|',
-       ...divergence.map((e) => `| ${e.seq} | ${e.day} | ${short(e.selectedMood)} | ${e.dbRow ? short(e.dbRow.mood) : '**none**'} | tapped while the note field held focus |`)]
-    : ['None — what the screen showed matched what was stored.']),
+       '| seq | day | date | entries before | entries after | newest mood |',
+       '|---|---|---|---|---|---|',
+       ...phantomWrite.map((p) => `| ${p.seq} | ${p.day} | ${p.date} | ${p.before} | ${p.after} | ${short(p.mood)} |`)]
+    : ['None — the entry count was unchanged across the blur race on every day.']),
+  '',
+  `### Unsaved draft still on screen after returning (expected, informational): ${draftAfterReturn.length}`,
+  '',
+  ...(draftAfterReturn.length
+    ? ['The composer kept an unsaved mood across a tab switch, which is what it is supposed to do —',
+       'the screen stays mounted and the draft is in-memory state. Listed so that a run where this',
+       'stops happening is visible, because that would mean drafts are being dropped.',
+       '',
+       ...draftAfterReturn.map((e) => `- seq ${e.seq}, day ${e.day}: draft ${short(e.selectedMood)} on screen, newest stored ${e.dbLatest ? short(e.dbLatest.mood) : '**none**'} (${e.dbCount} entr${e.dbCount === 1 ? 'y' : 'ies'} that day).`)]
+    : ['None — no draft survived the return.']),
   '',
   '## Full sequence',
   '',
-  '| # | day | phase | tag | want | selectedMood | | moodEntry | appToday | DOM selected | Save | DB mood |',
+  '| # | day | phase | tag | want | selectedMood | | moodEntry | appToday | DOM selected | Save | entries |',
   '|---|---|---|---|---|---|---|---|---|---|---|---|',
   ...rows,
   '',
@@ -642,7 +761,7 @@ const md = [
   '',
   '- `moodEntry` blank with a mismatch means the tap never reached `handleMoodSelect` — a delivery problem.',
   '- `moodEntry` holding the right mood but a *different* date than `appToday` means the tap landed and the',
-  '  derivation at JournalScreen.tsx:104 then discarded it — a date problem, not a tap problem.',
+  '  derivation at JournalScreen.tsx:144 then discarded it — a date problem, not a tap problem.',
   '- `DOM selected` disagreeing with `selectedMood` means the screen is painting a selection the derived',
   '  value does not have (or vice versa) — a render-timing problem.',
   '- Phase C rows are the deliberate blur race. A phase-C mismatch that phase A does not show puts the cause',
@@ -662,8 +781,10 @@ await writeFile(join(OUT, 'mood3.md'), md);
 //
 // Both checks are in the line now, and a run that finds anything exits non-zero
 // so a caller cannot mistake it for a pass.
-const checkTotal = carryOver.length + divergence.length;
-process.stderr.write(`\n${sequence.length} probes · Check 1 (carry-over): ${carryOver.length} · Check 2 (lost selection): ${divergence.length} · ${mismatches.length} finding(s) on settled reads · ${preCommit.length} pre-commit · ${domDisagrees.length} probe-health warning(s) → ${join(OUT, 'mood3.md')}\n`);
+// `draftAfterReturn` is deliberately NOT in the total: under the composer it is
+// expected behaviour, and counting it would fail every clean run.
+const checkTotal = carryOver.length + phantomWrite.length;
+process.stderr.write(`\n${sequence.length} probes · Check 1 (carry-over): ${carryOver.length} · Check 2 (unsaved write): ${phantomWrite.length} · drafts kept across a return: ${draftAfterReturn.length} (expected) · ${mismatches.length} finding(s) on settled reads · ${preCommit.length} pre-commit · ${domDisagrees.length} probe-health warning(s) → ${join(OUT, 'mood3.md')}\n`);
 if (problems.length) process.stderr.write(`${problems.length} driver problem(s) — see the report\n`);
 const failed = checkTotal + mismatches.length + problems.length;
 if (failed) process.stderr.write(`FAIL: ${failed} problem(s)\n`);
