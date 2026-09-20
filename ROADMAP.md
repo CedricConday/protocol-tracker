@@ -1,6 +1,12 @@
 # Roadmap
 
-Active backlog and exploration items.
+Product direction — what was deferred, what was removed and why, what is being considered.
+
+> **2026-09-20 — this file no longer holds open tasks.** `TASKS.md` is the only list for
+> Protocol Tracker. The "Open questions" below and the NotebookLM evaluation under
+> "Under consideration" were imported there on 2026-09-20 and are tracked in its `OPEN` half;
+> "Known drift" was too. They stay here as direction and reasoning. Anything actionable goes
+> to `TASKS.md`, not here.
 
 ## Deferred — pulled out to ship as a pure tracker (2026-07-01)
 
