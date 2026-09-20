@@ -28,7 +28,7 @@ import { C, space, radius, shadow, text as T, themed, useTheme, setThemeMode, TH
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
-import { fireTestReminder, describeReminderChannel } from '../notifications';
+import { fireTestReminder, describeReminderChannel, hideNotificationDetails, setHideNotificationDetails } from '../notifications';
 import { playReminderTone } from '../sound/reminderTone';
 import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
@@ -156,6 +156,7 @@ export default function SettingsScreen() {
   });
   const [weatherOn, setWeatherOn] = useState(true);
   // Opt-in: an install that never opens this panel notifies as it always did.
+  const [hideDetails, setHideDetails] = useState(true);
   const [quietOn, setQuietOn] = useState(false);
   const [quietStart, setQuietStart] = useState(DEFAULT_QUIET_START);
   const [quietEnd, setQuietEnd] = useState(DEFAULT_QUIET_END);
@@ -183,6 +184,8 @@ export default function SettingsScreen() {
 
       const lang = await getLanguage();
       setCurrentLanguage(lang);
+
+      setHideDetails(await hideNotificationDetails());
 
       const loaded: Record<string, boolean> = {};
       for (const tp of NOTIF_TOPICS) {
@@ -387,6 +390,19 @@ export default function SettingsScreen() {
                 On by default. It sends your approximate location — rounded to about 11 km, not
                 your address — to open-meteo.com to get the UV window. Turn it off and nothing
                 is sent.
+              </Text>
+
+              <View style={[styles.notifRow, { marginTop: space.md }]}>
+                <Text style={styles.notifLabel}>{t('setHideDetails')}</Text>
+                <Switch
+                  value={hideDetails}
+                  onValueChange={async (v) => { hSelect(); setHideDetails(v); await setHideNotificationDetails(v); }}
+                  trackColor={{ false: C.sunken, true: C.primary }} thumbColor={C.surface}
+                  accessibilityLabel={t('setHideDetails')}
+                />
+              </View>
+              <Text style={styles.notifHint}>
+                {Platform.OS === 'ios' ? t('setHideDetailsHintIos') : t('setHideDetailsHintAndroid')}
               </Text>
 
               {/* Hear one before it matters.

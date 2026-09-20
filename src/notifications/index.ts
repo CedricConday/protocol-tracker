@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
-import { getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress } from '../db/queries';
+import { getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, getMiscFlag, setMiscFlag } from '../db/queries';
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
 import { isQuietAt } from './quietHours';
@@ -121,6 +121,61 @@ export const fireTestReminder = async (delaySeconds = 10): Promise<string> => {
   });
 };
 
+/**
+ * Lock-screen privacy, on both platforms rather than one (2026-09-20).
+ *
+ * Android has hidden notification content on the lock screen since these
+ * channels existed: `lockscreenVisibility: PRIVATE` shows the app's name on the
+ * lock screen and the detail only after unlocking. iOS has no equivalent the app
+ * can set — previews are a user-side setting the app cannot reach — so every
+ * reminder has been putting the patient's NAME and the SUPPLEMENT on the lock
+ * screen of every iPhone, in full, by default. "Time for your 40,000 IU Vitamin
+ * D3, the first user" read by whoever picks the phone up.
+ *
+ * Parity is therefore not a matter of copying Android's flag: on iOS the only
+ * thing the app controls is what it puts in the notification. So when this is on
+ * — and it is on by default, because the safe side is the default for medical
+ * content — iOS reminders carry no name and no supplement, just enough to bring
+ * the patient into the app, where the detail is behind the biometric gate.
+ *
+ * Android keeps its full text, because PRIVATE already hides it until unlock and
+ * that is strictly better: the detail is there the moment it is safe to show.
+ * Same guarantee, different mechanism, which is what parity means here.
+ */
+export const PRIVATE_NOTIF_FLAG = 'notif_hide_details';
+
+let hideDetailsCache: boolean | null = null;
+
+export const hideNotificationDetails = async (): Promise<boolean> => {
+  if (hideDetailsCache !== null) return hideDetailsCache;
+  try {
+    const flag = await getMiscFlag(PRIVATE_NOTIF_FLAG);
+    hideDetailsCache = flag === null ? true : flag === '1';
+  } catch {
+    // Unreadable setting: assume the private side. A reminder that says too
+    // little is a nuisance; one that says too much cannot be taken back.
+    hideDetailsCache = true;
+  }
+  return hideDetailsCache;
+};
+
+export const setHideNotificationDetails = async (on: boolean): Promise<void> => {
+  hideDetailsCache = on;
+  await setMiscFlag(PRIVATE_NOTIF_FLAG, on ? '1' : '0');
+};
+
+/**
+ * The title and body as they should reach the lock screen.
+ *
+ * Only iOS is rewritten — see the note above. Everything else passes through
+ * untouched, so a change to the copy lands in one place rather than five.
+ */
+const forLockScreen = async (title: string, body: string): Promise<{ title: string; body: string }> => {
+  if (Platform.OS !== 'ios') return { title, body };
+  if (!(await hideNotificationDetails())) return { title, body };
+  return { title: t('notifPrivateTitle'), body: t('notifPrivateBody') };
+};
+
 export const CHANNEL = {
   supplements: 'supplements-v2',
   water: 'water-v2',
@@ -143,10 +198,14 @@ export const scheduleSupplementNotification = async (params: {
       console.log('[Protocol Tracker Notifications] Supplement reminder falls in quiet hours — not scheduled');
       return '';
     }
+    const shown = await forLockScreen(
+      t('notifDoseTitle', { dose: params.doseAmount, supplement: params.supplementName, name: patientName }),
+      params.notes ?? t('notifDoseBody'),
+    );
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: t('notifDoseTitle', { dose: params.doseAmount, supplement: params.supplementName, name: patientName }),
-        body: params.notes ?? t('notifDoseBody'),
+        title: shown.title,
+        body: shown.body,
         sound: true,
         categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },
@@ -205,6 +264,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
     // for the rest of the day reported the same stale figure — usually "0 ml".
     // It states the ask and the goal, both of which are still true when it fires.
     const body = t('notifWaterBody', { name: patientName, amount: WATER_NUDGE_ML, goal: progress.goalMl });
+    const water = await forLockScreen(t('notifWaterTitle'), body);
 
     let skipped = 0;
     const notifications: Promise<string | null>[] = [];
@@ -221,8 +281,8 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
       notifications.push(
         Notifications.scheduleNotificationAsync({
           content: {
-            title: t('notifWaterTitle'),
-            body,
+            title: water.title,
+            body: water.body,
             sound: true,
             data: { type: 'water' },
             // Without this the reminder lands on the default channel instead of
@@ -259,10 +319,14 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
       console.log('[Protocol Tracker Notifications] Exercise reminder falls in quiet hours — not scheduled');
       return;
     }
+    const ex = await forLockScreen(
+      t('notifExerciseTitle'),
+      t('notifExerciseBody', { name: patientName }),
+    );
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: t('notifExerciseTitle'),
-        body: t('notifExerciseBody', { name: patientName }),
+        title: ex.title,
+        body: ex.body,
         sound: true,
         data: { type: 'exercise' },
         ...android(CHANNEL.exercise),
@@ -304,10 +368,11 @@ export const scheduleMorningReminder = async (): Promise<void> => {
       body += t('notifLowStock', { names: lowNames });
     }
 
+    const morningShown = await forLockScreen(t('notifMorningTitle'), body);
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: t('notifMorningTitle'),
-        body,
+        title: morningShown.title,
+        body: morningShown.body,
         sound: true,
         data: { type: 'morning' },
         ...android(CHANNEL.supplements),
@@ -333,10 +398,14 @@ export const scheduleMissedDoseAlert = async (supplementName: string, scheduledT
       console.log('[Protocol Tracker Notifications] Missed-dose alert falls in quiet hours — not scheduled');
       return '';
     }
+    const missed = await forLockScreen(
+      t('notifMissedTitle'),
+      t('notifMissedBody', { name: patientName, supplement: supplementName }),
+    );
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: t('notifMissedTitle'),
-        body: t('notifMissedBody', { name: patientName, supplement: supplementName }),
+        title: missed.title,
+        body: missed.body,
         sound: true,
         data: { type: 'missed', supplementName },
         ...android(CHANNEL.supplements),
