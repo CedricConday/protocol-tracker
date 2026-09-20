@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAnchor, getDaySummary, getStreak, getMiscFlag, setMiscFlag,
@@ -10,6 +10,7 @@ import {
 import { getTodaySchedule } from '../engine/scheduler';
 import { checkAndGenerateWeeklyReport, weeklyReportDue } from '../utils/autoReport';
 import { clearAppBadge } from '../notifications';
+import { playReminderTone } from '../sound/reminderTone';
 import type { MedicalEvent } from '../types';
 import { useToday } from './useToday';
 
@@ -66,6 +67,11 @@ export function useHomeScreen(navigation: any) {
   // DATA follows the day on its own. `today` is here for the boundary itself:
   // the poll is paused while the app is backgrounded, and this fires the moment
   // it returns to the foreground on a new day rather than up to a minute later.
+  // Which doses were already due at the last reading. `null` until the first
+  // load: an app opened onto a day that already has overdue doses should not
+  // announce them as if they had just arrived.
+  const knownDueIds = useRef<string | null>(null);
+
   const today = useToday();
 
   const loadDay = useCallback(async () => {
@@ -79,6 +85,25 @@ export function useHomeScreen(navigation: any) {
       const schedule = await getTodaySchedule();
       setDoses(schedule);
       const dueCount = schedule.filter((d) => d.status === 'due').length;
+
+      // A dose that has just come due makes a sound, from the app itself.
+      //
+      // The notification channel is still the primary path; this is the one that
+      // works where the OS swallows it (ChromeOS draws ARC notifications itself,
+      // and nothing the app sets on the Android channel reaches the speaker
+      // there). Only the TRANSITION fires it: the poll runs every 60 seconds and
+      // a dose stays 'due' for hours, so comparing against the previous reading
+      // is what stops this becoming an alarm every minute until the dose is
+      // taken. Ids, not the count — one dose taken and another falling due in
+      // the same minute leaves the count unchanged and is still a new reminder.
+      const dueIds = schedule.filter((d) => d.status === 'due').map((d) => d.id).sort().join(',');
+      const known = knownDueIds.current;
+      if (known !== null && dueIds !== known) {
+        const previous = new Set(known ? known.split(',') : []);
+        const isNew = schedule.some((d) => d.status === 'due' && !previous.has(String(d.id)));
+        if (isNew) playReminderTone().catch(() => {});
+      }
+      knownDueIds.current = dueIds;
       navigation.getParent()?.setOptions({ tabBarBadge: dueCount > 0 ? dueCount : undefined });
     } else {
       setT0(null);

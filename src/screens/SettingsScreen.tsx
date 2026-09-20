@@ -29,6 +29,7 @@ import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } 
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
 import { fireTestReminder, describeReminderChannel } from '../notifications';
+import { playReminderTone } from '../sound/reminderTone';
 import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
 
@@ -403,6 +404,11 @@ export default function SettingsScreen() {
                     // reminder lands silently, this says whether the phone was
                     // ever told to make a sound, which is the difference
                     // between an app bug and a device setting.
+                    // Play the app's own tone straight away as well. On a
+                    // device where the OS swallows notification sound this is
+                    // the only half the user will hear, and it is the half that
+                    // now fires when a dose comes due.
+                    await playReminderTone({ force: true });
                     const diag = await describeReminderChannel();
                     Alert.alert(t('setTestSoundTitle'), `${t('setTestSoundSent')}\n\n${diag}`);
                   } catch {
