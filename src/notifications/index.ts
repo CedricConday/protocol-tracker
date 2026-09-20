@@ -54,6 +54,51 @@ export const clearAppBadge = async (): Promise<void> => {
   }
 };
 
+/**
+ * Android channel ids. Bumped to `-v2` on 2026-09-20 when the sound was added,
+ * because a channel cannot be changed after the device has seen it — see the
+ * note in `configureNotificationChannels`. Anything scheduled on Android must
+ * name one of these; a notification with no channel lands in a default channel
+ * this app does not control.
+ */
+/**
+ * Fire one real reminder, now, so the sound can be heard before it matters.
+ *
+ * Added 2026-09-20: reminders were arriving silently and there was no way to
+ * check a fix without waiting for a scheduled dose. This goes through the same
+ * channel, the same content shape and the same handler as a supplement
+ * reminder, so what it sounds like is what a real one will sound like — a test
+ * that took a different path would prove nothing.
+ *
+ * Five seconds rather than immediately, on purpose: it gives you time to lock
+ * the phone, which is also the state a real reminder arrives in and the one
+ * where a silent channel is easiest to miss.
+ */
+export const fireTestReminder = async (delaySeconds = 5): Promise<string> => {
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title: t('notifTestTitle'),
+      body: t('notifTestBody'),
+      sound: true,
+      data: { type: 'test' },
+      ...android(CHANNEL.supplements),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: Math.max(1, delaySeconds),
+    },
+  });
+};
+
+export const CHANNEL = {
+  supplements: 'supplements-v2',
+  water: 'water-v2',
+  exercise: 'exercise-v2',
+  general: 'general-v2',
+} as const;
+
+const android = (channelId: string) => (Platform.OS === 'android' ? { channelId } : {});
+
 export const scheduleSupplementNotification = async (params: {
   id: string;
   supplementName: string;
@@ -75,6 +120,7 @@ export const scheduleSupplementNotification = async (params: {
         categoryIdentifier: 'supplement',
         data: { doseId: params.id, type: 'supplement' },
         badge: Math.min(params.pendingCount ?? 1, 9),
+        ...android(CHANNEL.supplements),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -151,7 +197,7 @@ export const scheduleWaterReminders = async (t0: Date, endTime: Date): Promise<v
             // Without this the reminder lands on the default channel instead of
             // the DEFAULT-importance 'water' one declared in setupAndroidChannels,
             // so it arrived with a dose reminder's urgency. Ignored on iOS.
-            ...(Platform.OS === 'android' ? { channelId: 'water' } : {}),
+            ...android(CHANNEL.water),
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -188,6 +234,7 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
         body: t('notifExerciseBody', { name: patientName }),
         sound: true,
         data: { type: 'exercise' },
+        ...android(CHANNEL.exercise),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -232,6 +279,7 @@ export const scheduleMorningReminder = async (): Promise<void> => {
         body,
         sound: true,
         data: { type: 'morning' },
+        ...android(CHANNEL.supplements),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -260,6 +308,7 @@ export const scheduleMissedDoseAlert = async (supplementName: string, scheduledT
         body: t('notifMissedBody', { name: patientName, supplement: supplementName }),
         sound: true,
         data: { type: 'missed', supplementName },
+        ...android(CHANNEL.supplements),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -288,6 +337,7 @@ export const scheduleEndOfDaySummary = async (t0: Date): Promise<void> => {
         body: t('notifSummaryBody', { name: patientName }),
         sound: true,
         data: { type: 'summary' },
+        ...android(CHANNEL.general),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -469,25 +519,51 @@ export const setupAndroidChannels = (): void => {
   // Settings → Notifications → Protocol Tracker for the equivalent effect.
   const PRIVATE = Notifications.AndroidNotificationVisibility.PRIVATE;
 
-  Notifications.setNotificationChannelAsync('supplements', {
+  // Every channel names its sound explicitly (2026-09-20).
+  //
+  // Reminders fired and were silent. `sound: true` in the notification content
+  // is an iOS instruction; on Android the CHANNEL owns the sound, and these four
+  // were created without one — so Android took the channel at its word and
+  // played nothing, on every reminder, for as long as the channels have existed.
+  //
+  // The `-v2` suffixes are not tidiness. **A channel is immutable once created**:
+  // Android ignores changes to the sound, importance or vibration of a channel
+  // id that already exists on the device, so adding `sound` to `supplements`
+  // would have fixed nothing on any phone that had already run the app — which
+  // is every phone that matters. New ids are the only way the setting reaches an
+  // existing install. The old silent channels are deleted so the system settings
+  // screen does not list eight channels, four of which do nothing.
+  const OLD_CHANNELS = ['supplements', 'water', 'exercise', 'general'];
+  OLD_CHANNELS.forEach((id) => { Notifications.deleteNotificationChannelAsync(id).catch(() => {}); });
+
+  Notifications.setNotificationChannelAsync(CHANNEL.supplements, {
     name: 'Supplements',
     importance: Notifications.AndroidImportance.HIGH,
     lockscreenVisibility: PRIVATE,
+    sound: 'default',
+    vibrationPattern: [0, 250, 250, 250],
   }).catch(() => {});
 
-  Notifications.setNotificationChannelAsync('water', {
+  Notifications.setNotificationChannelAsync(CHANNEL.water, {
     name: 'Water Reminders',
     importance: Notifications.AndroidImportance.DEFAULT,
     lockscreenVisibility: PRIVATE,
+    sound: 'default',
+    vibrationPattern: [0, 200],
   }).catch(() => {});
 
-  Notifications.setNotificationChannelAsync('exercise', {
+  Notifications.setNotificationChannelAsync(CHANNEL.exercise, {
     name: 'Exercise',
     importance: Notifications.AndroidImportance.DEFAULT,
     lockscreenVisibility: PRIVATE,
+    sound: 'default',
+    vibrationPattern: [0, 200],
   }).catch(() => {});
 
-  Notifications.setNotificationChannelAsync('general', {
+  // Deliberately silent: the end-of-day summary is a note to read later, not
+  // something to interrupt an evening. LOW importance makes no sound by design
+  // on Android, so this one is quiet on purpose rather than by omission.
+  Notifications.setNotificationChannelAsync(CHANNEL.general, {
     name: 'General',
     importance: Notifications.AndroidImportance.LOW,
     lockscreenVisibility: PRIVATE,

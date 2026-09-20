@@ -28,6 +28,7 @@ import { C, space, radius, shadow, text as T, themed, useTheme, setThemeMode, TH
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
+import { fireTestReminder } from '../notifications';
 import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
 
@@ -386,6 +387,30 @@ export default function SettingsScreen() {
                 your address — to open-meteo.com to get the UV window. Turn it off and nothing
                 is sent.
               </Text>
+
+              {/* Hear one before it matters.
+                  Reminders were firing silently on Android because the channels
+                  carried no sound; this fires a real one through the real
+                  channel so the fix can be checked in five seconds instead of at
+                  the next scheduled dose. */}
+              <Pressable
+                style={[styles.notifRow, { marginTop: space.md }]}
+                onPress={async () => {
+                  hPress();
+                  try {
+                    await fireTestReminder(5);
+                    Alert.alert(t('setTestSoundTitle'), t('setTestSoundSent'));
+                  } catch {
+                    Alert.alert(t('setTestSoundTitle'), t('setTestSoundFailed'));
+                  }
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('setTestSound')}
+              >
+                <Text style={styles.notifLabel}>{t('setTestSound')}</Text>
+                <Ionicons name="volume-high-outline" size={20} color={C.primary} />
+              </Pressable>
+              <Text style={styles.notifHint}>{t('setTestSoundHint')}</Text>
 
               <View style={[styles.notifRow, { marginTop: space.md }]}>
                 <Text style={styles.notifLabel}>{t('quietHours')}</Text>
