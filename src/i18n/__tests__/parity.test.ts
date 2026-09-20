@@ -56,6 +56,9 @@ describe('en/de parity', () => {
       // Supplement form bubbles, 2026-09-17:
       'fieldForm',            // Form — the dosage form, same word in German
       'shColForm',            // Form — same column, same word, in the document
+      // Lock-screen privacy, 2026-09-20:
+      'notifPrivateTitle',    // Protocol Tracker — the product name, deliberately
+                              // the whole of what a private reminder reveals
     ]);
     const identical = Object.keys(en).filter(
       (k) => k in de && en[k] === de[k] && String(en[k]).trim().length > 3 && !allowed.has(k),
