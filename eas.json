@@ -20,14 +20,5 @@
       "autoIncrement": true,
       "channel": "production"
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "REPLACE-ME@example.com",
-        "ascAppId": "REPLACE-ME",
-        "appleTeamId": "REPLACE-ME"
-      }
-    }
   }
 }

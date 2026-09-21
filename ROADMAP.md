@@ -3,7 +3,8 @@
 Product direction — what was deferred, what was removed and why, what is being considered.
 
 > **This file holds direction and reasoning, not open tasks.** It records what was
-> deferred, what was removed and why. Actionable work is tracked in the issue tracker.
+> deferred, what was removed and why. It is not a backlog: nothing here is a commitment
+> or a dated plan. Bugs and feature requests belong in GitHub Issues.
 
 ## Deferred — pulled out to ship as a pure tracker (2026-07-01)
 
