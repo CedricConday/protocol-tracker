@@ -148,7 +148,7 @@
           "heading": "4. Wetter und UV-Index (optional)",
           "body": [
             "Ist die Wetterkarte eingeschaltet, fragt die App Ihren ungefähren Standort über das Betriebssystem ab und sendet die Koordinaten an open-meteo.com (Open-Meteo, Bühlstraße 60, 9424 Rheineck, Schweiz), um Wetter, UV-Index und Luftqualität abzurufen.",
-            "Übermittelt werden ausschließlich die Koordinaten — keine Gesundheitsdaten, keine Kennung und nichts, was Sie identifiziert. Die Funktion ist abschaltbar; ist sie aus, wird weder die Standortberechtigung angefragt noch eine Verbindung aufgebaut. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die Sie jederzeit in den Einstellungen widerrufen können."
+            "Übermittelt werden ausschließlich die Koordinaten — keine Gesundheitsdaten, keine Kennung und nichts, was Sie identifiziert. Die App fragt den Standort nur mit grober Genauigkeit ab; die Android-Berechtigung umfasst technisch auch den genauen Standort, weil das Standort-Modul sie so deklariert, genutzt wird er nicht. Die Funktion ist abschaltbar; ist sie aus, wird weder die Standortberechtigung angefragt noch eine Verbindung aufgebaut. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die Sie jederzeit in den Einstellungen widerrufen können."
           ]
         },
         {
@@ -226,7 +226,7 @@
           "heading": "4. Weather and UV index (optional)",
           "body": [
             "When the weather card is switched on, the app asks the operating system for your approximate location and sends those coordinates to open-meteo.com (Open-Meteo, Bühlstraße 60, 9424 Rheineck, Switzerland) to retrieve weather, UV index and air quality.",
-            "Only the coordinates are sent — no health data, no identifier and nothing that identifies you. The feature can be turned off; when it is off, no location permission is requested and no connection is made. The legal basis is your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time in Settings."
+            "Only the coordinates are sent — no health data, no identifier and nothing that identifies you. The app requests location at coarse accuracy only; the Android permission technically also covers precise location, because the location module declares it that way, but precise location is never used. The feature can be turned off; when it is off, no location permission is requested and no connection is made. The legal basis is your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time in Settings."
           ]
         },
         {
