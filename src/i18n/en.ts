@@ -408,7 +408,7 @@ export const en: Record<string, string> = {
   aboutFeat9: 'Biometric lock',
   aboutFeat10: 'English and German',
   aboutPrivacy: 'Your data is stored on this device. Nothing leaves it unless you export or share it yourself.',
-  aboutDisclaimer: 'Not medical advice. Discuss all results with your prescribing practitioner.',
+  aboutDisclaimer: 'Not a medical device: no intended purpose within the meaning of the MDR, no CE marking. Not medical advice — discuss all results with your prescribing practitioner.',
   aboutBy: 'by CondayDigital',
   setLoadDemo: 'Load 60-day demo history',
   setClearDemo: 'Clear the last 60 days',

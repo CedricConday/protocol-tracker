@@ -408,7 +408,7 @@ export const de: Record<string, string> = {
   aboutFeat9: 'Biometrische Sperre',
   aboutFeat10: 'Deutsch und Englisch',
   aboutPrivacy: 'Deine Daten liegen auf diesem Gerät. Nichts verlässt es, außer du exportierst oder teilst es selbst.',
-  aboutDisclaimer: 'Keine medizinische Beratung. Besprich alle Ergebnisse mit deiner behandelnden Ärztin oder deinem Arzt.',
+  aboutDisclaimer: 'Kein Medizinprodukt: keine Zweckbestimmung im Sinne der MDR, keine CE-Kennzeichnung. Keine medizinische Beratung — besprich alle Ergebnisse mit deiner behandelnden Ärztin oder deinem Arzt.',
   aboutBy: 'von CondayDigital',
   setLoadDemo: '60-Tage-Demoverlauf laden',
   setClearDemo: 'Die letzten 60 Tage löschen',
