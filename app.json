@@ -72,6 +72,9 @@
       "ios",
       "android",
       "web"
-    ]
+    ],
+    "experiments": {
+      "baseUrl": "/try"
+    }
   }
 }
