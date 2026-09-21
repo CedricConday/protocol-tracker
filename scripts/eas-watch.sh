@@ -63,7 +63,8 @@ LOGDIR="$HOME/.cache/eas-watch"
 mkdir -p "$LOGDIR"
 
 echo "watching build $BUILD_ID  (every ${INTERVAL}s)"
-echo "https://expo.dev/accounts/<expo-account>/projects/protocol-tracker/builds/$BUILD_ID"
+ACCOUNT="${EXPO_ACCOUNT:-$(eas whoami 2>/dev/null | head -1)}"
+echo "https://expo.dev/accounts/${ACCOUNT}/projects/protocol-tracker/builds/$BUILD_ID"
 
 Q_STATUS='{"query":"query($id:ID!){builds{byId(buildId:$id){status queuePosition estimatedWaitTimeLeftSeconds artifacts{buildUrl applicationArchiveUrl}}}}","variables":{"id":"'"$BUILD_ID"'"}}'
 
