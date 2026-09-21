@@ -117,8 +117,9 @@ from `--branch` and the command refuses to run without it.
 
 **The branch must match the installed build's channel.** Internal testers run the
 `preview` profile APK, so they read the `preview` branch; `--branch production` only
-reaches store builds, of which there are none. Nothing publishes automatically — no CI
-job, hook or timer runs this, so a pushed commit is not a shipped commit.
+reaches store builds, of which there are none. Nothing publishes automatically — this
+repo has no CI workflows at all, so a pushed commit is not a shipped commit. Publishing
+and building are both run by hand, from a checkout.
 
 Requires `qemu-user-static` on aarch64 hosts, `runtimeVersion: exposdk:57.0.0`, and `platforms: ["ios","android"]`.
 
