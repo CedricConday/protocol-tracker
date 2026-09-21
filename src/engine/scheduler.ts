@@ -1,6 +1,6 @@
 import { getAnchor, getProfile, getMiscFlag, todayStr, localDateStr } from '../db/queries';
 import { getScheduleRules, setT0, createDoseLogs, getDoseLogs, markOverdueDoses } from '../db/queries';
-import { scheduleExerciseReminder, scheduleEndOfDaySummary, scheduleMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications, scheduleWaterReminders } from '../notifications';
+import { scheduleExerciseReminder, scheduleEndOfDaySummary, cancelMorningReminder, scheduleSupplementNotification, cancelSupplementNotifications, scheduleWaterReminders } from '../notifications';
 import type { ScheduledDose, DoseStatus } from '../types';
 import { ruleFiresOn, cadenceOf } from './cadence';
 
@@ -118,7 +118,9 @@ export async function startDay(t0: Date = new Date()): Promise<ScheduledDose[]> 
   scheduleWaterReminders(t0, new Date(t0Ms + WATER_WINDOW_MS)).catch(() => {});
   scheduleExerciseReminder(t0).catch(() => {});
   scheduleEndOfDaySummary(t0).catch(() => {});
-  scheduleMorningReminder().catch(() => {});
+  // Not a reminder any more: clears the retired 09:00 "Start Your Day" notification
+  // off devices that still have it scheduled. See notifications/index.ts.
+  cancelMorningReminder().catch(() => {});
 
   // Read the schedule back out of the rows we just created, rather than
   // rebuilding it from the rules. The rebuild produced objects with a

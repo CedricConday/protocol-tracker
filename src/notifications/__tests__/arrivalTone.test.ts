@@ -71,7 +71,7 @@ describe('an arriving reminder sounds from the app, not only from the OS', () =>
     expect(received).toBeTypeOf('function');
   });
 
-  for (const type of ['supplement', 'water', 'exercise', 'morning', 'missed', 'test']) {
+  for (const type of ['supplement', 'water', 'exercise', 'missed', 'test']) {
     it(`plays the tone for a ${type} reminder`, async () => {
       await arrive(type);
       expect(playReminderTone).toHaveBeenCalledTimes(1);

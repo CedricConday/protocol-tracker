@@ -17,7 +17,7 @@ vi.mock('../../notifications', () => ({
   scheduleWaterReminders: (...a: unknown[]) => scheduleWaterReminders(...(a as [])),
   scheduleExerciseReminder: vi.fn(),
   scheduleEndOfDaySummary: vi.fn(),
-  scheduleMorningReminder: vi.fn(),
+  cancelMorningReminder: vi.fn(),
   scheduleSupplementNotification: vi.fn(),
   cancelSupplementNotifications: vi.fn(),
 }));

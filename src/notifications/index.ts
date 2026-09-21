@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import { Alert } from 'react-native';
 import { Platform } from 'react-native';
 import { CHECK_DOSES, registerBackgroundTask } from './backgroundTask';
-import { getAverageStartTime, getLowStockSupplements, getPatientName, getWaterProgress, getMiscFlag, setMiscFlag } from '../db/queries';
+import { getPatientName, getWaterProgress, getMiscFlag, setMiscFlag } from '../db/queries';
 import { getDb } from '../db/schema';
 import { navigate } from '../navigation/navigationRef';
 import { isQuietAt } from './quietHours';
@@ -345,50 +345,29 @@ export const scheduleExerciseReminder = async (t0: Date): Promise<void> => {
   }
 };
 
-export const scheduleMorningReminder = async (): Promise<void> => {
+/**
+ * The 09:00 "Start Your Day" reminder is GONE (2026-09-21, Cedric).
+ *
+ * The app's premise is that the user starts their own day — t0 is their choice,
+ * and every dose time is computed from it. A notification that tells them when
+ * to start defeats exactly that. It also drifted: 09:00 under Expo Go, 10:00 in
+ * the standalone build.
+ *
+ * This replaces it and stays, because removing the scheduling does not unschedule
+ * what is already sitting on a device. `scheduleDay` calls this, so the first
+ * "Start My Day" after the update clears it for good.
+ */
+export const cancelMorningReminder = async (): Promise<void> => {
   try {
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    const alreadySet = scheduled.some(n => n.content.data?.type === 'morning');
-    if (alreadySet) return;
-
-    const morning = new Date();
-    morning.setHours(9, 0, 0, 0);
-    if (await isQuietAt(morning)) {
-      console.log('[Protocol Tracker Notifications] 09:00 start reminder falls in quiet hours — not scheduled');
-      return;
-    }
-
-    const avgTime = await getAverageStartTime();
-    let body = avgTime
-      ? t('notifMorningKnown', { name: patientName, time: avgTime })
-      : t('notifMorningUnknown', { name: patientName });
-
-    const lowStock = await getLowStockSupplements();
-    if (lowStock.length > 0) {
-      const lowNames = lowStock.map((s) => t('notifLowStockDays', { name: s.name, days: s.stock_days })).join(', ');
-      body += t('notifLowStock', { names: lowNames });
-    }
-
-    const morningShown = await forLockScreen(t('notifMorningTitle'), body);
-    const identifier = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: morningShown.title,
-        body: morningShown.body,
-        sound: true,
-        data: { type: 'morning' },
-        ...android(CHANNEL.supplements),
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 9,
-        minute: 0,
-      },
-    });
-
-    console.log(`[Protocol Tracker Notifications] Scheduled morning reminder ${identifier}`);
+    const all = await Notifications.getAllScheduledNotificationsAsync();
+    const ids = all
+      .filter((n) => n.content.data?.type === 'morning')
+      .map((n) => n.identifier);
+    if (ids.length === 0) return;
+    await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
+    console.log(`[Protocol Tracker Notifications] Cancelled ${ids.length} legacy morning reminder(s)`);
   } catch (error) {
-    console.error('[Protocol Tracker Notifications] Error scheduling morning reminder:', error);
-    throw error;
+    console.error('[Protocol Tracker Notifications] Error cancelling morning reminder:', error);
   }
 };
 
@@ -532,7 +511,7 @@ export const skipDoseFromNotification = async (doseId: number): Promise<void> =>
  *
  * Quiet hours are honoured, because `playReminderTone` honours them unforced.
  */
-const TONE_TYPES = new Set(['supplement', 'water', 'exercise', 'morning', 'missed', 'test']);
+const TONE_TYPES = new Set(['supplement', 'water', 'exercise', 'missed', 'test']);
 
 export const setupNotificationHandler = (): void => {
   setupAndroidChannels();
@@ -637,6 +616,8 @@ export const setupNotificationHandler = (): void => {
         navigate('Summary');
         break;
       case 'morning':
+        // No longer scheduled (see cancelMorningReminder). Kept so a legacy
+        // notification already delivered on a device still lands somewhere sane.
         navigate('Home');
         break;
       case 'events':
