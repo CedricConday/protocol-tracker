@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import Navigation from './src/navigation';
 import { initDb, getDb } from './src/db/schema';
 import { seedDb } from './src/db/seed';
+import { seedWebDemo } from './src/db/demoSeed';
 import { runMigrations } from './src/db/migrations';
 import { getLanguage } from './src/i18n';
 import { loadThemeMode, useTheme } from './src/theme/colors';
@@ -109,6 +110,10 @@ export default function App() {
             await runMigrations(db);
             await initDb();
             await seedDb();
+            // No-op unless EXPO_PUBLIC_DEMO=1 was set at export time, which
+            // only the /try/ web build is. Inlined by Expo, so the Android
+            // build cannot reach it.
+            await seedWebDemo();
           })(),
         ]);
 
