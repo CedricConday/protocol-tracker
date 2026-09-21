@@ -21,7 +21,7 @@
         "backgroundColor": "#F7FAFE"
       },
       "package": "com.protocoltracker.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
