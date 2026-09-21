@@ -16,6 +16,7 @@ import AboutScreen from '../screens/AboutScreen';
 import AccountSettingsScreen from '../screens/AccountSettingsScreen';
 import CoachingStyleScreen from '../screens/CoachingStyleScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
+import { ImpressumScreen, PrivacyPolicyScreen } from '../screens/LegalDocumentScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import HomeScreen from '../screens/HomeScreen';
 import JournalScreen from '../screens/JournalScreen';
@@ -140,6 +141,21 @@ function SettingsNavigator() {
         name="Feedback"
         component={FeedbackScreen}
         options={{ ...SUB_HEADER, title: t('navSendFeedback'), animation: 'slide_from_right' }}
+      />
+      {/*
+        Two taps from the Settings tab, which is what § 5 DDG's "reachable in
+        at most two steps" means here, and both render bundled text so they
+        work with no network.
+      */}
+      <SettingsNav.Screen
+        name="Impressum"
+        component={ImpressumScreen}
+        options={{ ...SUB_HEADER, title: t('navImpressum'), animation: 'slide_from_right' }}
+      />
+      <SettingsNav.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ ...SUB_HEADER, title: t('navPrivacy'), animation: 'slide_from_right' }}
       />
     </SettingsNav.Navigator>
   );

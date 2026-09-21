@@ -488,7 +488,16 @@ export default function SettingsScreen() {
               onPress={() => setShareOpen(true)}
             />
             <Row icon="chatbox-ellipses-outline"    label={t('sendFeedback')}  onPress={() => navigation.navigate('Feedback')} />
-            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} last />
+            <Row icon="information-circle-outline"  label={t('aboutRow')}          onPress={() => navigation.navigate('About')} />
+            {/* § 5 DDG: the provider details have to be reachable in at most
+                two steps and readable offline. This row is the second step. */}
+            <Row
+              icon="shield-checkmark-outline"
+              label={t('privacyRow')}
+              sub={t('legalSub')}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            />
+            <Row icon="document-text-outline"       label={t('impressumRow')}      onPress={() => navigation.navigate('Impressum')} last />
           </Group>
 
 
