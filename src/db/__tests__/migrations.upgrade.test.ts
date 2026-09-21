@@ -16,7 +16,7 @@ import { initDbOn } from '../schema';
 /**
  * The upgrade path, run against a real database (2026-09-20).
  *
- * the first user's tablet will not get a fresh install — it gets whatever prerelease
+ * The first real install will not be a fresh install — it gets whatever prerelease
  * build is on it, upgraded in place. Nothing had ever run the migration chain
  * from an old recorded version to the newest one, so "your data survives the
  * update" was an assumption. This runs the real boot path (`runMigrations` then

@@ -32,7 +32,7 @@
 //
 // Data is never hand-inserted: every row in the export was written by the app's
 // own code paths, driven through the UI.
-import { chromium } from '/home/ubuntu/.npm/_npx/705bc6b22212b352/node_modules/playwright/index.mjs';
+import { chromium } from './lib/playwright.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 

@@ -2,7 +2,7 @@
 // The web target is a stand-in for the device: it exercises the same React tree,
 // the same SQLite schema (expo-sqlite runs on wa-sqlite here) and the same
 // navigation, so UI logic bugs surface without a phone in the loop.
-import { chromium } from '/home/ubuntu/.npm/_npx/705bc6b22212b352/node_modules/playwright/index.mjs';
+import { chromium } from './playwright.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 

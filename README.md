@@ -4,9 +4,35 @@
 
 Protocol Tracker is a React Native / Expo app for tracking supplement schedules, dose compliance, symptoms, and recovery progress on a high-dose Vitamin D3 therapy protocol. Built for autoimmune-disease patients (multiple sclerosis, lupus, psoriasis, vitiligo, rheumatoid arthritis, Hashimoto's, Crohn's, type 1 diabetes) who follow strict daily protocols requiring precise timing, dose stacking discipline, and long-horizon tracking.
 
-> **Origin**: built for one patient manage a high-dose Vitamin D3 therapy for autoimmune disease. Generalizes to any patient following a structured supplementation protocol with timing windows and lab-driven titration.
+> **Origin**: written for one real patient on a strict daily protocol, then generalized. It applies to anyone following a structured supplementation regimen with timing windows and lab-driven titration.
 
-**Status:** feature-complete private build, not yet publicly released. Distributed through Expo Go + EAS Update; no App Store / Play Store listing yet.
+**Status:** feature-complete. Distributed as a direct-download Android APK; no App Store / Play Store listing yet. Installed builds take OTA updates over EAS Update.
+
+---
+
+## Download
+
+**Android APK — [latest release](https://github.com/CedricConday/protocol-tracker/releases/latest)**
+
+| | |
+|---|---|
+| Version | 1.0.0 (`versionCode` 4) |
+| File | `protocol-tracker-1.0.0.apk` (99 MB) |
+| SHA-256 | `bdf843cadc708a40c2e5732e0cfa260efea069a69516249b22907cab82522813` |
+| Minimum Android | 7.0 (API 24) |
+
+Verify before installing:
+
+```bash
+sha256sum protocol-tracker-1.0.0.apk
+```
+
+The build is signed with a self-managed key, not by Google Play, so Android will
+ask you to allow installs from your browser or file manager the first time. There
+is no iOS build — Apple has no sideloading route, and store submission is deferred.
+
+Installed builds pull OTA updates from the `preview` channel; a new APK is only
+needed when native config changes.
 
 ---
 
@@ -125,7 +151,7 @@ The app ships as a **pure tracker**: the user enters their own data and the app 
 
 ## Roadmap
 
-See [`ROADMAP.md`](./ROADMAP.md). Build sign-off and the remaining launch checklist: [`BUILD_NOTES_2026-07-07.md`](./BUILD_NOTES_2026-07-07.md) and [`STATUS.md`](./STATUS.md).
+See [`ROADMAP.md`](./ROADMAP.md) — what was deferred, what was removed and why, and what is under consideration.
 
 ---
 

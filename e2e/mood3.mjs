@@ -50,7 +50,7 @@
 // This script REPORTS. It fixes nothing and asserts nothing fatal — a probe
 // that throws is recorded and the run continues, because a sequence with a hole
 // in it is still evidence and a crashed run is not.
-import { chromium } from '/home/ubuntu/.npm/_npx/705bc6b22212b352/node_modules/playwright/index.mjs';
+import { chromium } from './lib/playwright.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 

@@ -3,7 +3,7 @@
 # Run it in your own screen/tmux window:
 #
 #   screen -S apk
-#   "$HOME/workspace/bet/protocol-tracker/scripts/gh-apk-watch.sh"
+#   ./scripts/gh-apk-watch.sh
 #   (ctrl-a d detaches, `screen -r apk` comes back)
 #
 # Success: downloads the artifact and prints the APK path and size.

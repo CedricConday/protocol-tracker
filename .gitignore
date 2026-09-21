@@ -60,3 +60,19 @@ design/palettes/protocol-tracker-palettes.html
 # folded-in research notes: named clinical material about a real person.
 # Lives with the app on this box, deliberately never enters git or GitHub.
 research/
+
+# internal running record: task lists, status logs, agent instructions, build
+# notes and the marketing hand-offs. They stay on this box at these paths and
+# are deliberately not part of the public repo (2026-09-21, pre-launch).
+/TASKS.md
+/PT-trio.md
+/STATUS.md
+/BUILD_NOTES_2026-07-07.md
+/AGENTS.md
+/CLAUDE.md
+/LAB_RESULTS.md
+/BACKTEST_60D.md
+/BACKTEST_PM30D.md
+/marketing/
+/docs/MARKETING.md
+/docs/HANDOFF_MRI_AUTOFILL.md

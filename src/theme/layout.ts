@@ -3,7 +3,7 @@ import { useWindowDimensions } from 'react-native';
 /**
  * Screen width, for the one thing the app does differently on a big screen.
  *
- * the first user's tablet is the first real install (2026-09-20), and until then every
+ * An Android tablet is the first real install (2026-09-20), and until then every
  * layout here assumed a phone: flex columns with percentage widths, which
  * stretch rather than break. Stretching is the problem — a 10" landscape screen
  * gave 60-word line lengths and controls spread to the far edges.

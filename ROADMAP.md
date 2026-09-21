@@ -2,11 +2,8 @@
 
 Product direction — what was deferred, what was removed and why, what is being considered.
 
-> **2026-09-20 — this file no longer holds open tasks.** `TASKS.md` is the only list for
-> Protocol Tracker. The "Open questions" below and the NotebookLM evaluation under
-> "Under consideration" were imported there on 2026-09-20 and are tracked in its `OPEN` half;
-> "Known drift" was too. They stay here as direction and reasoning. Anything actionable goes
-> to `TASKS.md`, not here.
+> **This file holds direction and reasoning, not open tasks.** It records what was
+> deferred, what was removed and why. Actionable work is tracked in the issue tracker.
 
 ## Deferred — pulled out to ship as a pure tracker (2026-07-01)
 
@@ -42,12 +39,12 @@ migrations that create them, and both tables in `exportAllData` — an install
 from before today still holds what its user typed, and an export is now the only
 way out. Nothing writes them any more. Code is in git at `HEAD` before this
 change (`src/screens/LabResultsScreen.tsx`, `src/screens/MriScreen.tsx`), and
-the parked vision auto-fill note is `docs/HANDOFF_MRI_AUTOFILL.md`.
+the parked vision auto-fill is recorded outside this repo.
 
 ## Under consideration
 
 ### Journal feature — LLM-backed structuring
-**Status:** ~~evaluating~~ **shelved 2026-09-20 on privacy grounds.** Every option on the table, NotebookLM included, sends the journal text to someone else's server, and the app's standing claim is that the data stays on the device. The path back is an on-device model, or a feature that sends counts and moods rather than prose — not a different vendor. Tracked in `TASKS.md` under CLOSED.
+**Status:** ~~evaluating~~ **shelved 2026-09-20 on privacy grounds.** Every option on the table, NotebookLM included, sends the journal text to someone else's server, and the app's standing claim is that the data stays on the device. The path back is an on-device model, or a feature that sends counts and moods rather than prose — not a different vendor.
 Evaluate **NotebookLM CLI** as the LLM backend for the symptom journal — summarization, query, and entry structuring. Free, fits the scope. A prior LiteLLM-routing approach was prototyped and removed; the goal is now to find the minimum-viable LLM integration that respects the user's privacy posture (user-supplied keys, on-device-first).
 
 ## Recently shipped
@@ -64,7 +61,7 @@ Evaluate **NotebookLM CLI** as the LLM backend for the symptom journal — summa
 Some advisory surfaces survived the pure-tracker cut and are still live: the food-pairing
 block in `src/components/DoseDetailModal.tsx` and contraindication fields in
 `src/db/schema.ts` / `queries.ts`. Keeping or stripping them is a product decision —
-see `STATUS.md`. _(The 12-month MRI banner went with `MriScreen.tsx` on 2026-09-17.)_
+see the git history. _(The 12-month MRI banner went with `MriScreen.tsx` on 2026-09-17.)_
 
 ## Open questions
 

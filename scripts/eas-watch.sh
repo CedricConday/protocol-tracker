@@ -2,7 +2,7 @@
 # Watch an EAS build to completion. Run it in your own screen/tmux window.
 #
 #   screen -S eas
-#   ~/worktrees/pt-harness/scripts/eas-watch.sh
+#   ./scripts/eas-watch.sh
 #   (ctrl-a d detaches, `screen -r eas` comes back)
 #
 # One status line per poll; rings the bell and exits when the build settles.

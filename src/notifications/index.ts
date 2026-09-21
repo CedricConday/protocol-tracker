@@ -131,7 +131,7 @@ export const fireTestReminder = async (delaySeconds = 10): Promise<string> => {
  * can set — previews are a user-side setting the app cannot reach — so every
  * reminder has been putting the patient's NAME and the SUPPLEMENT on the lock
  * screen of every iPhone, in full, by default. "Time for your 40,000 IU Vitamin
- * D3, the first user" read by whoever picks the phone up.
+ * D3, <the user's name>" read by whoever picks the phone up.
  *
  * Parity is therefore not a matter of copying Android's flag: on iOS the only
  * thing the app controls is what it puts in the notification. So when this is on

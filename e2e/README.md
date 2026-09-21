@@ -13,6 +13,19 @@ npm run e2e                # terminal 2: all flows
 npm run e2e onboarding     # one flow by name
 ```
 
+### Playwright
+
+Playwright is not a dependency of this app — it is several hundred megabytes of
+browsers that the shipped bundle never touches, so the harness borrows whatever
+copy the machine already has. `e2e/lib/playwright.mjs` looks in three places, in
+order: `$PT_PLAYWRIGHT` (an absolute path to `index.mjs`), a normal resolution
+from `node_modules`, then an npx-cached copy under `~/.npm/_npx/`. If you have
+none of those:
+
+```sh
+npm i -D playwright && npx playwright install chromium
+```
+
 Output lands in `e2e/report/`:
 
 - `report.md` — the human-readable audit
