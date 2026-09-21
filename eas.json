@@ -9,6 +9,7 @@
       "channel": "development"
     },
     "preview": {
+      "node": "24.16.0",
       "distribution": "internal",
       "autoIncrement": true,
       "android": {
