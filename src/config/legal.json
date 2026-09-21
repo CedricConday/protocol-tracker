@@ -1,0 +1,280 @@
+{
+  "impressum": {
+    "de": {
+      "title": "Impressum",
+      "intro": "Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz).",
+      "sections": [
+        {
+          "heading": "Diensteanbieter",
+          "body": [
+            "Cedric Conday",
+            "CondayDigital (Einzelunternehmen / Freiberufler)",
+            "c/o MDC#854\nWelserstraße 3\n87463 Dietmannsried\nDeutschland"
+          ]
+        },
+        {
+          "heading": "Kontakt",
+          "body": [
+            "Telefon: +49 172 5327581",
+            "E-Mail: cedric@condaydigital.com"
+          ]
+        },
+        {
+          "heading": "Berufsrechtliche Angaben",
+          "body": [
+            "Freiberufliche Tätigkeit gemäß § 18 EStG (selbständige Tätigkeit, kein Gewerbe)."
+          ]
+        },
+        {
+          "heading": "Umsatzsteuer",
+          "body": [
+            "Als Kleinunternehmer im Sinne von § 19 UStG wird keine Umsatzsteuer ausgewiesen. Gemäß § 19 UStG wird keine Umsatzsteuer berechnet."
+          ]
+        },
+        {
+          "heading": "Verantwortlich für den Inhalt",
+          "body": [
+            "Verantwortlich i.S.d. § 18 Abs. 2 MStV:",
+            "Cedric Conday\nc/o MDC#854, Welserstraße 3, 87463 Dietmannsried"
+          ]
+        },
+        {
+          "heading": "Haftung für Inhalte",
+          "body": [
+            "Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte in dieser App nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen."
+          ]
+        },
+        {
+          "heading": "Verweise auf fremde Dienste",
+          "body": [
+            "Die App ruft Wetter- und UV-Daten bei open-meteo.com ab, sofern die Wetterkarte aktiviert ist, und öffnet auf ausdrückliches Antippen WhatsApp oder Ihr E-Mail-Programm. Für die Inhalte und den Betrieb dieser fremden Dienste sind ausschließlich deren Anbieter verantwortlich."
+          ]
+        },
+        {
+          "heading": "Markenhinweis",
+          "body": [
+            "Das Sonnen-Symbol stammt aus microsoft/fluentui-emoji (MIT-Lizenz, Copyright (c) Microsoft Corporation). Genannte Produkt- und Markennamen sind Eigentum der jeweiligen Inhaber."
+          ]
+        }
+      ],
+      "updated": "Stand: September 2026"
+    },
+    "en": {
+      "title": "Legal notice",
+      "intro": "Provider information under § 5 DDG (German Digital Services Act). The German version is authoritative.",
+      "sections": [
+        {
+          "heading": "Provider",
+          "body": [
+            "Cedric Conday",
+            "CondayDigital (sole proprietorship / freelance)",
+            "c/o MDC#854\nWelserstraße 3\n87463 Dietmannsried\nGermany"
+          ]
+        },
+        {
+          "heading": "Contact",
+          "body": [
+            "Phone: +49 172 5327581",
+            "Email: cedric@condaydigital.com"
+          ]
+        },
+        {
+          "heading": "Professional status",
+          "body": [
+            "Freelance activity under § 18 EStG (self-employed professional, not a trade)."
+          ]
+        },
+        {
+          "heading": "VAT",
+          "body": [
+            "As a small business under § 19 UStG, no VAT is shown and none is charged."
+          ]
+        },
+        {
+          "heading": "Responsible for content",
+          "body": [
+            "Responsible under § 18 (2) MStV:",
+            "Cedric Conday\nc/o MDC#854, Welserstraße 3, 87463 Dietmannsried"
+          ]
+        },
+        {
+          "heading": "Liability for content",
+          "body": [
+            "As a service provider I am responsible for my own content in this app under § 7 (1) DDG and general law. Under §§ 8 to 10 DDG I am not obliged to monitor transmitted or stored third-party information, or to investigate circumstances indicating unlawful activity."
+          ]
+        },
+        {
+          "heading": "Third-party services",
+          "body": [
+            "The app fetches weather and UV data from open-meteo.com when the weather card is switched on, and opens WhatsApp or your mail app when you explicitly tap to do so. Those providers alone are responsible for their content and operation."
+          ]
+        },
+        {
+          "heading": "Trademarks",
+          "body": [
+            "The sun mark is from microsoft/fluentui-emoji (MIT licence, Copyright (c) Microsoft Corporation). Product and brand names mentioned belong to their respective owners."
+          ]
+        }
+      ],
+      "updated": "Last updated: September 2026"
+    }
+  },
+  "privacy": {
+    "de": {
+      "title": "Datenschutzerklärung",
+      "intro": "Protocol Tracker ist so gebaut, dass Ihre Gesundheitsdaten das Gerät nicht verlassen. Diese Erklärung beschreibt die App; für die Website gilt die Erklärung unter condaydigital.com.",
+      "sections": [
+        {
+          "heading": "1. Verantwortlicher",
+          "body": [
+            "Cedric Conday — CondayDigital\nc/o MDC#854, Welserstraße 3, 87463 Dietmannsried",
+            "E-Mail: cedric@condaydigital.com"
+          ]
+        },
+        {
+          "heading": "2. Ihre Daten bleiben auf dem Gerät",
+          "body": [
+            "Alles, was Sie eingeben — Einnahmen, Symptome, Journal, Schlaf, Laborwerte, Profilangaben — wird ausschließlich in einer lokalen SQLite-Datenbank im geschützten Speicherbereich der App abgelegt.",
+            "Es gibt kein Benutzerkonto, keine Registrierung und keinen Server des Anbieters. Ich habe zu keinem Zeitpunkt Zugriff auf Ihre Eingaben. Es findet insoweit keine Verarbeitung personenbezogener Daten durch mich statt."
+          ]
+        },
+        {
+          "heading": "3. Kein Tracking, keine Analyse, keine Werbung",
+          "body": [
+            "Die App enthält keine Analyse-Werkzeuge, kein Absturz-Reporting, keine Werbe-SDKs und keine Profilbildung. Es werden keine Nutzungsdaten erhoben und keine Kennungen an Dritte übermittelt."
+          ]
+        },
+        {
+          "heading": "4. Wetter und UV-Index (optional)",
+          "body": [
+            "Ist die Wetterkarte eingeschaltet, fragt die App Ihren ungefähren Standort über das Betriebssystem ab und sendet die Koordinaten an open-meteo.com (Open-Meteo, Bühlstraße 60, 9424 Rheineck, Schweiz), um Wetter, UV-Index und Luftqualität abzurufen.",
+            "Übermittelt werden ausschließlich die Koordinaten — keine Gesundheitsdaten, keine Kennung und nichts, was Sie identifiziert. Die Funktion ist abschaltbar; ist sie aus, wird weder die Standortberechtigung angefragt noch eine Verbindung aufgebaut. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die Sie jederzeit in den Einstellungen widerrufen können."
+          ]
+        },
+        {
+          "heading": "5. Kontaktaufnahme",
+          "body": [
+            "Tippen Sie im Feedback-Bereich auf E-Mail oder WhatsApp, verlassen Sie die App und die Kommunikation läuft über Ihr E-Mail-Programm bzw. über WhatsApp (WhatsApp Ireland Limited). Schreiben Sie mir, verarbeite ich Ihre Angaben ausschließlich zur Bearbeitung Ihres Anliegens (Art. 6 Abs. 1 lit. b und lit. f DSGVO) und lösche sie, sobald sie nicht mehr benötigt werden."
+          ]
+        },
+        {
+          "heading": "6. Benachrichtigungen",
+          "body": [
+            "Erinnerungen werden lokal auf dem Gerät geplant; kein Push-Dienst ist beteiligt. Der Text einer Erinnerung kann den Namen eines Präparats enthalten. Unter Android werden Benachrichtigungen auf einem Kanal mit der Sichtbarkeit PRIVATE ausgegeben, sodass der Inhalt bei gesperrtem Gerät verborgen bleibt."
+          ]
+        },
+        {
+          "heading": "7. Geräteschutz",
+          "body": [
+            "Optional lässt sich der Zugang zur App mit der Biometrie Ihres Geräts sichern. Die Prüfung erfolgt vollständig durch das Betriebssystem; biometrische Merkmale erreichen die App nicht."
+          ]
+        },
+        {
+          "heading": "8. Export und Teilen",
+          "body": [
+            "Berichte und Exporte entstehen auf dem Gerät und werden nur weitergegeben, wenn Sie das selbst auslösen. Wohin sie dann gelangen, bestimmen Sie mit der Auswahl der Ziel-App."
+          ]
+        },
+        {
+          "heading": "9. Speicherdauer",
+          "body": [
+            "Ihre Daten bleiben gespeichert, bis Sie sie in der App löschen oder die App deinstallieren. Eine Deinstallation entfernt die lokale Datenbank. Es existiert keine weitere Kopie beim Anbieter, die gelöscht werden könnte."
+          ]
+        },
+        {
+          "heading": "10. Ihre Rechte",
+          "body": [
+            "Ihnen stehen nach der DSGVO die Rechte auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21) zu, ebenso ein Beschwerderecht bei einer Aufsichtsbehörde (Art. 77 DSGVO).",
+            "Da ich keine Ihrer in der App erfassten Daten verarbeite, kann ich zu diesen weder Auskunft erteilen noch sie löschen — Sie haben sie unmittelbar selbst in der Hand. Für Korrespondenz per E-Mail gelten die Rechte uneingeschränkt; eine formlose Nachricht genügt."
+          ]
+        },
+        {
+          "heading": "11. Kein Medizinprodukt",
+          "body": [
+            "Protocol Tracker hat keine Zweckbestimmung im Sinne der Verordnung (EU) 2017/745 (MDR) und trägt keine CE-Kennzeichnung. Die App zeichnet auf, was Sie eintragen, und stellt es dar; sie stellt keine Diagnose, gibt keine Therapieempfehlung und trifft keine medizinische Bewertung.",
+            "Sie ist auch keine digitale Gesundheitsanwendung (DiGA): nicht im DiGA-Verzeichnis gelistet, nicht verordnungsfähig, nicht erstattungsfähig. Es liegt keine klinische Evidenz vor. Besprechen Sie jede Entscheidung zu Ihrem Protokoll mit Ihrer behandelnden Ärztin oder Ihrem behandelnden Arzt."
+          ]
+        }
+      ],
+      "updated": "Stand: September 2026"
+    },
+    "en": {
+      "title": "Privacy policy",
+      "intro": "Protocol Tracker is built so that your health data does not leave the device. This policy covers the app; the website has its own at condaydigital.com. The German version is authoritative.",
+      "sections": [
+        {
+          "heading": "1. Controller",
+          "body": [
+            "Cedric Conday — CondayDigital\nc/o MDC#854, Welserstraße 3, 87463 Dietmannsried, Germany",
+            "Email: cedric@condaydigital.com"
+          ]
+        },
+        {
+          "heading": "2. Your data stays on the device",
+          "body": [
+            "Everything you enter — doses, symptoms, journal, sleep, lab values, profile details — is stored only in a local SQLite database inside the app’s protected storage.",
+            "There is no user account, no registration and no server of mine. I have no access to your entries at any point, so no processing of that personal data takes place on my side."
+          ]
+        },
+        {
+          "heading": "3. No tracking, no analytics, no advertising",
+          "body": [
+            "The app contains no analytics tools, no crash reporting, no advertising SDKs and no profiling. No usage data is collected and no identifiers are sent to third parties."
+          ]
+        },
+        {
+          "heading": "4. Weather and UV index (optional)",
+          "body": [
+            "When the weather card is switched on, the app asks the operating system for your approximate location and sends those coordinates to open-meteo.com (Open-Meteo, Bühlstraße 60, 9424 Rheineck, Switzerland) to retrieve weather, UV index and air quality.",
+            "Only the coordinates are sent — no health data, no identifier and nothing that identifies you. The feature can be turned off; when it is off, no location permission is requested and no connection is made. The legal basis is your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time in Settings."
+          ]
+        },
+        {
+          "heading": "5. Contacting me",
+          "body": [
+            "Tapping email or WhatsApp on the feedback screen takes you out of the app, and the conversation runs through your mail app or through WhatsApp (WhatsApp Ireland Limited). If you write to me, I process what you send solely to deal with your request (Art. 6(1)(b) and (f) GDPR) and delete it once it is no longer needed."
+          ]
+        },
+        {
+          "heading": "6. Notifications",
+          "body": [
+            "Reminders are scheduled locally on the device; no push service is involved. A reminder’s text can name a supplement. On Android, notifications use a channel with PRIVATE visibility, so the content stays hidden while the device is locked."
+          ]
+        },
+        {
+          "heading": "7. Device protection",
+          "body": [
+            "You can optionally lock the app with your device’s biometrics. The check is performed entirely by the operating system; biometric data never reaches the app."
+          ]
+        },
+        {
+          "heading": "8. Export and sharing",
+          "body": [
+            "Reports and exports are produced on the device and are shared only when you start that yourself. Where they go from there is decided by the app you pick."
+          ]
+        },
+        {
+          "heading": "9. Retention",
+          "body": [
+            "Your data stays until you delete it in the app or uninstall the app. Uninstalling removes the local database. There is no further copy held by me that could be deleted."
+          ]
+        },
+        {
+          "heading": "10. Your rights",
+          "body": [
+            "Under the GDPR you have the rights of access (Art. 15), rectification (Art. 16), erasure (Art. 17), restriction (Art. 18), data portability (Art. 20) and objection (Art. 21), as well as the right to lodge a complaint with a supervisory authority (Art. 77).",
+            "Because I process none of the data you record in the app, I can neither disclose nor delete it — it is directly in your hands. For email correspondence the rights apply in full; an informal message is enough."
+          ]
+        },
+        {
+          "heading": "11. Not a medical device",
+          "body": [
+            "Protocol Tracker has no intended purpose within the meaning of Regulation (EU) 2017/745 (MDR) and carries no CE marking. The app records what you enter and displays it; it does not diagnose, does not recommend treatment and makes no medical assessment.",
+            "Nor is it a digital health application (DiGA): it is not listed in the DiGA directory, cannot be prescribed and is not reimbursable. No clinical evidence exists. Discuss every decision about your protocol with your prescribing practitioner."
+          ]
+        }
+      ],
+      "updated": "Last updated: September 2026"
+    }
+  }
+}
