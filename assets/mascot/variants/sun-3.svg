@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <rect width="100%" height="100%" fill="#F7F7F2"/>
-  <g transform="translate(512.0,512.0)" fill="#E9A23C">
-    <circle cx="0" cy="0" r="150"/>
-    
-<path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(-90.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(-54.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(-18.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(18.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(54.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(90.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(126.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(162.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(198.00)"/>    <path d="M 114.8 -35.1 Q 290.5 0.0 430.0 42.0 Q 290.5 140.0 114.8 35.1 Z" transform="rotate(234.00)"/>
-  </g>
-</svg>
