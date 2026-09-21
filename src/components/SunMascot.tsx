@@ -35,16 +35,34 @@ interface Props {
   size?: number;
   /** Turn the rays, in degrees. The face stays upright. */
   rayRotation?: number;
+  /**
+   * Which layers to draw. `all` is the mascot.
+   *
+   * The split exists for a continuous rotation the native driver can run:
+   * `rayRotation` is a prop, so animating it re-renders the SVG on the JS
+   * thread every frame — unusable during boot, which is exactly when the
+   * startup screen turns them. Drawing `rays` and `bodyFace` as two stacked
+   * copies lets an Animated.View rotate the lower one on the UI thread while
+   * the face stays still. Both copies are the same size with the same
+   * viewBox, so they register exactly.
+   */
+  layers?: 'all' | 'rays' | 'bodyFace';
 }
 
-export default function SunMascot({ size = 66, rayRotation = 0 }: Props) {
+export default function SunMascot({ size = 66, rayRotation = 0, layers = 'all' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 32 32" accessibilityRole="image">
-      <G transform={`rotate(${rayRotation}, 16, 16)`}>
-        <Path d={RAYS} fill={RAYS_FILL} />
-      </G>
-      <Path d={BODY} fill={BODY_FILL} />
-      <Path d={FACE} fill={FACE_FILL} fillRule="evenodd" />
+      {layers !== 'bodyFace' && (
+        <G transform={`rotate(${rayRotation}, 16, 16)`}>
+          <Path d={RAYS} fill={RAYS_FILL} />
+        </G>
+      )}
+      {layers !== 'rays' && (
+        <>
+          <Path d={BODY} fill={BODY_FILL} />
+          <Path d={FACE} fill={FACE_FILL} fillRule="evenodd" />
+        </>
+      )}
     </Svg>
   );
 }

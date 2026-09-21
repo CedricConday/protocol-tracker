@@ -48,11 +48,27 @@ async function readPrimingFlag(): Promise<string | null> {
 }
 
 /**
- * How long a boot may stay on the bare native splash before we put our own
- * screen up. The fast path never reaches this — it exists so a cold, slow or
- * migrating device shows the mark instead of an apparently frozen OS splash.
+ * Launch, as close as this module can get to it. Used to measure the startup
+ * screen's minimum against the app opening rather than against the moment the
+ * screen happens to mount, which on a warm boot is much later.
  */
-const SLOW_BOOT_MS = 2500;
+const APP_START = Date.now();
+
+/**
+ * How long the startup screen stays up, at minimum — 2026-09-21, Cedric's
+ * number, chosen against the frame-by-frame preview.
+ *
+ * Until then this was zero in effect, and worse than zero: a warm boot took the
+ * `return null` path below and the startup screen never rendered at all, so the
+ * name and the tagline were unreachable on the one launch that happens every
+ * day. The OS splash alone was the whole opening.
+ *
+ * It is a real cost and it is worth stating plainly: every launch now takes at
+ * least this long before Home. **Set it to 0 to go back to showing Home the
+ * instant boot finishes** — nothing else has to change, the screen simply
+ * fades out immediately and the wordmark goes unread on fast devices.
+ */
+const MIN_SPLASH_MS = 2700;
 
 export default function App() {
   // The tier decides the status bar's own contents: dark glyphs on the light
@@ -62,7 +78,11 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPriming, setShowPriming] = useState(false);
-  const [slowBoot, setSlowBoot] = useState(false);
+  // The startup screen outlives `ready`: it stays mounted over Home until its
+  // minimum has elapsed, then fades off it. `exiting` starts that fade,
+  // `splashGone` unmounts it once the fade has finished.
+  const [exiting, setExiting] = useState(false);
+  const [splashGone, setSplashGone] = useState(false);
   const { locked, authenticate } = useBiometricGate();
 
   // The native splash is only dropped once there is real content underneath —
@@ -129,11 +149,16 @@ export default function App() {
     boot();
   }, []);
 
+  // Start the fade once the app is usable AND the screen has had its minimum.
+  // Measured from launch, not from here, so a slow boot spends the minimum
+  // booting rather than adding to it: a 3 s boot hands off immediately, a 200 ms
+  // one waits out the remainder.
   useEffect(() => {
-    if (ready || showPriming) return;
-    const t = setTimeout(() => setSlowBoot(true), SLOW_BOOT_MS);
+    if (!ready || locked || showPriming || exiting) return;
+    const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - APP_START));
+    const t = setTimeout(() => setExiting(true), remaining);
     return () => clearTimeout(t);
-  }, [ready, showPriming]);
+  }, [ready, locked, showPriming, exiting]);
 
   // Clear badge + sync when the app comes back to the foreground. The first
   // sync of the session is part of the deferred work above, not of boot.
@@ -154,46 +179,45 @@ export default function App() {
     setReady(true);
   };
 
-  if (error) {
-    return (
-      <SplashAnimation onLayout={hideNativeSplash}>
-        <Text style={styles.errorText}>DB Error: {error}</Text>
-      </SplashAnimation>
-    );
-  }
-
-  if (!ready) {
-    // First run needs a host for the priming modal, and a slow boot deserves
-    // something to look at. A normal warm boot gets neither: it stays on the
-    // native splash and goes straight to Home.
-    if (!showPriming && !slowBoot) return null;
-    return (
-      <SplashAnimation onLayout={hideNativeSplash}>
+  // One SplashAnimation instance for every pre-Home state — boot, first-run
+  // priming, biometric lock, DB error — and it stays mounted over Home for the
+  // handoff. Mounting a second one per state would restart the rise and jump
+  // the mark, which is the thing this screen exists not to do.
+  const splash = splashGone ? null : (
+    <SplashAnimation
+      onLayout={hideNativeSplash}
+      exiting={exiting}
+      onExited={() => setSplashGone(true)}
+    >
+      {error ? <Text style={styles.errorText}>DB Error: {error}</Text> : null}
+      {!error && locked ? (
+        <>
+          <Text style={styles.errorText}>Authenticate to continue</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={authenticate} activeOpacity={0.8}>
+            <Text style={styles.retryBtnText}>Try Again</Text>
+          </TouchableOpacity>
+        </>
+      ) : null}
+      {!error && !locked && !ready ? (
         <PermissionPrimingModal
           visible={showPriming}
           onComplete={dismissPriming}
           onSkip={dismissPriming}
         />
-      </SplashAnimation>
-    );
-  }
+      ) : null}
+    </SplashAnimation>
+  );
 
-  if (locked) {
-    return (
-      <SplashAnimation onLayout={hideNativeSplash}>
-        <Text style={styles.errorText}>Authenticate to continue</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={authenticate} activeOpacity={0.8}>
-          <Text style={styles.retryBtnText}>Try Again</Text>
-        </TouchableOpacity>
-      </SplashAnimation>
-    );
-  }
+  // Home is mounted under the splash as soon as the app is usable, so it has
+  // painted by the time the fade starts.
+  const showHome = ready && !error && !locked;
 
   return (
     <ErrorBoundary>
       <FontScaleProvider>
         <StatusBar style={themeMode === 'light' ? 'dark' : 'light'} />
-        <Navigation onReady={onNavigationReady} />
+        {showHome ? <Navigation onReady={onNavigationReady} /> : null}
+        {splash}
       </FontScaleProvider>
     </ErrorBoundary>
   );
