@@ -16,9 +16,9 @@ Protocol Tracker is a React Native / Expo app that records supplement schedules,
 
 | | |
 |---|---|
-| Version | 1.0.0 (`versionCode` 4) |
-| File | `protocol-tracker-1.0.0.apk` (99 MB) |
-| SHA-256 | `bdf843cadc708a40c2e5732e0cfa260efea069a69516249b22907cab82522813` |
+| Version | 1.0.0 (`versionCode` 8) |
+| File | `protocol-tracker-1.0.0.apk` (103.6 MB) |
+| SHA-256 | `ad1584f46b3cbd94444fb9134fe40b2e7265d300f07a86d03fdc87a1ab0706c8` |
 | Minimum Android | 7.0 (API 24) |
 
 Verify before installing:
