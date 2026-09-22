@@ -32,10 +32,12 @@ person, with no account and no server of ours.
   `PRIVATE` lock-screen visibility, so the detail appears only after unlock. Independently,
   `hideNotificationDetails` defaults to **on** and strips the patient name and supplement from
   the notification text itself, because the safe side is the right default for medical content.
-- **Weather and UV (opt-in)** — when the weather card is enabled, coordinates go to
-  `api.open-meteo.com` and `air-quality-api.open-meteo.com`. Coordinates only: no health data,
-  no identifier. Off by default in the sense that it takes a permission grant; turning the card
-  off means no permission prompt and no request.
+- **Weather and UV** — the card is **on by default** (`getWeatherEnabled` in
+  `src/db/queries.ts` returns true when the flag is unset) and switches off in Settings. It
+  sends nothing until the OS grants location permission: `useWeather` bails before any request
+  if `requestForegroundPermissionsAsync` does not return `granted`. Once granted, coordinates
+  go to `api.open-meteo.com` and `air-quality-api.open-meteo.com` — coordinates only, no health
+  data, no identifier. Declining the prompt, or switching the card off, means no request at all.
 - **Export and sharing** — reports are produced on device and leave it only when the user
   starts a share.
 
