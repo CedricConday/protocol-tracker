@@ -28,8 +28,7 @@ import { C, space, radius, shadow, text as T, themed, useTheme, setThemeMode, TH
 import { tap as hTap, press as hPress, select as hSelect, success as hSuccess } from '../utils/haptics';
 import { seedSimulatedHistory, clearSeededHistory } from '../db/devSeed';
 import { QUIET_ENABLED_FLAG, DEFAULT_QUIET_START, DEFAULT_QUIET_END, parseHhMm } from '../notifications/quietHours';
-import { fireTestReminder, describeReminderChannel, hideNotificationDetails, setHideNotificationDetails } from '../notifications';
-import { reminderToneStatus } from '../sound/reminderTone';
+import { hideNotificationDetails, setHideNotificationDetails } from '../notifications';
 import { useAppUpdate, type UpdateState } from '../hooks/useAppUpdate';
 
 
@@ -404,49 +403,6 @@ export default function SettingsScreen() {
               <Text style={styles.notifHint}>
                 {Platform.OS === 'ios' ? t('setHideDetailsHintIos') : t('setHideDetailsHintAndroid')}
               </Text>
-
-              {/* Hear one before it matters.
-                  Reminders were firing silently on Android because the channels
-                  carried no sound; this fires a real one through the real
-                  channel so the fix can be checked in five seconds instead of at
-                  the next scheduled dose. */}
-              <Pressable
-                style={[styles.notifRow, { marginTop: space.md }]}
-                onPress={async () => {
-                  hPress();
-                  try {
-                    await fireTestReminder(10);
-                    // The channel's own settings go in the dialog: if the
-                    // reminder lands silently, this says whether the phone was
-                    // ever told to make a sound, which is the difference
-                    // between an app bug and a device setting.
-                    const diag = await describeReminderChannel();
-                    // The tone is no longer played from here (2026-09-20).
-                    // Playing it up front made this row sound two ways a real
-                    // reminder never did — and it was the only path that ever
-                    // played it, so a passing test said nothing about a dose
-                    // reminder. The arriving test notification now plays it
-                    // through the same listener a dose goes through, which is
-                    // the thing worth checking. What is left to report here is
-                    // whether this build could play it at all: that is the one
-                    // fact the sound itself used to carry, and it is the part
-                    // that differs between the old APK and the new one.
-                    const tone = await reminderToneStatus().catch(() => 'could not be checked');
-                    Alert.alert(
-                      t('setTestSoundTitle'),
-                      `${t('setTestSoundSent')}\n\n${diag}\n\napp tone: ${tone}`,
-                    );
-                  } catch {
-                    Alert.alert(t('setTestSoundTitle'), t('setTestSoundFailed'));
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t('setTestSound')}
-              >
-                <Text style={styles.notifLabel}>{t('setTestSound')}</Text>
-                <Ionicons name="volume-high-outline" size={20} color={C.primary} />
-              </Pressable>
-              <Text style={styles.notifHint}>{t('setTestSoundHint')}</Text>
 
               <View style={[styles.notifRow, { marginTop: space.md }]}>
                 <Text style={styles.notifLabel}>{t('quietHours')}</Text>
