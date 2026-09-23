@@ -8,7 +8,7 @@
 # The app itself is Expo-Go-safe (see BUILD_NOTES_2026-07-07.md) — no native
 # build is needed to run it on a phone.
 #
-# On the phone: install ~/offload/expo-go/Expo-Go-57.0.9.apk, open Expo Go,
+# On the phone: install ~/SCA Holdings/gimel/offload/expo-go/Expo-Go-57.0.9.apk, open Expo Go,
 # scan the QR this prints. Keep this running; Ctrl-C stops it.
 set -euo pipefail
 
