@@ -19,7 +19,7 @@ Playwright is not a dependency of this app — it is several hundred megabytes o
 browsers that the shipped bundle never touches, so the harness borrows whatever
 copy the machine already has. `e2e/lib/playwright.mjs` looks in three places, in
 order: `$PT_PLAYWRIGHT` (an absolute path to `index.mjs`), a normal resolution
-from `node_modules`, then an npx-cached copy under `~/.npm/_npx/`. If you have
+from `node_modules`, then a shared install under `~/.local/share/playwright/`. If you have
 none of those:
 
 ```sh

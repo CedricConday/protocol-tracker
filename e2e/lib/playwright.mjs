@@ -8,31 +8,23 @@
 //   1. $PT_PLAYWRIGHT — an absolute path to playwright's index.mjs. Set this if
 //      the harness cannot find your copy.
 //   2. a normal resolution, i.e. `npm i -D playwright` in this repo.
-//   3. an npx-cached copy under ~/.npm/_npx/*/node_modules/playwright.
+//   3. a shared per-user install at ~/.local/share/playwright/node_modules/playwright
+//      (`npm i --prefix ~/.local/share/playwright playwright`).
 //
 // See e2e/README.md.
 import { homedir } from 'node:os';
-import { readdir } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-async function npxCached() {
-  const root = join(homedir(), '.npm', '_npx');
-  let entries;
+async function sharedInstall() {
+  const candidate = join(homedir(), '.local', 'share', 'playwright', 'node_modules', 'playwright', 'index.mjs');
   try {
-    entries = await readdir(root);
+    await access(candidate);
+    return candidate;
   } catch {
     return null;
   }
-  for (const entry of entries) {
-    const candidate = join(root, entry, 'node_modules', 'playwright', 'index.mjs');
-    try {
-      return (await import(pathToFileURL(candidate).href)).chromium ? candidate : null;
-    } catch {
-      // not this one
-    }
-  }
-  return null;
 }
 
 async function resolve() {
@@ -43,8 +35,8 @@ async function resolve() {
   } catch {
     // fall through
   }
-  const cached = await npxCached();
-  if (cached) return import(pathToFileURL(cached).href);
+  const shared = await sharedInstall();
+  if (shared) return import(pathToFileURL(shared).href);
   throw new Error(
     'Playwright not found. Install it (`npm i -D playwright && npx playwright install chromium`) ' +
       'or point $PT_PLAYWRIGHT at an existing index.mjs.',
